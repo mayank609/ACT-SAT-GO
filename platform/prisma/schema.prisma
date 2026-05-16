@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TUTOR
+  STUDENT
+}
+
+enum QuestionType {
+  MCQ
+  MSQ
+  NUMERIC
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum TestStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EVALUATED
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  role        Role     @default(STUDENT)
+  permissions Json?    // To handle dynamic RBAC like specific permissions
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  testsCreated Test[]
+  attempts     TestAttempt[]
+
+  // Tutor assignments: a user can be a tutor for many, or a student under many tutors
+  students TutorAssignment[] @relation("TutorToStudent")
+  tutors   TutorAssignment[] @relation("StudentToTutor")
+}
+
+model TutorAssignment {
+  id        String   @id @default(uuid())
+  tutorId   String
+  studentId String
+  createdAt DateTime @default(now())
+
+  tutor   User @relation("TutorToStudent", fields: [tutorId], references: [id], onDelete: Cascade)
+  student User @relation("StudentToTutor", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tutorId, studentId])
+}
+
+model Topic {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?
+  createdAt DateTime @default(now())
+
+  parent    Topic?  @relation("SubTopics", fields: [parentId], references: [id])
+  subTopics Topic[] @relation("SubTopics")
+  questions Question[]
+}
+
+model Question {
+  id               String       @id @default(uuid())
+  type             QuestionType
+  content          Json         // Rich text or math
+  options          Json?        // For MCQ/MSQ
+  correctAnswer    Json         // The correct answer(s)
+  difficultyLevel  Difficulty
+  topicId          String?
+  createdAt        DateTime     @default(now())
+
+  topic            Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  testQuestions    TestQuestion[]
+  attemptAnswers   AttemptAnswer[]
+}
+
+model Test {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  createdById String
+  status      TestStatus @default(DRAFT)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  sections    TestSection[]
+  questions   TestQuestion[]
+  attempts    TestAttempt[]
+}
+
+model TestSection {
+  id              String   @id @default(uuid())
+  testId          String
+  name            String
+  durationMinutes Int
+  orderIndex      Int
+
+  test            Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  questions       TestQuestion[]
+  sectionAttempts SectionAttempt[]
+}
+
+model TestQuestion {
+  id            String @id @default(uuid())
+  testId        String
+  sectionId     String
+  questionId    String
+  marksPositive Float  @default(1.0)
+  marksNegative Float  @default(0.0)
+  orderIndex    Int
+
+  test          Test        @relation(fields: [testId], references: [id], onDelete: Cascade)
+  section       TestSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  question      Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, questionId])
+}
+
+model TestAttempt {
+  id          String        @id @default(uuid())
+  testId      String
+  studentId   String
+  status      AttemptStatus @default(IN_PROGRESS)
+  totalScore  Float?
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+
+  test            Test             @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student         User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sectionAttempts SectionAttempt[]
+  answers         AttemptAnswer[]
+}
+
+model SectionAttempt {
+  id          String    @id @default(uuid())
+  attemptId   String
+  sectionId   String
+  startedAt   DateTime  @default(now())
+  completedAt DateTime? // Server-authoritative end time
+
+  attempt TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  section TestSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, sectionId])
+}
+
+model AttemptAnswer {
+  id                 String   @id @default(uuid())
+  attemptId          String
+  questionId         String
+  answerGiven        Json?
+  timeSpentSeconds   Int      @default(0)
+  isFlagged          Boolean  @default(false)
+  updatedAt          DateTime @updatedAt
+
+  attempt  TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+}

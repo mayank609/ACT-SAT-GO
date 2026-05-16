@@ -1,0 +1,14 @@
+ui interface allen 
+front end 
+backend using supabase database postgresql 
+backend node js using supabase for aut and database
+paste req multiple times
+
+backend decision notes:
+- Use Supabase for fast backend setup with auth + Postgres + realtime
+- Firebase if preferring NoSQL / mobile-first ecosystem
+- Appwrite if self-hosted open-source backend is needed
+- AWS Amplify if deep AWS integration or enterprise scale is required
+- Hasura for instant GraphQL on Postgres
+- Prisma + Postgres for custom API / full backend control
+- Recommended: start with Supabase for EduPulse AI MVP, migrate later if needed
