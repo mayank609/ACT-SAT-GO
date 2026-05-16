@@ -1,7 +1,7 @@
 import { Bell, Search, ChevronDown, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 const roleLabels: Record<Role, string> = {
   super_admin: 'Super Admin',
@@ -26,6 +26,18 @@ interface HeaderProps {
 export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
   const { user } = useAuthStore();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(2);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between sticky top-0 z-30 gap-3">
@@ -55,29 +67,34 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
         </div>
 
         {/* Notifications */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
-            onClick={() => setNotifOpen(!notifOpen)}
+            onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) setUnreadCount(0); }}
             className="relative p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                {unreadCount}
+              </span>
+            )}
           </button>
           {notifOpen && (
             <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-50">
-              <div className="px-4 py-3 border-b border-slate-100">
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="font-semibold text-slate-900 text-sm">Notifications</h3>
+                <button onClick={() => setUnreadCount(0)} className="text-xs text-blue-600 hover:text-blue-700">Mark all read</button>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
                 {[
-                  { title: 'New test assigned', body: 'ACT Full Practice Test #2 has been assigned', time: '5m ago', unread: true },
-                  { title: 'Score updated', body: 'Your SAT Practice Test #1 results are ready', time: '1h ago', unread: true },
-                  { title: 'Tutor feedback', body: 'Dr. Rodriguez left feedback on your math section', time: '2h ago', unread: false },
+                  { title: 'New test assigned', body: 'ACT Full Practice Test #2 has been assigned to you', time: '5m ago', unread: true },
+                  { title: 'Score updated', body: 'SAT Practice Test #1 results are ready to review', time: '1h ago', unread: true },
+                  { title: 'Tutor feedback', body: 'Dr. Rodriguez left a note on your math section', time: '2h ago', unread: false },
+                  { title: 'Student alert', body: 'Alex Thompson completed ACT Full Practice Test #1 with score 28', time: '3h ago', unread: false },
                 ].map((n, i) => (
-                  <div key={i} className={`px-4 py-3 hover:bg-slate-50 cursor-pointer ${n.unread ? 'bg-blue-50/30' : ''}`}>
+                  <div key={i} className={`px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors ${n.unread ? 'bg-blue-50/40' : ''}`}>
                     <div className="flex items-start gap-3">
-                      {n.unread && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />}
-                      {!n.unread && <div className="w-2 h-2 mt-1.5 flex-shrink-0" />}
+                      <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.unread ? 'bg-blue-500' : 'bg-transparent'}`} />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-slate-900">{n.title}</p>
                         <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.body}</p>
@@ -87,8 +104,8 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
                   </div>
                 ))}
               </div>
-              <div className="px-4 py-2 border-t border-slate-100 text-center">
-                <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">View all</button>
+              <div className="px-4 py-2.5 border-t border-slate-100 text-center">
+                <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">View all notifications</button>
               </div>
             </div>
           )}

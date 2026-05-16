@@ -90,6 +90,22 @@ export function TestInterfacePage() {
   );
 
   useEffect(() => {
+    // Request fullscreen on mount
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        // Exited fullscreen — re-request after a brief delay
+        setTimeout(() => document.documentElement.requestFullscreen?.().catch(() => {}), 500);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    };
+  }, []);
+
+  useEffect(() => {
     const handleVisibility = () => {
       if (document.hidden) {
         recordTabSwitch();

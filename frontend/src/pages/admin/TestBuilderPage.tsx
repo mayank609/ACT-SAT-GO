@@ -7,6 +7,17 @@ import { Modal } from '../../components/common/Modal';
 import type { Section, Question, QuestionType, Difficulty } from '../../types';
 
 const TOPICS = ['Algebra', 'Geometry', 'Trigonometry', 'Statistics', 'Grammar', 'Punctuation', 'Rhetorical Skills', 'Main Idea', 'Inference', 'Vocabulary', 'Data Analysis', 'Scientific Method'];
+const SUB_TOPICS: Record<string, string[]> = {
+  'Algebra': ['Linear Equations', 'Quadratic Equations', 'Functions', 'Inequalities'],
+  'Geometry': ['Triangles', 'Circles', 'Coordinate Geometry', 'Area & Volume'],
+  'Trigonometry': ['Sin/Cos/Tan', 'Unit Circle', 'Identities'],
+  'Statistics': ['Mean/Median/Mode', 'Probability', 'Distributions'],
+  'Grammar': ['Subject-Verb Agreement', 'Pronoun Agreement', 'Modifiers'],
+  'Punctuation': ['Commas', 'Semicolons', 'Apostrophes'],
+  'Rhetorical Skills': ['Organization', 'Style', 'Strategy'],
+  'Data Analysis': ['Charts', 'Tables', 'Graphs'],
+  'Scientific Method': ['Hypothesis', 'Variables', 'Conclusions'],
+};
 
 function generateId() { return Math.random().toString(36).substr(2, 9); }
 
@@ -50,22 +61,14 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Enter question text..." />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Type</label>
               <select value={question.type} onChange={(e) => onUpdate({ ...question, type: e.target.value as QuestionType })}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="mcq_single">MCQ Single</option>
-                <option value="mcq_multi">MCQ Multi</option>
-                <option value="numeric">Numeric</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Topic</label>
-              <select value={question.topic} onChange={(e) => onUpdate({ ...question, topic: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select topic</option>
-                {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
+                <option value="mcq_single">MCQ — Single Correct</option>
+                <option value="mcq_multi">MCQ — Multiple Correct</option>
+                <option value="numeric">Numeric Response</option>
               </select>
             </div>
             <div>
@@ -75,6 +78,23 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Topic</label>
+              <select value={question.topic} onChange={(e) => onUpdate({ ...question, topic: e.target.value, subTopic: '' })}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Select topic</option>
+                {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Sub-Topic</label>
+              <select value={question.subTopic ?? ''} onChange={(e) => onUpdate({ ...question, subTopic: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!question.topic || !SUB_TOPICS[question.topic]}>
+                <option value="">Select sub-topic</option>
+                {(SUB_TOPICS[question.topic] ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>

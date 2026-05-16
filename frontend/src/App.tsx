@@ -7,14 +7,19 @@ import { LoginPage } from './pages/auth/LoginPage';
 
 // Admin pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { SuperAdminDashboard } from './pages/admin/SuperAdminDashboard';
 import { TestBuilderPage } from './pages/admin/TestBuilderPage';
 import { StudentManagementPage } from './pages/admin/StudentManagementPage';
+import { TutorManagementPage } from './pages/admin/TutorManagementPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
 import { TestsPage } from './pages/admin/TestsPage';
+import { MonitoringPage } from './pages/admin/MonitoringPage';
+import { SettingsPage } from './pages/admin/SettingsPage';
 
 // Tutor pages
 import { TutorDashboard } from './pages/tutor/TutorDashboard';
 import { StudentDetailPage } from './pages/tutor/StudentDetailPage';
+import { TutorAnalyticsPage } from './pages/tutor/TutorAnalyticsPage';
 
 // Student pages
 import { StudentDashboard } from './pages/student/StudentDashboard';
@@ -35,12 +40,15 @@ function DashboardRouter() {
   if (!user) return null;
   if (user.role === 'student') return <StudentDashboard />;
   if (user.role === 'tutor') return <TutorDashboard />;
+  if (user.role === 'super_admin') return <SuperAdminDashboard />;
   return <AdminDashboard />;
 }
 
-function MyStudentsPage() {
-  // Alias to StudentManagement for tutors filtered view
-  return <StudentManagementPage />;
+function AnalyticsRouter() {
+  const { user } = useAuthStore();
+  if (!user) return null;
+  if (user.role === 'tutor') return <TutorAnalyticsPage />;
+  return <ReportsPage />;
 }
 
 export default function App() {
@@ -66,28 +74,29 @@ export default function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardRouter />} />
 
-          {/* Admin */}
+          {/* Admin + Super Admin */}
           <Route path="tests" element={<TestsPage />} />
           <Route path="test-builder" element={<TestBuilderPage />} />
           <Route path="students" element={<StudentManagementPage />} />
+          <Route path="tutors" element={<TutorManagementPage />} />
           <Route path="reports" element={<ReportsPage />} />
-          <Route path="analytics" element={<ReportsPage />} />
+          <Route path="monitoring" element={<MonitoringPage />} />
+
+          {/* Super Admin only */}
+          <Route path="user-management" element={<SuperAdminDashboard />} />
 
           {/* Tutor */}
-          <Route path="my-students" element={<MyStudentsPage />} />
+          <Route path="my-students" element={<StudentManagementPage />} />
           <Route path="student/:id" element={<StudentDetailPage />} />
+          <Route path="analytics" element={<AnalyticsRouter />} />
 
           {/* Student */}
           <Route path="my-tests" element={<MyTestsPage />} />
           <Route path="my-progress" element={<MyProgressPage />} />
           <Route path="test-review/:attemptId" element={<TestReviewPage />} />
 
-          {/* Settings placeholder */}
-          <Route path="settings" element={
-            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-              <p className="text-slate-400 text-lg">Settings coming soon</p>
-            </div>
-          } />
+          {/* Shared */}
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

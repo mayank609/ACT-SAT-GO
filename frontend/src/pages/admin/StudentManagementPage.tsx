@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Plus, Upload, UserPlus, MoreVertical, Mail, BookOpen, TrendingUp } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Upload, UserPlus, MoreVertical, Mail, BookOpen, TrendingUp, CheckCircle, AlertCircle, FileText, Download } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { DataTable } from '../../components/common/DataTable';
 import { MOCK_STUDENTS, MOCK_TUTORS } from '../../data/mockData';
+import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import type { Student } from '../../types';
 
 type TabKey = 'all' | 'active' | 'inactive';
@@ -15,6 +16,40 @@ export function StudentManagementPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
+  const [csvError, setCsvError] = useState('');
+  const [csvSuccess, setCsvSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileDrop = (file: File) => {
+    setCsvError('');
+    setCsvSuccess(false);
+    if (!file.name.match(/\.(csv|txt)$/i)) {
+      setCsvError('Please upload a .csv file');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = parseCSV(text);
+      if (!rows.length) { setCsvError('File is empty or invalid'); return; }
+      const requiredCols = ['name', 'email'];
+      const headers = Object.keys(rows[0]).map((h) => h.toLowerCase());
+      const missing = requiredCols.filter((c) => !headers.includes(c));
+      if (missing.length) { setCsvError(`Missing columns: ${missing.join(', ')}`); return; }
+      setCsvPreview(rows.slice(0, 5));
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCsvUpload = () => {
+    setCsvSuccess(true);
+    setTimeout(() => { setCsvSuccess(false); setShowBulkModal(false); setCsvPreview([]); }, 1500);
+  };
+
+  const downloadTemplate = () => {
+    exportToCsv([{ name: 'John Doe', email: 'john@school.edu', grade: '11', targetScore: '32', tutorId: '' }], 'student_upload_template.csv');
+  };
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: MOCK_STUDENTS.length },
@@ -208,17 +243,73 @@ export function StudentManagementPage() {
       </Modal>
 
       {/* Bulk Upload Modal */}
-      <Modal isOpen={showBulkModal} onClose={() => setShowBulkModal(false)} title="Bulk Upload Students" size="sm">
+      <Modal isOpen={showBulkModal} onClose={() => { setShowBulkModal(false); setCsvPreview([]); setCsvError(''); }} title="Bulk Upload Students" size="md">
         <div className="space-y-4">
-          <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-blue-400 transition-colors cursor-pointer">
-            <Upload size={28} className="text-slate-400 mx-auto mb-2" />
-            <p className="text-sm font-medium text-slate-700">Drop CSV/Excel file here</p>
-            <p className="text-xs text-slate-500 mt-1">or <span className="text-blue-600">browse files</span></p>
+          <div
+            className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${csvError ? 'border-red-300 bg-red-50' : csvPreview.length ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 hover:border-blue-400'}`}
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFileDrop(f); }}>
+            <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileDrop(f); }} />
+            {csvError ? (
+              <>
+                <AlertCircle size={28} className="text-red-400 mx-auto mb-2" />
+                <p className="text-sm font-medium text-red-700">{csvError}</p>
+                <p className="text-xs text-red-500 mt-1">Click to try again</p>
+              </>
+            ) : csvPreview.length ? (
+              <>
+                <CheckCircle size={28} className="text-emerald-500 mx-auto mb-2" />
+                <p className="text-sm font-medium text-emerald-700">{csvPreview.length}+ rows detected</p>
+                <p className="text-xs text-emerald-600 mt-1">Click to replace file</p>
+              </>
+            ) : (
+              <>
+                <Upload size={28} className="text-slate-400 mx-auto mb-2" />
+                <p className="text-sm font-medium text-slate-700">Drop CSV file here</p>
+                <p className="text-xs text-slate-500 mt-1">or <span className="text-blue-600">browse files</span></p>
+              </>
+            )}
           </div>
-          <a href="#" className="block text-xs text-blue-600 text-center">Download template CSV</a>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowBulkModal(false)}>Cancel</Button>
-            <Button size="sm" icon={<Upload size={13} />}>Upload</Button>
+
+          {csvPreview.length > 0 && !csvError && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Preview (first {csvPreview.length} rows)</p>
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50">
+                    <tr>{Object.keys(csvPreview[0]).map((h) => <th key={h} className="px-3 py-2 text-left font-medium text-slate-600 whitespace-nowrap">{h}</th>)}</tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {csvPreview.map((row, i) => (
+                      <tr key={i}>
+                        {Object.values(row).map((v, j) => <td key={j} className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-28 truncate">{v}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <FileText size={12} />
+            <span>Required columns: <code className="bg-slate-100 px-1 rounded">name</code>, <code className="bg-slate-100 px-1 rounded">email</code>. Optional: grade, targetScore, tutorId</span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button onClick={downloadTemplate} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+              <Download size={12} /> Download template CSV
+            </button>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => { setShowBulkModal(false); setCsvPreview([]); setCsvError(''); }}>Cancel</Button>
+              <Button size="sm" icon={csvSuccess ? <CheckCircle size={13} /> : <Upload size={13} />}
+                disabled={!csvPreview.length || !!csvError} onClick={handleCsvUpload}
+                variant={csvSuccess ? 'success' : 'primary'}>
+                {csvSuccess ? 'Uploaded!' : `Upload ${csvPreview.length ? `(${csvPreview.length}+ rows)` : ''}`}
+              </Button>
+            </div>
           </div>
         </div>
       </Modal>

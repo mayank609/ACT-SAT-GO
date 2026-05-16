@@ -1,7 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, BarChart3, Settings,
-  LogOut, GraduationCap, BookOpen, ClipboardList, ChevronLeft, ChevronRight, Bell, X
+  LogOut, GraduationCap, BookOpen, ClipboardList, ChevronLeft, ChevronRight, X,
+  Activity, UserCheck, Shield,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';
@@ -15,15 +16,23 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['super_admin', 'admin', 'tutor', 'student'] },
+  // Admin / Super Admin
   { label: 'Tests', path: '/tests', icon: <FileText size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Test Builder', path: '/test-builder', icon: <ClipboardList size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Students', path: '/students', icon: <GraduationCap size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
+  { label: 'Students', path: '/students', icon: <GraduationCap size={18} />, roles: ['super_admin', 'admin'] },
+  { label: 'Tutors', path: '/tutors', icon: <UserCheck size={18} />, roles: ['super_admin', 'admin'] },
+  { label: 'Reports', path: '/reports', icon: <BarChart3 size={18} />, roles: ['super_admin', 'admin'] },
+  { label: 'Monitoring', path: '/monitoring', icon: <Activity size={18} />, roles: ['super_admin', 'admin'] },
+  // Super Admin only
+  { label: 'User Management', path: '/user-management', icon: <Shield size={18} />, roles: ['super_admin'] },
+  // Tutor
   { label: 'My Students', path: '/my-students', icon: <Users size={18} />, roles: ['tutor'] },
+  { label: 'Analytics', path: '/analytics', icon: <BarChart3 size={18} />, roles: ['tutor'] },
+  // Student
   { label: 'My Tests', path: '/my-tests', icon: <BookOpen size={18} />, roles: ['student'] },
-  { label: 'Analytics', path: '/analytics', icon: <BarChart3 size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'My Progress', path: '/my-progress', icon: <BarChart3 size={18} />, roles: ['student'] },
-  { label: 'Reports', path: '/reports', icon: <ClipboardList size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['super_admin', 'admin'] },
+  // Shared
+  { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['super_admin', 'admin', 'tutor', 'student'] },
 ];
 
 const roleLabels: Record<Role, string> = {
@@ -102,10 +111,6 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
 
       {/* Bottom */}
       <div className="border-t border-slate-700/50 p-2 space-y-0.5">
-        <button className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-sm ${collapsed ? 'justify-center' : ''}`}>
-          <Bell size={18} className="flex-shrink-0" />
-          {!collapsed && <span>Notifications</span>}
-        </button>
 
         {user && (
           <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-800/50 ${collapsed ? 'justify-center' : ''}`}>

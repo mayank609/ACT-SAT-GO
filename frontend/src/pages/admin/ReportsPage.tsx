@@ -4,6 +4,7 @@ import { Button } from '../../components/common/Button';
 import { Card, StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { MOCK_STUDENTS, MOCK_TESTS, MOCK_ATTEMPTS, MOCK_ANALYTICS } from '../../data/mockData';
+import { exportToCsv } from '../../utils/exportCsv';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -38,6 +39,36 @@ export function ReportsPage() {
   const [selectedStudent, setSelectedStudent] = useState(MOCK_STUDENTS[0].id);
   const [selectedTest, setSelectedTest] = useState(MOCK_TESTS[0].id);
 
+  const handleExportCsv = () => {
+    const rows = MOCK_ANALYTICS.sections.flatMap((sec) =>
+      sec.topicBreakdown.map((tb) => ({
+        Student: MOCK_STUDENTS.find((s) => s.id === selectedStudent)?.name ?? '',
+        Test: MOCK_TESTS.find((t) => t.id === selectedTest)?.title ?? '',
+        Section: sec.sectionName,
+        Topic: tb.topic,
+        'Correct': tb.correct,
+        'Total': tb.total,
+        'Accuracy (%)': tb.accuracy.toFixed(1),
+        'Avg Time (s)': tb.avgTimeSpent,
+        Status: tb.accuracy >= 80 ? 'Strong' : tb.accuracy >= 60 ? 'Average' : 'Weak',
+      }))
+    );
+    exportToCsv(rows, `report_${selectedStudent}_${selectedTest}.csv`);
+  };
+
+  const handleExportStudentsSummary = () => {
+    const rows = MOCK_STUDENTS.map((s) => ({
+      Name: s.name,
+      Email: s.email,
+      Grade: s.grade ?? '',
+      'Avg Score': s.avgScore ?? '',
+      'Target Score': s.targetScore ?? '',
+      'Tests Attempted': s.testsAttempted ?? 0,
+      'Last Active': s.lastActive ?? '',
+    }));
+    exportToCsv(rows, 'students_summary.csv');
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
@@ -48,8 +79,8 @@ export function ReportsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" icon={<Filter size={14} />}>Filters</Button>
-          <Button variant="secondary" size="sm" icon={<Download size={14} />}>PDF</Button>
-          <Button size="sm" icon={<Download size={14} />}>Excel</Button>
+          <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={handleExportStudentsSummary}>Students CSV</Button>
+          <Button size="sm" icon={<Download size={14} />} onClick={handleExportCsv}>Export CSV</Button>
         </div>
       </div>
 
