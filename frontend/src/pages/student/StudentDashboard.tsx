@@ -1,165 +1,156 @@
-import { useNavigate } from 'react-router-dom';
-import { BookOpen, TrendingUp, Clock, Target, ChevronRight, Play, CheckCircle } from 'lucide-react';
-import { StatCard } from '../../components/common/Card';
-import { Badge } from '../../components/common/Badge';
-import { Button } from '../../components/common/Button';
-import { MOCK_TESTS, MOCK_ATTEMPTS, MOCK_TRENDS, MOCK_ANALYTICS } from '../../data/mockData';
 import { useAuthStore } from '../../store/useAuthStore';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
-} from 'recharts';
+import { WelcomeSection } from '../../components/dashboard/WelcomeSection';
+import { PerformanceCards } from '../../components/dashboard/PerformanceCards';
+import { TestActivityChart } from '../../components/dashboard/TestActivityChart';
+import { TopicBreakdown } from '../../components/dashboard/TopicBreakdown';
+import { AIRecommendations } from '../../components/dashboard/AIRecommendations';
+import { UpcomingTests } from '../../components/dashboard/UpcomingTests';
+import { RecentTestsTable } from '../../components/dashboard/RecentTestsTable';
+import { TimeManagementAnalytics } from '../../components/dashboard/TimeManagementAnalytics';
+import { SectionPerformance } from '../../components/dashboard/SectionPerformance';
+import { StudyPlanner } from '../../components/dashboard/StudyPlanner';
+import { NotificationsPanel } from '../../components/dashboard/NotificationsPanel';
+import { Zap } from 'lucide-react';
 
 export function StudentDashboard() {
   const { user } = useAuthStore();
-  const navigate = useNavigate();
 
-  const assignedTests = MOCK_TESTS.filter((t) => t.assignedStudentIds?.includes(user?.id ?? 's-1'));
-  const completed = MOCK_ATTEMPTS.filter((a) => a.studentId === (user?.id ?? 's-1') && a.status === 'completed');
-  const avgScore = completed.reduce((a, att) => a + (att.score ?? 0), 0) / (completed.length || 1);
+  // Mock analytics data
+  const analyticsData = {
+    overallGrade: 'A-',
+    testsTaken: 18,
+    globalRank: 142,
+    accuracy: 82,
+    avgTimePerQuestion: 78,
+    weeklyStudyHours: 24.5,
+    currentStreak: 7,
+    weakestSubject: 'Data Interpretation',
+  };
 
-  const sectionBars = MOCK_ANALYTICS.sections.map((s) => ({
-    name: s.sectionName,
-    accuracy: s.accuracy,
-  }));
+  const strongTopics = [
+    { name: 'Algebra', accuracy: 88, questionsCorrect: 22, questionsTotal: 25, status: 'strong' as const },
+    { name: 'Literature', accuracy: 85, questionsCorrect: 17, questionsTotal: 20, status: 'strong' as const },
+    { name: 'Physics', accuracy: 84, questionsCorrect: 21, questionsTotal: 25, status: 'strong' as const },
+  ];
+
+  const improvementTopics = [
+    { name: 'Calculus', accuracy: 62, questionsCorrect: 15, questionsTotal: 25, status: 'needs_work' as const },
+    { name: 'Data Interpretation', accuracy: 58, questionsCorrect: 14, questionsTotal: 24, status: 'needs_work' as const },
+    { name: 'Reading Comprehension', accuracy: 71, questionsCorrect: 17, questionsTotal: 24, status: 'improving' as const },
+    { name: 'Coordinate Geometry', accuracy: 65, questionsCorrect: 16, questionsTotal: 25, status: 'improving' as const },
+  ];
+
+  const sections = [
+    { name: 'English', accuracy: 82, color: 'blue' as const },
+    { name: 'Mathematics', accuracy: 76, color: 'purple' as const },
+    { name: 'Reading', accuracy: 78, color: 'green' as const },
+    { name: 'Science', accuracy: 80, color: 'orange' as const },
+  ];
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Welcome banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-4 md:p-6 text-white">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-lg md:text-2xl font-bold">
-              Welcome back, {user?.name?.split(' ')[0]}! 👋
-            </h1>
-            <p className="text-blue-200 mt-1 text-xs md:text-sm">
-              {assignedTests.length} tests assigned · {completed.length} completed
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-50">
+      {/* Main content */}
+      <main className="p-4 md:p-6 max-w-7xl mx-auto">
+        {/* Page Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900">Student Dashboard</h1>
+            <p className="text-slate-600 mt-1">Welcome to EduPulse AI Premium Academic Suite</p>
           </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-blue-200 text-xs">Target Score</p>
-            <p className="text-2xl md:text-3xl font-bold">32</p>
-            <p className="text-blue-300 text-xs">ACT composite</p>
-          </div>
-        </div>
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-blue-200 mb-1.5">
-            <span>Progress to target (28/32)</span>
-            <span>87.5%</span>
-          </div>
-          <div className="h-2 bg-blue-900/50 rounded-full overflow-hidden">
-            <div className="h-full bg-white/70 rounded-full" style={{ width: '87.5%' }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <StatCard title="Current Score" value={avgScore.toFixed(0) || '—'} subtitle="ACT composite" icon={<TrendingUp size={18} />} color="blue" trend={{ value: 4, positive: true }} />
-        <StatCard title="Completed" value={completed.length} subtitle="out of assigned" icon={<CheckCircle size={18} />} color="emerald" />
-        <StatCard title="Accuracy" value={`${MOCK_ANALYTICS.overallAccuracy}%`} subtitle="last test" icon={<Target size={18} />} color="purple" trend={{ value: 5, positive: true }} />
-        <StatCard title="Percentile" value="72nd" subtitle="national ranking" icon={<Clock size={18} />} color="amber" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        {/* Score trend */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4 md:p-6">
-          <h3 className="font-semibold text-slate-900 mb-1">My Score History</h3>
-          <p className="text-sm text-slate-500 mb-4">Track your improvement over time</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={MOCK_TRENDS}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[20, 36]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-              <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2.5} dot={{ fill: '#3b82f6', r: 4 }} name="Score" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Section accuracy */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
-          <h3 className="font-semibold text-slate-900 mb-1">Section Accuracy</h3>
-          <p className="text-sm text-slate-500 mb-4">Last test performance</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={sectionBars} layout="vertical" barSize={18}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={50} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-              <Bar dataKey="accuracy" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Accuracy %" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Assigned tests */}
-      <div>
-        <div className="flex items-center justify-between mb-3 md:mb-4">
-          <h3 className="font-semibold text-slate-900">Assigned Tests</h3>
-          <button onClick={() => navigate('/my-tests')} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-            View all <ChevronRight size={14} />
+          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            Upgrade Plan
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-          {assignedTests.map((test) => {
-            const attempt = MOCK_ATTEMPTS.find((a) => a.testId === test.id && a.studentId === (user?.id ?? 's-1'));
-            const isCompleted = attempt?.status === 'completed';
-            const inProgress = attempt?.status === 'in_progress';
-            const totalTime = test.sections.reduce((a, s) => a + s.timeLimit, 0);
 
-            return (
-              <div key={test.id} className="bg-white rounded-xl border border-slate-200 p-4 md:p-5 hover:shadow-md transition-all">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <BookOpen size={16} className="text-blue-600" />
-                  </div>
-                  <Badge variant={isCompleted ? 'success' : inProgress ? 'warning' : 'info'}>
-                    {isCompleted ? 'Completed' : inProgress ? 'In Progress' : 'Not Started'}
-                  </Badge>
-                </div>
-                <h4 className="font-semibold text-slate-900 text-sm mb-1 line-clamp-2">{test.title}</h4>
-                <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-                  <span>{test.sections.length} sections</span>
-                  <span>·</span>
-                  <span className="flex items-center gap-0.5"><Clock size={10} /> {totalTime}m</span>
-                </div>
-                {isCompleted ? (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-900 text-xl">{attempt?.score}</span>
-                      <span className="text-slate-400 text-xs">/36</span>
-                    </div>
-                    <Button variant="secondary" size="sm" onClick={() => navigate(`/test-review/${attempt?.id}`)}>
-                      Review
-                    </Button>
-                  </div>
-                ) : (
-                  <Button variant="primary" size="sm" icon={<Play size={13} />} className="w-full justify-center"
-                    onClick={() => navigate(`/test-instructions/${test.id}`)}>
-                    {inProgress ? 'Continue' : 'Start Test'}
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+        {/* Welcome Section */}
+        <section className="mb-8">
+          <WelcomeSection
+            studentName={user?.name || 'Alex Thompson'}
+            completionPercent={85}
+            currentStreak={7}
+            studyGoalTarget={100}
+            currentXp={3450}
+            nextLevel={5000}
+          />
+        </section>
 
-      {/* Weak areas */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 md:p-5">
-        <h3 className="font-semibold text-amber-900 mb-3">📌 Focus Areas</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {MOCK_ANALYTICS.sections.flatMap((s) => s.topicBreakdown.filter((t) => t.accuracy < 70)).slice(0, 4).map((t) => (
-            <div key={t.topic} className="bg-white rounded-xl p-3 border border-amber-200">
-              <p className="text-sm font-medium text-slate-900">{t.topic}</p>
-              <p className="text-xs text-slate-500 mb-1.5">Accuracy: {t.accuracy.toFixed(0)}%</p>
-              <div className="h-1.5 bg-red-100 rounded-full overflow-hidden">
-                <div className="h-full bg-red-400 rounded-full" style={{ width: `${t.accuracy}%` }} />
-              </div>
+        {/* Performance Overview */}
+        <section className="mb-8">
+          <PerformanceCards analytics={analyticsData} />
+        </section>
+
+        {/* Main Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Left Column - Charts and Analytics (2 columns wide) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Test Activity Chart */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <TestActivityChart />
             </div>
-          ))}
+
+            {/* Time Management Analytics */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <TimeManagementAnalytics />
+            </div>
+
+            {/* Upcoming Tests */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <UpcomingTests />
+            </div>
+          </div>
+
+          {/* Right Column - Sidebar Panels */}
+          <div className="space-y-6">
+            {/* AI Recommendations */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <AIRecommendations />
+            </div>
+
+            {/* Notifications */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <NotificationsPanel />
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* Topic Analysis & Section Performance Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <TopicBreakdown strongTopics={strongTopics} improvementTopics={improvementTopics} />
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <SectionPerformance sections={sections} />
+          </div>
+        </div>
+
+        {/* Study Planner */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow mb-8">
+          <StudyPlanner />
+        </div>
+
+        {/* Recent Tests Table */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow mb-8">
+          <RecentTestsTable />
+        </div>
+
+        {/* Footer CTA */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm hover:shadow-md transform hover:scale-105 transition-transform">
+            🚀 Start Mock Test
+          </button>
+          <button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm hover:shadow-md transform hover:scale-105 transition-transform">
+            📊 View Analytics
+          </button>
+          <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm hover:shadow-md transform hover:scale-105 transition-transform">
+            💬 Ask AI Tutor
+          </button>
+          <button className="bg-green-600 hover:bg-green-700 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm hover:shadow-md transform hover:scale-105 transition-transform">
+            📈 Download Report
+          </button>
+        </div>
+      </main>
     </div>
   );
 }
