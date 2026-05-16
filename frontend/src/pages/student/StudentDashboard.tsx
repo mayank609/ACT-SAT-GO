@@ -1,156 +1,159 @@
+import { useNavigate } from 'react-router-dom';
+import { Play, RotateCcw, ChevronRight, TrendingUp, Clock, BookOpen, Target } from 'lucide-react';
+import { Button } from '../../components/common/Button';
+import { Badge } from '../../components/common/Badge';
+import { Card } from '../../components/common/Card';
 import { useAuthStore } from '../../store/useAuthStore';
-import { WelcomeSection } from '../../components/dashboard/WelcomeSection';
-import { PerformanceCards } from '../../components/dashboard/PerformanceCards';
-import { TestActivityChart } from '../../components/dashboard/TestActivityChart';
-import { TopicBreakdown } from '../../components/dashboard/TopicBreakdown';
-import { AIRecommendations } from '../../components/dashboard/AIRecommendations';
-import { UpcomingTests } from '../../components/dashboard/UpcomingTests';
-import { RecentTestsTable } from '../../components/dashboard/RecentTestsTable';
-import { TimeManagementAnalytics } from '../../components/dashboard/TimeManagementAnalytics';
-import { SectionPerformance } from '../../components/dashboard/SectionPerformance';
-import { StudyPlanner } from '../../components/dashboard/StudyPlanner';
-import { NotificationsPanel } from '../../components/dashboard/NotificationsPanel';
-import { Zap } from 'lucide-react';
+import { MOCK_TESTS, MOCK_ATTEMPTS, MOCK_ANALYTICS, MOCK_TRENDS } from '../../data/mockData';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+
+const weakAreas = [
+  { topic: 'Trigonometry', accuracy: 48, section: 'Math' },
+  { topic: 'Geometry', accuracy: 55, section: 'Math' },
+  { topic: 'Inference', accuracy: 61, section: 'Reading' },
+  { topic: 'Data Analysis', accuracy: 63, section: 'Science' },
+];
 
 export function StudentDashboard() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  // Mock analytics data
-  const analyticsData = {
-    overallGrade: 'A-',
-    testsTaken: 18,
-    globalRank: 142,
-    accuracy: 82,
-    avgTimePerQuestion: 78,
-    weeklyStudyHours: 24.5,
-    currentStreak: 7,
-    weakestSubject: 'Data Interpretation',
-  };
-
-  const strongTopics = [
-    { name: 'Algebra', accuracy: 88, questionsCorrect: 22, questionsTotal: 25, status: 'strong' as const },
-    { name: 'Literature', accuracy: 85, questionsCorrect: 17, questionsTotal: 20, status: 'strong' as const },
-    { name: 'Physics', accuracy: 84, questionsCorrect: 21, questionsTotal: 25, status: 'strong' as const },
-  ];
-
-  const improvementTopics = [
-    { name: 'Calculus', accuracy: 62, questionsCorrect: 15, questionsTotal: 25, status: 'needs_work' as const },
-    { name: 'Data Interpretation', accuracy: 58, questionsCorrect: 14, questionsTotal: 24, status: 'needs_work' as const },
-    { name: 'Reading Comprehension', accuracy: 71, questionsCorrect: 17, questionsTotal: 24, status: 'improving' as const },
-    { name: 'Coordinate Geometry', accuracy: 65, questionsCorrect: 16, questionsTotal: 25, status: 'improving' as const },
-  ];
-
-  const sections = [
-    { name: 'English', accuracy: 82, color: 'blue' as const },
-    { name: 'Mathematics', accuracy: 76, color: 'purple' as const },
-    { name: 'Reading', accuracy: 78, color: 'green' as const },
-    { name: 'Science', accuracy: 80, color: 'orange' as const },
-  ];
+  const firstName = user?.name?.split(' ')[0] ?? 'there';
+  const assignedTests = MOCK_TESTS.filter((t) => t.assignedStudentIds?.includes(user?.id ?? 's-1'));
+  const completedAttempts = MOCK_ATTEMPTS.filter((a) => a.status === 'completed');
+  const latestScore = completedAttempts[0]?.score ?? null;
+  const totalQuestionsAttempted = MOCK_ANALYTICS.sections.reduce((a, s) => a + s.attempted, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-50">
-      {/* Main content */}
-      <main className="p-4 md:p-6 max-w-7xl mx-auto">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900">Student Dashboard</h1>
-            <p className="text-slate-600 mt-1">Welcome to EduPulse AI Premium Academic Suite</p>
-          </div>
-          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            Upgrade Plan
-          </button>
-        </div>
+    <div className="space-y-6">
+      {/* Greeting */}
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">Good morning, {firstName}</h1>
+        <p className="text-slate-400 text-sm mt-0.5">Here's where you stand today</p>
+      </div>
 
-        {/* Welcome Section */}
-        <section className="mb-8">
-          <WelcomeSection
-            studentName={user?.name || 'Alex Thompson'}
-            completionPercent={85}
-            currentStreak={7}
-            studyGoalTarget={100}
-            currentXp={3450}
-            nextLevel={5000}
-          />
-        </section>
+      {/* Stats row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card padding="sm">
+          <p className="text-xs text-slate-400 mb-1">Latest Score</p>
+          <p className="text-2xl font-semibold text-slate-900">{latestScore ?? '—'}<span className="text-sm font-normal text-slate-400">/36</span></p>
+        </Card>
+        <Card padding="sm">
+          <p className="text-xs text-slate-400 mb-1">Tests Done</p>
+          <p className="text-2xl font-semibold text-slate-900">{completedAttempts.length}</p>
+        </Card>
+        <Card padding="sm">
+          <p className="text-xs text-slate-400 mb-1">Accuracy</p>
+          <p className="text-2xl font-semibold text-slate-900">{MOCK_ANALYTICS.overallAccuracy}%</p>
+        </Card>
+        <Card padding="sm">
+          <p className="text-xs text-slate-400 mb-1">Qs Attempted</p>
+          <p className="text-2xl font-semibold text-slate-900">{totalQuestionsAttempted}</p>
+        </Card>
+      </div>
 
-        {/* Performance Overview */}
-        <section className="mb-8">
-          <PerformanceCards analytics={analyticsData} />
-        </section>
-
-        {/* Main Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Left Column - Charts and Analytics (2 columns wide) */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Test Activity Chart */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <TestActivityChart />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Score trend */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-medium text-slate-900 text-sm">Score Trend</p>
+              <p className="text-xs text-slate-400 mt-0.5">Your last {MOCK_TRENDS.length} tests</p>
             </div>
-
-            {/* Time Management Analytics */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <TimeManagementAnalytics />
-            </div>
-
-            {/* Upcoming Tests */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <UpcomingTests />
+            <div className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+              <TrendingUp size={12} />
+              <span>+{MOCK_TRENDS[MOCK_TRENDS.length - 1].score - MOCK_TRENDS[0].score} pts</span>
             </div>
           </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <AreaChart data={MOCK_TRENDS} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+              <defs>
+                <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
+              <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+              <YAxis domain={[20, 36]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', boxShadow: 'none' }} />
+              <Area type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} fill="url(#scoreGrad)" name="Score" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
 
-          {/* Right Column - Sidebar Panels */}
-          <div className="space-y-6">
-            {/* AI Recommendations */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <AIRecommendations />
-            </div>
-
-            {/* Notifications */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-              <NotificationsPanel />
-            </div>
+        {/* Weak areas */}
+        <div className="bg-white rounded-xl border border-slate-100 p-5">
+          <p className="font-medium text-slate-900 text-sm mb-3">Focus Areas</p>
+          <div className="space-y-2.5">
+            {weakAreas.map((w) => (
+              <div key={w.topic}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-slate-700">{w.topic}</span>
+                  <span className={`text-xs font-medium ${w.accuracy < 55 ? 'text-red-500' : w.accuracy < 65 ? 'text-amber-500' : 'text-slate-500'}`}>{w.accuracy}%</span>
+                </div>
+                <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${w.accuracy < 55 ? 'bg-red-400' : w.accuracy < 65 ? 'bg-amber-400' : 'bg-blue-400'}`} style={{ width: `${w.accuracy}%` }} />
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-
-        {/* Topic Analysis & Section Performance Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-            <TopicBreakdown strongTopics={strongTopics} improvementTopics={improvementTopics} />
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-            <SectionPerformance sections={sections} />
-          </div>
-        </div>
-
-        {/* Study Planner */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow mb-8">
-          <StudyPlanner />
-        </div>
-
-        {/* Recent Tests Table */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow mb-8">
-          <RecentTestsTable />
-        </div>
-
-        {/* Footer CTA */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm hover:shadow-md transform hover:scale-105 transition-transform">
-            🚀 Start Mock Test
-          </button>
-          <button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm hover:shadow-md transform hover:scale-105 transition-transform">
-            📊 View Analytics
-          </button>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm hover:shadow-md transform hover:scale-105 transition-transform">
-            💬 Ask AI Tutor
-          </button>
-          <button className="bg-green-600 hover:bg-green-700 text-white font-semibold py-4 rounded-xl transition-colors shadow-sm hover:shadow-md transform hover:scale-105 transition-transform">
-            📈 Download Report
+          <button onClick={() => navigate('/my-progress')} className="mt-4 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+            Full breakdown <ChevronRight size={12} />
           </button>
         </div>
-      </main>
+      </div>
+
+      {/* Assigned tests */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="font-medium text-slate-900 text-sm">Your Tests</p>
+          <button onClick={() => navigate('/my-tests')} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+            View all <ChevronRight size={12} />
+          </button>
+        </div>
+        <div className="space-y-2">
+          {assignedTests.map((test) => {
+            const attempt = MOCK_ATTEMPTS.find((a) => a.testId === test.id && a.studentId === (user?.id ?? 's-1'));
+            const isCompleted = attempt?.status === 'completed';
+            const inProgress = attempt?.status === 'in_progress';
+            const totalTime = test.sections.reduce((a, s) => a + s.timeLimit, 0);
+            const totalQ = test.sections.reduce((a, s) => a + s.questions.length, 0);
+
+            return (
+              <div key={test.id} className="bg-white border border-slate-100 rounded-xl p-4 flex items-center gap-4">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={15} className="text-slate-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
+                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                    <span className="flex items-center gap-1"><Target size={10} /> {totalQ}q</span>
+                    <span className="flex items-center gap-1"><Clock size={10} /> {totalTime}m</span>
+                    <span>{test.sections.length} sections</span>
+                  </p>
+                </div>
+                {isCompleted && (
+                  <span className="text-sm font-semibold text-slate-900 flex-shrink-0">{attempt?.score ?? '—'}<span className="text-xs font-normal text-slate-400">/36</span></span>
+                )}
+                <Badge variant={isCompleted ? 'success' : inProgress ? 'warning' : 'default'} size="sm">
+                  {isCompleted ? 'Done' : inProgress ? 'Active' : 'New'}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant={isCompleted ? 'secondary' : 'primary'}
+                  icon={inProgress ? <RotateCcw size={12} /> : isCompleted ? undefined : <Play size={12} />}
+                  onClick={() => isCompleted ? navigate(`/test-review/${attempt?.id}`) : navigate(`/test-instructions/${test.id}`)}
+                >
+                  {isCompleted ? 'Review' : inProgress ? 'Resume' : 'Start'}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

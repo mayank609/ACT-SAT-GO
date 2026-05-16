@@ -1,30 +1,23 @@
-import { Bell, Search, ChevronDown, Menu } from 'lucide-react';
+import { Bell, Search, Menu, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useNavigate } from 'react-router-dom';
 import type { Role } from '../../types';
 import { useState, useRef, useEffect } from 'react';
 
 const roleLabels: Record<Role, string> = {
   super_admin: 'Super Admin',
-  admin: 'Admin / Operations',
+  admin: 'Admin',
   tutor: 'Tutor',
   student: 'Student',
 };
 
-const roleColors: Record<Role, string> = {
-  super_admin: 'bg-purple-100 text-purple-700',
-  admin: 'bg-blue-100 text-blue-700',
-  tutor: 'bg-emerald-100 text-emerald-700',
-  student: 'bg-amber-100 text-amber-700',
-};
-
 interface HeaderProps {
-  title?: string;
-  subtitle?: string;
   onMenuClick: () => void;
 }
 
-export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
-  const { user } = useAuthStore();
+export function Header({ onMenuClick }: HeaderProps) {
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(2);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -39,92 +32,75 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleLogout = () => { logout(); navigate('/login'); };
+
+  const notifications = [
+    { title: 'Test assigned', body: 'ACT Practice #2 has been assigned to you', time: '5m', unread: true },
+    { title: 'Score ready', body: 'SAT Practice #1 results are available', time: '1h', unread: true },
+    { title: 'Tutor note', body: 'Dr. Rodriguez left feedback on your math section', time: '2h', unread: false },
+    { title: 'Test completed', body: 'Alex Thompson scored 28 on ACT Full #1', time: '3h', unread: false },
+  ];
+
   return (
-    <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between sticky top-0 z-30 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        {/* Mobile hamburger */}
-        <button
-          onClick={onMenuClick}
-          className="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors flex-shrink-0"
-        >
-          <Menu size={20} />
+    <header className="bg-white border-b border-slate-100 px-4 md:px-6 h-13 flex items-center justify-between sticky top-0 z-30">
+      <div className="flex items-center gap-3">
+        <button onClick={onMenuClick} className="md:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-50 transition-colors">
+          <Menu size={18} />
         </button>
-        <div className="min-w-0">
-          {title && <h1 className="text-base md:text-xl font-semibold text-slate-900 truncate">{title}</h1>}
-          {subtitle && <p className="text-xs md:text-sm text-slate-500 hidden sm:block">{subtitle}</p>}
+        <div className="relative hidden lg:block">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
+          <input type="text" placeholder="Search..." className="pl-8 pr-4 py-1.5 text-sm bg-slate-50 border-none rounded-lg focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-200 w-44 text-slate-700 placeholder-slate-300" />
         </div>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-        {/* Search — hidden on small screens */}
-        <div className="relative hidden lg:block">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Quick search..."
-            className="pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white w-48 xl:w-56"
-          />
-        </div>
-
+      <div className="flex items-center gap-1">
         {/* Notifications */}
         <div className="relative" ref={notifRef}>
-          <button
-            onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) setUnreadCount(0); }}
-            className="relative p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            <Bell size={18} />
+          <button onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) setUnreadCount(0); }}
+            className="relative p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+            <Bell size={16} />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
-                {unreadCount}
-              </span>
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
             )}
           </button>
           {notifOpen && (
-            <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-50">
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-semibold text-slate-900 text-sm">Notifications</h3>
-                <button onClick={() => setUnreadCount(0)} className="text-xs text-blue-600 hover:text-blue-700">Mark all read</button>
+            <div className="absolute right-0 mt-1 w-72 bg-white rounded-xl border border-slate-100 z-50">
+              <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-900">Notifications</p>
+                <button onClick={() => setUnreadCount(0)} className="text-xs text-blue-600">Mark read</button>
               </div>
-              <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
-                {[
-                  { title: 'New test assigned', body: 'ACT Full Practice Test #2 has been assigned to you', time: '5m ago', unread: true },
-                  { title: 'Score updated', body: 'SAT Practice Test #1 results are ready to review', time: '1h ago', unread: true },
-                  { title: 'Tutor feedback', body: 'Dr. Rodriguez left a note on your math section', time: '2h ago', unread: false },
-                  { title: 'Student alert', body: 'Alex Thompson completed ACT Full Practice Test #1 with score 28', time: '3h ago', unread: false },
-                ].map((n, i) => (
-                  <div key={i} className={`px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors ${n.unread ? 'bg-blue-50/40' : ''}`}>
-                    <div className="flex items-start gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.unread ? 'bg-blue-500' : 'bg-transparent'}`} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900">{n.title}</p>
-                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.body}</p>
-                        <p className="text-xs text-slate-400 mt-1">{n.time}</p>
+              <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
+                {notifications.map((n, i) => (
+                  <div key={i} className={`px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors ${n.unread ? 'bg-blue-50/30' : ''}`}>
+                    <div className="flex items-start gap-2">
+                      <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${n.unread ? 'bg-blue-500' : 'bg-transparent'}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-slate-900">{n.title}</p>
+                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{n.body}</p>
                       </div>
+                      <p className="text-xs text-slate-300 flex-shrink-0">{n.time}</p>
                     </div>
                   </div>
                 ))}
-              </div>
-              <div className="px-4 py-2.5 border-t border-slate-100 text-center">
-                <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">View all notifications</button>
               </div>
             </div>
           )}
         </div>
 
-        {/* User menu */}
+        {/* User */}
         {user && (
-          <button className="flex items-center gap-2 pl-2 md:pl-3 pr-1 md:pr-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors">
-            <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+          <div className="flex items-center gap-2 pl-2">
+            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-semibold flex-shrink-0">
               {user.name.charAt(0)}
             </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-slate-900 leading-tight max-w-24 truncate">{user.name}</p>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${roleColors[user.role]}`}>
-                {roleLabels[user.role]}
-              </span>
+            <div className="hidden sm:block">
+              <p className="text-xs font-medium text-slate-800 leading-tight">{user.name.split(' ')[0]}</p>
+              <p className="text-xs text-slate-400">{roleLabels[user.role]}</p>
             </div>
-            <ChevronDown size={14} className="text-slate-400 hidden sm:block" />
-          </button>
+            <button onClick={handleLogout} className="p-1.5 ml-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Sign out">
+              <LogOut size={14} />
+            </button>
+          </div>
         )}
       </div>
     </header>
