@@ -132,7 +132,6 @@ export async function logCheatingEvent(attemptId: string, eventType: 'tab_switch
       data: {
         attemptId,
         eventType,
-        timestamp: new Date()
       }
     })
     return { success: true }
