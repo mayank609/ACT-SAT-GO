@@ -23,68 +23,68 @@ export function StudentDashboard() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Welcome banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Welcome back, {user?.name?.split(' ')[0]}! 👋</h1>
-            <p className="text-blue-200 mt-1 text-sm">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-4 md:p-6 text-white">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-2xl font-bold">
+              Welcome back, {user?.name?.split(' ')[0]}! 👋
+            </h1>
+            <p className="text-blue-200 mt-1 text-xs md:text-sm">
               {assignedTests.length} tests assigned · {completed.length} completed
             </p>
           </div>
-          <div className="text-right hidden md:block">
-            <p className="text-blue-200 text-sm">Target Score</p>
-            <p className="text-3xl font-bold">32</p>
+          <div className="text-right flex-shrink-0">
+            <p className="text-blue-200 text-xs">Target Score</p>
+            <p className="text-2xl md:text-3xl font-bold">32</p>
             <p className="text-blue-300 text-xs">ACT composite</p>
           </div>
         </div>
-
-        {/* Progress bar */}
         <div className="mt-4">
-          <div className="flex justify-between text-sm text-blue-200 mb-1.5">
+          <div className="flex justify-between text-xs text-blue-200 mb-1.5">
             <span>Progress to target (28/32)</span>
             <span>87.5%</span>
           </div>
-          <div className="h-2.5 bg-blue-900/50 rounded-full overflow-hidden">
+          <div className="h-2 bg-blue-900/50 rounded-full overflow-hidden">
             <div className="h-full bg-white/70 rounded-full" style={{ width: '87.5%' }} />
           </div>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard title="Current Score" value={avgScore.toFixed(0) || '—'} subtitle="ACT composite" icon={<TrendingUp size={18} />} color="blue" trend={{ value: 4, positive: true }} />
-        <StatCard title="Tests Completed" value={completed.length} subtitle="out of assigned" icon={<CheckCircle size={18} />} color="emerald" />
+        <StatCard title="Completed" value={completed.length} subtitle="out of assigned" icon={<CheckCircle size={18} />} color="emerald" />
         <StatCard title="Accuracy" value={`${MOCK_ANALYTICS.overallAccuracy}%`} subtitle="last test" icon={<Target size={18} />} color="purple" trend={{ value: 5, positive: true }} />
-        <StatCard title="Percentile" value="72nd" subtitle="among all students" icon={<Clock size={18} />} color="amber" />
+        <StatCard title="Percentile" value="72nd" subtitle="national ranking" icon={<Clock size={18} />} color="amber" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Score trend */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4 md:p-6">
           <h3 className="font-semibold text-slate-900 mb-1">My Score History</h3>
           <p className="text-sm text-slate-500 mb-4">Track your improvement over time</p>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={180}>
             <LineChart data={MOCK_TRENDS}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[20, 36]} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis domain={[20, 36]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-              <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2.5} dot={{ fill: '#3b82f6', r: 5 }} name="Score" />
+              <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2.5} dot={{ fill: '#3b82f6', r: 4 }} name="Score" />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Section accuracy */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
           <h3 className="font-semibold text-slate-900 mb-1">Section Accuracy</h3>
           <p className="text-sm text-slate-500 mb-4">Last test performance</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={sectionBars} layout="vertical" barSize={20}>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={sectionBars} layout="vertical" barSize={18}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={60} />
+              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={50} />
               <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
               <Bar dataKey="accuracy" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Accuracy %" />
             </BarChart>
@@ -94,66 +94,49 @@ export function StudentDashboard() {
 
       {/* Assigned tests */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3 md:mb-4">
           <h3 className="font-semibold text-slate-900">Assigned Tests</h3>
-          <button
-            onClick={() => navigate('/my-tests')}
-            className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-          >
+          <button onClick={() => navigate('/my-tests')} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
             View all <ChevronRight size={14} />
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           {assignedTests.map((test) => {
             const attempt = MOCK_ATTEMPTS.find((a) => a.testId === test.id && a.studentId === (user?.id ?? 's-1'));
             const isCompleted = attempt?.status === 'completed';
             const inProgress = attempt?.status === 'in_progress';
-            const totalQ = test.sections.reduce((a, s) => a + s.questions.length, 0);
             const totalTime = test.sections.reduce((a, s) => a + s.timeLimit, 0);
 
             return (
-              <div key={test.id} className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-all">
+              <div key={test.id} className="bg-white rounded-xl border border-slate-200 p-4 md:p-5 hover:shadow-md transition-all">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <BookOpen size={18} className="text-blue-600" />
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <BookOpen size={16} className="text-blue-600" />
                   </div>
                   <Badge variant={isCompleted ? 'success' : inProgress ? 'warning' : 'info'}>
                     {isCompleted ? 'Completed' : inProgress ? 'In Progress' : 'Not Started'}
                   </Badge>
                 </div>
-
-                <h4 className="font-semibold text-slate-900 mb-1">{test.title}</h4>
-                {test.description && <p className="text-sm text-slate-500 mb-3 line-clamp-1">{test.description}</p>}
-
-                <div className="flex items-center gap-3 text-xs text-slate-500 mb-4">
-                  <span className="flex items-center gap-1"><BookOpen size={11} /> {test.sections.length} sections</span>
-                  <span className="flex items-center gap-1"><Clock size={11} /> {totalTime} min</span>
-                  <span className="flex items-center gap-1">· {totalQ} questions</span>
+                <h4 className="font-semibold text-slate-900 text-sm mb-1 line-clamp-2">{test.title}</h4>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+                  <span>{test.sections.length} sections</span>
+                  <span>·</span>
+                  <span className="flex items-center gap-0.5"><Clock size={10} /> {totalTime}m</span>
                 </div>
-
                 {isCompleted ? (
                   <div className="flex items-center justify-between">
-                    <div className="text-sm">
+                    <div>
                       <span className="font-bold text-slate-900 text-xl">{attempt?.score}</span>
-                      <span className="text-slate-400 text-xs">/36 · {attempt?.percentile}th percentile</span>
+                      <span className="text-slate-400 text-xs">/36</span>
                     </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => navigate(`/test-review/${attempt?.id}`)}
-                    >
+                    <Button variant="secondary" size="sm" onClick={() => navigate(`/test-review/${attempt?.id}`)}>
                       Review
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon={<Play size={13} />}
-                    className="w-full justify-center"
-                    onClick={() => navigate(`/test-instructions/${test.id}`)}
-                  >
-                    {inProgress ? 'Continue Test' : 'Start Test'}
+                  <Button variant="primary" size="sm" icon={<Play size={13} />} className="w-full justify-center"
+                    onClick={() => navigate(`/test-instructions/${test.id}`)}>
+                    {inProgress ? 'Continue' : 'Start Test'}
                   </Button>
                 )}
               </div>
@@ -162,10 +145,10 @@ export function StudentDashboard() {
         </div>
       </div>
 
-      {/* Weak areas quick view */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+      {/* Weak areas */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 md:p-5">
         <h3 className="font-semibold text-amber-900 mb-3">📌 Focus Areas</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {MOCK_ANALYTICS.sections.flatMap((s) => s.topicBreakdown.filter((t) => t.accuracy < 70)).slice(0, 4).map((t) => (
             <div key={t.topic} className="bg-white rounded-xl p-3 border border-amber-200">
               <p className="text-sm font-medium text-slate-900">{t.topic}</p>

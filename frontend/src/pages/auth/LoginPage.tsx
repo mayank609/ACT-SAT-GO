@@ -26,7 +26,6 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     await new Promise((r) => setTimeout(r, 700));
-
     const user = Object.values(MOCK_USERS).find((u) => u.email === email);
     if (!user || password !== 'demo123') {
       setError('Invalid credentials. Use demo123 as password.');
@@ -38,21 +37,20 @@ export function LoginPage() {
   };
 
   const handleDemoLogin = (role: Role) => {
-    const user = MOCK_USERS[role];
-    login(user, 'mock-jwt-token');
+    login(MOCK_USERS[role], 'mock-jwt-token');
     navigate('/dashboard');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-20 w-64 h-64 bg-blue-500 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500 rounded-full blur-3xl" />
+      {/* Background blobs — pointer-events-none so they never overflow layout */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-10">
+        <div className="absolute top-10 left-4 sm:top-20 sm:left-20 w-40 h-40 sm:w-64 sm:h-64 bg-blue-500 rounded-full blur-3xl" />
+        <div className="absolute bottom-10 right-4 sm:bottom-20 sm:right-20 w-56 h-56 sm:w-96 sm:h-96 bg-purple-500 rounded-full blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* Left panel */}
+        {/* Left panel — desktop only */}
         <div className="hidden lg:flex flex-col bg-gradient-to-br from-blue-600 to-blue-800 p-10 text-white">
           <div className="flex items-center gap-3 mb-12">
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
@@ -63,14 +61,12 @@ export function LoginPage() {
               <span className="block text-blue-200 text-xs">Test Preparation Platform</span>
             </div>
           </div>
-
           <h2 className="text-3xl font-bold mb-4 leading-tight">
             Prepare smarter,<br />score higher.
           </h2>
           <p className="text-blue-200 text-base mb-10">
             Advanced analytics, adaptive testing, and personalized insights to maximize your test performance.
           </p>
-
           <div className="space-y-4 mt-auto">
             {[
               { icon: '📊', title: 'Deep Analytics', desc: 'Question-level time tracking and accuracy breakdown' },
@@ -89,15 +85,16 @@ export function LoginPage() {
         </div>
 
         {/* Right panel */}
-        <div className="p-8 lg:p-10 flex flex-col justify-center">
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-6 lg:hidden">
+        <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center">
+          <div className="mb-6 sm:mb-8">
+            {/* Mobile logo */}
+            <div className="flex items-center gap-2 mb-5 lg:hidden">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <BookOpen size={16} className="text-white" />
               </div>
               <span className="font-bold text-slate-900">ACT·SAT·GO</span>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Welcome back</h2>
             <p className="text-slate-500 mt-1 text-sm">Sign in to continue to your dashboard</p>
           </div>
 
@@ -113,7 +110,6 @@ export function LoginPage() {
                 required
               />
             </div>
-
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-medium text-slate-700">Password</label>
@@ -150,7 +146,7 @@ export function LoginPage() {
           <div className="mt-6">
             <div className="flex items-center gap-2 mb-3">
               <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+              <span className="text-xs text-slate-400 font-medium flex items-center gap-1 whitespace-nowrap">
                 <ShieldCheck size={12} /> Quick demo access
               </span>
               <div className="flex-1 h-px bg-slate-200" />
@@ -162,12 +158,14 @@ export function LoginPage() {
                   onClick={() => handleDemoLogin(d.role)}
                   className={`${d.color} text-white text-xs font-medium py-2 px-3 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2`}
                 >
-                  <span className="w-2 h-2 bg-white/50 rounded-full" />
+                  <span className="w-2 h-2 bg-white/50 rounded-full flex-shrink-0" />
                   {d.label}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-400 mt-2 text-center">Password for email login: <code className="bg-slate-100 px-1.5 py-0.5 rounded">demo123</code></p>
+            <p className="text-xs text-slate-400 mt-2 text-center">
+              Password for email login: <code className="bg-slate-100 px-1.5 py-0.5 rounded">demo123</code>
+            </p>
           </div>
         </div>
       </div>

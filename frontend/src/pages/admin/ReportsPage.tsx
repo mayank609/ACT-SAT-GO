@@ -39,40 +39,34 @@ export function ReportsPage() {
   const [selectedTest, setSelectedTest] = useState(MOCK_TESTS[0].id);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Analytics & Reports</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Analytics & Reports</h1>
           <p className="text-slate-500 text-sm mt-0.5">Detailed performance analysis and insights</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" icon={<Filter size={14} />}>Filters</Button>
-          <Button variant="secondary" size="sm" icon={<Download size={14} />}>Export PDF</Button>
-          <Button size="sm" icon={<Download size={14} />}>Export Excel</Button>
+          <Button variant="secondary" size="sm" icon={<Download size={14} />}>PDF</Button>
+          <Button size="sm" icon={<Download size={14} />}>Excel</Button>
         </div>
       </div>
 
       {/* Filters */}
       <Card padding="sm">
-        <div className="flex flex-wrap gap-4 items-end">
+        <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Student</label>
-            <select
-              value={selectedStudent}
-              onChange={(e) => setSelectedStudent(e.target.value)}
-              className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
+            <select value={selectedStudent} onChange={(e) => setSelectedStudent(e.target.value)}
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-44">
               {MOCK_STUDENTS.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Test</label>
-            <select
-              value={selectedTest}
-              onChange={(e) => setSelectedTest(e.target.value)}
-              className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
+            <select value={selectedTest} onChange={(e) => setSelectedTest(e.target.value)}
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-52">
               {MOCK_TESTS.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
             </select>
           </div>
@@ -87,41 +81,40 @@ export function ReportsPage() {
         </div>
       </Card>
 
-      {/* Overview stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard title="Composite Score" value={`${MOCK_ANALYTICS.totalScore}/36`} subtitle={`${MOCK_ANALYTICS.percentile}th percentile`} icon={<BarChart3 size={20} />} color="blue" trend={{ value: 7, positive: true }} />
-        <StatCard title="Overall Accuracy" value={`${MOCK_ANALYTICS.overallAccuracy}%`} subtitle="Across all sections" icon={<TrendingUp size={20} />} color="emerald" trend={{ value: 5, positive: true }} />
-        <StatCard title="Time Utilized" value={`${Math.round((MOCK_ANALYTICS.totalTimeUsed / MOCK_ANALYTICS.totalTimeAllocated) * 100)}%`} subtitle={`${Math.round(MOCK_ANALYTICS.totalTimeUsed / 60)}/${Math.round(MOCK_ANALYTICS.totalTimeAllocated / 60)} min`} icon={<FileText size={20} />} color="purple" />
-        <StatCard title="Tests Completed" value={MOCK_ATTEMPTS.length} subtitle="in selected period" icon={<Users size={20} />} color="amber" />
+        <StatCard title="Accuracy" value={`${MOCK_ANALYTICS.overallAccuracy}%`} subtitle="All sections" icon={<TrendingUp size={20} />} color="emerald" trend={{ value: 5, positive: true }} />
+        <StatCard title="Time Used" value={`${Math.round((MOCK_ANALYTICS.totalTimeUsed / MOCK_ANALYTICS.totalTimeAllocated) * 100)}%`} subtitle={`${Math.round(MOCK_ANALYTICS.totalTimeUsed / 60)}/${Math.round(MOCK_ANALYTICS.totalTimeAllocated / 60)} min`} icon={<FileText size={20} />} color="purple" />
+        <StatCard title="Tests Done" value={MOCK_ATTEMPTS.length} subtitle="in period" icon={<Users size={20} />} color="amber" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Section accuracy */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4 md:p-6">
           <h3 className="font-semibold text-slate-900 mb-1">Section Performance</h3>
           <p className="text-sm text-slate-500 mb-4">Accuracy % and time usage per section</p>
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={sectionComparisonData} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
-              <Bar dataKey="accuracy" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Accuracy %" barSize={28} />
-              <Bar dataKey="timeUsed" fill="#10b981" radius={[4, 4, 0, 0]} name="Time Used (min)" barSize={28} />
-              <Bar dataKey="timeAlloc" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Time Alloc (min)" barSize={28} />
+              <Bar dataKey="accuracy" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Accuracy %" barSize={22} />
+              <Bar dataKey="timeUsed" fill="#10b981" radius={[4, 4, 0, 0]} name="Time (min)" barSize={22} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Topic radar */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
           <h3 className="font-semibold text-slate-900 mb-1">Topic Proficiency</h3>
           <p className="text-sm text-slate-500 mb-4">Strength across key topics</p>
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer width="100%" height={220}>
             <RadarChart data={topicRadarData}>
               <PolarGrid stroke="#e2e8f0" />
-              <PolarAngleAxis dataKey="topic" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+              <PolarAngleAxis dataKey="topic" tick={{ fontSize: 10, fill: '#94a3b8' }} />
               <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#cbd5e1' }} />
               <Radar name="Score" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} strokeWidth={2} />
               <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
@@ -131,8 +124,8 @@ export function ReportsPage() {
       </div>
 
       {/* Score trend */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div>
             <h3 className="font-semibold text-slate-900">Score Trend</h3>
             <p className="text-sm text-slate-500">Progress over time</p>
@@ -142,12 +135,12 @@ export function ReportsPage() {
             <Badge variant="purple">SAT</Badge>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width="100%" height={190}>
           <LineChart data={trendData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="act" domain={[20, 36]} tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="sat" orientation="right" domain={[1000, 1600]} tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="act" domain={[20, 36]} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="sat" orientation="right" domain={[1000, 1600]} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
             <Line yAxisId="act" type="monotone" dataKey="actScore" stroke="#3b82f6" strokeWidth={2.5} dot={{ fill: '#3b82f6', r: 4 }} name="ACT Score" />
@@ -158,16 +151,16 @@ export function ReportsPage() {
 
       {/* Topic breakdown table */}
       <div className="bg-white rounded-xl border border-slate-200">
-        <div className="px-6 py-4 border-b border-slate-100">
+        <div className="px-4 md:px-6 py-4 border-b border-slate-100">
           <h3 className="font-semibold text-slate-900">Topic-Level Breakdown</h3>
-          <p className="text-sm text-slate-500">Detailed accuracy and timing per topic</p>
+          <p className="text-sm text-slate-500">Accuracy and timing per topic</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[500px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
-                {['Topic', 'Section', 'Correct/Total', 'Accuracy', 'Avg Time/Q', 'Status'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                {['Topic', 'Section', 'Correct/Total', 'Accuracy', 'Avg Time', 'Status'].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -175,21 +168,18 @@ export function ReportsPage() {
               {MOCK_ANALYTICS.sections.flatMap((sec) =>
                 sec.topicBreakdown.map((tb) => (
                   <tr key={`${sec.sectionId}-${tb.topic}`} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-900">{tb.topic}</td>
-                    <td className="px-4 py-3 text-slate-500">{sec.sectionName}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{tb.topic}</td>
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{sec.sectionName}</td>
                     <td className="px-4 py-3 text-slate-700">{tb.correct}/{tb.total}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${tb.accuracy >= 80 ? 'bg-emerald-500' : tb.accuracy >= 60 ? 'bg-amber-400' : 'bg-red-400'}`}
-                            style={{ width: `${tb.accuracy}%` }}
-                          />
+                        <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
+                          <div className={`h-full rounded-full ${tb.accuracy >= 80 ? 'bg-emerald-500' : tb.accuracy >= 60 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${tb.accuracy}%` }} />
                         </div>
-                        <span className="text-slate-700 font-medium">{tb.accuracy.toFixed(1)}%</span>
+                        <span className="font-medium text-slate-700 whitespace-nowrap">{tb.accuracy.toFixed(1)}%</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{tb.avgTimeSpent}s</td>
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{tb.avgTimeSpent}s</td>
                     <td className="px-4 py-3">
                       <Badge variant={tb.accuracy >= 80 ? 'success' : tb.accuracy >= 60 ? 'warning' : 'danger'} size="sm">
                         {tb.accuracy >= 80 ? 'Strong' : tb.accuracy >= 60 ? 'Average' : 'Weak'}

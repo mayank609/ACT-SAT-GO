@@ -1,11 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, BarChart3, Settings,
-  LogOut, GraduationCap, BookOpen, ClipboardList, ChevronLeft, ChevronRight, Bell
+  LogOut, GraduationCap, BookOpen, ClipboardList, ChevronLeft, ChevronRight, Bell, X
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';
-import { useState } from 'react';
 
 interface NavItem {
   label: string;
@@ -41,10 +40,16 @@ const roleColors: Record<Role, string> = {
   student: 'bg-amber-100 text-amber-700',
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  setCollapsed: (v: boolean) => void;
+  mobileOpen: boolean;
+  setMobileOpen: (v: boolean) => void;
+}
+
+export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
 
   const filteredNav = navItems.filter((item) => user && item.roles.includes(user.role));
 
@@ -53,14 +58,8 @@ export function Sidebar() {
     navigate('/login');
   };
 
-  return (
-    <aside
-      className={`
-        relative flex flex-col bg-slate-900 text-white transition-all duration-300
-        ${collapsed ? 'w-16' : 'w-64'}
-        min-h-screen flex-shrink-0
-      `}
-    >
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-slate-900 text-white">
       {/* Logo */}
       <div className={`flex items-center gap-3 px-4 py-5 border-b border-slate-700/50 ${collapsed ? 'justify-center' : ''}`}>
         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -68,19 +67,18 @@ export function Sidebar() {
         </div>
         {!collapsed && (
           <div>
-            <span className="font-bold text-white text-base">ACT·SAT</span>
+            <span className="font-bold text-white text-base">ACT·SAT·GO</span>
             <span className="block text-xs text-slate-400">Test Platform</span>
           </div>
         )}
+        {/* Mobile close button */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="ml-auto md:hidden p-1 text-slate-400 hover:text-white"
+        >
+          <X size={18} />
+        </button>
       </div>
-
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-6 z-10 w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center hover:bg-slate-600 transition-colors border border-slate-600"
-      >
-        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-      </button>
 
       {/* Nav items */}
       <nav className="flex-1 py-4 px-2 space-y-0.5 overflow-y-auto">
@@ -88,12 +86,10 @@ export function Sidebar() {
           <NavLink
             key={item.path}
             to={item.path}
+            onClick={() => setMobileOpen(false)}
             className={({ isActive }) => `
               flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
-              ${isActive
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }
+              ${isActive ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
               ${collapsed ? 'justify-center' : ''}
             `}
             title={collapsed ? item.label : undefined}
@@ -104,7 +100,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Notifications & User */}
+      {/* Bottom */}
       <div className="border-t border-slate-700/50 p-2 space-y-0.5">
         <button className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-sm ${collapsed ? 'justify-center' : ''}`}>
           <Bell size={18} className="flex-shrink-0" />
@@ -135,6 +131,46 @@ export function Sidebar() {
           {!collapsed && <span>Sign Out</span>}
         </button>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 md:hidden
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <SidebarContent />
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside
+        className={`
+          relative hidden md:flex flex-col transition-all duration-300
+          ${collapsed ? 'w-16' : 'w-64'}
+          min-h-screen flex-shrink-0
+        `}
+      >
+        <SidebarContent />
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3 top-6 z-10 w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center hover:bg-slate-600 transition-colors border border-slate-600"
+        >
+          {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        </button>
+      </aside>
+    </>
   );
 }
