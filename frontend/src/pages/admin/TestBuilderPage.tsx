@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -151,6 +151,248 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
   );
 }
 
+// ── CSV Import ──────────────────────────────────────────────────────────────
+
+interface CSVParseResult {
+  lineNum: number;
+  type: string;
+  text: string;
+  correctAnswerDisplay: string;
+  difficulty: string;
+  errors: string[];
+  question: Question;
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === '"') {
+      let j = i + 1;
+      let field = '';
+      while (j < line.length) {
+        if (line[j] === '"' && j + 1 < line.length && line[j + 1] === '"') { field += '"'; j += 2; }
+        else if (line[j] === '"') { j++; break; }
+        else { field += line[j]; j++; }
+      }
+      result.push(field);
+      i = j + 1;
+    } else {
+      let j = i;
+      while (j < line.length && line[j] !== ',') j++;
+      result.push(line.slice(i, j).trim());
+      i = j + 1;
+    }
+  }
+  return result;
+}
+
+function parseCSVContent(text: string): CSVParseResult[] {
+  const lines = text.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+
+  const results: CSVParseResult[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    const [typeRaw = '', qText = '', optA = '', optB = '', optC = '', optD = '', ansRaw = '', diffRaw = '', expl = ''] = f;
+    const errors: string[] = [];
+
+    const typeUpper = typeRaw.trim().toUpperCase();
+    let questionType: QuestionType;
+    if (typeUpper === 'MCQ') questionType = 'mcq_single';
+    else if (typeUpper === 'MSQ') questionType = 'mcq_multi';
+    else if (typeUpper === 'NUMERIC') questionType = 'numeric';
+    else { errors.push(`Unknown type "${typeRaw}" — use MCQ, MSQ, or NUMERIC`); questionType = 'mcq_single'; }
+
+    if (!qText.trim()) errors.push('Question text is required');
+
+    const diffLower = diffRaw.trim().toLowerCase();
+    const difficulty: Difficulty = (['easy', 'medium', 'hard'] as Difficulty[]).includes(diffLower as Difficulty) ? (diffLower as Difficulty) : 'medium';
+    if (diffRaw.trim() && !['easy', 'medium', 'hard'].includes(diffLower)) errors.push(`Unknown difficulty "${diffRaw}" — use easy, medium, or hard`);
+
+    const opts = [optA, optB, optC, optD].map((t, idx) => ({ id: ['a', 'b', 'c', 'd'][idx], text: t }));
+
+    let correctAnswer: Question['correctAnswer'] = 'a';
+    let correctAnswerDisplay = ansRaw.trim().toUpperCase();
+
+    if (questionType === 'numeric') {
+      const num = parseFloat(ansRaw.trim());
+      if (isNaN(num)) errors.push('Numeric answer must be a number');
+      else correctAnswer = num;
+    } else if (questionType === 'mcq_multi') {
+      const keys = ansRaw.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean);
+      if (keys.length === 0) errors.push('MSQ requires at least one correct answer (e.g. "A,B")');
+      else if (keys.some((k) => !['a', 'b', 'c', 'd'].includes(k))) errors.push('Answer keys must be letters A–D');
+      else correctAnswer = keys;
+    } else {
+      const key = ansRaw.trim().toLowerCase();
+      if (!['a', 'b', 'c', 'd'].includes(key)) errors.push('Answer key must be A, B, C, or D');
+      else correctAnswer = key;
+    }
+
+    if (questionType !== 'numeric' && !optA.trim()) errors.push('Option A is required for MCQ/MSQ');
+
+    const question: Question = {
+      id: generateId(),
+      text: qText.trim(),
+      type: questionType,
+      options: questionType !== 'numeric' ? opts : undefined,
+      correctAnswer,
+      difficulty,
+      topic: '',
+      ...(expl.trim() ? { explanation: expl.trim() } : {}),
+    };
+
+    results.push({ lineNum: i + 1, type: typeUpper, text: qText.trim(), correctAnswerDisplay, difficulty, errors, question });
+  }
+
+  return results;
+}
+
+const CSV_TEMPLATE = `type,text,option_a,option_b,option_c,option_d,correct_answer,difficulty,explanation\r\nMCQ,"If 2x + 3 = 11, what is the value of x?",2,3,4,5,C,easy,Subtract 3 from both sides then divide by 2\r\nNUMERIC,"What is the area of a rectangle with length 8 and width 5?",,,,,40,easy,Area = length × width = 8 × 5 = 40\r\nMSQ,"Which of the following are prime numbers?",2,3,4,5,"A,B,D",medium,2 and 3 and 5 are prime; 4 is not\r\n`;
+
+interface CSVUploaderProps {
+  sectionName: string;
+  onImport: (questions: Question[]) => void;
+  onClose: () => void;
+}
+
+function QuestionCSVUploader({ sectionName, onImport, onClose }: CSVUploaderProps) {
+  const [rows, setRows] = useState<CSVParseResult[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const processFile = (file: File) => {
+    if (!file.name.endsWith('.csv')) { alert('Please select a .csv file'); return; }
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => setRows(parseCSVContent(e.target?.result as string ?? ''));
+    reader.readAsText(file);
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  };
+
+  const downloadTemplate = () => {
+    const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'questions_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const validRows = rows.filter((r) => r.errors.length === 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Template download */}
+      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
+        <div>
+          <p className="text-sm font-medium text-blue-900">CSV Template</p>
+          <p className="text-xs text-blue-600 mt-0.5">Columns: type, text, option_a–d, correct_answer, difficulty, explanation</p>
+        </div>
+        <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+          <Download size={12} /> Download
+        </button>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onClick={() => fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragging ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
+      >
+        <FileText size={28} className="mx-auto mb-2 text-slate-400" />
+        {fileName
+          ? <p className="text-sm font-medium text-slate-700">{fileName}</p>
+          : <>
+              <p className="text-sm font-medium text-slate-600">Drop CSV file here</p>
+              <p className="text-xs text-slate-400 mt-1">or click to browse</p>
+            </>
+        }
+        <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+      </div>
+
+      {/* Preview */}
+      {rows.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{rows.length} row{rows.length !== 1 ? 's' : ''} parsed</p>
+            <div className="flex items-center gap-3 text-xs">
+              {validRows.length > 0 && <span className="text-emerald-600 font-medium">{validRows.length} valid</span>}
+              {rows.length - validRows.length > 0 && <span className="text-red-500 font-medium">{rows.length - validRows.length} with errors</span>}
+            </div>
+          </div>
+          <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 text-xs">
+            <table className="w-full">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  {['#', 'Type', 'Question', 'Answer', 'Difficulty', ''].map((h) => (
+                    <th key={h} className="px-2 py-2 text-left text-slate-500 font-semibold">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.lineNum} className={row.errors.length ? 'bg-red-50' : 'bg-white hover:bg-slate-50'}>
+                    <td className="px-2 py-2 text-slate-400">{row.lineNum}</td>
+                    <td className="px-2 py-2 font-mono">{row.type}</td>
+                    <td className="px-2 py-2 max-w-xs">
+                      <p className="truncate text-slate-700">{row.text || <span className="text-slate-400 italic">empty</span>}</p>
+                      {row.errors.length > 0 && (
+                        <ul className="mt-0.5 space-y-0.5">
+                          {row.errors.map((e, i) => <li key={i} className="text-red-600">• {e}</li>)}
+                        </ul>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 font-mono text-slate-600">{row.correctAnswerDisplay}</td>
+                    <td className="px-2 py-2 text-slate-600 capitalize">{row.difficulty}</td>
+                    <td className="px-2 py-2">
+                      {row.errors.length === 0
+                        ? <CheckCircle2 size={14} className="text-emerald-500" />
+                        : <AlertCircle size={14} className="text-red-400" />
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 pt-1">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors">Cancel</button>
+        <button
+          onClick={() => { onImport(validRows.map((r) => r.question)); onClose(); }}
+          disabled={validRows.length === 0}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          <Upload size={13} />
+          Import {validRows.length > 0 ? `${validRows.length} question${validRows.length !== 1 ? 's' : ''}` : 'questions'} to {sectionName}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Test Builder ─────────────────────────────────────────────────────────────
+
 export function TestBuilderPage() {
   const navigate = useNavigate();
   const { user, dbId } = useAuthStore();
@@ -161,6 +403,7 @@ export function TestBuilderPage() {
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showSectionNav, setShowSectionNav] = useState(false);
+  const [showCSVUploader, setShowCSVUploader] = useState(false);
   const [saved, setSaved] = useState(false);
   const [titleError, setTitleError] = useState(false);
 
@@ -324,11 +567,25 @@ export function TestBuilderPage() {
             ))}
           </div>
 
-          <Button variant="secondary" onClick={addQuestion} icon={<Plus size={13} />} className="w-full py-3 border-dashed">
-            Add Question to {activeSection.name}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={addQuestion} icon={<Plus size={13} />} className="flex-1 py-3 border-dashed">
+              Add Question
+            </Button>
+            <Button variant="secondary" onClick={() => setShowCSVUploader(true)} icon={<Upload size={13} />} className="py-3 border-dashed px-4">
+              Import CSV
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* CSV Import Modal */}
+      <Modal isOpen={showCSVUploader} onClose={() => setShowCSVUploader(false)} title={`Import Questions — ${activeSection.name}`} size="lg">
+        <QuestionCSVUploader
+          sectionName={activeSection.name}
+          onImport={(imported) => updateSection(activeSectionIdx, { questions: [...activeSection.questions, ...imported] })}
+          onClose={() => setShowCSVUploader(false)}
+        />
+      </Modal>
 
       {/* Settings Modal */}
       <Modal isOpen={showSettings} onClose={() => setShowSettings(false)} title="Test Settings" size="sm">
