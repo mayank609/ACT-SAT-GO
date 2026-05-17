@@ -1,43 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
-import { useAdminStore } from '../../store/useAdminStore';
-import { MOCK_STUDENTS } from '../../data/mockData';
-import type { Test, TestStatus } from '../../types';
+import { useAdminStore, type ApiTest } from '../../store/useAdminStore';
 
 export function TestsPage() {
   const navigate = useNavigate();
-  const { tests, deleteTest, assignStudents, updateTestStatus } = useAdminStore();
-  const [deleteModal, setDeleteModal] = useState<Test | null>(null);
-  const [assignModal, setAssignModal] = useState<Test | null>(null);
+  const { tests, loading, fetchTests, deleteTest, updateTestStatus } = useAdminStore();
+
+  useEffect(() => { fetchTests(); }, [fetchTests]);
+  const [deleteModal, setDeleteModal] = useState<ApiTest | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
 
-  // Track checked state for assign modal (controlled)
-  const [assignedIds, setAssignedIds] = useState<string[]>([]);
+  // DB status is uppercase; filter is lowercase — normalise for comparison
+  const filtered = tests.filter(
+    (t) => filter === 'all' || t.status.toLowerCase() === filter
+  );
 
-  const filtered = tests.filter((t) => filter === 'all' || t.status === filter);
-
-  const openAssignModal = (test: Test) => {
-    setAssignedIds(test.assignedStudentIds ?? []);
-    setAssignModal(test);
-  };
-
-  const handleSaveAssignments = () => {
-    if (assignModal) assignStudents(assignModal.id, assignedIds);
-    setAssignModal(null);
-  };
-
-  const toggleAssignedStudent = (id: string) =>
-    setAssignedIds((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-
-  const handleStatusChange = (test: Test, status: TestStatus) => {
+  const handleStatusChange = (test: ApiTest, status: string) => {
     updateTestStatus(test.id, status);
     setMenuOpen(null);
   };
@@ -67,18 +51,31 @@ export function TestsPage() {
           >
             {f}
             <span className={`ml-1.5 text-xs ${filter === f ? 'text-blue-200' : 'text-slate-400'}`}>
-              ({f === 'all' ? tests.length : tests.filter((t) => t.status === f).length})
+              ({f === 'all' ? tests.length : tests.filter((t) => t.status.toLowerCase() === f).length})
             </span>
           </button>
         ))}
       </div>
 
       {/* Test cards */}
+      {loading && tests.length === 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 animate-pulse">
+              <div className="flex gap-3 mb-4"><div className="w-10 h-10 bg-slate-100 rounded-xl" /><div className="flex-1 space-y-2"><div className="h-3 bg-slate-100 rounded w-3/4" /><div className="h-2 bg-slate-100 rounded w-1/2" /></div></div>
+              <div className="h-4 bg-slate-100 rounded w-2/3 mb-2" />
+              <div className="h-3 bg-slate-100 rounded w-full mb-4" />
+              <div className="flex gap-2">{[1,2,3].map((j) => <div key={j} className="h-5 bg-slate-100 rounded-full w-16" />)}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((test) => {
-          const totalQ = test.sections.reduce((a, s) => a + s.questions.length, 0);
-          const totalTime = test.sections.reduce((a, s) => a + s.timeLimit, 0);
-          const assignedCount = test.assignedStudentIds?.length ?? 0;
+          const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
+          const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
+          const attemptsCount = test._count?.attempts ?? 0;
+          const statusLower = test.status.toLowerCase();
 
           return (
             <Card key={test.id} hoverable padding="none">
@@ -88,8 +85,8 @@ export function TestsPage() {
                     <FileText size={18} className="text-blue-600" />
                   </div>
                   <div className="flex items-center gap-1">
-                    <Badge variant={test.status === 'published' ? 'success' : test.status === 'draft' ? 'warning' : 'default'}>
-                      {test.status}
+                    <Badge variant={statusLower === 'published' ? 'success' : statusLower === 'draft' ? 'warning' : 'default'}>
+                      {statusLower}
                     </Badge>
                     <div className="relative">
                       <button
@@ -100,19 +97,19 @@ export function TestsPage() {
                       </button>
                       {menuOpen === test.id && (
                         <div className="absolute right-0 top-6 z-20 w-44 bg-white rounded-xl border border-slate-200 shadow-lg py-1" onClick={(e) => e.stopPropagation()}>
-                          {test.status !== 'published' && (
+                          {statusLower !== 'published' && (
                             <button onClick={() => handleStatusChange(test, 'published')}
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-emerald-50">
                               <BookOpen size={13} /> Publish
                             </button>
                           )}
-                          {test.status !== 'draft' && (
+                          {statusLower !== 'draft' && (
                             <button onClick={() => handleStatusChange(test, 'draft')}
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
                               <Edit size={13} /> Move to Draft
                             </button>
                           )}
-                          {test.status !== 'archived' && (
+                          {statusLower !== 'archived' && (
                             <button onClick={() => handleStatusChange(test, 'archived')}
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
                               <Archive size={13} /> Archive
@@ -135,7 +132,7 @@ export function TestsPage() {
                 <div className="flex items-center gap-3 text-xs text-slate-500 mb-4">
                   <span className="flex items-center gap-1"><FileText size={11} /> {totalQ} questions</span>
                   <span className="flex items-center gap-1"><Clock size={11} /> {totalTime} min</span>
-                  <span className="flex items-center gap-1"><Users size={11} /> {assignedCount} students</span>
+                  <span className="flex items-center gap-1"><Users size={11} /> {attemptsCount} attempts</span>
                 </div>
 
                 {/* Section pills */}
@@ -150,9 +147,6 @@ export function TestsPage() {
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
                   <Button variant="ghost" size="sm" icon={<Eye size={13} />} className="flex-1 justify-center">
                     Preview
-                  </Button>
-                  <Button variant="ghost" size="sm" icon={<Users size={13} />} onClick={() => openAssignModal(test)} className="flex-1 justify-center">
-                    Assign
                   </Button>
                   <button
                     onClick={() => navigate('/test-builder')}
@@ -202,41 +196,6 @@ export function TestsPage() {
         <p className="text-sm text-slate-600">
           Are you sure you want to delete <strong>"{deleteModal?.title}"</strong>? This action cannot be undone and will remove all associated data.
         </p>
-      </Modal>
-
-      {/* Assign modal */}
-      <Modal isOpen={!!assignModal} onClose={() => setAssignModal(null)} title="Assign Test to Students" size="md">
-        <div className="space-y-3">
-          <p className="text-sm text-slate-600 mb-4">Select students to assign <strong>{assignModal?.title}</strong>:</p>
-          {MOCK_STUDENTS.map((s) => {
-            const checked = assignedIds.includes(s.id);
-            return (
-              <label key={s.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggleAssignedStudent(s.id)}
-                  className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                />
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold">
-                  {s.name.charAt(0)}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{s.name}</p>
-                  <p className="text-xs text-slate-500">{s.email}</p>
-                </div>
-                {checked && <Badge variant="success" className="ml-auto" size="sm">Assigned</Badge>}
-              </label>
-            );
-          })}
-          <div className="flex items-center justify-between pt-2">
-            <p className="text-xs text-slate-400">{assignedIds.length} student{assignedIds.length !== 1 ? 's' : ''} selected</p>
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setAssignModal(null)}>Cancel</Button>
-              <Button size="sm" onClick={handleSaveAssignments}>Save Assignments</Button>
-            </div>
-          </div>
-        </div>
       </Modal>
     </div>
   );

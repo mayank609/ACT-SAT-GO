@@ -1,9 +1,10 @@
+import { useState, useEffect } from 'react';
 import { FileText, Plus, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
-import { MOCK_TESTS, MOCK_STUDENTS, MOCK_TUTORS } from '../../data/mockData';
+import { api, type DbUser } from '../../lib/api';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar,
 } from 'recharts';
@@ -27,9 +28,30 @@ const scoreDistData = [
   { range: '31–36', count: 8 },
 ];
 
+interface DbTest {
+  id: string;
+  title: string;
+  status: string;
+  sections: { _count?: { questions: number } }[];
+}
+
 export function AdminDashboard() {
-  const publishedTests = MOCK_TESTS.filter((t) => t.status === 'published');
-  const draftTests = MOCK_TESTS.filter((t) => t.status === 'draft');
+  const [tests, setTests] = useState<DbTest[]>([]);
+  const [students, setStudents] = useState<DbUser[]>([]);
+  const [tutors, setTutors] = useState<DbUser[]>([]);
+
+  useEffect(() => {
+    api.getAllTests().then((r) => setTests((r.tests as DbTest[]) ?? [])).catch(() => {});
+    api.getUsersByRole('STUDENT').then((r) => setStudents(r.users ?? [])).catch(() => {});
+    api.getUsersByRole('TUTOR').then((r) => setTutors(r.users ?? [])).catch(() => {});
+  }, []);
+
+  const publishedTests = tests.filter((t) => t.status === 'PUBLISHED');
+  const draftTests = tests.filter((t) => t.status === 'DRAFT');
+
+  const avgScore = students.length
+    ? (students.reduce((a, s) => a + (s.avgScore ?? 0), 0) / students.filter(s => s.avgScore != null).length || 0)
+    : 0;
 
   return (
     <div className="space-y-5">
@@ -47,10 +69,15 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="Students" value={MOCK_STUDENTS.length} subtitle="+3 this week" trend={{ value: 12, positive: true }} />
+        <StatCard title="Students" value={students.length} subtitle={`${tutors.length} tutors`} trend={{ value: 12, positive: true }} />
         <StatCard title="Active Tests" value={publishedTests.length} subtitle={`${draftTests.length} drafts`} />
-        <StatCard title="Avg Score" value="27.4" subtitle="out of 36" trend={{ value: 8, positive: true }} />
-        <StatCard title="Completion" value="87%" subtitle="tests finished" />
+        <StatCard
+          title="Avg Score"
+          value={avgScore > 0 ? avgScore.toFixed(1) : '—'}
+          subtitle="out of 36"
+          trend={{ value: 8, positive: true }}
+        />
+        <StatCard title="Total Tests" value={tests.length} subtitle="in platform" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -112,81 +139,61 @@ export function AdminDashboard() {
             </Link>
           </div>
           <div className="divide-y divide-slate-50">
-            {MOCK_TESTS.slice(0, 4).map((test) => (
-              <div key={test.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-                <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
-                  <FileText size={13} className="text-slate-400" />
+            {tests.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-slate-400">No tests yet. Create one!</p>
+            ) : (
+              tests.slice(0, 4).map((test) => (
+                <div key={test.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+                  <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
+                    <FileText size={13} className="text-slate-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-800 truncate">{test.title}</p>
+                    <p className="text-xs text-slate-400">{test.sections.length} sections</p>
+                  </div>
+                  <Badge
+                    variant={test.status === 'PUBLISHED' ? 'success' : test.status === 'DRAFT' ? 'warning' : 'default'}
+                    size="sm"
+                  >
+                    {test.status.toLowerCase()}
+                  </Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-800 truncate">{test.title}</p>
-                  <p className="text-xs text-slate-400">{test.sections.length} sections · {test.sections.reduce((a, s) => a + s.questions.length, 0)}q</p>
-                </div>
-                <Badge variant={test.status === 'published' ? 'success' : test.status === 'draft' ? 'warning' : 'default'} size="sm">
-                  {test.status}
-                </Badge>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        {/* Alerts */}
+        {/* Tutors overview */}
         <div className="bg-white rounded-xl border border-slate-100">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
-            <p className="font-medium text-slate-900 text-sm">Activity</p>
-            <span className="text-xs text-red-500 font-medium">3 new</span>
+            <p className="font-medium text-slate-900 text-sm">Tutors</p>
+            <Link to="/tutors" className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+              Manage <ArrowRight size={12} />
+            </Link>
           </div>
-          <div className="divide-y divide-slate-50">
-            {[
-              { label: 'Tab switching detected', sub: 'Alex Thompson · 3 switches', time: '12m', type: 'warn' },
-              { label: 'Test completed', sub: 'Morgan Davis · ACT Full #1', time: '1h', type: 'ok' },
-              { label: 'New student', sub: 'Taylor Brown · assigned to Rodriguez', time: '2h', type: 'info' },
-              { label: 'Report ready', sub: 'Monthly analytics · February', time: '3h', type: 'info' },
-            ].map((a, i) => (
-              <div key={i} className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${a.type === 'warn' ? 'bg-red-400' : a.type === 'ok' ? 'bg-emerald-400' : 'bg-blue-400'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-800">{a.label}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{a.sub}</p>
+          {tutors.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-slate-400">No tutors yet. Add one!</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-50">
+              {tutors.slice(0, 2).map((tutor) => (
+                <div key={tutor.id} className="px-5 py-4 flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-semibold text-sm flex-shrink-0">
+                    {tutor.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-900 text-sm truncate">{tutor.name}</p>
+                    <p className="text-xs text-slate-400">{tutor.studentCount ?? 0} students</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {tutor.avgScore != null ? tutor.avgScore.toFixed(1) : '—'}
+                    </p>
+                    <p className="text-xs text-slate-400">avg score</p>
+                  </div>
                 </div>
-                <span className="text-xs text-slate-300 whitespace-nowrap">{a.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Tutor overview */}
-      <div className="bg-white rounded-xl border border-slate-100">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
-          <p className="font-medium text-slate-900 text-sm">Tutors</p>
-          <Link to="/tutors" className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
-            Manage <ArrowRight size={12} />
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-50">
-          {MOCK_TUTORS.map((tutor) => {
-            const students = MOCK_STUDENTS.filter((s) => s.tutorId === tutor.id);
-            const avg = students.reduce((a, s) => a + (s.avgScore || 0), 0) / (students.length || 1);
-            return (
-              <div key={tutor.id} className="px-5 py-4 flex items-center gap-4">
-                <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-semibold text-sm flex-shrink-0">
-                  {tutor.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-900 text-sm truncate">{tutor.name}</p>
-                  <p className="text-xs text-slate-400">{students.length} students</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-slate-900">{avg.toFixed(1)}</p>
-                  <p className="text-xs text-slate-400">avg score</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-slate-900">{students.reduce((a, s) => a + (s.testsAttempted || 0), 0)}</p>
-                  <p className="text-xs text-slate-400">tests</p>
-                </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

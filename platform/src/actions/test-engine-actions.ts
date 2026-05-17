@@ -1,5 +1,6 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { revalidatePath } from 'next/cache'
@@ -53,15 +54,17 @@ export async function autosaveAnswer(data: {
 export async function submitSectionAttempt(attemptId: string, sectionId: string) {
   try {
     // 1. Flush Redis answers → PostgreSQL
-    const cachedAnswers = (await redis.hgetall(`answers:${attemptId}`)) as Record<string, string> | null
+    const cachedAnswers = (await redis.hgetall(`answers:${attemptId}`)) as Record<string, unknown> | null
 
     if (cachedAnswers) {
-      const upserts = Object.entries(cachedAnswers).map(([questionId, dataStr]) => {
-        const data = JSON.parse(dataStr)
+      const upserts = Object.entries(cachedAnswers).map(([questionId, raw]) => {
+        const data = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+          answerGiven: Prisma.InputJsonValue | null; timeSpentSeconds: number; isFlagged: boolean
+        }
         return prisma.attemptAnswer.upsert({
           where: { attemptId_questionId: { attemptId, questionId } },
-          update: { answerGiven: data.answerGiven, timeSpentSeconds: data.timeSpentSeconds, isFlagged: data.isFlagged },
-          create: { attemptId, questionId, answerGiven: data.answerGiven, timeSpentSeconds: data.timeSpentSeconds, isFlagged: data.isFlagged },
+          update: { answerGiven: data.answerGiven ?? Prisma.DbNull, timeSpentSeconds: data.timeSpentSeconds, isFlagged: data.isFlagged },
+          create: { attemptId, questionId, answerGiven: data.answerGiven ?? Prisma.DbNull, timeSpentSeconds: data.timeSpentSeconds, isFlagged: data.isFlagged },
         })
       })
       await Promise.all(upserts)

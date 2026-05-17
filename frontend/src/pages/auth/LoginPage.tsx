@@ -2,19 +2,34 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, BookOpen, ShieldCheck } from 'lucide-react';
 import { useAuthStore, MOCK_USERS } from '../../store/useAuthStore';
+import { api } from '../../lib/api';
 import { Button } from '../../components/common/Button';
 import type { Role } from '../../types';
 
+const ROLE_TO_DB: Record<Role, string> = {
+  super_admin: 'SUPER_ADMIN',
+  admin: 'ADMIN',
+  tutor: 'TUTOR',
+  student: 'STUDENT',
+};
+
+// Seeded emails — used to resolve DB IDs for demo logins
+const ROLE_SEEDED_EMAIL: Partial<Record<Role, string>> = {
+  admin: 'admin@actsat.com',
+  tutor: 'emily.rodriguez@actsat.com',
+  student: 'alex.thompson@student.com',
+};
+
 const DEMO_CREDENTIALS: { role: Role; email: string; label: string; color: string }[] = [
-  { role: 'super_admin', email: 'super@testplatform.com', label: 'Super Admin', color: 'bg-purple-600' },
   { role: 'admin', email: 'admin@testplatform.com', label: 'Admin', color: 'bg-blue-600' },
   { role: 'tutor', email: 'tutor@testplatform.com', label: 'Tutor', color: 'bg-emerald-600' },
-  { role: 'student', email: 'student@testplatform.com', label: 'Student', color: 'bg-amber-600' },
+  { role: 'student', email: 'student@testplatform.com', label: 'Student (Alex)', color: 'bg-amber-600' },
+  { role: 'student', email: 'student2@testplatform.com', label: 'Student (Morgan)', color: 'bg-orange-500' },
 ];
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { login, setDbId } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -33,11 +48,27 @@ export function LoginPage() {
       return;
     }
     login(user, 'mock-jwt-token');
+    resolveDbId(user.role);
     navigate('/dashboard');
   };
 
-  const handleDemoLogin = (role: Role) => {
+  const resolveDbId = async (role: Role, preferEmail?: string) => {
+    try {
+      const dbRole = ROLE_TO_DB[role];
+      const { users } = await api.getUsersByRole(dbRole);
+      if (users.length === 0) return;
+      // Prefer the seeded email match for consistent demo experience
+      const seedEmail = preferEmail ?? ROLE_SEEDED_EMAIL[role];
+      const match = seedEmail ? users.find((u) => u.email === seedEmail) : null;
+      setDbId((match ?? users[0]).id);
+    } catch {
+      // non-fatal
+    }
+  };
+
+  const handleDemoLogin = (role: Role, preferEmail?: string) => {
     login(MOCK_USERS[role], 'mock-jwt-token');
+    resolveDbId(role, preferEmail);
     navigate('/dashboard');
   };
 
@@ -152,10 +183,10 @@ export function LoginPage() {
               <div className="flex-1 h-px bg-slate-200" />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {DEMO_CREDENTIALS.map((d) => (
+              {DEMO_CREDENTIALS.map((d, i) => (
                 <button
-                  key={d.role}
-                  onClick={() => handleDemoLogin(d.role)}
+                  key={i}
+                  onClick={() => handleDemoLogin(d.role, d.email === 'student2@testplatform.com' ? 'morgan.davis@student.com' : undefined)}
                   className={`${d.color} text-white text-xs font-medium py-2 px-3 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2`}
                 >
                   <span className="w-2 h-2 bg-white/50 rounded-full flex-shrink-0" />

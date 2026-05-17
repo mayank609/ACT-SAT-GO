@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Flag, ChevronLeft, ChevronRight, Send, AlertTriangle, Grid3X3 } from 'lucide-react';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../lib/api';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import type { QuestionState } from '../../types';
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
 function useTimer(initialSeconds: number, onExpire: () => void) {
   const [seconds, setSeconds] = useState(initialSeconds);
@@ -25,7 +28,7 @@ function useTimer(initialSeconds: number, onExpire: () => void) {
     }
     intervalRef.current = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [seconds]);
+  }, [seconds]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = (s: number) => { expiredRef.current = false; setSeconds(s); };
   return { seconds, reset };
@@ -39,6 +42,14 @@ function formatTime(s: number) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
+// Converts frontend answer to DB storage format so scoring comparison works
+function toDbAnswer(type: string, answer: string | string[] | number | null): unknown {
+  if (answer === null || answer === '' || (Array.isArray(answer) && answer.length === 0)) return null;
+  if (type === 'numeric') return { value: typeof answer === 'number' ? answer : parseFloat(String(answer)) || null };
+  if (type === 'mcq_multi') return { keys: (answer as string[]).map((k) => k.toUpperCase()) };
+  return { key: (answer as string).toUpperCase() };
+}
+
 const stateColors: Record<QuestionState, string> = {
   not_visited: 'bg-slate-200 text-slate-600',
   not_answered: 'bg-red-500 text-white',
@@ -47,9 +58,11 @@ const stateColors: Record<QuestionState, string> = {
   answered_marked: 'bg-blue-500 text-white',
 };
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export function TestInterfacePage() {
   const navigate = useNavigate();
-  const { currentAttempt, activeTest, updateQuestionState, navigateToQuestion, advanceSection, completeAttempt, recordTabSwitch } = useTestStore();
+  const { currentAttempt, activeTest, updateQuestionState, navigateToQuestion, advanceSection, recordTabSwitch, clearAttempt } = useTestStore();
   const { user } = useAuthStore();
 
   const [selectedAnswer, setSelectedAnswer] = useState<string | string[] | number | null>(null);
@@ -59,6 +72,10 @@ export function TestInterfacePage() {
   const [showPalette, setShowPalette] = useState(false);
 
   const questionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Ref so timer-expire callback always sees latest reset function
+  const resetTimerRef = useRef<(s: number) => void>(() => {});
+  // Ref so timer-expire callback always sees latest component state
+  const timerExpireHandlerRef = useRef<() => void>(() => {});
 
   const test = activeTest;
   const attempt = currentAttempt;
@@ -76,25 +93,61 @@ export function TestInterfacePage() {
 
   const sectionTimeSeconds = (currentSection?.timeLimit ?? 45) * 60;
 
-  const handleTimerExpire = useCallback(() => {
-    if (test && currentSectionIdx < test.sections.length - 1) {
-      advanceSection();
-    } else {
-      handleFinalSubmit();
-    }
-  }, [currentSectionIdx, test]);
+  // Stable expire callback — delegates to ref which is always updated
+  const handleTimerExpire = useCallback(() => timerExpireHandlerRef.current(), []);
 
   const { seconds: timeLeft, reset: resetTimer } = useTimer(
     sectionTimeSeconds - (currentSectionAttempt?.timeUsed ?? 0),
-    handleTimerExpire
+    handleTimerExpire,
   );
+  resetTimerRef.current = resetTimer;
+
+  // ── API helpers ──────────────────────────────────────────────────────────────
+
+  const doSectionTransition = async (fromSectionId: string, toSectionIdx: number) => {
+    if (!attempt || !test) return;
+    try {
+      await api.submitSection(attempt.id, fromSectionId);
+      const result = await api.startSection(attempt.id, test.sections[toSectionIdx].id) as { endTime: number };
+      resetTimerRef.current(Math.max(10, Math.floor((result.endTime - Date.now()) / 1000)));
+    } catch {
+      resetTimerRef.current((test.sections[toSectionIdx]?.timeLimit ?? 45) * 60);
+    }
+  };
+
+  const doFinalSubmit = async () => {
+    if (!attempt || !currentSection || !currentQuestion) return;
+    const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
+    // Autosave last question's answer
+    api.autosaveAnswer(attempt.id, {
+      questionId: currentQuestion.id,
+      answerGiven: toDbAnswer(currentQuestion.type, finalAns),
+      timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+      isFlagged: false,
+    }).catch(() => {});
+    // Submit last section (also triggers score calculation in backend)
+    await api.submitSection(attempt.id, currentSection.id).catch(() => {});
+    clearAttempt();
+    navigate(`/test-review/${attempt.id}`);
+  };
+
+  // Update the timer-expire handler every render so it always has fresh state
+  timerExpireHandlerRef.current = () => {
+    if (!test || !attempt || !currentSection) return;
+    if (currentSectionIdx < test.sections.length - 1) {
+      advanceSection();
+      doSectionTransition(currentSection.id, currentSectionIdx + 1);
+    } else {
+      doFinalSubmit();
+    }
+  };
+
+  // ── Side effects ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Request fullscreen on mount
     document.documentElement.requestFullscreen?.().catch(() => {});
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        // Exited fullscreen — re-request after a brief delay
         setTimeout(() => document.documentElement.requestFullscreen?.().catch(() => {}), 500);
       }
     };
@@ -109,13 +162,18 @@ export function TestInterfacePage() {
     const handleVisibility = () => {
       if (document.hidden) {
         recordTabSwitch();
+        if (attempt) {
+          api.logCheatingEvent(attempt.id, 'tab_switch', {
+            count: (attempt.tabSwitchCount ?? 0) + 1,
+          }).catch(() => {});
+        }
         setTabSwitchWarning(true);
         setTimeout(() => setTabSwitchWarning(false), 3000);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [recordTabSwitch]);
+  }, [recordTabSwitch, attempt]);
 
   useEffect(() => {
     questionTimerRef.current = setInterval(() => {}, 1000);
@@ -131,7 +189,7 @@ export function TestInterfacePage() {
       setSelectedAnswer(null);
       setNumericInput('');
     }
-  }, [currentQuestion?.id]);
+  }, [currentQuestion?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!test || !attempt || !currentSection || !currentQuestion) return null;
 
@@ -142,7 +200,7 @@ export function TestInterfacePage() {
   const getQuestionState = (sectionId: string, qId: string): QuestionState =>
     attempt.sections[sectionId]?.questions[qId]?.state ?? 'not_visited';
 
-  const saveAndNavigate = (nextQIdx: number, nextSectionIdx?: number) => {
+  const saveAndNavigate = async (nextQIdx: number, nextSectionIdx?: number) => {
     if (!currentSection) return;
     const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
@@ -150,10 +208,20 @@ export function TestInterfacePage() {
     const newState: QuestionState = hasAnswer
       ? (prevState === 'marked_review' || prevState === 'answered_marked' ? 'answered_marked' : 'answered')
       : (prevState === 'marked_review' || prevState === 'answered_marked' ? 'marked_review' : 'not_answered');
+
     updateQuestionState(currentSection.id, currentQuestion.id, newState, finalAns);
+
+    // Autosave to Redis
+    api.autosaveAnswer(attempt.id, {
+      questionId: currentQuestion.id,
+      answerGiven: toDbAnswer(currentQuestion.type, finalAns),
+      timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+      isFlagged: newState === 'marked_review' || newState === 'answered_marked',
+    }).catch(() => {});
+
     if (nextSectionIdx !== undefined) {
       advanceSection();
-      resetTimer((test.sections[nextSectionIdx]?.timeLimit ?? 45) * 60);
+      doSectionTransition(currentSection.id, nextSectionIdx);
     } else {
       navigateToQuestion(currentSectionIdx, nextQIdx);
     }
@@ -164,12 +232,13 @@ export function TestInterfacePage() {
     const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '';
     updateQuestionState(currentSection.id, currentQuestion.id, hasAnswer ? 'answered_marked' : 'marked_review', finalAns);
+    api.autosaveAnswer(attempt.id, {
+      questionId: currentQuestion.id,
+      answerGiven: toDbAnswer(currentQuestion.type, finalAns),
+      timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+      isFlagged: true,
+    }).catch(() => {});
     if (!isLastQuestion) navigateToQuestion(currentSectionIdx, currentQIdx + 1);
-  };
-
-  const handleFinalSubmit = () => {
-    completeAttempt();
-    navigate('/dashboard');
   };
 
   const pct = Math.round(((sectionTimeSeconds - timeLeft) / sectionTimeSeconds) * 100);
@@ -184,7 +253,6 @@ export function TestInterfacePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-100">
-      {/* Tab switch warning */}
       {tabSwitchWarning && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-sm font-medium whitespace-nowrap">
           <AlertTriangle size={15} /> Tab switch detected! Logged.
@@ -201,23 +269,16 @@ export function TestInterfacePage() {
               <p className="text-sm font-medium truncate max-w-32 md:max-w-none">{user?.name}</p>
             </div>
           </div>
-
           <div className="text-center hidden md:block min-w-0 flex-1 px-4">
             <p className="text-xs text-slate-400">Test</p>
             <p className="text-sm font-medium truncate">{test.title}</p>
           </div>
-
           <div className="flex items-center gap-2">
-            {/* Mobile palette toggle */}
-            <button
-              onClick={() => setShowPalette(!showPalette)}
-              className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700 rounded-lg text-xs font-medium"
-            >
+            <button onClick={() => setShowPalette(!showPalette)}
+              className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700 rounded-lg text-xs font-medium">
               <Grid3X3 size={13} />
               <span>{answeredCount}/{totalQInSection}</span>
             </button>
-
-            {/* Timer */}
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-sm md:text-base font-bold ${isLowTime ? 'bg-red-600 animate-pulse' : 'bg-slate-700'}`}>
               {formatTime(timeLeft)}
             </div>
@@ -238,7 +299,6 @@ export function TestInterfacePage() {
             </div>
           ))}
         </div>
-        {/* Time progress bar */}
         <div className="max-w-6xl mx-auto pb-2">
           <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all ${isLowTime ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
@@ -249,7 +309,6 @@ export function TestInterfacePage() {
       <div className="flex-1 flex max-w-6xl mx-auto w-full gap-3 md:gap-4 p-3 md:p-4">
         {/* Question area */}
         <div className="flex-1 flex flex-col gap-3 md:gap-4 min-w-0">
-          {/* Question card */}
           <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-4 md:p-6 flex-1">
             <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
               <div className="flex items-center gap-2">
@@ -273,7 +332,7 @@ export function TestInterfacePage() {
             </div>
 
             <div className="text-sm md:text-base text-slate-900 leading-relaxed mb-5 md:mb-6">
-              {currentQuestion.text || `Question ${currentQIdx + 1}: This is a sample question for ${currentSection.name}.`}
+              {currentQuestion.text || `Question ${currentQIdx + 1}`}
             </div>
 
             {/* MCQ options */}
@@ -294,14 +353,11 @@ export function TestInterfacePage() {
                     }}
                       className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-xl border-2 text-left transition-all ${
                         isSelected ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
+                      }`}>
                       <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                         isSelected ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-300 text-slate-500'
                       }`}>{opt.id.toUpperCase()}</div>
-                      <span className={`text-sm ${isSelected ? 'text-blue-900 font-medium' : 'text-slate-700'}`}>
-                        {opt.text || `Option ${opt.id.toUpperCase()}: Sample answer choice`}
-                      </span>
+                      <span className={`text-sm ${isSelected ? 'text-blue-900 font-medium' : 'text-slate-700'}`}>{opt.text}</span>
                     </button>
                   );
                 })}
@@ -359,7 +415,6 @@ export function TestInterfacePage() {
         <div className="hidden md:block w-56 lg:w-64 flex-shrink-0">
           <div className="bg-white rounded-2xl border border-slate-200 p-4 sticky top-4">
             <h3 className="text-sm font-semibold text-slate-700 mb-3">{currentSection.name}</h3>
-            {/* Legend */}
             <div className="grid grid-cols-2 gap-1 mb-3 text-xs">
               {[
                 { color: 'bg-slate-200', label: 'Not Visited' },
@@ -373,7 +428,6 @@ export function TestInterfacePage() {
                 </div>
               ))}
             </div>
-            {/* Grid */}
             <div className="grid grid-cols-6 gap-1 max-h-72 overflow-y-auto">
               {currentSection.questions.map((q, idx) => {
                 const state = getQuestionState(currentSection.id, q.id);
@@ -386,7 +440,6 @@ export function TestInterfacePage() {
                 );
               })}
             </div>
-            {/* Stats */}
             <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
               {[
                 { label: 'Answered', color: 'text-emerald-600', count: answeredCount },
@@ -413,7 +466,6 @@ export function TestInterfacePage() {
               <h3 className="font-semibold text-slate-900">{currentSection.name} — Question Palette</h3>
               <button onClick={() => setShowPalette(false)} className="text-slate-400 text-lg">✕</button>
             </div>
-            {/* Legend */}
             <div className="flex flex-wrap gap-2 mb-4 text-xs">
               {[
                 { color: 'bg-slate-200', label: 'Not Visited' },
@@ -427,7 +479,6 @@ export function TestInterfacePage() {
                 </div>
               ))}
             </div>
-            {/* Grid */}
             <div className="grid grid-cols-8 sm:grid-cols-10 gap-2">
               {currentSection.questions.map((q, idx) => {
                 const state = getQuestionState(currentSection.id, q.id);
@@ -449,7 +500,7 @@ export function TestInterfacePage() {
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowSubmitModal(false)}>Review</Button>
-            <Button variant="success" size="sm" icon={<Send size={14} />} onClick={handleFinalSubmit}>Submit Final</Button>
+            <Button variant="success" size="sm" icon={<Send size={14} />} onClick={doFinalSubmit}>Submit Final</Button>
           </div>
         }
       >

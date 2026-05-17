@@ -1,11 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
 
 export function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { dbId } = useAuthStore();
+  const { setUserId, fetchNotifications } = useNotificationStore();
+
+  useEffect(() => {
+    if (!dbId) return;
+    setUserId(dbId);
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30_000);
+    return () => clearInterval(interval);
+  }, [dbId, setUserId, fetchNotifications]);
 
   return (
     <div className="flex min-h-screen bg-slate-50">

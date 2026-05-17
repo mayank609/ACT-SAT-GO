@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
+
+type AnswerJson = { key?: string; keys?: string[]; value?: number } | null
+
+function isAnswerCorrect(given: unknown, correct: unknown): boolean {
+  if (!given || !correct) return false
+  const g = given as AnswerJson
+  const c = correct as AnswerJson
+  if (!g || !c) return false
+  // Numeric
+  if (c.value !== undefined) return g.value === c.value
+  // MSQ — order-independent, case-insensitive
+  if (c.keys) {
+    const gKeys = (g.keys ?? []).map((k) => k.toUpperCase()).sort()
+    const cKeys = c.keys.map((k) => k.toUpperCase()).sort()
+    return JSON.stringify(gKeys) === JSON.stringify(cKeys)
+  }
+  // MCQ — case-insensitive
+  if (c.key) return g.key?.toUpperCase() === c.key.toUpperCase()
+  return false
+}
 
 export async function POST(
   _request: NextRequest,
@@ -10,22 +31,25 @@ export async function POST(
 
   try {
     // 1. Flush Redis answers → PostgreSQL
-    const cachedAnswers = (await redis.hgetall(`answers:${attemptId}`)) as Record<string, string> | null
+    // Upstash auto-deserializes JSON, so values may arrive as objects instead of strings
+    const cachedAnswers = (await redis.hgetall(`answers:${attemptId}`)) as Record<string, unknown> | null
 
     if (cachedAnswers) {
-      const upserts = Object.entries(cachedAnswers).map(([questionId, dataStr]) => {
-        const data = JSON.parse(dataStr)
+      const upserts = Object.entries(cachedAnswers).map(([questionId, raw]) => {
+        const data = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+          answerGiven: Prisma.InputJsonValue | null; timeSpentSeconds: number; isFlagged: boolean
+        }
         return prisma.attemptAnswer.upsert({
           where: { attemptId_questionId: { attemptId, questionId } },
           update: {
-            answerGiven: data.answerGiven,
+            answerGiven: data.answerGiven ?? Prisma.DbNull,
             timeSpentSeconds: data.timeSpentSeconds,
             isFlagged: data.isFlagged,
           },
           create: {
             attemptId,
             questionId,
-            answerGiven: data.answerGiven,
+            answerGiven: data.answerGiven ?? Prisma.DbNull,
             timeSpentSeconds: data.timeSpentSeconds,
             isFlagged: data.isFlagged,
           },
@@ -67,8 +91,7 @@ export async function POST(
         let totalScore = 0
         for (const answer of answers) {
           if (answer.answerGiven === null) continue
-          const correct =
-            JSON.stringify(answer.answerGiven) === JSON.stringify(answer.question.correctAnswer)
+          const correct = isAnswerCorrect(answer.answerGiven, answer.question.correctAnswer)
           const tq = answer.question.testQuestions[0]
           if (correct) {
             totalScore += tq?.marksPositive ?? 1

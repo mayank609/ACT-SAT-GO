@@ -5,7 +5,7 @@ import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
-import { useAdminStore } from '../../store/useAdminStore';
+import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
 
@@ -153,8 +153,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
 
 export function TestBuilderPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const { addTest } = useAdminStore();
+  const { user, dbId } = useAuthStore();
 
   const [testTitle, setTestTitle] = useState('');
   const [testDesc, setTestDesc] = useState('');
@@ -190,26 +189,27 @@ export function TestBuilderPage() {
   const totalQ = sections.reduce((a, s) => a + s.questions.length, 0);
   const totalTime = sections.reduce((a, s) => a + s.timeLimit, 0);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!testTitle.trim()) {
       setTitleError(true);
       return;
     }
     setTitleError(false);
-    addTest({
-      id: generateId(),
-      title: testTitle.trim(),
-      description: testDesc.trim() || undefined,
-      sections,
-      status: testSettings.publishStatus,
-      createdBy: user?.id ?? 'admin',
-      createdAt: new Date().toISOString(),
-      assignedStudentIds: [],
-      allowBackNavigation: testSettings.allowBackNavigation,
-      showResults: testSettings.showResults,
-    });
-    setSaved(true);
-    setTimeout(() => navigate('/tests'), 1000);
+    try {
+      await api.createTest({
+        title: testTitle.trim(),
+        description: testDesc.trim() || undefined,
+        sections,
+        status: testSettings.publishStatus,
+        createdById: dbId ?? user?.id ?? '',
+        allowBackNavigation: testSettings.allowBackNavigation,
+        showResults: testSettings.showResults,
+      });
+      setSaved(true);
+      setTimeout(() => navigate('/tests'), 1000);
+    } catch {
+      // keep button enabled so user can retry
+    }
   };
 
   return (

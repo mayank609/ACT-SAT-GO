@@ -10,15 +10,20 @@ export async function proxy(request: NextRequest) {
       status: 204,
       headers: {
         'Access-Control-Allow-Origin': process.env.CORS_ORIGIN ?? '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     })
   }
 
-  // API routes bypass session-based auth (token auth handled per-route when needed)
+  // API routes bypass session-based auth; add CORS headers to every real response
   if (url.pathname.startsWith('/api/')) {
-    return NextResponse.next()
+    const res = NextResponse.next()
+    const origin = process.env.CORS_ORIGIN ?? '*'
+    res.headers.set('Access-Control-Allow-Origin', origin)
+    res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return res
   }
 
   const { supabaseResponse, user } = await updateSession(request)

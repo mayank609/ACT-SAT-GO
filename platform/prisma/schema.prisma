@@ -39,6 +39,7 @@ enum AttemptStatus {
 
 model User {
   id          String   @id @default(uuid())
+  name        String?
   email       String   @unique
   role        Role     @default(STUDENT)
   permissions Json?    // To handle dynamic RBAC like specific permissions

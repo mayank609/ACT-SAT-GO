@@ -1,64 +1,147 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
-import { MOCK_TESTS, MOCK_ANALYTICS, MOCK_ATTEMPTS } from '../../data/mockData';
+import { api } from '../../lib/api';
 import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 
-const topicRadar = [
-  { topic: 'Algebra', score: 87 },
-  { topic: 'Grammar', score: 82 },
-  { topic: 'Reading', score: 77 },
-  { topic: 'Science', score: 73 },
-  { topic: 'Geometry', score: 65 },
-  { topic: 'Trig', score: 60 },
-];
+// ─── DB types ─────────────────────────────────────────────────────────────────
 
-interface QuestionReviewItemProps {
-  question: { id: string; text: string; type: string; options?: { id: string; text: string }[]; correctAnswer: string | string[] | number; topic: string; difficulty: string; explanation?: string };
-  index: number;
-  attempt?: { selectedAnswer?: string | string[] | number | null; state: string; timeSpent: number };
+interface DbAnswer {
+  key?: string
+  keys?: string[]
+  value?: number
 }
 
-function QuestionReviewItem({ question, index, attempt }: QuestionReviewItemProps) {
-  const [showExplanation, setShowExplanation] = useState(false);
-  const userAnswer = attempt?.selectedAnswer;
-  const correctAnswer = question.correctAnswer;
-  const isCorrect = Array.isArray(correctAnswer)
-    ? JSON.stringify([...(userAnswer as string[])].sort()) === JSON.stringify([...correctAnswer].sort())
-    : String(userAnswer) === String(correctAnswer);
-  const isSkipped = !userAnswer || (Array.isArray(userAnswer) && userAnswer.length === 0);
+interface DbQuestion {
+  id: string
+  type: string
+  content: { text: string; explanation?: string | null }
+  options: Record<string, string> | null
+  correctAnswer: DbAnswer
+  difficultyLevel: string
+}
+
+interface DbTestQuestion {
+  id: string
+  questionId: string
+  orderIndex: number
+  question: DbQuestion
+}
+
+interface DbSectionAttempt {
+  id: string
+  sectionId: string
+  startedAt: string
+  completedAt: string | null
+  section: {
+    id: string
+    name: string
+    durationMinutes: number
+    orderIndex: number
+    questions: DbTestQuestion[]
+  }
+}
+
+interface DbAttemptAnswer {
+  id: string
+  questionId: string
+  answerGiven: DbAnswer | null
+  timeSpentSeconds: number
+  isFlagged: boolean
+}
+
+interface DbAttempt {
+  id: string
+  testId: string
+  status: string
+  totalScore: number | null
+  startedAt: string
+  completedAt: string | null
+  test: { id: string; title: string }
+  sectionAttempts: DbSectionAttempt[]
+  answers: DbAttemptAnswer[]
+}
+
+// ─── Display helpers ──────────────────────────────────────────────────────────
+
+function dbAnswerToDisplay(ans: DbAnswer | null): string | string[] | number | null {
+  if (!ans) return null
+  if (ans.value !== undefined) return ans.value
+  if (ans.keys) return ans.keys.map((k) => k.toLowerCase())
+  if (ans.key) return ans.key.toLowerCase()
+  return null
+}
+
+function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
+  if (!given) return false
+  // Numeric
+  if (correct.value !== undefined) return given.value === correct.value
+  // MSQ — order-independent
+  if (correct.keys) {
+    return (
+      JSON.stringify([...(given.keys ?? [])].sort()) ===
+      JSON.stringify([...correct.keys].sort())
+    )
+  }
+  // MCQ — case-insensitive
+  if (correct.key) return given.key?.toUpperCase() === correct.key.toUpperCase()
+  return false
+}
+
+function dbOptionsToDisplay(options: Record<string, string> | null): Array<{ id: string; text: string }> {
+  if (!options) return []
+  return Object.entries(options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }))
+}
+
+// ─── Question review item ─────────────────────────────────────────────────────
+
+interface ReviewItemProps {
+  tq: DbTestQuestion
+  index: number
+  studentAnswer: DbAttemptAnswer | undefined
+}
+
+function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
+  const [showExplanation, setShowExplanation] = useState(false)
+  const q = tq.question
+  const correct = answersMatch(studentAnswer?.answerGiven ?? null, q.correctAnswer)
+  const skipped = !studentAnswer?.answerGiven
+  const options = dbOptionsToDisplay(q.options)
+  const userAnswerDisplay = dbAnswerToDisplay(studentAnswer?.answerGiven ?? null)
+  const correctAnswerDisplay = dbAnswerToDisplay(q.correctAnswer)
 
   return (
-    <div className={`border-2 rounded-xl overflow-hidden ${isCorrect ? 'border-emerald-200' : isSkipped ? 'border-slate-200' : 'border-red-200'}`}>
-      <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${isCorrect ? 'bg-emerald-50' : isSkipped ? 'bg-slate-50' : 'bg-red-50'}`}>
+    <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-emerald-200' : skipped ? 'border-slate-200' : 'border-red-200'}`}>
+      <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${correct ? 'bg-emerald-50' : skipped ? 'bg-slate-50' : 'bg-red-50'}`}>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${isCorrect ? 'bg-emerald-500' : isSkipped ? 'bg-slate-400' : 'bg-red-500'}`}>
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-emerald-500' : skipped ? 'bg-slate-400' : 'bg-red-500'}`}>
             {index + 1}
           </div>
-          {isCorrect ? <CheckCircle size={14} className="text-emerald-600" /> : <XCircle size={14} className={isSkipped ? 'text-slate-400' : 'text-red-500'} />}
+          {correct ? <CheckCircle size={14} className="text-emerald-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-red-500'} />}
         </div>
         <p className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0">
-          {question.text || `Question ${index + 1}: Sample question`}
+          {q.content.text || `Question ${index + 1}`}
         </p>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {attempt?.timeSpent && <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{attempt.timeSpent}s</span>}
-          <Badge variant={isCorrect ? 'success' : isSkipped ? 'default' : 'danger'} size="sm">
-            {isCorrect ? 'Correct' : isSkipped ? 'Skip' : 'Wrong'}
+          {studentAnswer?.timeSpentSeconds ? (
+            <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+          ) : null}
+          <Badge variant={correct ? 'success' : skipped ? 'default' : 'danger'} size="sm">
+            {correct ? 'Correct' : skipped ? 'Skip' : 'Wrong'}
           </Badge>
         </div>
       </div>
 
       <div className="px-3 md:px-4 py-3 bg-white">
-        {question.options && (
+        {options.length > 0 && (
           <div className="space-y-1.5 mb-3">
-            {question.options.map((opt) => {
-              const isUserAnswer = Array.isArray(userAnswer) ? userAnswer.includes(opt.id) : userAnswer === opt.id;
-              const isCorrectOption = Array.isArray(correctAnswer) ? correctAnswer.includes(opt.id) : correctAnswer === opt.id;
+            {options.map((opt) => {
+              const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+              const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
               return (
                 <div key={opt.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm ${
                   isCorrectOption ? 'bg-emerald-50 border border-emerald-200' :
@@ -69,44 +152,93 @@ function QuestionReviewItem({ question, index, attempt }: QuestionReviewItemProp
                     isUserAnswer ? 'border-red-400 bg-red-400 text-white' : 'border-slate-300 text-slate-500'
                   }`}>{opt.id.toUpperCase()}</div>
                   <span className={`flex-1 min-w-0 ${isCorrectOption ? 'text-emerald-800 font-medium' : isUserAnswer ? 'text-red-700 line-through' : 'text-slate-600'}`}>
-                    {opt.text || `Option ${opt.id.toUpperCase()}`}
+                    {opt.text}
                   </span>
                   {isCorrectOption && <span className="text-xs text-emerald-600 font-medium flex-shrink-0">✓</span>}
                   {isUserAnswer && !isCorrectOption && <span className="text-xs text-red-500 font-medium flex-shrink-0">✗</span>}
                 </div>
-              );
+              )
             })}
           </div>
         )}
-        {question.explanation && (
+        {q.type === 'NUMERIC' && (
+          <div className="flex gap-4 text-sm mb-3">
+            <span className="text-slate-500">Your answer: <strong className={correct ? 'text-emerald-600' : 'text-red-500'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
+            <span className="text-slate-500">Correct: <strong className="text-emerald-600">{q.correctAnswer.value}</strong></span>
+          </div>
+        )}
+        {q.content.explanation && (
           <button onClick={() => setShowExplanation(!showExplanation)}
             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
             {showExplanation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
             {showExplanation ? 'Hide' : 'Show'} Explanation
           </button>
         )}
-        {showExplanation && question.explanation && (
-          <div className="mt-2 p-3 bg-blue-50 rounded-xl text-xs text-blue-900">{question.explanation}</div>
+        {showExplanation && q.content.explanation && (
+          <div className="mt-2 p-3 bg-blue-50 rounded-xl text-xs text-blue-900">{q.content.explanation}</div>
         )}
       </div>
     </div>
-  );
+  )
 }
 
+// ─── Main page ────────────────────────────────────────────────────────────────
+
 export function TestReviewPage() {
-  useParams<{ attemptId: string }>();
+  const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState(0);
+  const [attempt, setAttempt] = useState<DbAttempt | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const attempt = MOCK_ATTEMPTS[0];
-  const test = MOCK_TESTS.find((t) => t.id === attempt?.testId) ?? MOCK_TESTS[0];
+  useEffect(() => {
+    if (!attemptId) { setError('No attempt ID'); setLoading(false); return; }
+    api.getAttempt(attemptId)
+      .then(({ attempt: raw }) => setAttempt(raw as DbAttempt))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [attemptId]);
 
-  const sectionBarData = MOCK_ANALYTICS.sections.map((s) => ({
-    name: s.sectionName,
-    correct: s.correct,
-    incorrect: s.incorrect,
-    skipped: s.skipped,
-  }));
+  if (loading) return (
+    <div className="flex items-center justify-center h-60">
+      <Loader2 size={24} className="text-blue-500 animate-spin" />
+    </div>
+  );
+
+  if (error || !attempt) return (
+    <div className="text-center py-16">
+      <p className="text-red-500 font-medium">{error ?? 'Attempt not found'}</p>
+      <button onClick={() => navigate(-1)} className="mt-3 text-sm text-blue-600 hover:underline">Go back</button>
+    </div>
+  );
+
+  // Build answer lookup map
+  const answersMap = new Map(attempt.answers.map((a) => [a.questionId, a]));
+
+  // Sort sections by orderIndex
+  const sections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+
+  // Compute section analytics
+  const sectionStats = sections.map((sa) => {
+    let correct = 0, incorrect = 0, skipped = 0;
+    sa.section.questions.forEach((tq) => {
+      const ans = answersMap.get(tq.questionId)
+      if (!ans || !ans.answerGiven) { skipped++; return; }
+      if (answersMatch(ans.answerGiven, tq.question.correctAnswer)) correct++;
+      else incorrect++;
+    });
+    const total = sa.section.questions.length;
+    return { name: sa.section.name, correct, incorrect, skipped, total, accuracy: total > 0 ? Math.round(correct / total * 100) : 0 };
+  });
+
+  const totalQ = sectionStats.reduce((a, s) => a + s.total, 0);
+  const totalCorrect = sectionStats.reduce((a, s) => a + s.correct, 0);
+  const overallAccuracy = totalQ > 0 ? Math.round(totalCorrect / totalQ * 100) : 0;
+  const rawScore = attempt.totalScore ?? totalCorrect;
+
+  const activeSecData = sections[activeSection];
+  const activeSectionStats = sectionStats[activeSection];
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -116,8 +248,11 @@ export function TestReviewPage() {
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0">
-          <h1 className="text-lg md:text-xl font-bold text-slate-900 truncate">Test Review: {test.title}</h1>
-          <p className="text-sm text-slate-500">Completed · Attempt #{attempt?.id}</p>
+          <h1 className="text-lg md:text-xl font-bold text-slate-900 truncate">Test Review: {attempt.test.title}</h1>
+          <p className="text-sm text-slate-500">
+            {attempt.status === 'SUBMITTED' || attempt.status === 'EVALUATED' ? 'Completed' : attempt.status}
+            {attempt.completedAt ? ` · ${new Date(attempt.completedAt).toLocaleDateString()}` : ''}
+          </p>
         </div>
       </div>
 
@@ -125,92 +260,80 @@ export function TestReviewPage() {
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-4 md:p-6 text-white">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           <div className="col-span-2 sm:col-span-1 text-center bg-white/10 rounded-xl p-3 md:p-4">
-            <p className="text-3xl md:text-5xl font-bold">{MOCK_ANALYTICS.totalScore}</p>
-            <p className="text-blue-200 text-xs mt-1">Composite</p>
-            <p className="text-blue-300 text-xs">(out of 36)</p>
+            <p className="text-3xl md:text-5xl font-bold">{rawScore}</p>
+            <p className="text-blue-200 text-xs mt-1">Score</p>
+            <p className="text-blue-300 text-xs">(raw points)</p>
           </div>
-          {MOCK_ANALYTICS.sections.map((sec) => (
-            <div key={sec.sectionId} className="text-center bg-white/10 rounded-xl p-3">
-              <p className="text-2xl md:text-3xl font-bold">{sec.accuracy.toFixed(0)}%</p>
-              <p className="text-blue-200 text-xs mt-1 truncate">{sec.sectionName}</p>
-              <p className="text-blue-300 text-xs">{sec.correct}/{sec.totalQuestions}</p>
+          {sectionStats.map((sec) => (
+            <div key={sec.name} className="text-center bg-white/10 rounded-xl p-3">
+              <p className="text-2xl md:text-3xl font-bold">{sec.accuracy}%</p>
+              <p className="text-blue-200 text-xs mt-1 truncate">{sec.name}</p>
+              <p className="text-blue-300 text-xs">{sec.correct}/{sec.total}</p>
             </div>
           ))}
         </div>
         <div className="mt-4 pt-3 border-t border-blue-500/50 grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-lg md:text-xl font-bold">{MOCK_ANALYTICS.overallAccuracy}%</p>
+            <p className="text-lg md:text-xl font-bold">{overallAccuracy}%</p>
             <p className="text-blue-300 text-xs">Accuracy</p>
           </div>
           <div>
-            <p className="text-lg md:text-xl font-bold">{MOCK_ANALYTICS.percentile}th</p>
-            <p className="text-blue-300 text-xs">Percentile</p>
+            <p className="text-lg md:text-xl font-bold">{totalCorrect}/{totalQ}</p>
+            <p className="text-blue-300 text-xs">Correct</p>
           </div>
           <div>
-            <p className="text-lg md:text-xl font-bold">{Math.round(MOCK_ANALYTICS.totalTimeUsed / 60)}m</p>
+            <p className="text-lg md:text-xl font-bold">
+              {attempt.completedAt && attempt.startedAt
+                ? `${Math.round((new Date(attempt.completedAt).getTime() - new Date(attempt.startedAt).getTime()) / 60000)}m`
+                : '—'}
+            </p>
             <p className="text-blue-300 text-xs">Time Used</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        {/* Section chart */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4 md:p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Section Breakdown</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={sectionBarData} barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-              <Legend wrapperStyle={{ fontSize: '12px' }} />
-              <Bar dataKey="correct" fill="#10b981" radius={[4, 4, 0, 0]} name="Correct" barSize={20} />
-              <Bar dataKey="incorrect" fill="#ef4444" radius={[4, 4, 0, 0]} name="Wrong" barSize={20} />
-              <Bar dataKey="skipped" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Skipped" barSize={20} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Radar */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Skill Profile</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <RadarChart data={topicRadar}>
-              <PolarGrid stroke="#e2e8f0" />
-              <PolarAngleAxis dataKey="topic" tick={{ fontSize: 9, fill: '#94a3b8' }} />
-              <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-              <Radar name="Score" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} strokeWidth={2} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Section bar chart */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
+        <h3 className="font-semibold text-slate-900 mb-4">Section Breakdown</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={sectionStats} barGap={4}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
+            <Legend wrapperStyle={{ fontSize: '12px' }} />
+            <Bar dataKey="correct" fill="#10b981" radius={[4, 4, 0, 0]} name="Correct" barSize={20} />
+            <Bar dataKey="incorrect" fill="#ef4444" radius={[4, 4, 0, 0]} name="Wrong" barSize={20} />
+            <Bar dataKey="skipped" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Skipped" barSize={20} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Section tabs + question review */}
       <div className="bg-white rounded-xl border border-slate-200">
         <div className="border-b border-slate-200 flex overflow-x-auto">
-          {test.sections.map((sec, idx) => {
-            const secAna = MOCK_ANALYTICS.sections.find((s) => s.sectionId === sec.id);
-            return (
-              <button key={sec.id} onClick={() => setActiveSection(idx)}
-                className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-all ${
-                  activeSection === idx ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}>
-                {sec.name}
-                {secAna && <span className={`ml-1.5 text-xs ${activeSection === idx ? 'text-blue-400' : 'text-slate-400'}`}>{secAna.correct}/{secAna.totalQuestions}</span>}
-              </button>
-            );
-          })}
+          {sections.map((sa, idx) => (
+            <button key={sa.sectionId} onClick={() => setActiveSection(idx)}
+              className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-all ${
+                activeSection === idx ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}>
+              {sa.section.name}
+              <span className={`ml-1.5 text-xs ${activeSection === idx ? 'text-blue-400' : 'text-slate-400'}`}>
+                {sectionStats[idx]?.correct}/{sectionStats[idx]?.total}
+              </span>
+            </button>
+          ))}
         </div>
 
         <div className="p-4 md:p-6">
           {/* Section stats */}
-          {MOCK_ANALYTICS.sections[activeSection] && (
+          {activeSectionStats && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 mb-5">
               {[
-                { label: 'Correct', value: MOCK_ANALYTICS.sections[activeSection].correct, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                { label: 'Wrong', value: MOCK_ANALYTICS.sections[activeSection].incorrect, color: 'text-red-600', bg: 'bg-red-50' },
-                { label: 'Skipped', value: MOCK_ANALYTICS.sections[activeSection].skipped, color: 'text-slate-600', bg: 'bg-slate-50' },
-                { label: 'Accuracy', value: `${MOCK_ANALYTICS.sections[activeSection].accuracy.toFixed(0)}%`, color: 'text-blue-600', bg: 'bg-blue-50' },
+                { label: 'Correct', value: activeSectionStats.correct, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                { label: 'Wrong', value: activeSectionStats.incorrect, color: 'text-red-600', bg: 'bg-red-50' },
+                { label: 'Skipped', value: activeSectionStats.skipped, color: 'text-slate-600', bg: 'bg-slate-50' },
+                { label: 'Accuracy', value: `${activeSectionStats.accuracy}%`, color: 'text-blue-600', bg: 'bg-blue-50' },
               ].map((s) => (
                 <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center`}>
                   <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
@@ -221,19 +344,15 @@ export function TestReviewPage() {
           )}
 
           {/* Questions */}
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-            {test.sections[activeSection]?.questions.slice(0, 10).map((q, idx) => (
-              <QuestionReviewItem key={q.id}
-                question={q as Parameters<typeof QuestionReviewItem>[0]['question']}
+          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+            {activeSecData?.section.questions.map((tq, idx) => (
+              <QuestionReviewItem
+                key={tq.id}
+                tq={tq}
                 index={idx}
-                attempt={{ selectedAnswer: idx % 3 === 0 ? null : q.correctAnswer, state: 'answered', timeSpent: 30 + idx * 5 }}
+                studentAnswer={answersMap.get(tq.questionId)}
               />
             ))}
-            {(test.sections[activeSection]?.questions.length ?? 0) > 10 && (
-              <p className="text-center text-sm text-slate-400 py-4">
-                Showing 10 of {test.sections[activeSection].questions.length} questions
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -241,6 +360,7 @@ export function TestReviewPage() {
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-end">
         <Button variant="secondary" onClick={() => navigate('/dashboard')}>Dashboard</Button>
+        <Button variant="secondary" onClick={() => navigate('/my-tests')}>My Tests</Button>
         <Button variant="secondary" onClick={() => navigate('/my-progress')}>View Progress</Button>
       </div>
     </div>

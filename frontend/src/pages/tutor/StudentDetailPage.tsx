@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Clock, Target, BookOpen, MessageSquare, PlusCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
-import { MOCK_STUDENTS, MOCK_ANALYTICS, MOCK_TRENDS, MOCK_TESTS } from '../../data/mockData';
+import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, BarChart, Bar, Legend
+  BarChart, Bar, Legend
 } from 'recharts';
 
 interface Note {
@@ -19,73 +19,82 @@ interface Note {
   author: string;
 }
 
-const topicRadarData = [
-  { topic: 'Algebra', score: 87 },
-  { topic: 'Grammar', score: 82 },
-  { topic: 'Reading', score: 77 },
-  { topic: 'Science', score: 73 },
-  { topic: 'Geometry', score: 65 },
-  { topic: 'Trig', score: 60 },
-];
+interface Analytics {
+  trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>;
+  sectionStats: Array<{ sectionName: string; accuracy: number; timeAllocated: number; timeUsed: number }>;
+  overallAccuracy: number;
+  totalAttempts: number;
+  latestScore: number;
+  avgScore: number;
+}
+
+interface DbTest { id: string; title: string; status: string; sections: unknown[] }
 
 export function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const student = MOCK_STUDENTS.find((s) => s.id === id) ?? MOCK_STUDENTS[0];
-  const gap = (student.targetScore || 36) - (student.avgScore || 0);
-  const pct = Math.min(100, ((student.avgScore || 0) / (student.targetScore || 36)) * 100);
+  const [student, setStudent] = useState<DbUser | null>(null);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Assign test state
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedTestId, setSelectedTestId] = useState('');
-  const [assignedIds, setAssignedIds] = useState<string[]>(
-    MOCK_TESTS.filter((t) => t.assignedStudentIds?.includes(student.id)).map((t) => t.id)
-  );
   const [assignSuccess, setAssignSuccess] = useState('');
-
-  // Notes state
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
-  const [notes, setNotes] = useState<Note[]>([
-    { id: '1', text: 'Strong in algebra but struggles with science reasoning. Focus on passage-based questions.', createdAt: '2024-02-10', author: user?.name ?? 'Tutor' },
-  ]);
+  const [notes, setNotes] = useState<Note[]>([]);
 
-  const publishedTests = MOCK_TESTS.filter((t) => t.status === 'published');
-
-  const handleAssign = () => {
-    if (!selectedTestId) return;
-    const test = publishedTests.find((t) => t.id === selectedTestId);
-    if (!test) return;
-    setAssignedIds((prev) => [...new Set([...prev, selectedTestId])]);
-    setAssignSuccess(`"${test.title}" assigned successfully.`);
-    setSelectedTestId('');
-    setTimeout(() => { setAssignSuccess(''); setAssignOpen(false); }, 1800);
-  };
+  useEffect(() => {
+    if (!id) return;
+    Promise.all([
+      api.getUser(id).then((r) => setStudent(r.user)),
+      api.getStudentAnalytics(id).then((r) => setAnalytics(r)),
+      api.getAllTests().then((r) => setPublishedTests(
+        (r.tests as DbTest[]).filter((t) => t.status === 'PUBLISHED')
+      )),
+    ]).finally(() => setLoading(false));
+  }, [id]);
 
   const handleAddNote = () => {
     if (!noteText.trim()) return;
-    const note: Note = {
+    setNotes((prev) => [{
       id: Date.now().toString(),
       text: noteText.trim(),
       createdAt: new Date().toISOString().split('T')[0],
       author: user?.name ?? 'Tutor',
-    };
-    setNotes((prev) => [note, ...prev]);
+    }, ...prev]);
     setNoteText('');
     setNoteOpen(false);
   };
 
-  const sectionData = MOCK_ANALYTICS.sections.map((s) => ({
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="text-slate-400 text-sm">Loading...</div></div>;
+  }
+
+  if (!student) {
+    return (
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <p className="text-slate-500">Student not found.</p>
+        <button onClick={() => navigate(-1)} className="text-sm text-blue-600 hover:underline">Go back</button>
+      </div>
+    );
+  }
+
+  const target = (student.targetScore as number | null) ?? 32;
+  const gap = target - (student.avgScore ?? 0);
+  const pct = Math.min(100, ((student.avgScore ?? 0) / target) * 100);
+
+  const sectionData = (analytics?.sectionStats ?? []).map((s) => ({
     name: s.sectionName,
     accuracy: s.accuracy,
-    timeEfficiency: Math.round((s.timeUsed / s.timeAllocated) * 100),
+    timeEfficiency: s.timeAllocated > 0 ? Math.round((s.timeUsed / s.timeAllocated) * 100) : 0,
   }));
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 self-start transition-colors">
           <ArrowLeft size={18} />
@@ -108,15 +117,14 @@ export function StudentDetailPage() {
       <div className="bg-white rounded-xl border border-slate-100 p-5">
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 text-xl font-bold flex-shrink-0">
-            {student.name.charAt(0)}
+            {student.name.charAt(0).toUpperCase()}
           </div>
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {[
               { label: 'Current Score', value: student.avgScore ?? '—', color: 'text-slate-900' },
-              { label: 'Target Score', value: student.targetScore ?? '—', color: 'text-blue-600' },
+              { label: 'Target Score', value: target, color: 'text-blue-600' },
               { label: 'Gap', value: gap > 0 ? `+${gap}` : String(gap), color: gap > 0 ? 'text-amber-600' : 'text-emerald-600' },
               { label: 'Tests Done', value: student.testsAttempted ?? 0, color: 'text-slate-900' },
-              { label: 'Assigned', value: assignedIds.length, color: 'text-slate-900' },
             ].map((s) => (
               <div key={s.label} className="bg-slate-50 rounded-lg p-3 text-center">
                 <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
@@ -141,160 +149,91 @@ export function StudentDetailPage() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="Overall Accuracy" value={`${MOCK_ANALYTICS.overallAccuracy}%`} icon={<TrendingUp size={16} />} trend={{ value: 5, positive: true }} />
-        <StatCard title="Time Mgmt" value="93%" subtitle="Used vs allocated" icon={<Clock size={16} />} />
-        <StatCard title="Percentile" value={`${MOCK_ANALYTICS.percentile}th`} icon={<Target size={16} />} />
-        <StatCard title="Last Score" value="28" subtitle="ACT composite" icon={<BookOpen size={16} />} trend={{ value: 4, positive: true }} />
+        <StatCard title="Overall Accuracy" value={analytics ? `${analytics.overallAccuracy}%` : '—'} icon={<TrendingUp size={16} />} trend={{ value: 5, positive: true }} />
+        <StatCard title="Tests Taken" value={analytics?.totalAttempts ?? 0} subtitle="submitted" icon={<Clock size={16} />} />
+        <StatCard title="Avg Score" value={analytics?.avgScore ?? '—'} subtitle="submitted tests" icon={<Target size={16} />} />
+        <StatCard title="Latest Score" value={analytics?.latestScore ?? '—'} subtitle="ACT composite" icon={<BookOpen size={16} />} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Score trend */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-100 p-5">
-          <p className="font-medium text-slate-900 text-sm mb-1">Score Progress</p>
-          <p className="text-xs text-slate-400 mb-4">Test-by-test improvement</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={MOCK_TRENDS}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
-              <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[20, 36]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', boxShadow: 'none' }} />
-              <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} name="Score" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+      {analytics && analytics.trend.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 bg-white rounded-xl border border-slate-100 p-5">
+            <p className="font-medium text-slate-900 text-sm mb-1">Score Progress</p>
+            <p className="text-xs text-slate-400 mb-4">Test-by-test improvement</p>
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={analytics.trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
+                <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 36]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', boxShadow: 'none' }}
+                  formatter={(v, n, p) => [v, p.payload?.testTitle ?? n]} />
+                <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} name="Score" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
 
-        {/* Radar */}
-        <div className="bg-white rounded-xl border border-slate-100 p-5">
-          <p className="font-medium text-slate-900 text-sm mb-1">Skill Profile</p>
-          <p className="text-xs text-slate-400 mb-4">Strength by topic</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <RadarChart data={topicRadarData}>
-              <PolarGrid stroke="#e2e8f0" />
-              <PolarAngleAxis dataKey="topic" tick={{ fontSize: 9, fill: '#94a3b8' }} />
-              <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-              <Radar name="Score" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} strokeWidth={1.5} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Section analysis */}
-      <div className="bg-white rounded-xl border border-slate-100 p-5">
-        <p className="font-medium text-slate-900 text-sm mb-1">Section Analysis</p>
-        <p className="text-xs text-slate-400 mb-4">Accuracy and time efficiency per section</p>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={sectionData} barGap={4}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', boxShadow: 'none' }} />
-            <Legend wrapperStyle={{ fontSize: '11px' }} />
-            <Bar dataKey="accuracy" fill="#3b82f6" radius={[3, 3, 0, 0]} name="Accuracy %" barSize={20} />
-            <Bar dataKey="timeEfficiency" fill="#10b981" radius={[3, 3, 0, 0]} name="Time Used %" barSize={20} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Assigned tests */}
-      <div className="bg-white rounded-xl border border-slate-100">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
-          <p className="font-medium text-slate-900 text-sm">Assigned Tests</p>
-          <button onClick={() => setAssignOpen(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700">
-            <PlusCircle size={12} /> Assign more
-          </button>
-        </div>
-        <div className="divide-y divide-slate-50">
-          {assignedIds.length === 0 ? (
-            <p className="px-5 py-4 text-sm text-slate-400">No tests assigned yet.</p>
-          ) : (
-            MOCK_TESTS.filter((t) => assignedIds.includes(t.id)).map((test) => (
-              <div key={test.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-                <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
-                  <BookOpen size={13} className="text-slate-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-800 truncate">{test.title}</p>
-                  <p className="text-xs text-slate-400">
-                    {test.sections.reduce((a, s) => a + s.questions.length, 0)} questions · {test.sections.length} sections
-                  </p>
-                </div>
-                <Badge variant={test.status === 'published' ? 'success' : 'warning'} size="sm">
-                  {test.status}
-                </Badge>
-              </div>
-            ))
+          {sectionData.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-100 p-5">
+              <p className="font-medium text-slate-900 text-sm mb-1">Section Analysis</p>
+              <p className="text-xs text-slate-400 mb-4">Accuracy by section</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={sectionData} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', boxShadow: 'none' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar dataKey="accuracy" fill="#3b82f6" radius={[3, 3, 0, 0]} name="Accuracy %" barSize={20} />
+                  <Bar dataKey="timeEfficiency" fill="#10b981" radius={[3, 3, 0, 0]} name="Time Used %" barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
-      </div>
+      )}
 
       {/* Test history */}
       <div className="bg-white rounded-xl border border-slate-100">
         <div className="px-5 py-3.5 border-b border-slate-50">
           <p className="font-medium text-slate-900 text-sm">Test History</p>
         </div>
-        <div className="divide-y divide-slate-50">
-          {MOCK_TRENDS.map((trend, i) => (
-            <div key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-              <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                <BookOpen size={13} className="text-blue-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-slate-800 truncate">{trend.testTitle}</p>
-                <p className="text-xs text-slate-400">{trend.date}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-base font-semibold text-slate-900">{trend.score}</p>
-                <p className="text-xs text-slate-400">/ 36</p>
-              </div>
-              <div className="hidden sm:block w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
-                <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(trend.score / 36) * 100}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Focus areas */}
-      {MOCK_ANALYTICS.sections.some((s) => s.topicBreakdown.some((t) => t.accuracy < 75)) && (
-        <div className="bg-white rounded-xl border border-slate-100">
-          <div className="px-5 py-3.5 border-b border-slate-50 flex items-center gap-2">
-            <p className="font-medium text-slate-900 text-sm">Focus Areas</p>
-            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md font-medium">Needs Attention</span>
-          </div>
-          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {MOCK_ANALYTICS.sections.flatMap((s) =>
-              s.topicBreakdown.filter((t) => t.accuracy < 75).map((t) => (
-                <div key={t.topic} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                  <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center text-red-600 text-xs font-bold flex-shrink-0">
-                    {t.accuracy.toFixed(0)}%
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{t.topic}</p>
-                    <p className="text-xs text-slate-400">{s.sectionName} · {t.correct}/{t.total} correct</p>
-                  </div>
-                  <Badge variant="danger" size="sm">Weak</Badge>
+        {!analytics || analytics.trend.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-slate-400">No tests taken yet.</p>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {analytics.trend.map((entry, i) => (
+              <div key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={13} className="text-blue-500" />
                 </div>
-              ))
-            )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-800 truncate">{entry.testTitle}</p>
+                  <p className="text-xs text-slate-400">{entry.date}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-base font-semibold text-slate-900">{entry.score}</p>
+                  <p className="text-xs text-slate-400">/ 36</p>
+                </div>
+                <div className="hidden sm:block w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
+                  <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(entry.score / 36) * 100}%` }} />
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Tutor Notes */}
       <div className="bg-white rounded-xl border border-slate-100">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
           <p className="font-medium text-slate-900 text-sm">Tutor Notes</p>
-          <button
-            onClick={() => setNoteOpen(true)}
-            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-          >
+          <button onClick={() => setNoteOpen(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700">
             <PlusCircle size={12} /> Add note
           </button>
         </div>
         {notes.length === 0 ? (
-          <p className="px-5 py-4 text-sm text-slate-400">No notes yet. Add one to track observations.</p>
+          <p className="px-5 py-4 text-sm text-slate-400">No notes yet.</p>
         ) : (
           <div className="divide-y divide-slate-50">
             {notes.map((note) => (
@@ -311,20 +250,20 @@ export function StudentDetailPage() {
       </div>
 
       {/* Assign Test Modal */}
-      <Modal
-        isOpen={assignOpen}
-        onClose={() => { setAssignOpen(false); setSelectedTestId(''); setAssignSuccess(''); }}
-        title="Assign Test"
-        size="md"
+      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestId(''); setAssignSuccess(''); }}
+        title="Assign Test" size="md"
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setAssignOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleAssign} disabled={!selectedTestId}>
-              Assign
-            </Button>
+            <Button size="sm" onClick={() => {
+              if (!selectedTestId) return;
+              const test = publishedTests.find((t) => t.id === selectedTestId);
+              setAssignSuccess(`"${test?.title}" noted for assignment.`);
+              setSelectedTestId('');
+              setTimeout(() => { setAssignSuccess(''); setAssignOpen(false); }, 1800);
+            }} disabled={!selectedTestId}>Assign</Button>
           </div>
-        }
-      >
+        }>
         <div className="space-y-3">
           <p className="text-sm text-slate-500">Select a published test to assign to <strong>{student.name}</strong>.</p>
           {assignSuccess && (
@@ -332,70 +271,42 @@ export function StudentDetailPage() {
               <CheckCircle2 size={14} /> {assignSuccess}
             </div>
           )}
-          <div className="space-y-2">
-            {publishedTests.map((test) => {
-              const alreadyAssigned = assignedIds.includes(test.id);
-              return (
-                <label
-                  key={test.id}
+          {publishedTests.length === 0 ? (
+            <p className="text-sm text-slate-400 py-2">No published tests available.</p>
+          ) : (
+            <div className="space-y-2">
+              {publishedTests.map((test) => (
+                <label key={test.id}
                   className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                    alreadyAssigned
-                      ? 'border-emerald-200 bg-emerald-50 opacity-70 cursor-not-allowed'
-                      : selectedTestId === test.id
-                      ? 'border-blue-300 bg-blue-50'
-                      : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="test"
-                    value={test.id}
-                    checked={selectedTestId === test.id}
-                    disabled={alreadyAssigned}
-                    onChange={() => setSelectedTestId(test.id)}
-                    className="mt-0.5 accent-blue-600"
-                  />
+                    selectedTestId === test.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                  }`}>
+                  <input type="radio" name="test" value={test.id} checked={selectedTestId === test.id}
+                    onChange={() => setSelectedTestId(test.id)} className="mt-0.5 accent-blue-600" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {test.sections.reduce((a, s) => a + s.questions.length, 0)}q · {test.sections.length} sections
-                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
                   </div>
-                  {alreadyAssigned && (
-                    <span className="text-xs text-emerald-600 font-medium flex-shrink-0">Assigned</span>
-                  )}
                 </label>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </Modal>
 
       {/* Add Note Modal */}
-      <Modal
-        isOpen={noteOpen}
-        onClose={() => { setNoteOpen(false); setNoteText(''); }}
-        title="Add Tutor Note"
-        size="sm"
+      <Modal isOpen={noteOpen} onClose={() => { setNoteOpen(false); setNoteText(''); }} title="Add Tutor Note" size="sm"
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setNoteOpen(false)}>Cancel</Button>
             <Button size="sm" onClick={handleAddNote} disabled={!noteText.trim()}>Save Note</Button>
           </div>
-        }
-      >
+        }>
         <div className="space-y-3">
-          <p className="text-sm text-slate-500">
-            Note for <strong>{student.name}</strong> — visible only to tutors and admins.
-          </p>
-          <textarea
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Observations, focus areas, session notes..."
-            rows={5}
+          <p className="text-sm text-slate-500">Note for <strong>{student.name}</strong> — visible only to tutors and admins.</p>
+          <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Observations, focus areas, session notes..." rows={5}
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none"
-            autoFocus
-          />
+            autoFocus />
           <p className="text-xs text-slate-400">{noteText.length}/500</p>
         </div>
       </Modal>

@@ -1,10 +1,12 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, RotateCcw, ChevronRight, TrendingUp, Clock, BookOpen, Target } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { useAuthStore } from '../../store/useAuthStore';
-import { MOCK_TESTS, MOCK_ATTEMPTS, MOCK_ANALYTICS, MOCK_TRENDS } from '../../data/mockData';
+import { api } from '../../lib/api';
+import { MOCK_TRENDS } from '../../data/mockData';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -16,15 +18,44 @@ const weakAreas = [
   { topic: 'Data Analysis', accuracy: 63, section: 'Science' },
 ];
 
+interface ApiAttempt {
+  id: string;
+  testId: string;
+  status: string;
+  totalScore?: number;
+  completedAt?: string;
+  test?: { id: string; title: string; description?: string; sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }> };
+}
+
 export function StudentDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-
+  const { user, dbId } = useAuthStore();
   const firstName = user?.name?.split(' ')[0] ?? 'there';
-  const assignedTests = MOCK_TESTS.filter((t) => t.assignedStudentIds?.includes(user?.id ?? 's-1'));
-  const completedAttempts = MOCK_ATTEMPTS.filter((a) => a.status === 'completed');
-  const latestScore = completedAttempts[0]?.score ?? null;
-  const totalQuestionsAttempted = MOCK_ANALYTICS.sections.reduce((a, s) => a + s.attempted, 0);
+
+  const [attempts, setAttempts] = useState<ApiAttempt[]>([]);
+  const [availableTests, setAvailableTests] = useState<ApiAttempt['test'][]>([]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const studentId = dbId;
+        if (studentId) {
+          const [attData, testData] = await Promise.all([
+            api.getStudentAttempts(studentId),
+            api.getAvailableTests(studentId),
+          ]);
+          setAttempts(attData.attempts as ApiAttempt[]);
+          setAvailableTests((testData.tests as ApiAttempt['test'][]).slice(0, 3));
+        }
+      } catch {
+        // keep empty — page still renders with mock trend chart
+      }
+    }
+    load();
+  }, [dbId]);
+
+  const completedAttempts = attempts.filter((a) => a.status === 'SUBMITTED');
+  const latestScore = completedAttempts[0]?.totalScore ?? null;
 
   return (
     <div className="space-y-6">
@@ -45,12 +76,12 @@ export function StudentDashboard() {
           <p className="text-2xl font-semibold text-slate-900">{completedAttempts.length}</p>
         </Card>
         <Card padding="sm">
-          <p className="text-xs text-slate-400 mb-1">Accuracy</p>
-          <p className="text-2xl font-semibold text-slate-900">{MOCK_ANALYTICS.overallAccuracy}%</p>
+          <p className="text-xs text-slate-400 mb-1">Tests Available</p>
+          <p className="text-2xl font-semibold text-slate-900">{availableTests.length}</p>
         </Card>
         <Card padding="sm">
-          <p className="text-xs text-slate-400 mb-1">Qs Attempted</p>
-          <p className="text-2xl font-semibold text-slate-900">{totalQuestionsAttempted}</p>
+          <p className="text-xs text-slate-400 mb-1">In Progress</p>
+          <p className="text-2xl font-semibold text-slate-900">{attempts.filter((a) => a.status === 'IN_PROGRESS').length}</p>
         </Card>
       </div>
 
@@ -106,21 +137,28 @@ export function StudentDashboard() {
         </div>
       </div>
 
-      {/* Assigned tests */}
+      {/* Available tests */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="font-medium text-slate-900 text-sm">Your Tests</p>
+          <p className="font-medium text-slate-900 text-sm">Available Tests</p>
           <button onClick={() => navigate('/my-tests')} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
             View all <ChevronRight size={12} />
           </button>
         </div>
         <div className="space-y-2">
-          {assignedTests.map((test) => {
-            const attempt = MOCK_ATTEMPTS.find((a) => a.testId === test.id && a.studentId === (user?.id ?? 's-1'));
-            const isCompleted = attempt?.status === 'completed';
-            const inProgress = attempt?.status === 'in_progress';
-            const totalTime = test.sections.reduce((a, s) => a + s.timeLimit, 0);
-            const totalQ = test.sections.reduce((a, s) => a + s.questions.length, 0);
+          {availableTests.length === 0 && (
+            <div className="text-center py-8 bg-white rounded-xl border border-slate-100">
+              <BookOpen size={24} className="text-slate-300 mx-auto mb-2" />
+              <p className="text-xs text-slate-400">No tests available yet</p>
+            </div>
+          )}
+          {availableTests.map((test) => {
+            if (!test) return null;
+            const attempt = attempts.find((a) => a.testId === test.id);
+            const isCompleted = attempt?.status === 'SUBMITTED';
+            const inProgress = attempt?.status === 'IN_PROGRESS';
+            const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
+            const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
 
             return (
               <div key={test.id} className="bg-white border border-slate-100 rounded-xl p-4 flex items-center gap-4">
@@ -136,7 +174,7 @@ export function StudentDashboard() {
                   </p>
                 </div>
                 {isCompleted && (
-                  <span className="text-sm font-semibold text-slate-900 flex-shrink-0">{attempt?.score ?? '—'}<span className="text-xs font-normal text-slate-400">/36</span></span>
+                  <span className="text-sm font-semibold text-slate-900 flex-shrink-0">{attempt?.totalScore ?? '—'}<span className="text-xs font-normal text-slate-400">/36</span></span>
                 )}
                 <Badge variant={isCompleted ? 'success' : inProgress ? 'warning' : 'default'} size="sm">
                   {isCompleted ? 'Done' : inProgress ? 'Active' : 'New'}
