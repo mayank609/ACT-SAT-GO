@@ -39,7 +39,7 @@ export function MathRenderer({ html, className = '' }: MathRendererProps) {
       }
     });
 
-    processed = processed.replace(/\\((.*?)\\)/g, (match, formula) => {
+    processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (match, formula) => {
       try {
         if (!formula.trim()) return match;
         return katex.renderToString(formula.trim(), { displayMode: false, throwOnError: false });
