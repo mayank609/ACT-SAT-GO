@@ -29,7 +29,7 @@ export function MyProgressPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">My Progress</h1>
+        <h1 className="text-xl font-semibold text-slate-900">My Progress</h1>
         <p className="text-slate-500 text-sm mt-0.5">Detailed analytics of your performance</p>
       </div>
 
@@ -42,7 +42,7 @@ export function MyProgressPage() {
       </div>
 
       {/* Score trend */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="bg-white rounded-xl border border-slate-100 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-semibold text-slate-900">Score History</h3>
@@ -67,7 +67,7 @@ export function MyProgressPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Section accuracy */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="bg-white rounded-xl border border-slate-100 p-6">
           <h3 className="font-semibold text-slate-900 mb-4">Section Performance</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={sectionData} barGap={4}>
@@ -83,7 +83,7 @@ export function MyProgressPage() {
         </div>
 
         {/* Skill radar */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="bg-white rounded-xl border border-slate-100 p-6">
           <h3 className="font-semibold text-slate-900 mb-4">Topic Strengths</h3>
           <ResponsiveContainer width="100%" height={220}>
             <RadarChart data={topicRadar}>
@@ -98,7 +98,7 @@ export function MyProgressPage() {
       </div>
 
       {/* Topic breakdown */}
-      <div className="bg-white rounded-xl border border-slate-200">
+      <div className="bg-white rounded-xl border border-slate-100">
         <div className="px-6 py-4 border-b border-slate-100">
           <h3 className="font-semibold text-slate-900">Topic-by-Topic Analysis</h3>
         </div>

@@ -18,6 +18,7 @@ import { SettingsPage } from './pages/admin/SettingsPage';
 
 // Tutor pages
 import { TutorDashboard } from './pages/tutor/TutorDashboard';
+import { MyStudentsPage } from './pages/tutor/MyStudentsPage';
 import { StudentDetailPage } from './pages/tutor/StudentDetailPage';
 import { TutorAnalyticsPage } from './pages/tutor/TutorAnalyticsPage';
 
@@ -86,7 +87,7 @@ export default function App() {
           <Route path="user-management" element={<SuperAdminDashboard />} />
 
           {/* Tutor */}
-          <Route path="my-students" element={<StudentManagementPage />} />
+          <Route path="my-students" element={<MyStudentsPage />} />
           <Route path="student/:id" element={<StudentDetailPage />} />
           <Route path="analytics" element={<AnalyticsRouter />} />
 

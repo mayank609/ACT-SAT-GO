@@ -47,7 +47,7 @@ export function TutorDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Score comparison */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
+        <div className="bg-white rounded-xl border border-slate-100 p-4 md:p-6">
           <h3 className="font-semibold text-slate-900 mb-1">Scores vs Targets</h3>
           <p className="text-sm text-slate-500 mb-4">Current average vs target score</p>
           <ResponsiveContainer width="100%" height={200}>
@@ -64,7 +64,7 @@ export function TutorDashboard() {
         </div>
 
         {/* Progress trend */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
+        <div className="bg-white rounded-xl border border-slate-100 p-4 md:p-6">
           <h3 className="font-semibold text-slate-900 mb-1">Class Progress</h3>
           <p className="text-sm text-slate-500 mb-4">Score improvement over time</p>
           <ResponsiveContainer width="100%" height={200}>
@@ -98,7 +98,7 @@ export function TutorDashboard() {
               <div
                 key={student.id}
                 onClick={() => navigate(`/student/${student.id}`)}
-                className="bg-white rounded-xl border border-slate-200 p-4 md:p-5 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+                className="bg-white rounded-xl border border-slate-100 p-4 md:p-5 hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -147,7 +147,7 @@ export function TutorDashboard() {
 
       {/* Weak areas */}
       {weakTopics.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200">
+        <div className="bg-white rounded-xl border border-slate-100">
           <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <AlertTriangle size={16} className="text-amber-500" />

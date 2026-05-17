@@ -2,9 +2,26 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function proxy(request: NextRequest) {
-  const { supabaseResponse, user } = await updateSession(request)
-
   const url = new URL(request.url)
+
+  // CORS preflight — let all OPTIONS requests through immediately
+  if (request.method === 'OPTIONS' && url.pathname.startsWith('/api/')) {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': process.env.CORS_ORIGIN ?? '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    })
+  }
+
+  // API routes bypass session-based auth (token auth handled per-route when needed)
+  if (url.pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
+
+  const { supabaseResponse, user } = await updateSession(request)
 
   // 1. Define route groups
   const isProtectedRoute = url.pathname.startsWith('/admin') || 
