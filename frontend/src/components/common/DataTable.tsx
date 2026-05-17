@@ -17,6 +17,10 @@ interface DataTableProps<T extends Record<string, unknown>> {
   emptyMessage?: string;
   actions?: (row: T) => React.ReactNode;
   pageSize?: number;
+  selectable?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
+  rowIdKey?: keyof T;
 }
 
 export function DataTable<T extends Record<string, unknown>>({
@@ -27,6 +31,10 @@ export function DataTable<T extends Record<string, unknown>>({
   emptyMessage = 'No data available',
   actions,
   pageSize = 10,
+  selectable = false,
+  selectedIds = [],
+  onSelectionChange,
+  rowIdKey = 'id' as keyof T,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -50,7 +58,7 @@ export function DataTable<T extends Record<string, unknown>>({
       })
     : filtered;
 
-  const totalPages = Math.ceil(sorted.length / pageSize);
+  const totalPages = Math.ceil(sorted.length / pageSize) || 1;
   const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   const handleSort = (key: string) => {
@@ -60,6 +68,26 @@ export function DataTable<T extends Record<string, unknown>>({
       setSortKey(key);
       setSortDir('asc');
     }
+  };
+
+  const allSelected = paginated.length > 0 && paginated.every(r => selectedIds.includes(String(r[rowIdKey])));
+
+  const toggleSelectAll = (checked: boolean) => {
+    if (!onSelectionChange) return;
+    if (checked) {
+      const pageIds = paginated.map(r => String(r[rowIdKey]));
+      const newIds = new Set([...selectedIds, ...pageIds]);
+      onSelectionChange(Array.from(newIds));
+    } else {
+      const pageIds = new Set(paginated.map(r => String(r[rowIdKey])));
+      onSelectionChange(selectedIds.filter(id => !pageIds.has(id)));
+    }
+  };
+
+  const toggleRow = (id: string, checked: boolean) => {
+    if (!onSelectionChange) return;
+    if (checked) onSelectionChange([...selectedIds, id]);
+    else onSelectionChange(selectedIds.filter(x => x !== id));
   };
 
   return (
@@ -80,6 +108,16 @@ export function DataTable<T extends Record<string, unknown>>({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
+              {selectable && (
+                <th className="px-4 py-3 text-left w-10">
+                  <input 
+                    type="checkbox" 
+                    checked={allSelected} 
+                    onChange={(e) => toggleSelectAll(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
+              )}
               {columns.map((col) => (
                 <th
                   key={String(col.key)}
@@ -100,25 +138,39 @@ export function DataTable<T extends Record<string, unknown>>({
           <tbody className="divide-y divide-slate-100">
             {paginated.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={columns.length + (actions ? 1 : 0) + (selectable ? 1 : 0)} className="px-4 py-12 text-center text-slate-400">
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
-              paginated.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  {columns.map((col) => (
-                    <td key={String(col.key)} className="px-4 py-3 text-slate-700">
-                      {col.render ? col.render(row) : String(row[col.key as keyof T] ?? '')}
-                    </td>
-                  ))}
-                  {actions && (
-                    <td className="px-4 py-3 text-right">
-                      {actions(row)}
-                    </td>
-                  )}
-                </tr>
-              ))
+              paginated.map((row, idx) => {
+                const id = String(row[rowIdKey]);
+                const isSelected = selectedIds.includes(id);
+                return (
+                  <tr key={idx} className={`transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                    {selectable && (
+                      <td className="px-4 py-3 w-10">
+                        <input 
+                          type="checkbox" 
+                          checked={isSelected}
+                          onChange={(e) => toggleRow(id, e.target.checked)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
+                    )}
+                    {columns.map((col) => (
+                      <td key={String(col.key)} className="px-4 py-3 text-slate-700">
+                        {col.render ? col.render(row) : String(row[col.key as keyof T] ?? '')}
+                      </td>
+                    ))}
+                    {actions && (
+                      <td className="px-4 py-3 text-right">
+                        {actions(row)}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

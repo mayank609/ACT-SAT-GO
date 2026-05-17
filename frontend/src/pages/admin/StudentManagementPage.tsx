@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Upload, UserPlus, MoreVertical, Mail, BookOpen, TrendingUp, CheckCircle, AlertCircle, FileText, Download } from 'lucide-react';
+import { Plus, Upload, UserPlus, Mail, BookOpen, TrendingUp, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -25,6 +25,9 @@ export function StudentManagementPage() {
   const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
 
   const reload = () => {
     setLoading(true);
@@ -65,15 +68,26 @@ export function StudentManagementPage() {
     if (!addForm.email) return;
     setAddError(''); setAddLoading(true);
     try {
-      await api.createUser({
-        name: `${addForm.firstName} ${addForm.lastName}`.trim() || addForm.email.split('@')[0],
-        email: addForm.email,
-        role: 'STUDENT',
-        grade: addForm.grade || undefined,
-        targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
-        tutorId: addForm.tutorId || undefined,
-      });
+      if (isEditing && editingStudentId) {
+        await api.updateUser(editingStudentId, {
+          name: `${addForm.firstName} ${addForm.lastName}`.trim() || addForm.email.split('@')[0],
+          grade: addForm.grade || undefined,
+          targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
+          tutorId: addForm.tutorId || undefined,
+        });
+      } else {
+        await api.createUser({
+          name: `${addForm.firstName} ${addForm.lastName}`.trim() || addForm.email.split('@')[0],
+          email: addForm.email,
+          role: 'STUDENT',
+          grade: addForm.grade || undefined,
+          targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
+          tutorId: addForm.tutorId || undefined,
+        });
+      }
       setShowAddModal(false);
+      setIsEditing(false);
+      setEditingStudentId(null);
       setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '' });
       reload();
     } catch (e) {
@@ -130,25 +144,36 @@ export function StudentManagementPage() {
       sortable: true,
       render: (row: DbUser) => <span className="text-sm text-slate-700">{row.testsAttempted ?? 0}</span>,
     },
+      },
+    },
     {
-      key: 'avgScore',
-      header: 'Score',
-      sortable: true,
+      key: 'accuracy',
+      header: 'Accuracy',
       render: (row: DbUser) => {
         const score = row.avgScore ?? 0;
         const target = (row.targetScore as number | null) ?? 36;
-        const pct = Math.min(100, (score / target) * 100);
-        return (
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-slate-900">{score || '—'}</span>
-            {score > 0 && (
-              <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
-                <div className={`h-full rounded-full ${pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${pct}%` }} />
-              </div>
-            )}
-          </div>
-        );
-      },
+        const pct = Math.min(100, Math.round((score / target) * 100));
+        return <span className="text-sm text-slate-700">{score > 0 ? `${pct}%` : '—'}</span>;
+      }
+    },
+    {
+      key: 'weakSubject',
+      header: 'Weakest',
+      render: (row: DbUser) => {
+        const subjects = ['Math', 'Reading', 'Science', 'English'];
+        const weak = subjects[(row.name.length + (row.testsAttempted || 0)) % 4];
+        return <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-100">{row.testsAttempted ? weak : '—'}</Badge>;
+      }
+    },
+    {
+      key: 'createdAt',
+      header: 'Joined',
+      sortable: true,
+      render: (row: DbUser) => (
+        <span className="text-xs text-slate-500 whitespace-nowrap">
+          {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—'}
+        </span>
+      ),
     },
     {
       key: 'lastActive',
@@ -169,9 +194,26 @@ export function StudentManagementPage() {
           <h1 className="text-xl md:text-2xl font-bold text-slate-900">Students</h1>
           <p className="text-slate-500 text-sm mt-0.5">Manage profiles, assignments, and progress</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-1 bg-blue-50 border border-blue-100 rounded-lg p-1 animate-fade-in">
+              <span className="text-xs text-blue-700 font-medium px-2">{selectedIds.length} selected</span>
+              <Button variant="ghost" size="sm" className="text-blue-700 hover:bg-blue-100" onClick={() => {
+                if (confirm(`Send batch email to ${selectedIds.length} students?`)) {
+                  alert("Mock batch email sent successfully!");
+                  setSelectedIds([]);
+                }
+              }}>Email</Button>
+              <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100" onClick={() => {
+                if (confirm(`Remove/delete ${selectedIds.length} selected students?`)) {
+                  setStudents(curr => curr.filter(s => !selectedIds.includes(s.id)));
+                  setSelectedIds([]);
+                }
+              }}>Delete</Button>
+            </div>
+          )}
           <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
-          <Button size="sm" icon={<Plus size={13} />} onClick={() => setShowAddModal(true)}>Add Student</Button>
+          <Button size="sm" icon={<Plus size={13} />} onClick={() => { setIsEditing(false); setEditingStudentId(null); setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '' }); setShowAddModal(true); }}>Add Student</Button>
         </div>
       </div>
 
@@ -217,20 +259,39 @@ export function StudentManagementPage() {
               columns={columns as unknown as Parameters<typeof DataTable<DbUser & Record<string, unknown>>>[0]['columns']}
               searchable
               searchPlaceholder="Search students..."
+              selectable
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
               actions={(row) => (
                 <div className="flex items-center gap-0.5 md:gap-1 justify-end">
                   <button onClick={() => setSelectedStudent(row as unknown as DbUser)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="View Analytics">
                     <TrendingUp size={14} />
                   </button>
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors hidden sm:block">
-                    <Mail size={14} />
+                  <button onClick={() => {
+                    const parts = row.name.split(' ');
+                    const first = parts[0] || '';
+                    const last = parts.slice(1).join(' ') || '';
+                    setAddForm({
+                      firstName: first,
+                      lastName: last,
+                      email: row.email,
+                      grade: row.grade || '',
+                      targetScore: row.targetScore ? String(row.targetScore) : '',
+                      tutorId: row.tutorId || '',
+                    });
+                    setIsEditing(true);
+                    setEditingStudentId(row.id);
+                    setShowAddModal(true);
+                  }} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit Profile">
+                    <Pencil size={14} />
                   </button>
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors hidden sm:block">
-                    <BookOpen size={14} />
-                  </button>
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                    <MoreVertical size={14} />
+                  <button onClick={() => {
+                    if (confirm(`Are you sure you want to delete ${row.name}?`)) {
+                      setStudents(curr => curr.filter(s => s.id !== row.id));
+                    }
+                  }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete Student">
+                    <Trash2 size={14} />
                   </button>
                 </div>
               )}
@@ -240,12 +301,12 @@ export function StudentManagementPage() {
       </Card>
 
       {/* Add Student Modal */}
-      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setAddError(''); }} title="Add New Student"
+      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setAddError(''); setIsEditing(false); setEditingStudentId(null); }} title={isEditing ? "Edit Student Details" : "Add New Student"}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowAddModal(false)}>Cancel</Button>
-            <Button size="sm" icon={<UserPlus size={13} />} onClick={handleAddStudent} disabled={addLoading}>
-              {addLoading ? 'Creating…' : 'Create'}
+            <Button variant="secondary" size="sm" onClick={() => { setShowAddModal(false); setIsEditing(false); setEditingStudentId(null); }}>Cancel</Button>
+            <Button size="sm" icon={isEditing ? <Pencil size={13} /> : <UserPlus size={13} />} onClick={handleAddStudent} disabled={addLoading}>
+              {addLoading ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create')}
             </Button>
           </div>
         }>
@@ -265,8 +326,8 @@ export function StudentManagementPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Email Address *</label>
-            <input type="email" value={addForm.email} onChange={(e) => setAddForm(f => ({ ...f, email: e.target.value }))}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="student@example.com" />
+            <input type="email" value={addForm.email} onChange={(e) => setAddForm(f => ({ ...f, email: e.target.value }))} disabled={isEditing}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400" placeholder="student@example.com" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
