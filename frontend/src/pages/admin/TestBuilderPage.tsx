@@ -190,6 +190,228 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
   );
 }
 
+// ── PDF Bulk Import ─────────────────────────────────────────────────────────
+
+interface ParsedPDFQuestion {
+  id: string;
+  num: number;
+  text: string;
+  options: { id: string; text: string }[];
+  detectedType: QuestionType;
+  selected: boolean;
+}
+
+function parsePDFText(fullText: string): ParsedPDFQuestion[] {
+  const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
+  const questions: ParsedPDFQuestion[] = [];
+
+  // Patterns that mark the start of a new question
+  const qStartPat = /^(\d{1,3})[.)]\s+(.+)/;
+  // Patterns for options A-D
+  const optPat = /^(?:\(([A-Da-d])\)|([A-Da-d])[.):])\s*(.+)/;
+
+  let current: { num: number; textLines: string[]; optMap: Record<string, string> } | null = null;
+
+  const flush = () => {
+    if (!current || !current.textLines.length) return;
+    const text = current.textLines.join(' ').replace(/\s{2,}/g, ' ').trim();
+    const optCount = Object.keys(current.optMap).length;
+    const options = optCount >= 2
+      ? Object.entries(current.optMap).slice(0, 4).map(([id, t]) => ({ id, text: t }))
+      : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
+    questions.push({
+      id: Math.random().toString(36).substr(2, 9),
+      num: current.num,
+      text,
+      options,
+      detectedType: optCount >= 2 ? 'mcq_single' : 'numeric',
+      selected: true,
+    });
+  };
+
+  for (const line of lines) {
+    const qm = line.match(qStartPat);
+    if (qm) {
+      flush();
+      current = { num: parseInt(qm[1]), textLines: [qm[2]], optMap: {} };
+      continue;
+    }
+    if (current) {
+      const om = line.match(optPat);
+      if (om) {
+        const letter = (om[1] ?? om[2]).toLowerCase();
+        current.optMap[letter] = om[3].trim();
+      } else {
+        // continuation of question text (only if no options seen yet)
+        if (Object.keys(current.optMap).length === 0) current.textLines.push(line);
+      }
+    }
+  }
+  flush();
+  return questions;
+}
+
+function PDFQuestionUploader({ sectionName, onImport, onClose }: { sectionName: string; onImport: (q: Question[]) => void; onClose: () => void }) {
+  const [parsing, setParsing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [fileName, setFileName] = useState('');
+  const [questions, setQuestions] = useState<ParsedPDFQuestion[]>([]);
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    if (file.type !== 'application/pdf') { setError('Please upload a .pdf file'); return; }
+    setError(''); setFileName(file.name); setParsing(true); setProgress(0); setQuestions([]);
+    try {
+      const pdfjsLib = await import('pdfjs-dist');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.mjs',
+        import.meta.url
+      ).href;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        fullText += content.items.map((item: unknown) => (item as { str: string }).str).join('\n') + '\n';
+        setProgress(Math.round((i / pdf.numPages) * 100));
+      }
+      const parsed = parsePDFText(fullText);
+      if (!parsed.length) {
+        setError('No numbered questions detected. Make sure questions are numbered like "1." or "1)".');
+      } else {
+        setQuestions(parsed);
+      }
+    } catch {
+      setError('Failed to read PDF. Make sure it contains selectable text (not a scanned image).');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const toggleAll = (val: boolean) => setQuestions(q => q.map(x => ({ ...x, selected: val })));
+  const selectedCount = questions.filter(q => q.selected).length;
+
+  const handleImport = () => {
+    const toImport: Question[] = questions
+      .filter(q => q.selected)
+      .map(q => ({
+        id: q.id,
+        text: q.text,
+        type: q.detectedType,
+        options: q.options,
+        correctAnswer: q.detectedType === 'mcq_single' ? 'a' : 0,
+        difficulty: 'medium' as Difficulty,
+        topic: '',
+      }));
+    onImport(toImport);
+    onClose();
+    toast.success(`${toImport.length} question${toImport.length !== 1 ? 's' : ''} imported from PDF!`);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Drop zone */}
+      {!questions.length && (
+        <div
+          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+            error ? 'border-red-300 bg-red-50' : parsing ? 'border-blue-300 bg-blue-50/30' : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50/20'
+          }`}
+          onClick={() => !parsing && fileRef.current?.click()}
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+        >
+          <input ref={fileRef} type="file" accept=".pdf,application/pdf" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+          {parsing ? (
+            <div className="space-y-3">
+              <Loader2 size={32} className="mx-auto text-blue-500 animate-spin" />
+              <p className="text-sm font-medium text-slate-700">Reading PDF pages… {progress}%</p>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden max-w-xs mx-auto">
+                <div className="h-full bg-blue-500 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="w-12 h-12 mx-auto mb-3 bg-red-50 rounded-xl flex items-center justify-center">
+                <FileText size={24} className="text-red-400" />
+              </div>
+              <p className="text-sm font-medium text-slate-700">Drop PDF file here or click to browse</p>
+              <p className="text-xs text-slate-400 mt-1">Questions must be numbered: 1. 2. 3. — Options: A. B. C. D.</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+
+      {/* Questions preview */}
+      {questions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">{questions.length} questions detected in <span className="text-blue-600">{fileName}</span></p>
+              <p className="text-xs text-slate-500 mt-0.5">{selectedCount} selected for import</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => toggleAll(true)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">All</button>
+              <span className="text-slate-300">|</span>
+              <button onClick={() => toggleAll(false)} className="text-xs text-slate-500 hover:text-slate-700 font-medium">None</button>
+              <button onClick={() => { setQuestions([]); setFileName(''); setError(''); }}
+                className="text-xs text-red-500 hover:text-red-700 font-medium ml-2">Change file</button>
+            </div>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+            {questions.map((q) => (
+              <label key={q.id} className={`flex items-start gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${
+                q.selected ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100 bg-white hover:bg-slate-50'
+              }`}>
+                <input type="checkbox" checked={q.selected}
+                  onChange={() => setQuestions(prev => prev.map(x => x.id === q.id ? { ...x, selected: !x.selected } : x))}
+                  className="rounded text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs font-bold text-slate-400 flex-shrink-0 mt-0.5">Q{q.num}</span>
+                    <p className="text-sm text-slate-800 line-clamp-2">{q.text || <span className="text-slate-400 italic">Empty question text</span>}</p>
+                  </div>
+                  {q.options.some(o => o.text) && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 ml-5">
+                      {q.options.filter(o => o.text).map(o => (
+                        <span key={o.id} className="text-xs text-slate-500">
+                          <span className="font-semibold text-slate-600">{o.id.toUpperCase()}.</span> {o.text.length > 30 ? o.text.slice(0, 30) + '…' : o.text}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${
+                  q.detectedType === 'mcq_single' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                }`}>
+                  {q.detectedType === 'mcq_single' ? 'MCQ' : 'NUM'}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+            <strong>Tip:</strong> Correct answers are not auto-detected — set them in the question editor after import. Math formulas may need LaTeX formatting.
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+            <Button size="sm" onClick={handleImport} disabled={!selectedCount}>
+              Import {selectedCount} question{selectedCount !== 1 ? 's' : ''} to {sectionName}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Image OCR ───────────────────────────────────────────────────────────────
 
 interface OCRQuestion {
@@ -652,6 +874,7 @@ export function TestBuilderPage() {
   const [showSectionNav, setShowSectionNav] = useState(false);
   const [showCSVUploader, setShowCSVUploader] = useState(false);
   const [showOCRUploader, setShowOCRUploader] = useState(false);
+  const [showPDFUploader, setShowPDFUploader] = useState(false);
   const [saved, setSaved] = useState(false);
   const [titleError, setTitleError] = useState(false);
 
@@ -905,6 +1128,9 @@ export function TestBuilderPage() {
                   <Button variant="secondary" onClick={() => setShowOCRUploader(true)} icon={<ImageIcon size={13} />} className="py-3 border-dashed px-4">
                     From Image
                   </Button>
+                  <Button variant="secondary" onClick={() => setShowPDFUploader(true)} icon={<FileText size={13} />} className="py-3 border-dashed px-4">
+                    Import PDF
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1015,6 +1241,15 @@ export function TestBuilderPage() {
           sectionName={activeSection.name}
           onImport={(imported) => updateSection(activeSectionIdx, { questions: [...activeSection.questions, ...imported] })}
           onClose={() => setShowOCRUploader(false)}
+        />
+      </Modal>
+
+      {/* PDF Bulk Import Modal */}
+      <Modal isOpen={showPDFUploader} onClose={() => setShowPDFUploader(false)} title={`Bulk Import from PDF — ${activeSection.name}`} size="lg">
+        <PDFQuestionUploader
+          sectionName={activeSection.name}
+          onImport={(imported) => updateSection(activeSectionIdx, { questions: [...activeSection.questions, ...imported] })}
+          onClose={() => setShowPDFUploader(false)}
         />
       </Modal>
 
