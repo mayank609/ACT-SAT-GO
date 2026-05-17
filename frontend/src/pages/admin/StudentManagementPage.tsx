@@ -144,6 +144,24 @@ export function StudentManagementPage() {
       sortable: true,
       render: (row: DbUser) => <span className="text-sm text-slate-700">{row.testsAttempted ?? 0}</span>,
     },
+    {
+      key: 'avgScore',
+      header: 'Score',
+      sortable: true,
+      render: (row: DbUser) => {
+        const score = row.avgScore ?? 0;
+        const target = (row.targetScore as number | null) ?? 36;
+        const pct = Math.min(100, (score / target) * 100);
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium text-slate-900">{score || '—'}</span>
+            {score > 0 && (
+              <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
+                <div className={`h-full rounded-full ${pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${pct}%` }} />
+              </div>
+            )}
+          </div>
+        );
       },
     },
     {
