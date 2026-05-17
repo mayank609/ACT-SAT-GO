@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
+import { createAdminClient } from '@/lib/supabase/admin'
+import { randomUUID } from 'crypto'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -79,30 +82,87 @@ export async function POST(request: NextRequest) {
       specialization?: string[]
     }
 
+    // 1. Validation
     if (!email || !role) {
-      return NextResponse.json({ error: 'email and role are required' }, { status: 400 })
+      return NextResponse.json({ error: 'Email and role are required fields' }, { status: 400 })
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 })
     }
 
     const upperRole = role.toUpperCase() as ValidRole
     if (!VALID_ROLES.includes(upperRole)) {
-      return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid role value specified' }, { status: 400 })
     }
 
+    if (grade) {
+      const gradeNum = parseInt(grade, 10)
+      if (isNaN(gradeNum) || gradeNum < 1 || gradeNum > 12) {
+        return NextResponse.json({ error: 'Grade must be a number between 1 and 12' }, { status: 400 })
+      }
+    }
+
+    if (targetScore) {
+      const scoreNum = Number(targetScore)
+      if (isNaN(scoreNum) || scoreNum < 1 || scoreNum > 36) {
+        return NextResponse.json({ error: 'Target score must be a valid ACT score between 1 and 36' }, { status: 400 })
+      }
+    }
+
+    // 2. Duplicate checking
+    const existingUser = await prisma.user.findUnique({ where: { email } })
+    if (existingUser) {
+      return NextResponse.json({ error: 'A user with this email address already exists' }, { status: 400 })
+    }
+
+    // 3. Supabase Auth account creation (using Service Role Key)
+    let authUserId: any = randomUUID()
+    let supabaseWarning = null
+    const supabaseAdmin = createAdminClient()
+
+    if (supabaseAdmin) {
+      // Temporary password for student
+      const tempPassword = 'StudentDefaultPass123!'
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { name: name || email.split('@')[0], role: upperRole.toLowerCase() }
+      })
+
+      if (authError) {
+        console.error('Supabase Auth error:', authError)
+        return NextResponse.json({ error: `Supabase Auth: ${authError.message}` }, { status: 400 })
+      }
+
+      if (authData?.user?.id) {
+        authUserId = authData.user.id
+      }
+    } else {
+      supabaseWarning = 'SUPABASE_SERVICE_ROLE_KEY is missing in backend .env. Created database profile only with generated UUID.'
+      console.warn(`WARNING: ${supabaseWarning}`)
+    }
+
+    // 4. Create local database user matching the Supabase Auth user ID
     const displayName = name || email.split('@')[0]
     const permissions: Record<string, unknown> = { displayName }
     if (grade) permissions.grade = grade
-    if (targetScore) permissions.targetScore = targetScore
+    if (targetScore) permissions.targetScore = Number(targetScore)
     if (specialization?.length) permissions.specialization = specialization
 
     const user = await prisma.user.create({
       data: {
+        id: authUserId as any,
         name: name || email.split('@')[0],
         email,
         role: upperRole,
-        permissions: Object.keys(permissions).length ? permissions : undefined,
+        permissions: Object.keys(permissions).length ? permissions as any : undefined,
       },
     })
 
+    // 5. Assigned tutor relation
     if (tutorId && upperRole === 'STUDENT') {
       await prisma.tutorAssignment.create({
         data: { tutorId, studentId: user.id },
@@ -110,11 +170,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      user: { ...user, name: displayName, role: user.role.toLowerCase() }
+      user: { ...user, name: displayName, role: user.role.toLowerCase() },
+      warning: supabaseWarning
     }, { status: 201 })
   } catch (error) {
     console.error('POST /api/users:', error)
-    const msg = (error as { code?: string }).code === 'P2002' ? 'Email already exists' : 'Failed to create user'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: (error as Error).message || 'Failed to create user' }, { status: 500 })
   }
 }

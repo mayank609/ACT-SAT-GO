@@ -85,7 +85,7 @@ export async function PATCH(
 
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { permissions },
+      data: { permissions: permissions as any },
     })
 
     if (tutorId !== undefined) {
