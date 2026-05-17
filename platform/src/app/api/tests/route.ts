@@ -78,6 +78,8 @@ interface FrontendQuestion {
   topic?: string
   difficulty: FrontendDifficulty
   explanation?: string
+  marks?: number
+  marksNegative?: number
 }
 
 interface FrontendSection {
@@ -175,6 +177,8 @@ export async function POST(request: NextRequest) {
               sectionId: newSection.id,
               questionId: newQuestion.id,
               orderIndex: qIdx,
+              marksPositive: q.marks ?? 1,
+              marksNegative: q.marksNegative ?? 0,
             },
           })
         }

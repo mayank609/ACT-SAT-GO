@@ -28,7 +28,7 @@ const SUB_TOPICS: Record<string, string[]> = {
 function generateId() { return Math.random().toString(36).substr(2, 9); }
 
 function newQuestion(): Question {
-  return { id: generateId(), text: '', type: 'mcq_single', options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }], correctAnswer: 'a', topic: '', difficulty: 'medium' };
+  return { id: generateId(), text: '', type: 'mcq_single', options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }], correctAnswer: 'a', topic: '', difficulty: 'medium', marks: 1, marksNegative: 0 };
 }
 function newSection(): Section {
   return { id: generateId(), name: 'New Section', timeLimit: 45, questions: [newQuestion()] };
@@ -63,6 +63,9 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
         <div className="flex items-center gap-1 flex-shrink-0">
           <Badge variant="default" size="sm" className="hidden sm:inline-flex">{question.type.replace(/_/g, ' ')}</Badge>
           <Badge variant={difficultyColors[question.difficulty]} size="sm">{question.difficulty}</Badge>
+          <span className="hidden sm:inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+            +{question.marks ?? 1}{(question.marksNegative ?? 0) > 0 ? ` / −${question.marksNegative}` : ''}
+          </span>
         </div>
         <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 text-red-400 hover:text-red-600 rounded flex-shrink-0"><Trash2 size={13} /></button>
         {expanded ? <ChevronUp size={13} className="text-slate-400 flex-shrink-0" /> : <ChevronDown size={13} className="text-slate-400 flex-shrink-0" />}
@@ -110,6 +113,28 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">
+                Marks <span className="normal-case text-slate-400 font-normal">(+ve)</span>
+              </label>
+              <input
+                type="number" min={0} step={0.5}
+                value={question.marks ?? 1}
+                onChange={(e) => onUpdate({ ...question, marks: parseFloat(e.target.value) || 1 })}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">
+                Negative Marking <span className="normal-case text-slate-400 font-normal">(−ve, 0 = none)</span>
+              </label>
+              <input
+                type="number" min={0} step={0.25}
+                value={question.marksNegative ?? 0}
+                onChange={(e) => onUpdate({ ...question, marksNegative: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Topic</label>
@@ -305,6 +330,8 @@ function PDFQuestionUploader({ sectionName, onImport, onClose }: { sectionName: 
         correctAnswer: q.detectedType === 'mcq_single' ? 'a' : 0,
         difficulty: 'medium' as Difficulty,
         topic: '',
+        marks: 1,
+        marksNegative: 0,
       }));
     onImport(toImport);
     onClose();
@@ -510,6 +537,8 @@ function ImageOCRUploader({ sectionName, onImport, onClose }: { sectionName: str
       correctAnswer: parsed.detectedType === 'mcq_single' ? 'a' : 0,
       difficulty: 'medium',
       topic: '',
+      marks: 1,
+      marksNegative: 0,
     };
     onImport([q]);
     onClose();
@@ -664,7 +693,7 @@ function parseCSVContent(text: string): CSVParseResult[] {
 
   for (let i = 1; i < lines.length; i++) {
     const f = parseCSVLine(lines[i]);
-    const [typeRaw = '', qText = '', optA = '', optB = '', optC = '', optD = '', ansRaw = '', diffRaw = '', expl = ''] = f;
+    const [typeRaw = '', qText = '', optA = '', optB = '', optC = '', optD = '', ansRaw = '', diffRaw = '', expl = '', marksRaw = '', marksNegRaw = ''] = f;
     const errors: string[] = [];
 
     const typeUpper = typeRaw.trim().toUpperCase();
@@ -702,6 +731,8 @@ function parseCSVContent(text: string): CSVParseResult[] {
 
     if (questionType !== 'numeric' && !optA.trim()) errors.push('Option A is required for MCQ/MSQ');
 
+    const parsedMarks = parseFloat(marksRaw.trim());
+    const parsedMarksNeg = parseFloat(marksNegRaw.trim());
     const question: Question = {
       id: generateId(),
       text: qText.trim(),
@@ -710,6 +741,8 @@ function parseCSVContent(text: string): CSVParseResult[] {
       correctAnswer,
       difficulty,
       topic: '',
+      marks: isNaN(parsedMarks) ? 1 : parsedMarks,
+      marksNegative: isNaN(parsedMarksNeg) ? 0 : parsedMarksNeg,
       ...(expl.trim() ? { explanation: expl.trim() } : {}),
     };
 
@@ -719,7 +752,7 @@ function parseCSVContent(text: string): CSVParseResult[] {
   return results;
 }
 
-const CSV_TEMPLATE = `type,text,option_a,option_b,option_c,option_d,correct_answer,difficulty,explanation\r\nMCQ,"If 2x + 3 = 11, what is the value of x?",2,3,4,5,C,easy,Subtract 3 from both sides then divide by 2\r\nNUMERIC,"What is the area of a rectangle with length 8 and width 5?",,,,,40,easy,Area = length × width = 8 × 5 = 40\r\nMSQ,"Which of the following are prime numbers?",2,3,4,5,"A,B,D",medium,2 and 3 and 5 are prime; 4 is not\r\n`;
+const CSV_TEMPLATE = `type,text,option_a,option_b,option_c,option_d,correct_answer,difficulty,explanation,marks,marks_negative\r\nMCQ,"If 2x + 3 = 11, what is the value of x?",2,3,4,5,C,easy,Subtract 3 from both sides then divide by 2,1,0.25\r\nNUMERIC,"What is the area of a rectangle with length 8 and width 5?",,,,,40,easy,Area = length × width = 8 × 5 = 40,2,0\r\nMSQ,"Which of the following are prime numbers?",2,3,4,5,"A,B,D",medium,2 and 3 and 5 are prime; 4 is not,1,0\r\n`;
 
 interface CSVUploaderProps {
   sectionName: string;
@@ -771,7 +804,7 @@ function QuestionCSVUploader({ sectionName, onImport, onClose }: CSVUploaderProp
       <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
         <div>
           <p className="text-sm font-medium text-blue-900">CSV Template</p>
-          <p className="text-xs text-blue-600 mt-0.5">Columns: type, text, option_a–d, correct_answer, difficulty, explanation</p>
+          <p className="text-xs text-blue-600 mt-0.5">Columns: type, text, option_a–d, correct_answer, difficulty, explanation, marks, marks_negative</p>
         </div>
         <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
           <Download size={12} /> Download
@@ -953,6 +986,7 @@ export function TestBuilderPage() {
 
   const totalQ = sections.reduce((a, s) => a + s.questions.length, 0);
   const totalTime = sections.reduce((a, s) => a + s.timeLimit, 0);
+  const totalMarks = sections.reduce((a, s) => a + s.questions.reduce((b, q) => b + (q.marks ?? 1), 0), 0);
 
   const handleSave = async () => {
     if (!testTitle.trim()) {
@@ -1048,6 +1082,7 @@ export function TestBuilderPage() {
                     { label: 'Questions', value: totalQ, color: 'text-blue-700', bg: 'bg-blue-50' },
                     { label: 'Minutes', value: `${totalTime}m`, color: 'text-emerald-700', bg: 'bg-emerald-50' },
                     { label: 'Sections', value: sections.length, color: 'text-purple-700', bg: 'bg-purple-50' },
+                    { label: 'Total Marks', value: totalMarks, color: 'text-amber-700', bg: 'bg-amber-50' },
                   ].map((s) => (
                     <div key={s.label} className={`text-center px-2 py-3 ${s.bg} rounded-xl`}>
                       <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>

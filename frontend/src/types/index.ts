@@ -28,6 +28,8 @@ export interface Question {
   subTopic?: string;
   difficulty: Difficulty;
   explanation?: string;
+  marks: number;
+  marksNegative: number;
 }
 
 export interface Section {
