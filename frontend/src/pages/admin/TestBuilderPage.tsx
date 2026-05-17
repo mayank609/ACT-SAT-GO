@@ -456,7 +456,7 @@ export function TestBuilderPage() {
 
   const activeSection = sections[activeSectionIdx];
 
-  const [previewMode, setPreviewMode] = useState<'edit' | 'split' | 'full'>('edit');
+  const [previewMode, setPreviewMode] = useState<'edit' | 'full'>('edit');
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [previewActiveQuestionIdx, setPreviewActiveQuestionIdx] = useState(0);
   const [previewActiveSectionIdx, setPreviewActiveSectionIdx] = useState(0);
@@ -570,17 +570,6 @@ export function TestBuilderPage() {
               Editor
             </button>
             <button
-              onClick={() => setPreviewMode('split')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
-                previewMode === 'split'
-                  ? 'bg-white text-slate-800 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Eye size={12} />
-              <span>Split Screen</span>
-            </button>
-            <button
               onClick={() => setPreviewMode('full')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
                 previewMode === 'full'
@@ -599,9 +588,9 @@ export function TestBuilderPage() {
         </div>
       </div>
 
-      <div className={previewMode === 'split' ? "grid grid-cols-1 lg:grid-cols-2 gap-6 items-start animate-fade-in" : "space-y-4"}>
+      <div className="space-y-4">
         {previewMode !== 'full' && (
-          <div className="space-y-4 min-w-0">
+          <div className="space-y-4 min-w-0 animate-fade-in">
             {/* Test meta */}
             <Card padding="sm">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-start">
@@ -711,8 +700,8 @@ export function TestBuilderPage() {
         )}
 
         {/* Real-time Mock Exam Preview Panel */}
-        {previewMode !== 'edit' && (
-          <div className={`space-y-4 ${previewMode === 'full' ? 'w-full max-w-5xl mx-auto' : 'w-full sticky top-4'}`}>
+        {previewMode === 'full' && (
+          <div className="space-y-4 w-full max-w-5xl mx-auto animate-fade-in">
             <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Viewport:</span>
