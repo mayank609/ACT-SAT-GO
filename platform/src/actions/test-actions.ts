@@ -71,6 +71,31 @@ export async function createQuestion(data: {
 }
 
 /**
+ * Updates an existing question in the database.
+ */
+export async function updateQuestion(
+  id: string,
+  data: Partial<{
+    content: any
+    options: any
+    correctAnswer: any
+    difficultyLevel: Difficulty
+    topicId: string
+  }>
+) {
+  try {
+    const question = await prisma.question.update({
+      where: { id },
+      data,
+    })
+    return { success: true, question }
+  } catch (error) {
+    console.error('Error updating question:', error)
+    return { success: false, error: 'Failed to update question' }
+  }
+}
+
+/**
  * Maps a question to a specific test and section.
  */
 export async function addQuestionToTest(data: {

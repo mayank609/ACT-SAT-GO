@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request)
 
   // 1. Define route groups
-  const isProtectedRoute = url.pathname.startsWith('/admin') || 
+  const isProtectedRoute = (url.pathname.startsWith('/admin') && !url.pathname.startsWith('/admin/tests/builder')) || 
                            url.pathname.startsWith('/tutor') || 
                            url.pathname.startsWith('/student') ||
                            url.pathname.startsWith('/test-engine')
