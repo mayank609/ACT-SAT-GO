@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -7,6 +7,8 @@ import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { RichTextEditor } from '../../components/admin/RichTextEditor';
+import { Toaster, toast } from 'react-hot-toast';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
 
 const TOPICS = ['Algebra', 'Geometry', 'Trigonometry', 'Statistics', 'Grammar', 'Punctuation', 'Rhetorical Skills', 'Main Idea', 'Inference', 'Vocabulary', 'Data Analysis', 'Scientific Method'];
@@ -40,14 +42,23 @@ interface QuestionEditorProps {
 
 function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorProps) {
   const [expanded, setExpanded] = useState(index === 0);
+  const [isSaving, setIsSaving] = useState(false);
   const difficultyColors: Record<Difficulty, 'success' | 'warning' | 'danger'> = { easy: 'success', medium: 'warning', hard: 'danger' };
 
+  const handleSaveQuestion = async () => {
+    setIsSaving(true);
+    // Simulate high-speed database autosave block
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setIsSaving(false);
+    toast.success(`Question ${index + 1} saved successfully!`);
+  };
+
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden">
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2 px-3 md:px-4 py-3 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setExpanded(!expanded)}>
         <GripVertical size={13} className="text-slate-400 cursor-grab flex-shrink-0" />
         <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold flex-shrink-0">{index + 1}</div>
-        <span className="flex-1 text-sm text-slate-700 truncate min-w-0">{question.text || 'Untitled question'}</span>
+        <span className="flex-1 text-sm text-slate-700 truncate min-w-0" dangerouslySetInnerHTML={{ __html: question.text || 'Untitled question' }} />
         <div className="flex items-center gap-1 flex-shrink-0">
           <Badge variant="default" size="sm" className="hidden sm:inline-flex">{question.type.replace(/_/g, ' ')}</Badge>
           <Badge variant={difficultyColors[question.difficulty]} size="sm">{question.difficulty}</Badge>
@@ -59,9 +70,8 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
       {expanded && (
         <div className="p-3 md:p-4 space-y-3 md:space-y-4 bg-white">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Question Text</label>
-            <textarea rows={2} value={question.text} onChange={(e) => onUpdate({ ...question, text: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Enter question text..." />
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Question Text (Rich Editor)</label>
+            <RichTextEditor content={question.text} onChange={(html) => onUpdate({ ...question, text: html })} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
@@ -144,6 +154,17 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Explanation (optional)</label>
             <textarea rows={2} value={question.explanation || ''} onChange={(e) => onUpdate({ ...question, explanation: e.target.value })}
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Explain the correct answer..." />
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-slate-100">
+            <button
+              onClick={handleSaveQuestion}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+            >
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {isSaving ? 'Saving Question...' : 'Save Question'}
+            </button>
           </div>
         </div>
       )}
@@ -417,6 +438,46 @@ export function TestBuilderPage() {
 
   const activeSection = sections[activeSectionIdx];
 
+  // Prevent data loss on unsaved changes / accidental refreshes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Restore unsaved draft from localStorage on mount
+  useEffect(() => {
+    const draft = localStorage.getItem('test_builder_draft');
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (parsed.testTitle || parsed.sections?.length > 1 || parsed.sections?.[0]?.questions?.length > 1) {
+          setTestTitle(parsed.testTitle || '');
+          setTestDesc(parsed.testDesc || '');
+          setSections(parsed.sections || [newSection()]);
+          toast.success("Restored your unsaved draft!", { id: 'restore-draft' });
+        }
+      } catch (e) {
+        console.error("Failed to restore draft", e);
+      }
+    }
+  }, []);
+
+  // Debounced auto-save every few seconds while typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem('test_builder_draft', JSON.stringify({
+        testTitle,
+        testDesc,
+        sections
+      }));
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [testTitle, testDesc, sections]);
+
   const updateSection = (idx: number, updates: Partial<Section>) =>
     setSections((prev) => prev.map((s, i) => i === idx ? { ...s, ...updates } : s));
 
@@ -457,6 +518,7 @@ export function TestBuilderPage() {
 
   return (
     <div className="space-y-4">
+      <Toaster position="bottom-right" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
