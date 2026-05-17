@@ -4,6 +4,7 @@ import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../lib/api';
 
 type TabKey = 'profile' | 'notifications' | 'platform' | 'security';
 
@@ -39,10 +40,18 @@ export function SettingsPage() {
 
   const isSuperAdmin = user?.role === 'super_admin';
 
-  const handleSave = () => {
-    updateUser({ name: profileForm.name, email: profileForm.email });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const handleSave = async () => {
+    if (!user) return;
+    try {
+      if (tab === 'notifications') {
+        await api.updateUser(user.id, { notifications: notifPrefs });
+      } else {
+        await api.updateUser(user.id, { name: profileForm.name });
+        updateUser({ name: profileForm.name });
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch { /* silent */ }
   };
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode; superAdminOnly?: boolean }[] = [
@@ -254,21 +263,13 @@ export function SettingsPage() {
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <h3 className="text-sm font-semibold text-slate-700 mb-3">Active Sessions</h3>
-                  {[
-                    { device: 'Chrome on macOS', location: 'Current session', time: 'Active now', current: true },
-                    { device: 'Safari on iPhone', location: 'Mobile', time: '2 days ago', current: false },
-                  ].map((s, i) => (
-                    <div key={i} className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-0">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{s.device}</p>
-                        <p className="text-xs text-slate-500">{s.location} · {s.time}</p>
-                      </div>
-                      {!s.current && (
-                        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 text-xs">Revoke</Button>
-                      )}
-                      {s.current && <Badge variant="success" size="sm">This device</Badge>}
+                  <div className="flex items-center justify-between py-2.5">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Current browser session</p>
+                      <p className="text-xs text-slate-500">Active now</p>
                     </div>
-                  ))}
+                    <Badge variant="success" size="sm">This device</Badge>
+                  </div>
                 </div>
               </div>
             </Card>

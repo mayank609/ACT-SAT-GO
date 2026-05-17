@@ -134,7 +134,6 @@ async function main() {
       data: {
         type: 'NUMERIC',
         content: { text: 'What is the area of a rectangle with length 8 and width 5?' },
-        options: null,
         correctAnswer: { value: 40 },
         difficultyLevel: 'EASY',
       },

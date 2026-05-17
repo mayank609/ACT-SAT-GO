@@ -50,7 +50,10 @@ export const api = {
     targetScore?: number
     specialization?: string[]
     tutorId?: string | null
+    notifications?: Record<string, boolean>
   }) => request<{ user: DbUser }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteUser: (userId: string) =>
+    request<{ success: boolean }>(`/api/users/${userId}`, { method: 'DELETE' }),
 
   // Tutor assignments
   getTutorAssignments: (params?: { tutorId?: string; studentId?: string }) => {
@@ -141,6 +144,47 @@ export const api = {
       latestScore: number
       avgScore: number
     }>(`/api/analytics/student/${studentId}`),
+
+  // Questions (Question Bank)
+  getQuestions: (params?: { type?: string; difficulty?: string; search?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.type) qs.set('type', params.type)
+    if (params?.difficulty) qs.set('difficulty', params.difficulty)
+    if (params?.search) qs.set('search', params.search)
+    return request<{
+      questions: Array<{
+        id: string; type: string; content: { text: string; explanation?: string }
+        options: Record<string, string> | null; correctAnswer: Record<string, unknown>
+        difficultyLevel: string; topic: { id: string; name: string } | null
+        createdAt: string; usedInTests: Array<{ testId: string; testTitle: string }>
+      }>
+    }>(`/api/questions${qs.toString() ? '?' + qs.toString() : ''}`)
+  },
+  deleteQuestion: (id: string) =>
+    request<{ success: boolean }>(`/api/questions?id=${id}`, { method: 'DELETE' }),
+
+  // Platform analytics (admin dashboard charts)
+  getPlatformAnalytics: () =>
+    request<{
+      activityData: Array<{ date: string; attempts: number; completions: number }>
+      scoreDistribution: Array<{ range: string; count: number }>
+    }>('/api/analytics/platform'),
+
+  // Attempts (for monitoring & assignments)
+  getAttempts: (params?: { status?: string; studentId?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.status) qs.set('status', params.status)
+    if (params?.studentId) qs.set('studentId', params.studentId)
+    return request<{
+      attempts: Array<{
+        id: string; studentId: string; studentName: string
+        testId: string; testTitle: string; sectionName: string
+        sectionIndex: number; totalSections: number; tabSwitches: number
+        answersCount: number; startedAt: string; completedAt: string | null
+        status: string; progress: number; timeRemaining: number; totalScore: number | null
+      }>
+    }>(`/api/attempts${qs.toString() ? '?' + qs.toString() : ''}`)
+  },
 
   // Notifications
   getNotifications: (userId: string) =>

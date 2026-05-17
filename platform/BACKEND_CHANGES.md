@@ -9,7 +9,29 @@ Format for each entry:
 
 ---
 
-## ✅ ALL BACKEND CHANGES APPLIED
+## Pending Changes
+
+### Change #008 — Admin module: delete user endpoint + platform analytics [PENDING]
+
+**Type:** CODE
+**Requested by:** Mayank
+**Why:** Needed to make the admin module fully dynamic — no more mock/hardcoded data anywhere.
+
+**What was added (already in the codebase, just needs deploy):**
+
+1. `DELETE /api/users/[userId]` — hard-deletes a user. Cascade deletes handle all related TutorAssignments, TestAttempts, SectionAttempts, AttemptAnswers, CheatingLogs automatically (Prisma cascade rules already in schema). File: `src/app/api/users/[userId]/route.ts`.
+
+2. `GET /api/analytics/platform` — returns last-7-days daily activity (attempts + completions) and ACT score distribution across all SUBMITTED attempts. File: `src/app/api/analytics/platform/route.ts` (new file).
+
+3. `PATCH /api/users/[userId]` now also accepts `notifications: Record<string, boolean>` in body — saves it into `permissions.notifications` JSON field. Already in the PATCH handler.
+
+**Test it by:**
+- `DELETE /api/users/<some-test-user-id>` → should return `{ success: true }` and the user should be gone
+- `GET /api/analytics/platform` → should return `{ activityData: [...], scoreDistribution: [...] }`
+
+---
+
+## ✅ ALL PREVIOUS BACKEND CHANGES APPLIED
 
 ### Change #007 — Add SUPABASE_SERVICE_ROLE_KEY to .env [DONE]
 

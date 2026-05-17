@@ -58,6 +58,20 @@ export async function GET(
   }
 }
 
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
+  const { userId } = await params
+  try {
+    await prisma.user.delete({ where: { id: userId } })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('DELETE /api/users/[userId]:', error)
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -65,12 +79,13 @@ export async function PATCH(
   const { userId } = await params
   try {
     const body = await request.json()
-    const { name, grade, targetScore, specialization, tutorId } = body as {
+    const { name, grade, targetScore, specialization, tutorId, notifications } = body as {
       name?: string
       grade?: string
       targetScore?: number
       specialization?: string[]
       tutorId?: string | null
+      notifications?: Record<string, boolean>
     }
 
     const existing = await prisma.user.findUnique({ where: { id: userId } })
@@ -82,6 +97,7 @@ export async function PATCH(
     if (grade !== undefined) permissions.grade = grade
     if (targetScore !== undefined) permissions.targetScore = targetScore
     if (specialization !== undefined) permissions.specialization = specialization
+    if (notifications !== undefined) permissions.notifications = notifications
 
     const user = await prisma.user.update({
       where: { id: userId },

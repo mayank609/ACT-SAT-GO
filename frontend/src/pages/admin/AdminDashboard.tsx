@@ -3,30 +3,11 @@ import { FileText, Plus, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
-import { Button } from '../../components/common/Button';
+import { Button } from '../../components/common/Button'; // used for New Test button
 import { api, type DbUser } from '../../lib/api';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar,
 } from 'recharts';
-
-const activityData = [
-  { date: 'Mon', attempts: 12, completions: 10 },
-  { date: 'Tue', attempts: 18, completions: 15 },
-  { date: 'Wed', attempts: 24, completions: 20 },
-  { date: 'Thu', attempts: 16, completions: 14 },
-  { date: 'Fri', attempts: 28, completions: 25 },
-  { date: 'Sat', attempts: 32, completions: 28 },
-  { date: 'Sun', attempts: 20, completions: 18 },
-];
-
-const scoreDistData = [
-  { range: '1–10', count: 2 },
-  { range: '11–15', count: 5 },
-  { range: '16–20', count: 12 },
-  { range: '21–25', count: 18 },
-  { range: '26–30', count: 22 },
-  { range: '31–36', count: 8 },
-];
 
 interface DbTest {
   id: string;
@@ -39,11 +20,16 @@ export function AdminDashboard() {
   const [tests, setTests] = useState<DbTest[]>([]);
   const [students, setStudents] = useState<DbUser[]>([]);
   const [tutors, setTutors] = useState<DbUser[]>([]);
+  const [activityData, setActivityData] = useState<{ date: string; attempts: number; completions: number }[]>([]);
+  const [scoreDistData, setScoreDistData] = useState<{ range: string; count: number }[]>([]);
 
   useEffect(() => {
     api.getAllTests().then((r) => setTests((r.tests as DbTest[]) ?? [])).catch(() => {});
     api.getUsersByRole('STUDENT').then((r) => setStudents(r.users ?? [])).catch(() => {});
     api.getUsersByRole('TUTOR').then((r) => setTutors(r.users ?? [])).catch(() => {});
+    api.getPlatformAnalytics()
+      .then((r) => { setActivityData(r.activityData); setScoreDistData(r.scoreDistribution); })
+      .catch(() => {});
   }, []);
 
   const publishedTests = tests.filter((t) => t.status === 'PUBLISHED');
@@ -61,7 +47,6 @@ export function AdminDashboard() {
           <p className="text-slate-400 text-sm mt-0.5">Platform overview</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm">Export</Button>
           <Link to="/test-builder">
             <Button size="sm" icon={<Plus size={14} />}>New Test</Button>
           </Link>
@@ -85,12 +70,8 @@ export function AdminDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="font-medium text-slate-900 text-sm">Test Activity</p>
-              <p className="text-xs text-slate-400">Attempts vs completions</p>
+              <p className="text-xs text-slate-400">Attempts vs completions (last 7 days)</p>
             </div>
-            <select className="text-xs border border-slate-100 rounded-lg px-2 py-1.5 text-slate-500 focus:outline-none bg-white">
-              <option>Last 7 days</option>
-              <option>Last 30 days</option>
-            </select>
           </div>
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={activityData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>

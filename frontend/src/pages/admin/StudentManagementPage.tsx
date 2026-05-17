@@ -55,9 +55,28 @@ export function StudentManagementPage() {
     reader.readAsText(file);
   };
 
-  const handleCsvUpload = () => {
-    setCsvSuccess(true);
-    setTimeout(() => { setCsvSuccess(false); setShowBulkModal(false); setCsvPreview([]); }, 1500);
+  const handleCsvUpload = async () => {
+    if (!csvPreview.length) return;
+    setAddLoading(true);
+    let created = 0;
+    for (const row of csvPreview) {
+      try {
+        await api.createUser({
+          name: row.name ?? row.Name ?? '',
+          email: row.email ?? row.Email ?? '',
+          role: 'STUDENT',
+          grade: row.grade ?? row.Grade ?? undefined,
+          targetScore: (row.targetScore ?? row['Target Score']) ? Number(row.targetScore ?? row['Target Score']) : undefined,
+          tutorId: row.tutorId ?? undefined,
+        });
+        created++;
+      } catch { /* skip invalid rows */ }
+    }
+    setAddLoading(false);
+    if (created > 0) {
+      setCsvSuccess(true);
+      setTimeout(() => { setCsvSuccess(false); setShowBulkModal(false); setCsvPreview([]); reload(); }, 1500);
+    }
   };
 
   const downloadTemplate = () => {
@@ -175,15 +194,6 @@ export function StudentManagementPage() {
       }
     },
     {
-      key: 'weakSubject',
-      header: 'Weakest',
-      render: (row: DbUser) => {
-        const subjects = ['Math', 'Reading', 'Science', 'English'];
-        const weak = subjects[(row.name.length + (row.testsAttempted || 0)) % 4];
-        return <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-100">{row.testsAttempted ? weak : '—'}</Badge>;
-      }
-    },
-    {
       key: 'createdAt',
       header: 'Joined',
       sortable: true,
@@ -217,15 +227,14 @@ export function StudentManagementPage() {
             <div className="flex items-center gap-1 bg-blue-50 border border-blue-100 rounded-lg p-1 animate-fade-in">
               <span className="text-xs text-blue-700 font-medium px-2">{selectedIds.length} selected</span>
               <Button variant="ghost" size="sm" className="text-blue-700 hover:bg-blue-100" onClick={() => {
-                if (confirm(`Send batch email to ${selectedIds.length} students?`)) {
-                  alert("Mock batch email sent successfully!");
-                  setSelectedIds([]);
-                }
+                const emails = students.filter(s => selectedIds.includes(s.id)).map(s => s.email).join(',');
+                window.location.href = `mailto:${emails}`;
               }}>Email</Button>
-              <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100" onClick={() => {
-                if (confirm(`Remove/delete ${selectedIds.length} selected students?`)) {
-                  setStudents(curr => curr.filter(s => !selectedIds.includes(s.id)));
+              <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100" onClick={async () => {
+                if (confirm(`Delete ${selectedIds.length} selected students? This cannot be undone.`)) {
+                  await Promise.all(selectedIds.map(id => api.deleteUser(id).catch(() => {})));
                   setSelectedIds([]);
+                  reload();
                 }
               }}>Delete</Button>
             </div>
@@ -304,9 +313,10 @@ export function StudentManagementPage() {
                   }} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit Profile">
                     <Pencil size={14} />
                   </button>
-                  <button onClick={() => {
-                    if (confirm(`Are you sure you want to delete ${row.name}?`)) {
-                      setStudents(curr => curr.filter(s => s.id !== row.id));
+                  <button onClick={async () => {
+                    if (confirm(`Are you sure you want to delete ${row.name}? This cannot be undone.`)) {
+                      await api.deleteUser(row.id).catch(() => {});
+                      reload();
                     }
                   }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete Student">
                     <Trash2 size={14} />

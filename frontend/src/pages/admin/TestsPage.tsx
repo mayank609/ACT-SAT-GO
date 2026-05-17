@@ -145,11 +145,12 @@ export function TestsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                  <Button variant="ghost" size="sm" icon={<Eye size={13} />} className="flex-1 justify-center">
+                  <Button variant="ghost" size="sm" icon={<Eye size={13} />} className="flex-1 justify-center"
+                    onClick={() => navigate(`/test-instructions/${test.id}`)}>
                     Preview
                   </Button>
                   <button
-                    onClick={() => navigate('/test-builder')}
+                    onClick={() => navigate(`/test-builder?testId=${test.id}`)}
                     className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
                     <Edit size={14} />

@@ -15,6 +15,9 @@ import { ReportsPage } from './pages/admin/ReportsPage';
 import { TestsPage } from './pages/admin/TestsPage';
 import { MonitoringPage } from './pages/admin/MonitoringPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
+import { QuestionBankPage } from './pages/admin/QuestionBankPage';
+import { AssignmentsPage } from './pages/admin/AssignmentsPage';
+import { SupportPage } from './pages/admin/SupportPage';
 
 // Tutor pages
 import { TutorDashboard } from './pages/tutor/TutorDashboard';
@@ -82,6 +85,11 @@ export default function App() {
           <Route path="tutors" element={<TutorManagementPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="monitoring" element={<MonitoringPage />} />
+
+          {/* Admin new pages */}
+          <Route path="question-bank" element={<QuestionBankPage />} />
+          <Route path="assignments" element={<AssignmentsPage />} />
+          <Route path="support" element={<SupportPage />} />
 
           {/* Super Admin only */}
           <Route path="user-management" element={<SuperAdminDashboard />} />

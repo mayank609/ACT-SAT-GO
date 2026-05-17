@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -185,6 +185,214 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
             </button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Image OCR ───────────────────────────────────────────────────────────────
+
+interface OCRQuestion {
+  text: string;
+  options: { id: string; text: string }[];
+  detectedType: QuestionType;
+}
+
+function parseOCRText(raw: string): OCRQuestion {
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const optionPatterns = [
+    /^[A-Da-d][).:\s]+(.+)/,   // A) text  or  A. text  or  A: text
+    /^\([A-Da-d]\)\s*(.+)/,     // (A) text
+  ];
+
+  const questionLines: string[] = [];
+  const optionMap: Record<string, string> = {};
+
+  for (const line of lines) {
+    let matched = false;
+    for (const pat of optionPatterns) {
+      const m = line.match(pat);
+      if (m) {
+        const letter = line.charAt(0).toLowerCase().replace('(', '') as string;
+        const id = ['a','b','c','d'].includes(letter) ? letter : Object.keys(optionMap).length < 4 ? String.fromCharCode(97 + Object.keys(optionMap).length) : null;
+        if (id) { optionMap[id] = m[1].trim(); matched = true; break; }
+      }
+    }
+    if (!matched) questionLines.push(line);
+  }
+
+  const optionCount = Object.keys(optionMap).length;
+  const options = optionCount >= 2
+    ? Object.entries(optionMap).slice(0, 4).map(([id, text]) => ({ id, text }))
+    : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
+
+  const detectedType: QuestionType = optionCount >= 2 ? 'mcq_single' : 'numeric';
+
+  return {
+    text: questionLines.join(' ').replace(/\s{2,}/g, ' ').trim(),
+    options,
+    detectedType,
+  };
+}
+
+function ImageOCRUploader({ sectionName, onImport, onClose }: { sectionName: string; onImport: (q: Question[]) => void; onClose: () => void }) {
+  const [image, setImage] = useState<string | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [scanning, setScanning] = useState(false);
+  const [rawText, setRawText] = useState('');
+  const [parsed, setParsed] = useState<OCRQuestion | null>(null);
+  const [editedText, setEditedText] = useState('');
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith('image/')) { setError('Please upload an image file (PNG, JPG, WEBP)'); return; }
+    setError('');
+    const url = URL.createObjectURL(file);
+    setImage(url);
+    setFileName(file.name);
+    setRawText(''); setParsed(null); setEditedText(''); setProgress(0);
+  };
+
+  const runOCR = async () => {
+    if (!image) return;
+    setScanning(true); setError(''); setProgress(0);
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng', 1, {
+        logger: (m: { status: string; progress: number }) => {
+          if (m.status === 'recognizing text') setProgress(Math.round(m.progress * 100));
+        },
+      });
+      const { data: { text } } = await worker.recognize(image);
+      await worker.terminate();
+      setRawText(text);
+      const p = parseOCRText(text);
+      setParsed(p);
+      setEditedText(p.text);
+    } catch {
+      setError('OCR failed. Try a clearer image with good contrast.');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleAdd = () => {
+    if (!parsed) return;
+    const q: Question = {
+      id: Math.random().toString(36).substr(2, 9),
+      text: editedText,
+      type: parsed.detectedType,
+      options: parsed.options,
+      correctAnswer: parsed.detectedType === 'mcq_single' ? 'a' : 0,
+      difficulty: 'medium',
+      topic: '',
+    };
+    onImport([q]);
+    onClose();
+    toast.success('Question added from image!');
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Drop zone */}
+      <div
+        className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
+          error ? 'border-red-300 bg-red-50' : image ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50/20'
+        }`}
+        onClick={() => !image && fileRef.current?.click()}
+        onDragOver={e => e.preventDefault()}
+        onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+      >
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        {image ? (
+          <div className="space-y-2">
+            <img src={image} alt="uploaded" className="max-h-48 mx-auto rounded-lg object-contain border border-slate-200" />
+            <p className="text-xs text-slate-500">{fileName}</p>
+            <button onClick={e => { e.stopPropagation(); setImage(null); setRawText(''); setParsed(null); setFileName(''); setProgress(0); }}
+              className="text-xs text-red-500 hover:text-red-700">Remove image</button>
+          </div>
+        ) : (
+          <>
+            <div className="w-12 h-12 mx-auto mb-3 bg-slate-100 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            </div>
+            <p className="text-sm font-medium text-slate-700">Drop question image here</p>
+            <p className="text-xs text-slate-400 mt-1">PNG, JPG, WEBP — printed or scanned text</p>
+          </>
+        )}
+      </div>
+
+      {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+
+      {/* Scan button + progress */}
+      {image && !rawText && (
+        <div className="space-y-2">
+          {scanning && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Scanning text…</span><span>{progress}%</span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          )}
+          <Button size="sm" onClick={runOCR} disabled={scanning} icon={scanning ? <Loader2 size={13} className="animate-spin" /> : undefined} className="w-full justify-center">
+            {scanning ? 'Scanning…' : 'Extract Text from Image'}
+          </Button>
+        </div>
+      )}
+
+      {/* Results */}
+      {parsed && (
+        <div className="space-y-3">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Extracted Question Text</p>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${parsed.detectedType === 'mcq_single' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                {parsed.detectedType === 'mcq_single' ? 'MCQ detected' : 'Numeric detected'}
+              </span>
+            </div>
+            <textarea
+              value={editedText}
+              onChange={e => setEditedText(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white"
+              placeholder="Edit extracted question text…"
+            />
+          </div>
+
+          {parsed.options.some(o => o.text) && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Detected Options</p>
+              <div className="space-y-1.5">
+                {parsed.options.map(opt => (
+                  <div key={opt.id} className="flex items-center gap-2 text-sm">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">{opt.id.toUpperCase()}</span>
+                    <span className={`text-slate-700 ${!opt.text ? 'italic text-slate-400' : ''}`}>{opt.text || 'Not detected'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+            <strong>Tip:</strong> Review extracted text before adding. OCR may misread math symbols — edit them in the rich editor after adding.
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+            <Button size="sm" onClick={handleAdd} disabled={!editedText.trim()}>Add to {sectionName}</Button>
+          </div>
+        </div>
+      )}
+
+      {!image && (
+        <p className="text-xs text-slate-400 text-center">
+          Works best on clear printed text. Math formulas may need manual correction.
+        </p>
       )}
     </div>
   );
@@ -443,6 +651,7 @@ export function TestBuilderPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSectionNav, setShowSectionNav] = useState(false);
   const [showCSVUploader, setShowCSVUploader] = useState(false);
+  const [showOCRUploader, setShowOCRUploader] = useState(false);
   const [saved, setSaved] = useState(false);
   const [titleError, setTitleError] = useState(false);
 
@@ -693,6 +902,9 @@ export function TestBuilderPage() {
                   <Button variant="secondary" onClick={() => setShowCSVUploader(true)} icon={<Upload size={13} />} className="py-3 border-dashed px-4">
                     Import CSV
                   </Button>
+                  <Button variant="secondary" onClick={() => setShowOCRUploader(true)} icon={<ImageIcon size={13} />} className="py-3 border-dashed px-4">
+                    From Image
+                  </Button>
                 </div>
               </div>
             </div>
@@ -794,6 +1006,15 @@ export function TestBuilderPage() {
           sectionName={activeSection.name}
           onImport={(imported) => updateSection(activeSectionIdx, { questions: [...activeSection.questions, ...imported] })}
           onClose={() => setShowCSVUploader(false)}
+        />
+      </Modal>
+
+      {/* Image OCR Modal */}
+      <Modal isOpen={showOCRUploader} onClose={() => setShowOCRUploader(false)} title={`Scan Question from Image — ${activeSection.name}`} size="md">
+        <ImageOCRUploader
+          sectionName={activeSection.name}
+          onImport={(imported) => updateSection(activeSectionIdx, { questions: [...activeSection.questions, ...imported] })}
+          onClose={() => setShowOCRUploader(false)}
         />
       </Modal>
 

@@ -120,14 +120,9 @@ export function TutorManagementPage() {
       return score > 0 && score < 24;
     });
 
-    // Mock an upward student improvement trend based on student scores
-    const tutorHash = tutor.name.charCodeAt(0) + tutor.name.charCodeAt(tutor.name.length - 1);
-    const trendValue = ((tutorHash % 15) + 3.5).toFixed(1);
-    const avgImprovement = `+${trendValue} pts`;
-
     return {
       weakAlertsCount: weakStudents.length,
-      avgImprovement,
+      avgImprovement: '—',
       weakStudents,
       assignedStudentsList
     };
@@ -408,7 +403,7 @@ export function TutorManagementPage() {
                       className="flex-1 text-xs py-1.5 px-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1 transition-colors">
                       <TrendingUp size={11} /> Stats
                     </button>
-                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200">
+                    <button onClick={() => { window.location.href = `mailto:${tutor.email}`; }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200">
                       <Mail size={13} />
                     </button>
                   </div>
@@ -443,7 +438,7 @@ export function TutorManagementPage() {
                   className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="View Analytics">
                   <TrendingUp size={14} />
                 </button>
-                <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors hidden sm:block">
+                <button onClick={() => { window.location.href = `mailto:${(row as unknown as DbUser).email}`; }} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors hidden sm:block">
                   <Mail size={14} />
                 </button>
               </div>
