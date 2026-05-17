@@ -8,6 +8,7 @@ import { Modal } from '../../components/common/Modal';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { RichTextEditor } from '../../components/admin/RichTextEditor';
+import { MathRenderer } from '../../components/admin/MathRenderer';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
 
@@ -58,7 +59,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
       <div className="flex items-center gap-2 px-3 md:px-4 py-3 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setExpanded(!expanded)}>
         <GripVertical size={13} className="text-slate-400 cursor-grab flex-shrink-0" />
         <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold flex-shrink-0">{index + 1}</div>
-        <span className="flex-1 text-sm text-slate-700 truncate min-w-0" dangerouslySetInnerHTML={{ __html: question.text || 'Untitled question' }} />
+        <MathRenderer html={question.text || 'Untitled question'} className="flex-1 text-sm text-slate-700 truncate min-w-0 pointer-events-none math-header-preview" />
         <div className="flex items-center gap-1 flex-shrink-0">
           <Badge variant="default" size="sm" className="hidden sm:inline-flex">{question.type.replace(/_/g, ' ')}</Badge>
           <Badge variant={difficultyColors[question.difficulty]} size="sm">{question.difficulty}</Badge>
@@ -69,9 +70,26 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
 
       {expanded && (
         <div className="p-3 md:p-4 space-y-3 md:space-y-4 bg-white">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Question Text (Rich Editor)</label>
-            <RichTextEditor content={question.text} onChange={(html) => onUpdate({ ...question, text: html })} />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Question Text (Rich Editor)</label>
+              <RichTextEditor content={question.text} onChange={(html) => onUpdate({ ...question, text: html })} />
+            </div>
+
+            {/* Live Equation / Science Renderer Preview Panel */}
+            <div className="space-y-2 border border-slate-200 bg-slate-50/50 rounded-xl p-4">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider pb-2 border-b border-slate-200">
+                <span>Exam Rendering Preview (Dynamic Math & Science)</span>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">KaTeX Active</span>
+              </div>
+              <div className="min-h-[60px] flex items-center p-1 text-slate-800">
+                {question.text ? (
+                  <MathRenderer html={question.text} className="w-full prose-slate" />
+                ) : (
+                  <span className="text-slate-400 italic text-sm">Write equations or select formulas from the toolbar to see standard exam previews...</span>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">

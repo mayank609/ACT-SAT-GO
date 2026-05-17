@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { Save, Loader2 } from 'lucide-react'
 import RichTextEditor from './RichTextEditor'
+import { MathRenderer } from './MathRenderer'
 import { updateQuestion, createQuestion } from '@/actions/test-actions'
 import { Difficulty, QuestionType } from '@prisma/client'
 
@@ -62,7 +63,7 @@ export default function QuestionEditor({
     if (!isAutoSave) setIsSaving(true)
     
     try {
-      let res;
+      let res: any;
       if (data.id) {
         res = await updateQuestion(data.id, {
           content: data.content,
@@ -175,12 +176,29 @@ export default function QuestionEditor({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-400">Question Content</label>
-        <RichTextEditor 
-          content={data.content.text} 
-          onChange={updateContent} 
-        />
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-400">Question Content</label>
+          <RichTextEditor 
+            content={data.content.text} 
+            onChange={updateContent} 
+          />
+        </div>
+
+        {/* Live Equation / Science Renderer Preview Panel */}
+        <div className="space-y-2 border border-slate-800 bg-slate-950/60 rounded-xl p-4">
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-900">
+            <span>Exam Rendering Preview (Dynamic Math & Science)</span>
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">KaTeX Active</span>
+          </div>
+          <div className="min-h-[80px] flex items-center p-2 text-slate-100">
+            {data.content.text ? (
+              <MathRenderer html={data.content.text} className="w-full prose-invert prose-emerald" />
+            ) : (
+              <span className="text-slate-500 italic text-sm">Write equations or select formulas from the toolbar to see standard exam previews...</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {data.type === 'MCQ' && (
