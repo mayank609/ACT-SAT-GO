@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -456,6 +456,17 @@ export function TestBuilderPage() {
 
   const activeSection = sections[activeSectionIdx];
 
+  const [previewMode, setPreviewMode] = useState<'edit' | 'split' | 'full'>('edit');
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [previewActiveQuestionIdx, setPreviewActiveQuestionIdx] = useState(0);
+  const [previewActiveSectionIdx, setPreviewActiveSectionIdx] = useState(0);
+
+  // Sync preview indexes when active edit section changes
+  useEffect(() => {
+    setPreviewActiveSectionIdx(activeSectionIdx);
+    setPreviewActiveQuestionIdx(0);
+  }, [activeSectionIdx]);
+
   // Prevent data loss on unsaved changes / accidental refreshes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -543,119 +554,249 @@ export function TestBuilderPage() {
           <h1 className="text-xl md:text-2xl font-bold text-slate-900">Test Builder</h1>
           <p className="text-slate-500 text-sm mt-0.5">Create and manage test content</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" icon={<Settings2 size={14} />} onClick={() => setShowSettings(true)}>Settings</Button>
-          <Button variant="secondary" size="sm" icon={<Eye size={14} />}>Preview</Button>
+          
+          {/* Live Preview Mode Selector */}
+          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5 shadow-sm">
+            <button
+              onClick={() => setPreviewMode('edit')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                previewMode === 'edit'
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Editor
+            </button>
+            <button
+              onClick={() => setPreviewMode('split')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
+                previewMode === 'split'
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Eye size={12} />
+              <span>Split Screen</span>
+            </button>
+            <button
+              onClick={() => setPreviewMode('full')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
+                previewMode === 'full'
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Eye size={12} />
+              <span>Full Preview</span>
+            </button>
+          </div>
+
           <Button size="sm" icon={<Save size={14} />} onClick={handleSave} variant={saved ? 'success' : 'primary'} disabled={saved}>
             {saved ? '✓ Saved' : testSettings.publishStatus === 'published' ? 'Publish' : 'Save Draft'}
           </Button>
         </div>
       </div>
 
-      {/* Test meta */}
-      <Card padding="sm">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-start">
-          <div className="md:col-span-2 space-y-2">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Test Title *</label>
-              <input type="text" value={testTitle} onChange={(e) => { setTestTitle(e.target.value); if (e.target.value.trim()) setTitleError(false); }}
-                placeholder="e.g. ACT Full Practice Test #3"
-                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${titleError ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
-              {titleError && (
-                <p className="flex items-center gap-1 text-xs text-red-600 mt-1"><AlertCircle size={11} /> Title is required before saving</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Description</label>
-              <input type="text" value={testDesc} onChange={(e) => setTestDesc(e.target.value)}
-                placeholder="Brief description..."
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'Questions', value: totalQ, color: 'text-blue-700', bg: 'bg-blue-50' },
-              { label: 'Minutes', value: `${totalTime}m`, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-              { label: 'Sections', value: sections.length, color: 'text-purple-700', bg: 'bg-purple-50' },
-            ].map((s) => (
-              <div key={s.label} className={`text-center px-2 py-3 ${s.bg} rounded-xl`}>
-                <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-slate-500">{s.label}</p>
+      <div className={previewMode === 'split' ? "grid grid-cols-1 lg:grid-cols-2 gap-6 items-start animate-fade-in" : "space-y-4"}>
+        {previewMode !== 'full' && (
+          <div className="space-y-4 min-w-0">
+            {/* Test meta */}
+            <Card padding="sm">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-start">
+                <div className="md:col-span-2 space-y-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Test Title *</label>
+                    <input type="text" value={testTitle} onChange={(e) => { setTestTitle(e.target.value); if (e.target.value.trim()) setTitleError(false); }}
+                      placeholder="e.g. ACT Full Practice Test #3"
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${titleError ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+                    {titleError && (
+                      <p className="flex items-center gap-1 text-xs text-red-600 mt-1"><AlertCircle size={11} /> Title is required before saving</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Description</label>
+                    <input type="text" value={testDesc} onChange={(e) => setTestDesc(e.target.value)}
+                      placeholder="Brief description..."
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Questions', value: totalQ, color: 'text-blue-700', bg: 'bg-blue-50' },
+                    { label: 'Minutes', value: `${totalTime}m`, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+                    { label: 'Sections', value: sections.length, color: 'text-purple-700', bg: 'bg-purple-50' },
+                  ].map((s) => (
+                    <div key={s.label} className={`text-center px-2 py-3 ${s.bg} rounded-xl`}>
+                      <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                      <p className="text-xs text-slate-500">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </Card>
+            </Card>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        {/* Mobile section nav toggle */}
-        <button onClick={() => setShowSectionNav(!showSectionNav)}
-          className="md:hidden flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700">
-          <Menu size={15} />
-          Sections ({sections.length}) — {activeSection.name}
-          <ChevronDown size={14} className={`ml-auto transition-transform ${showSectionNav ? 'rotate-180' : ''}`} />
-        </button>
-
-        {/* Section sidebar */}
-        <div className={`${showSectionNav ? 'block' : 'hidden'} md:block md:w-48 lg:w-52 flex-shrink-0 space-y-1`}>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-2 mb-2 hidden md:block">Sections</p>
-          {sections.map((sec, idx) => (
-            <div key={sec.id} className="group flex items-center gap-1">
-              <button onClick={() => { setActiveSectionIdx(idx); setShowSectionNav(false); }}
-                className={`flex-1 text-left px-3 py-2.5 rounded-lg text-sm transition-all ${
-                  activeSectionIdx === idx ? 'bg-blue-600 text-white font-medium' : 'text-slate-600 hover:bg-slate-100'
-                }`}>
-                <p className="truncate">{sec.name}</p>
-                <p className={`text-xs mt-0.5 ${activeSectionIdx === idx ? 'text-blue-200' : 'text-slate-400'}`}>{sec.questions.length}q · {sec.timeLimit}m</p>
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* Mobile section nav toggle */}
+              <button onClick={() => setShowSectionNav(!showSectionNav)}
+                className="md:hidden flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700">
+                <Menu size={15} />
+                Sections ({sections.length}) — {activeSection.name}
+                <ChevronDown size={14} className={`ml-auto transition-transform ${showSectionNav ? 'rotate-180' : ''}`} />
               </button>
-              {sections.length > 1 && (
-                <button onClick={() => deleteSection(idx)} className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:text-red-600 rounded transition-all">
-                  <Trash2 size={11} />
+
+              {/* Section sidebar */}
+              <div className={`${showSectionNav ? 'block' : 'hidden'} md:block md:w-48 lg:w-52 flex-shrink-0 space-y-1`}>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-2 mb-2 hidden md:block">Sections</p>
+                {sections.map((sec, idx) => (
+                  <div key={sec.id} className="group flex items-center gap-1">
+                    <button onClick={() => { setActiveSectionIdx(idx); setShowSectionNav(false); }}
+                      className={`flex-1 text-left px-3 py-2.5 rounded-lg text-sm transition-all ${
+                        activeSectionIdx === idx ? 'bg-blue-600 text-white font-medium' : 'text-slate-600 hover:bg-slate-100'
+                      }`}>
+                      <p className="truncate">{sec.name}</p>
+                      <p className={`text-xs mt-0.5 ${activeSectionIdx === idx ? 'text-blue-200' : 'text-slate-400'}`}>{sec.questions.length}q · {sec.timeLimit}m</p>
+                    </button>
+                    {sections.length > 1 && (
+                      <button onClick={() => deleteSection(idx)} className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:text-red-600 rounded transition-all">
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={addSection} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-dashed border-blue-200">
+                  <Plus size={13} /> Add Section
                 </button>
+              </div>
+
+              {/* Section editor */}
+              <div className="flex-1 space-y-3 min-w-0">
+                {/* Section settings */}
+                <Card padding="sm">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Section Name</label>
+                      <input type="text" value={activeSection.name} onChange={(e) => updateSection(activeSectionIdx, { name: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Time (min)</label>
+                      <input type="number" value={activeSection.timeLimit} onChange={(e) => updateSection(activeSectionIdx, { timeLimit: parseInt(e.target.value) || 0 })}
+                        min={1} max={180}
+                        className="w-24 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <p className="text-xs text-slate-500 pb-2">{activeSection.questions.length} questions</p>
+                  </div>
+                </Card>
+
+                {/* Questions */}
+                <div className="space-y-2">
+                  {activeSection.questions.map((q, idx) => (
+                    <QuestionEditor key={q.id} question={q} index={idx} onUpdate={(updated) => updateQuestion(q.id, updated)} onDelete={() => deleteQuestion(q.id)} />
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={addQuestion} icon={<Plus size={13} />} className="flex-1 py-3 border-dashed">
+                    Add Question
+                  </Button>
+                  <Button variant="secondary" onClick={() => setShowCSVUploader(true)} icon={<Upload size={13} />} className="py-3 border-dashed px-4">
+                    Import CSV
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Real-time Mock Exam Preview Panel */}
+        {previewMode !== 'edit' && (
+          <div className={`space-y-4 ${previewMode === 'full' ? 'w-full max-w-5xl mx-auto' : 'w-full sticky top-4'}`}>
+            <div className="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Viewport:</span>
+                <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                  <button
+                    onClick={() => setPreviewDevice('desktop')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                      previewDevice === 'desktop' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Desktop
+                  </button>
+                  <button
+                    onClick={() => setPreviewDevice('mobile')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                      previewDevice === 'mobile' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Mobile
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider animate-pulse">Live View</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center min-h-[550px] bg-slate-200/40 rounded-2xl p-4 border border-dashed border-slate-300">
+              {previewDevice === 'mobile' ? (
+                <div className="w-[360px] h-[660px] border-[12px] border-slate-900 rounded-[36px] overflow-hidden shadow-2xl bg-slate-100 flex flex-col relative mx-auto my-4 transition-all">
+                  <div className="h-6 bg-slate-900 text-white flex items-center justify-between px-6 text-[10px] select-none font-semibold flex-shrink-0">
+                    <span>9:41 AM</span>
+                    <div className="flex items-center gap-1">
+                      <span>📶</span>
+                      <span>🔋 100%</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto flex flex-col min-h-0 bg-slate-50 relative">
+                    <ExamPreviewContent
+                      testTitle={testTitle}
+                      sections={sections}
+                      activeSectionIdx={previewActiveSectionIdx}
+                      activeQuestionIdx={previewActiveQuestionIdx}
+                      onNavigate={(sIdx, qIdx) => {
+                        setPreviewActiveSectionIdx(sIdx);
+                        setPreviewActiveQuestionIdx(qIdx);
+                      }}
+                      isMobile={true}
+                    />
+                  </div>
+                  <div className="h-4 bg-slate-900 flex items-center justify-center select-none flex-shrink-0">
+                    <div className="w-24 h-1 bg-white/60 rounded-full" />
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full bg-slate-50 rounded-2xl border border-slate-300 overflow-hidden shadow-xl flex flex-col transition-all min-h-[620px]">
+                  <div className="bg-slate-100 border-b border-slate-200 px-4 py-2 flex items-center gap-2 text-xs text-slate-500 flex-shrink-0">
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <span className="w-3 h-3 rounded-full bg-red-400 block" />
+                      <span className="w-3 h-3 rounded-full bg-yellow-400 block" />
+                      <span className="w-3 h-3 rounded-full bg-emerald-400 block" />
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-lg px-4 py-1 flex-1 max-w-md mx-auto text-center truncate font-mono text-[9px] text-slate-400 select-none">
+                      http://localhost:5173/test/{testTitle.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'demo'}
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+                    <ExamPreviewContent
+                      testTitle={testTitle}
+                      sections={sections}
+                      activeSectionIdx={previewActiveSectionIdx}
+                      activeQuestionIdx={previewActiveQuestionIdx}
+                      onNavigate={(sIdx, qIdx) => {
+                        setPreviewActiveSectionIdx(sIdx);
+                        setPreviewActiveQuestionIdx(qIdx);
+                      }}
+                      isMobile={false}
+                    />
+                  </div>
+                </div>
               )}
             </div>
-          ))}
-          <button onClick={addSection} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-dashed border-blue-200">
-            <Plus size={13} /> Add Section
-          </button>
-        </div>
-
-        {/* Section editor */}
-        <div className="flex-1 space-y-3 min-w-0">
-          {/* Section settings */}
-          <Card padding="sm">
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Section Name</label>
-                <input type="text" value={activeSection.name} onChange={(e) => updateSection(activeSectionIdx, { name: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Time (min)</label>
-                <input type="number" value={activeSection.timeLimit} onChange={(e) => updateSection(activeSectionIdx, { timeLimit: parseInt(e.target.value) || 0 })}
-                  min={1} max={180}
-                  className="w-24 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <p className="text-xs text-slate-500 pb-2">{activeSection.questions.length} questions</p>
-            </div>
-          </Card>
-
-          {/* Questions */}
-          <div className="space-y-2">
-            {activeSection.questions.map((q, idx) => (
-              <QuestionEditor key={q.id} question={q} index={idx} onUpdate={(updated) => updateQuestion(q.id, updated)} onDelete={() => deleteQuestion(q.id)} />
-            ))}
           </div>
-
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={addQuestion} icon={<Plus size={13} />} className="flex-1 py-3 border-dashed">
-              Add Question
-            </Button>
-            <Button variant="secondary" onClick={() => setShowCSVUploader(true)} icon={<Upload size={13} />} className="py-3 border-dashed px-4">
-              Import CSV
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* CSV Import Modal */}
@@ -706,6 +847,402 @@ export function TestBuilderPage() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ── Exam Live Preview Sub-Component ──────────────────────────────────────────
+
+interface ExamPreviewContentProps {
+  testTitle: string;
+  sections: Section[];
+  activeSectionIdx: number;
+  activeQuestionIdx: number;
+  onNavigate: (sectionIdx: number, questionIdx: number) => void;
+  isMobile: boolean;
+}
+
+function ExamPreviewContent({
+  testTitle,
+  sections,
+  activeSectionIdx,
+  activeQuestionIdx,
+  onNavigate,
+  isMobile
+}: ExamPreviewContentProps) {
+  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [flagged, setFlagged] = useState<Record<string, boolean>>({});
+  const [visited, setVisited] = useState<Record<string, boolean>>({});
+  const [timeLeft, setTimeLeft] = useState(45 * 60);
+  const [showPaletteDrawer, setShowPaletteDrawer] = useState(false);
+  const [showAdminAnswers, setShowAdminAnswers] = useState(true);
+
+  const section = sections[activeSectionIdx] || sections[0];
+  const question = section?.questions[activeQuestionIdx];
+
+  // Mark active question as visited
+  useEffect(() => {
+    if (question?.id) {
+      setVisited((prev) => ({ ...prev, [question.id]: true }));
+    }
+  }, [question?.id]);
+
+  // Handle countdown timer
+  useEffect(() => {
+    if (section) {
+      setTimeLeft(section.timeLimit * 60);
+    }
+  }, [activeSectionIdx, section]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((t) => Math.max(0, t - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!section) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-slate-400 italic text-sm">
+        Add a section to see preview...
+      </div>
+    );
+  }
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const getQuestionState = (qId: string) => {
+    const isAns = answers[qId] !== undefined && answers[qId] !== '' && !(Array.isArray(answers[qId]) && answers[qId].length === 0);
+    const isFlag = flagged[qId];
+    const isVis = visited[qId];
+
+    if (isFlag) return 'marked_review';
+    if (isAns) return 'answered';
+    if (isVis) return 'not_answered';
+    return 'not_visited';
+  };
+
+  const stateColors: Record<string, string> = {
+    not_visited: 'bg-slate-200 text-slate-600',
+    not_answered: 'bg-red-500 text-white',
+    answered: 'bg-emerald-500 text-white',
+    marked_review: 'bg-purple-500 text-white',
+  };
+
+  const totalQuestions = section.questions.length;
+  const isLastQuestion = activeQuestionIdx === totalQuestions - 1;
+
+  const handleNext = () => {
+    if (isLastQuestion) {
+      if (activeSectionIdx < sections.length - 1) {
+        onNavigate(activeSectionIdx + 1, 0);
+      }
+    } else {
+      onNavigate(activeSectionIdx, activeQuestionIdx + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (activeQuestionIdx > 0) {
+      onNavigate(activeSectionIdx, activeQuestionIdx - 1);
+    }
+  };
+
+  const handleMarkReview = () => {
+    if (question?.id) {
+      setFlagged((prev) => ({ ...prev, [question.id]: !prev[question.id] }));
+      handleNext();
+    }
+  };
+
+  const handleClear = () => {
+    if (question?.id) {
+      setAnswers((prev) => {
+        const next = { ...prev };
+        delete next[question.id];
+        return next;
+      });
+    }
+  };
+
+  return (
+    <div className="flex flex-col flex-1 h-full select-none bg-slate-100 min-h-0 text-left">
+      {/* Slate Header */}
+      <header className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center font-bold text-xs flex-shrink-0">P</div>
+          {!isMobile && (
+            <div className="min-w-0 text-left">
+              <p className="text-[9px] text-slate-400 uppercase font-semibold">Candidate</p>
+              <p className="text-xs font-medium truncate">Demo Candidate</p>
+            </div>
+          )}
+        </div>
+        <div className="text-center min-w-0 flex-1 px-2">
+          {!isMobile && <p className="text-[9px] text-slate-400 uppercase font-semibold">Test Preview</p>}
+          <p className="text-xs font-semibold truncate text-slate-200">{testTitle || 'Untitled Test'}</p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {isMobile && (
+            <button onClick={() => setShowPaletteDrawer(true)} className="flex items-center gap-1 px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-semibold">
+              <Grid3X3 size={11} />
+              <span>Palette</span>
+            </button>
+          )}
+          <div className="px-2 py-1 rounded bg-slate-700 font-mono text-xs font-bold text-slate-100">
+            {formatTime(timeLeft)}
+          </div>
+        </div>
+      </header>
+
+      {/* Section Tabs */}
+      <div className="bg-white border-b border-slate-200 px-3 py-1 flex-shrink-0">
+        <div className="flex gap-1 overflow-x-auto py-1 scrollbar-hide">
+          {sections.map((sec, idx) => (
+            <button
+              key={sec.id}
+              onClick={() => onNavigate(idx, 0)}
+              className={`flex-shrink-0 px-2 py-1 rounded text-xs font-semibold transition-all ${
+                idx === activeSectionIdx
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {sec.name || `Section ${idx + 1}`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Preview Workspace */}
+      <div className="flex-1 flex overflow-hidden p-3 gap-3 min-h-0">
+        {/* Left Side: Question Canvas */}
+        <div className="flex-1 flex flex-col gap-3 min-w-0 h-full overflow-y-auto">
+          {question ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-4 flex-1 flex flex-col min-h-0 overflow-y-auto">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2 flex-shrink-0">
+                <span className="text-xs font-bold text-slate-400">Question {activeQuestionIdx + 1} of {totalQuestions}</span>
+                <div className="flex gap-1.5">
+                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full capitalize font-semibold">{question.difficulty}</span>
+                  {question.topic && <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{question.topic}</span>}
+                </div>
+              </div>
+
+              {/* Question Text */}
+              <div className="flex-1 overflow-y-auto text-slate-800 text-sm leading-relaxed mb-4 text-left">
+                <MathRenderer html={question.text || 'Write question text to see preview...'} className="w-full" />
+              </div>
+
+              {/* Answers View Toggle */}
+              <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mb-3 text-left">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Developer Tools</span>
+                  <label className="flex items-center gap-1 text-[10px] text-blue-600 font-bold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showAdminAnswers}
+                      onChange={(e) => setShowAdminAnswers(e.target.checked)}
+                      className="rounded text-blue-600 w-3 h-3"
+                    />
+                    Highlight Answers
+                  </label>
+                </div>
+              </div>
+
+              {/* Option Rendering */}
+              {question.type !== 'numeric' && question.options ? (
+                <div className="space-y-2 flex-shrink-0">
+                  {question.options.map((opt) => {
+                    const isSelected = question.type === 'mcq_multi'
+                      ? Array.isArray(answers[question.id]) && answers[question.id].includes(opt.id)
+                      : answers[question.id] === opt.id;
+                    const isCorrect = showAdminAnswers && (
+                      question.type === 'mcq_multi'
+                        ? Array.isArray(question.correctAnswer) && (question.correctAnswer as string[]).includes(opt.id)
+                        : question.correctAnswer === opt.id
+                    );
+
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => {
+                          if (question.type === 'mcq_multi') {
+                            const curr = Array.isArray(answers[question.id]) ? answers[question.id] : [];
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [question.id]: curr.includes(opt.id)
+                                ? curr.filter((x: string) => x !== opt.id)
+                                : [...curr, opt.id],
+                            }));
+                          } else {
+                            setAnswers((prev) => ({ ...prev, [question.id]: opt.id }));
+                          }
+                        }}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
+                          isCorrect
+                            ? 'border-emerald-500 bg-emerald-50/50'
+                            : isSelected
+                            ? 'border-blue-500 bg-blue-50/50'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                          isCorrect
+                            ? 'border-emerald-500 bg-emerald-500 text-white'
+                            : isSelected
+                            ? 'border-blue-500 bg-blue-500 text-white'
+                            : 'border-slate-300 text-slate-500'
+                        }`}>
+                          {opt.id.toUpperCase()}
+                        </div>
+                        <div className="flex-1 text-xs">
+                          <MathRenderer html={opt.text || `Option ${opt.id.toUpperCase()}`} />
+                        </div>
+                        {isCorrect && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full ml-auto">
+                            Correct Answer
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Numeric Answers */
+                <div className="text-left flex-shrink-0">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Enter numeric value:</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      value={answers[question.id] || ''}
+                      onChange={(e) => setAnswers((prev) => ({ ...prev, [question.id]: e.target.value }))}
+                      placeholder="Type number..."
+                      className="w-36 px-3 py-2 border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    />
+                    {showAdminAnswers && question.correctAnswer !== undefined && (
+                      <div className="text-xs bg-emerald-100 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-lg font-semibold flex items-center gap-1">
+                        <span>Target:</span>
+                        <code className="font-bold">{String(question.correctAnswer)}</code>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Explanation rendering if available */}
+              {showAdminAnswers && question.explanation && (
+                <div className="mt-3 bg-blue-50 border border-blue-100 text-blue-900 rounded-lg p-3 text-left text-xs leading-relaxed">
+                  <p className="font-bold text-[10px] text-blue-700 uppercase tracking-wide mb-0.5">Admin Explanation</p>
+                  {question.explanation}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 p-8 flex-1 flex items-center justify-center text-slate-400 italic text-sm">
+              Create a question in this section to view its exam preview.
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="bg-white rounded-xl border border-slate-200 p-2 flex-shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1">
+                <button onClick={handleClear} className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 font-semibold border border-slate-200 hover:bg-slate-50 rounded-lg">
+                  Clear
+                </button>
+                <button onClick={handleMarkReview} className="px-2.5 py-1.5 text-xs text-white bg-purple-600 hover:bg-purple-700 font-semibold rounded-lg">
+                  Flag
+                </button>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={handleBack} disabled={activeQuestionIdx === 0} className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 font-semibold border border-slate-200 hover:bg-slate-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
+                  Back
+                </button>
+                <button onClick={handleNext} disabled={isLastQuestion && activeSectionIdx === sections.length - 1} className="px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 font-semibold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
+                  Save & Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Desktop Palette */}
+        {!isMobile && (
+          <div className="w-44 flex-shrink-0 bg-white rounded-xl border border-slate-200 p-3 h-full overflow-y-auto flex flex-col text-left">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">{section.name || 'Section Palette'}</p>
+            <div className="grid grid-cols-4 gap-1 mb-3">
+              {section.questions.map((q, idx) => {
+                const state = getQuestionState(q.id);
+                const isActive = idx === activeQuestionIdx;
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => onNavigate(activeSectionIdx, idx)}
+                    className={`w-7 h-7 rounded text-[10px] font-bold transition-all ${stateColors[state]} ${
+                      isActive ? 'ring-2 ring-blue-600 ring-offset-1 scale-105 font-extrabold' : ''
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-auto pt-3 border-t border-slate-100 space-y-1.5 text-[10px] text-slate-500">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-200 block flex-shrink-0" />
+                <span>Not Visited</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 block flex-shrink-0" />
+                <span>Not Answered</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block flex-shrink-0" />
+                <span>Answered</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-500 block flex-shrink-0" />
+                <span>Flagged</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Palette Drawer */}
+      {showPaletteDrawer && isMobile && (
+        <div className="absolute inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={() => setShowPaletteDrawer(false)} />
+          <div className="relative bg-white rounded-t-2xl w-full p-4 max-h-[60vh] overflow-y-auto z-10 text-left">
+            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{section.name || 'Palette'}</h4>
+              <button onClick={() => setShowPaletteDrawer(false)} className="text-slate-400 font-bold text-sm">✕</button>
+            </div>
+            <div className="grid grid-cols-6 gap-1.5 mb-3">
+              {section.questions.map((q, idx) => {
+                const state = getQuestionState(q.id);
+                const isActive = idx === activeQuestionIdx;
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => {
+                      onNavigate(activeSectionIdx, idx);
+                      setShowPaletteDrawer(false);
+                    }}
+                    className={`h-7 rounded text-[10px] font-bold ${stateColors[state]} ${isActive ? 'ring-2 ring-blue-600' : ''}`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
