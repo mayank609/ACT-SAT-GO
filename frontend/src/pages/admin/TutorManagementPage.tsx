@@ -34,7 +34,7 @@ export function TutorManagementPage() {
   const [tutors, setTutors] = useState(extendedTutors);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState<(typeof extendedTutors)[0] | null>(null);
-  const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([]);
+  const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
   const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', specializations: [] as string[] });
 
   const toggleSpec = (spec: string) =>
@@ -44,6 +44,28 @@ export function TutorManagementPage() {
         ? f.specializations.filter((s) => s !== spec)
         : [...f.specializations, spec],
     }));
+
+  const openAssignModal = (tutor: (typeof extendedTutors)[0]) => {
+    setAssignedStudentIds(tutor.assignedStudentIds ?? []);
+    setShowAssignModal(tutor);
+  };
+
+  const toggleAssignedStudent = (id: string) =>
+    setAssignedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+
+  const handleSaveAssignments = () => {
+    if (!showAssignModal) return;
+    setTutors((prev) =>
+      prev.map((t) =>
+        t.id === showAssignModal.id
+          ? { ...t, assignedStudentIds: assignedStudentIds, activeStudents: assignedStudentIds.length }
+          : t
+      )
+    );
+    setShowAssignModal(null);
+  };
 
   const handleAddTutor = () => {
     if (!addForm.firstName || !addForm.email) return;
@@ -187,7 +209,7 @@ export function TutorManagementPage() {
                 <span className="flex items-center gap-1"><Star size={11} /> Avg {tutor.avgStudentScore || '—'}</span>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setShowAssignModal(tutor)}
+                <button onClick={() => openAssignModal(tutor)}
                   className="flex-1 text-xs py-1.5 px-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1 transition-colors">
                   <Users size={11} /> Assign
                 </button>
@@ -217,7 +239,7 @@ export function TutorManagementPage() {
             searchPlaceholder="Search tutors..."
             actions={(row) => (
               <div className="flex items-center gap-0.5 justify-end">
-                <button onClick={() => setShowAssignModal(row as unknown as (typeof extendedTutors)[0])}
+                <button onClick={() => openAssignModal(row as unknown as (typeof extendedTutors)[0])}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                   <Users size={14} />
                 </button>
@@ -289,10 +311,10 @@ export function TutorManagementPage() {
           <div className="space-y-2">
             <p className="text-sm text-slate-500 mb-3">Select students to assign to this tutor:</p>
             {MOCK_STUDENTS.map((s) => {
-              const isAssigned = showAssignModal.assignedStudentIds?.includes(s.id);
+              const checked = assignedStudentIds.includes(s.id);
               return (
                 <label key={s.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
-                  <input type="checkbox" defaultChecked={isAssigned}
+                  <input type="checkbox" checked={checked} onChange={() => toggleAssignedStudent(s.id)}
                     className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0" />
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold flex-shrink-0">
                     {s.name.charAt(0)}
@@ -301,23 +323,21 @@ export function TutorManagementPage() {
                     <p className="text-sm font-medium text-slate-900">{s.name}</p>
                     <p className="text-xs text-slate-500">Grade {s.grade} · Avg {s.avgScore ?? '—'}</p>
                   </div>
-                  {isAssigned && <Badge variant="success" size="sm">Assigned</Badge>}
+                  {checked && <Badge variant="success" size="sm">Assigned</Badge>}
                 </label>
               );
             })}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="secondary" size="sm" onClick={() => setShowAssignModal(null)}>Cancel</Button>
-              <Button size="sm" onClick={() => setShowAssignModal(null)}>Save</Button>
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs text-slate-400">{assignedStudentIds.length} student{assignedStudentIds.length !== 1 ? 's' : ''} selected</p>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setShowAssignModal(null)}>Cancel</Button>
+                <Button size="sm" onClick={handleSaveAssignments}>Save</Button>
+              </div>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Filter by specialization */}
-      <div className="hidden">
-        {selectedSpecializations.length} {/* suppress unused warning */}
-        {setSelectedSpecializations.toString()}
-      </div>
     </div>
   );
 }

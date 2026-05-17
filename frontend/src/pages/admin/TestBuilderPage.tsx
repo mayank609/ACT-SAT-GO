@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
-import type { Section, Question, QuestionType, Difficulty } from '../../types';
+import { useAdminStore } from '../../store/useAdminStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
 
 const TOPICS = ['Algebra', 'Geometry', 'Trigonometry', 'Statistics', 'Grammar', 'Punctuation', 'Rhetorical Skills', 'Main Idea', 'Inference', 'Vocabulary', 'Data Analysis', 'Scientific Method'];
 const SUB_TOPICS: Record<string, string[]> = {
@@ -149,6 +152,10 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
 }
 
 export function TestBuilderPage() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const { addTest } = useAdminStore();
+
   const [testTitle, setTestTitle] = useState('');
   const [testDesc, setTestDesc] = useState('');
   const [sections, setSections] = useState<Section[]>([newSection()]);
@@ -156,6 +163,15 @@ export function TestBuilderPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSectionNav, setShowSectionNav] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [titleError, setTitleError] = useState(false);
+
+  const [testSettings, setTestSettings] = useState({
+    allowBackNavigation: false,
+    showResults: true,
+    enforceFullscreen: false,
+    trackTabSwitching: true,
+    publishStatus: 'draft' as TestStatus,
+  });
 
   const activeSection = sections[activeSectionIdx];
 
@@ -174,6 +190,28 @@ export function TestBuilderPage() {
   const totalQ = sections.reduce((a, s) => a + s.questions.length, 0);
   const totalTime = sections.reduce((a, s) => a + s.timeLimit, 0);
 
+  const handleSave = () => {
+    if (!testTitle.trim()) {
+      setTitleError(true);
+      return;
+    }
+    setTitleError(false);
+    addTest({
+      id: generateId(),
+      title: testTitle.trim(),
+      description: testDesc.trim() || undefined,
+      sections,
+      status: testSettings.publishStatus,
+      createdBy: user?.id ?? 'admin',
+      createdAt: new Date().toISOString(),
+      assignedStudentIds: [],
+      allowBackNavigation: testSettings.allowBackNavigation,
+      showResults: testSettings.showResults,
+    });
+    setSaved(true);
+    setTimeout(() => navigate('/tests'), 1000);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -185,8 +223,8 @@ export function TestBuilderPage() {
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" size="sm" icon={<Settings2 size={14} />} onClick={() => setShowSettings(true)}>Settings</Button>
           <Button variant="secondary" size="sm" icon={<Eye size={14} />}>Preview</Button>
-          <Button size="sm" icon={<Save size={14} />} onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }} variant={saved ? 'success' : 'primary'}>
-            {saved ? '✓ Saved' : 'Save'}
+          <Button size="sm" icon={<Save size={14} />} onClick={handleSave} variant={saved ? 'success' : 'primary'} disabled={saved}>
+            {saved ? '✓ Saved' : testSettings.publishStatus === 'published' ? 'Publish' : 'Save Draft'}
           </Button>
         </div>
       </div>
@@ -197,9 +235,12 @@ export function TestBuilderPage() {
           <div className="md:col-span-2 space-y-2">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Test Title *</label>
-              <input type="text" value={testTitle} onChange={(e) => setTestTitle(e.target.value)}
+              <input type="text" value={testTitle} onChange={(e) => { setTestTitle(e.target.value); if (e.target.value.trim()) setTitleError(false); }}
                 placeholder="e.g. ACT Full Practice Test #3"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${titleError ? 'border-red-400 bg-red-50' : 'border-slate-200'}`} />
+              {titleError && (
+                <p className="flex items-center gap-1 text-xs text-red-600 mt-1"><AlertCircle size={11} /> Title is required before saving</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Description</label>
@@ -292,14 +333,19 @@ export function TestBuilderPage() {
       {/* Settings Modal */}
       <Modal isOpen={showSettings} onClose={() => setShowSettings(false)} title="Test Settings" size="sm">
         <div className="space-y-4">
-          {[
-            { label: 'Allow Backward Navigation', desc: 'Students can revisit previous sections' },
-            { label: 'Show Results After Submission', desc: 'Students can review answers immediately', checked: true },
-            { label: 'Enforce Full Screen', desc: 'Force full-screen mode during exam' },
-            { label: 'Track Tab Switching', desc: 'Log when students switch browser tabs', checked: true },
-          ].map((s) => (
-            <label key={s.label} className="flex items-start gap-3 cursor-pointer">
-              <input type="checkbox" defaultChecked={s.checked} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5" />
+          {([
+            { key: 'allowBackNavigation' as const, label: 'Allow Backward Navigation', desc: 'Students can revisit previous sections' },
+            { key: 'showResults' as const, label: 'Show Results After Submission', desc: 'Students can review answers immediately' },
+            { key: 'enforceFullscreen' as const, label: 'Enforce Full Screen', desc: 'Force full-screen mode during exam' },
+            { key: 'trackTabSwitching' as const, label: 'Track Tab Switching', desc: 'Log when students switch browser tabs' },
+          ] as const).map((s) => (
+            <label key={s.key} className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={testSettings[s.key]}
+                onChange={(e) => setTestSettings((prev) => ({ ...prev, [s.key]: e.target.checked }))}
+                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
+              />
               <div>
                 <p className="text-sm font-medium text-slate-900">{s.label}</p>
                 <p className="text-xs text-slate-500">{s.desc}</p>
@@ -308,7 +354,11 @@ export function TestBuilderPage() {
           ))}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Publish Status</label>
-            <select className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select
+              value={testSettings.publishStatus}
+              onChange={(e) => setTestSettings((prev) => ({ ...prev, publishStatus: e.target.value as TestStatus }))}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <option value="draft">Draft</option>
               <option value="published">Published</option>
               <option value="archived">Archived</option>

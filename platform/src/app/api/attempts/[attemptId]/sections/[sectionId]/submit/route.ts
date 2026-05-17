@@ -32,6 +32,7 @@ export async function POST(
         })
       })
       await Promise.all(upserts)
+      await redis.del(`answers:${attemptId}`)
     }
 
     // 2. Mark section complete

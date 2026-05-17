@@ -9,9 +9,9 @@ Format for each entry:
 
 ---
 
-## ✅ SUNANDA — ONLY ONE THING LEFT TO DO
+## ✅ ALL BACKEND CHANGES APPLIED
 
-### Change #007 — Add SUPABASE_SERVICE_ROLE_KEY to .env [PENDING]
+### Change #007 — Add SUPABASE_SERVICE_ROLE_KEY to .env [DONE]
 
 **Type:** ENV
 **Requested by:** Mayank
@@ -45,6 +45,7 @@ That's it. No schema changes, no `prisma db push`, no re-seeding needed.
 | 004 | Rename middleware.ts → proxy.ts | CONFIG | ✅ DONE |
 | 005 | Add DIRECT_URL for migrations | ENV | ✅ DONE |
 | 006 | Fix dev/build scripts (webpack flag) | CONFIG | ✅ DONE |
+| 007 | Add SUPABASE_SERVICE_ROLE_KEY to .env | ENV | ✅ DONE |
 | 008 | Score calculation on section submit | CODE | ✅ DONE (see #010) |
 | 009 | Seed more test data | SEED | ✅ DONE (see #011) |
 | 010 | Full score calculation in submitSectionAttempt | CODE | ✅ DONE |

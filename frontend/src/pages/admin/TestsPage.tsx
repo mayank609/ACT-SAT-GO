@@ -1,29 +1,49 @@
 import { useState } from 'react';
-import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
-import { MOCK_TESTS, MOCK_STUDENTS } from '../../data/mockData';
-import type { Test } from '../../types';
+import { useAdminStore } from '../../store/useAdminStore';
+import { MOCK_STUDENTS } from '../../data/mockData';
+import type { Test, TestStatus } from '../../types';
 
 export function TestsPage() {
   const navigate = useNavigate();
-  const [tests, setTests] = useState(MOCK_TESTS);
+  const { tests, deleteTest, assignStudents, updateTestStatus } = useAdminStore();
   const [deleteModal, setDeleteModal] = useState<Test | null>(null);
   const [assignModal, setAssignModal] = useState<Test | null>(null);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
+
+  // Track checked state for assign modal (controlled)
+  const [assignedIds, setAssignedIds] = useState<string[]>([]);
 
   const filtered = tests.filter((t) => filter === 'all' || t.status === filter);
 
-  const handleDelete = (test: Test) => {
-    setTests((prev) => prev.filter((t) => t.id !== test.id));
-    setDeleteModal(null);
+  const openAssignModal = (test: Test) => {
+    setAssignedIds(test.assignedStudentIds ?? []);
+    setAssignModal(test);
+  };
+
+  const handleSaveAssignments = () => {
+    if (assignModal) assignStudents(assignModal.id, assignedIds);
+    setAssignModal(null);
+  };
+
+  const toggleAssignedStudent = (id: string) =>
+    setAssignedIds((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+
+  const handleStatusChange = (test: Test, status: TestStatus) => {
+    updateTestStatus(test.id, status);
+    setMenuOpen(null);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClick={() => menuOpen && setMenuOpen(null)}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -71,9 +91,41 @@ export function TestsPage() {
                     <Badge variant={test.status === 'published' ? 'success' : test.status === 'draft' ? 'warning' : 'default'}>
                       {test.status}
                     </Badge>
-                    <button className="p-1 text-slate-400 hover:text-slate-600 rounded">
-                      <MoreVertical size={14} />
-                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === test.id ? null : test.id); }}
+                        className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                      {menuOpen === test.id && (
+                        <div className="absolute right-0 top-6 z-20 w-44 bg-white rounded-xl border border-slate-200 shadow-lg py-1" onClick={(e) => e.stopPropagation()}>
+                          {test.status !== 'published' && (
+                            <button onClick={() => handleStatusChange(test, 'published')}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-emerald-50">
+                              <BookOpen size={13} /> Publish
+                            </button>
+                          )}
+                          {test.status !== 'draft' && (
+                            <button onClick={() => handleStatusChange(test, 'draft')}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                              <Edit size={13} /> Move to Draft
+                            </button>
+                          )}
+                          {test.status !== 'archived' && (
+                            <button onClick={() => handleStatusChange(test, 'archived')}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                              <Archive size={13} /> Archive
+                            </button>
+                          )}
+                          <div className="border-t border-slate-100 my-1" />
+                          <button onClick={() => { setDeleteModal(test); setMenuOpen(null); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50">
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -99,7 +151,7 @@ export function TestsPage() {
                   <Button variant="ghost" size="sm" icon={<Eye size={13} />} className="flex-1 justify-center">
                     Preview
                   </Button>
-                  <Button variant="ghost" size="sm" icon={<Users size={13} />} onClick={() => setAssignModal(test)} className="flex-1 justify-center">
+                  <Button variant="ghost" size="sm" icon={<Users size={13} />} onClick={() => openAssignModal(test)} className="flex-1 justify-center">
                     Assign
                   </Button>
                   <button
@@ -143,7 +195,7 @@ export function TestsPage() {
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setDeleteModal(null)}>Cancel</Button>
-            <Button variant="danger" size="sm" onClick={() => deleteModal && handleDelete(deleteModal)}>Delete Test</Button>
+            <Button variant="danger" size="sm" onClick={() => { if (deleteModal) { deleteTest(deleteModal.id); setDeleteModal(null); } }}>Delete Test</Button>
           </div>
         }
       >
@@ -156,28 +208,33 @@ export function TestsPage() {
       <Modal isOpen={!!assignModal} onClose={() => setAssignModal(null)} title="Assign Test to Students" size="md">
         <div className="space-y-3">
           <p className="text-sm text-slate-600 mb-4">Select students to assign <strong>{assignModal?.title}</strong>:</p>
-          {MOCK_STUDENTS.map((s) => (
-            <label key={s.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
-              <input
-                type="checkbox"
-                defaultChecked={assignModal?.assignedStudentIds?.includes(s.id)}
-                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-              />
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold">
-                {s.name.charAt(0)}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-900">{s.name}</p>
-                <p className="text-xs text-slate-500">{s.email}</p>
-              </div>
-              {assignModal?.assignedStudentIds?.includes(s.id) && (
-                <Badge variant="success" className="ml-auto" size="sm">Assigned</Badge>
-              )}
-            </label>
-          ))}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" size="sm" onClick={() => setAssignModal(null)}>Cancel</Button>
-            <Button size="sm" onClick={() => setAssignModal(null)}>Save Assignments</Button>
+          {MOCK_STUDENTS.map((s) => {
+            const checked = assignedIds.includes(s.id);
+            return (
+              <label key={s.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleAssignedStudent(s.id)}
+                  className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                />
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold">
+                  {s.name.charAt(0)}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{s.name}</p>
+                  <p className="text-xs text-slate-500">{s.email}</p>
+                </div>
+                {checked && <Badge variant="success" className="ml-auto" size="sm">Assigned</Badge>}
+              </label>
+            );
+          })}
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-slate-400">{assignedIds.length} student{assignedIds.length !== 1 ? 's' : ''} selected</p>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setAssignModal(null)}>Cancel</Button>
+              <Button size="sm" onClick={handleSaveAssignments}>Save Assignments</Button>
+            </div>
           </div>
         </div>
       </Modal>

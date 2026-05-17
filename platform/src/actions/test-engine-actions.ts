@@ -65,6 +65,7 @@ export async function submitSectionAttempt(attemptId: string, sectionId: string)
         })
       })
       await Promise.all(upserts)
+      await redis.del(`answers:${attemptId}`)
     }
 
     // 2. Mark section complete
