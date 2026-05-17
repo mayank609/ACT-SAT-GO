@@ -1,8 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, BarChart3, Settings,
-  LogOut, GraduationCap, BookOpen, ClipboardList, ChevronLeft, ChevronRight, X,
-  Activity, UserCheck, Shield,
+  LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
+  Activity, UserCheck, Database, BookCheck, LifeBuoy
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';
@@ -16,22 +16,15 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['super_admin', 'admin', 'tutor', 'student'] },
-  // Admin / Super Admin
-  { label: 'Tests', path: '/tests', icon: <FileText size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Test Builder', path: '/test-builder', icon: <ClipboardList size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Students', path: '/students', icon: <GraduationCap size={18} />, roles: ['super_admin', 'admin'] },
+  { label: 'Students', path: '/students', icon: <GraduationCap size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Tutors', path: '/tutors', icon: <UserCheck size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Reports', path: '/reports', icon: <BarChart3 size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Monitoring', path: '/monitoring', icon: <Activity size={18} />, roles: ['super_admin', 'admin'] },
-  // Super Admin only
-  { label: 'User Management', path: '/user-management', icon: <Shield size={18} />, roles: ['super_admin'] },
-  // Tutor
-  { label: 'My Students', path: '/my-students', icon: <Users size={18} />, roles: ['tutor'] },
-  { label: 'Analytics', path: '/analytics', icon: <BarChart3 size={18} />, roles: ['tutor'] },
-  // Student
-  { label: 'My Tests', path: '/my-tests', icon: <BookOpen size={18} />, roles: ['student'] },
-  { label: 'My Progress', path: '/my-progress', icon: <BarChart3 size={18} />, roles: ['student'] },
-  // Shared
+  { label: 'Test Builder', path: '/test-builder', icon: <ClipboardList size={18} />, roles: ['super_admin', 'admin'] },
+  { label: 'Question Bank', path: '/question-bank', icon: <Database size={18} />, roles: ['super_admin', 'admin'] },
+  { label: 'Assignments', path: '/assignments', icon: <BookCheck size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
+  { label: 'Analytics', path: '/analytics', icon: <BarChart3 size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
+  { label: 'Live Monitoring', path: '/monitoring', icon: <Activity size={18} />, roles: ['super_admin', 'admin'] },
+  { label: 'Reports', path: '/reports', icon: <FileText size={18} />, roles: ['super_admin', 'admin'] },
+  { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['super_admin', 'admin', 'tutor', 'student'] },
   { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['super_admin', 'admin', 'tutor', 'student'] },
 ];
 
@@ -62,52 +55,66 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white border-r border-slate-100">
+    <div className="flex flex-col h-full bg-slate-900 border-r border-slate-800 text-slate-300 transition-all duration-300">
       {/* Logo */}
-      <div className={`flex items-center gap-2.5 px-4 py-4 ${collapsed ? 'justify-center' : ''}`}>
-        <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-bold text-xs">A</span>
+      <div className={`flex items-center gap-3 px-4 py-5 border-b border-slate-800/60 ${collapsed ? 'justify-center px-2' : ''}`}>
+        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-900/50">
+          <span className="text-white font-bold text-sm">A</span>
         </div>
-        {!collapsed && <span className="font-semibold text-slate-900 text-sm">ACT · SAT · GO</span>}
-        <button onClick={() => setMobileOpen(false)} className="ml-auto md:hidden p-1 text-slate-400 hover:text-slate-600">
-          <X size={16} />
+        {!collapsed && (
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-white text-sm tracking-wide truncate">ACT · SAT · GO</span>
+            <span className="text-[10px] text-blue-400 uppercase tracking-wider font-semibold">Control Center</span>
+          </div>
+        )}
+        <button onClick={() => setMobileOpen(false)} className="ml-auto md:hidden p-1 text-slate-500 hover:text-slate-300 transition-colors">
+          <X size={18} />
         </button>
       </div>
 
       {/* Nav items */}
-      <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto scrollbar-hide">
         {filteredNav.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden ${
                 isActive
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
               } ${collapsed ? 'justify-center' : ''}`
             }
             title={collapsed ? item.label : undefined}
           >
-            <span className="flex-shrink-0">{item.icon}</span>
-            {!collapsed && <span>{item.label}</span>}
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
+                )}
+                <span className={`flex-shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                  {item.icon}
+                </span>
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-slate-100 p-2 space-y-0.5">
+      <div className="border-t border-slate-800/60 p-3 space-y-1 bg-slate-900/50">
 
         {user && (
-          <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${collapsed ? 'justify-center' : ''}`}>
-            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold flex-shrink-0">
+          <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 mb-2 ${collapsed ? 'justify-center px-0 bg-transparent border-transparent' : ''}`}>
+            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-inner">
               {user.name.charAt(0)}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-slate-900 truncate">{user.name}</p>
-                <p className="text-xs text-slate-400 capitalize">{roleLabels[user.role]}</p>
+                <p className="text-sm font-semibold text-white truncate">{user.name}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">{roleLabels[user.role]}</p>
               </div>
             )}
           </div>
@@ -115,9 +122,10 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
 
         <button
           onClick={handleLogout}
-          className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors text-sm ${collapsed ? 'justify-center' : ''}`}
+          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 text-sm font-medium group ${collapsed ? 'justify-center' : ''}`}
+          title={collapsed ? "Sign Out" : undefined}
         >
-          <LogOut size={18} className="flex-shrink-0" />
+          <LogOut size={18} className="flex-shrink-0 group-hover:-translate-x-1 transition-transform" />
           {!collapsed && <span>Sign Out</span>}
         </button>
       </div>
@@ -129,7 +137,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -137,7 +145,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
       {/* Mobile drawer */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 md:hidden
+          fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out md:hidden shadow-2xl
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
@@ -147,18 +155,18 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
       {/* Desktop sidebar */}
       <aside
         className={`
-          relative hidden md:flex flex-col transition-all duration-300
-          ${collapsed ? 'w-14' : 'w-52'}
-          min-h-screen flex-shrink-0
+          relative hidden md:flex flex-col transition-all duration-300 ease-in-out
+          ${collapsed ? 'w-20' : 'w-64'}
+          h-screen sticky top-0 flex-shrink-0 shadow-xl z-30
         `}
       >
         <SidebarContent />
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-5 z-10 w-5 h-5 bg-white rounded-full flex items-center justify-center border border-slate-200 hover:border-slate-300 transition-colors"
+          className="absolute -right-3.5 top-8 z-40 w-7 h-7 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-900 text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-md group"
         >
-          {collapsed ? <ChevronRight size={10} className="text-slate-400" /> : <ChevronLeft size={10} className="text-slate-400" />}
+          {collapsed ? <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" /> : <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />}
         </button>
       </aside>
     </>
