@@ -157,16 +157,16 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
         className={`
           relative hidden md:flex flex-col transition-all duration-300 ease-in-out
           ${collapsed ? 'w-20' : 'w-64'}
-          h-screen sticky top-0 flex-shrink-0 shadow-xl z-30
+          h-screen sticky top-0 flex-shrink-0 shadow-xl z-50
         `}
       >
         <SidebarContent />
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3.5 top-8 z-40 w-7 h-7 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-900 text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-md group"
+          className="absolute -right-4 top-1/2 -translate-y-1/2 z-50 w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-900 text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-md group"
         >
-          {collapsed ? <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" /> : <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />}
+          {collapsed ? <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" /> : <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />}
         </button>
       </aside>
     </>
