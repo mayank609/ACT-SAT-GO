@@ -269,7 +269,7 @@ export function MyProgressPage() {
                     <option value="All">All Paces</option>
                     <option value="Optimal">Optimal (20s - 90s)</option>
                     <option value="Stuck">Stuck (≥ 90s)</option>
-                    <option value="Rushed">Rushed (< 20s)</option>
+                    <option value="Rushed">Rushed (&lt; 20s)</option>
                   </select>
                 </div>
               </div>
