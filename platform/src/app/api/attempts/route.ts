@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
           select: { sectionId: true, startedAt: true, completedAt: true },
           orderBy: { startedAt: 'asc' },
         },
-        cheatingLogs: { where: { eventType: 'TAB_SWITCH' }, select: { id: true } },
+        cheatingLogs: { select: { id: true, eventType: true, metadata: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
         _count: { select: { answers: true } },
       },
       orderBy: { startedAt: 'desc' },
@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
           : 0
         const timeRemaining = Math.max(0, sectionDuration * 60 - elapsed)
 
+        const tabSwitchesCount = a.cheatingLogs.filter((l) => l.eventType === 'TAB_SWITCH').length
+
         return {
           id: a.id,
           studentId: a.studentId,
@@ -57,7 +59,13 @@ export async function GET(request: NextRequest) {
           sectionName: currentSection?.name ?? (completedSections >= a.test.sections.length ? 'Completed' : 'Not started'),
           sectionIndex: completedSections,
           totalSections: a.test.sections.length,
-          tabSwitches: a.cheatingLogs.length,
+          tabSwitches: tabSwitchesCount,
+          cheatingLogs: a.cheatingLogs.map(l => ({
+            id: l.id,
+            eventType: l.eventType,
+            metadata: l.metadata as Record<string, unknown>,
+            createdAt: l.createdAt,
+          })),
           answersCount: a._count.answers,
           startedAt: a.startedAt,
           completedAt: a.completedAt,

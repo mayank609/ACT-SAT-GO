@@ -144,11 +144,16 @@ export function TestInterfacePage() {
 
   // ── Side effects ─────────────────────────────────────────────────────────────
 
+  // Fullscreen Exit Tracking
   useEffect(() => {
+    if (!attempt) return;
     document.documentElement.requestFullscreen?.().catch(() => {});
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        setTimeout(() => document.documentElement.requestFullscreen?.().catch(() => {}), 500);
+        api.logCheatingEvent(attempt.id, 'FULLSCREEN_EXIT', {
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
+        setTimeout(() => document.documentElement.requestFullscreen?.().catch(() => {}), 1000);
       }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -156,15 +161,17 @@ export function TestInterfacePage() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     };
-  }, []);
+  }, [attempt]);
 
+  // Tab switching Tracking
   useEffect(() => {
     const handleVisibility = () => {
       if (document.hidden) {
         recordTabSwitch();
         if (attempt) {
-          api.logCheatingEvent(attempt.id, 'tab_switch', {
+          api.logCheatingEvent(attempt.id, 'TAB_SWITCH', {
             count: (attempt.tabSwitchCount ?? 0) + 1,
+            timestamp: new Date().toISOString(),
           }).catch(() => {});
         }
         setTabSwitchWarning(true);
@@ -174,6 +181,68 @@ export function TestInterfacePage() {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [recordTabSwitch, attempt]);
+
+  // Inactivity Tracking
+  useEffect(() => {
+    if (!attempt) return;
+    let inactivityTimeout: ReturnType<typeof setTimeout>;
+
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimeout);
+      inactivityTimeout = setTimeout(() => {
+        api.logCheatingEvent(attempt.id, 'INACTIVITY', {
+          timestamp: new Date().toISOString(),
+          durationSeconds: 60,
+        }).catch(() => {});
+      }, 60000);
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach(ev => window.addEventListener(ev, resetInactivityTimer));
+    resetInactivityTimer();
+
+    return () => {
+      clearTimeout(inactivityTimeout);
+      events.forEach(ev => window.removeEventListener(ev, resetInactivityTimer));
+    };
+  }, [attempt]);
+
+  // Copy/Paste and Right-Click Tracking
+  useEffect(() => {
+    if (!attempt) return;
+
+    const handleCopy = () => {
+      api.logCheatingEvent(attempt.id, 'SUSPICIOUS_INPUT', {
+        type: 'copy',
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    };
+
+    const handlePaste = () => {
+      api.logCheatingEvent(attempt.id, 'SUSPICIOUS_INPUT', {
+        type: 'paste',
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      api.logCheatingEvent(attempt.id, 'SUSPICIOUS_INPUT', {
+        type: 'right_click',
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    };
+
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('paste', handlePaste);
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, [attempt]);
 
   useEffect(() => {
     questionTimerRef.current = setInterval(() => {}, 1000);
