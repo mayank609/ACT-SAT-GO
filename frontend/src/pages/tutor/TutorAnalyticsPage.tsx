@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { 
   TrendingUp, AlertTriangle, Clock, Users, ArrowUpRight, 
   CheckCircle2, Award, Compass, BarChart3, HelpCircle, 
-  Search, SlidersHorizontal, Eye, EyeOff, Sparkles, RefreshCw, X
+  Search, SlidersHorizontal, Eye, EyeOff, Sparkles, RefreshCw, X,
+  Timer, Gauge, Activity, AlertCircle, AlertOctagon, HelpCircle as InfoIcon
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
@@ -11,7 +12,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Legend
+  LineChart, Line, Legend, ScatterChart, Scatter, ReferenceLine
 } from 'recharts';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
@@ -74,12 +75,65 @@ const HISTORICAL_TRENDS = [
   { month: 'Feb', 'Alex Thompson': 28, 'Jordan Lee': 26, 'Morgan Davis': 27, 'Casey Wilson': 24 },
 ];
 
-// Expanded mocks for scale testing
+// Expanded student mocks
 const EXTENDED_STUDENTS = [
   ...MOCK_STUDENTS,
   { id: 's-7', name: 'Devon Miller', email: 'devon@student.com', role: 'student', tutorId: 'tutor-1', grade: '11', targetScore: 33, testsAttempted: 6, avgScore: 30, lastActive: '2024-02-14' },
   { id: 's-8', name: 'Sam Brooks', email: 'sam@student.com', role: 'student', tutorId: 'tutor-1', grade: '10', targetScore: 28, testsAttempted: 4, avgScore: 23, lastActive: '2024-02-15' },
   { id: 's-9', name: 'Robin Foster', email: 'robin@student.com', role: 'student', tutorId: 'tutor-2', grade: '12', targetScore: 34, testsAttempted: 5, avgScore: 31, lastActive: '2024-02-13' },
+];
+
+// Mock Question-Level Pacing Data for Pacing Scatter Analysis
+const PACING_MOCKS: Record<string, { qNum: number; timeSpent: number; topic: string; correct: boolean }[]> = {
+  's-1': [ // Alex Thompson (Slow Solver on Hard Math, quick on English)
+    { qNum: 1, timeSpent: 22, topic: 'Algebra', correct: true },
+    { qNum: 2, timeSpent: 28, topic: 'Grammar', correct: true },
+    { qNum: 3, timeSpent: 125, topic: 'Trigonometry', correct: false }, // Stuck!
+    { qNum: 4, timeSpent: 30, topic: 'Punctuation', correct: true },
+    { qNum: 5, timeSpent: 42, topic: 'Geometry', correct: true },
+    { qNum: 6, timeSpent: 140, topic: 'Algebra', correct: false }, // Stuck!
+    { qNum: 7, timeSpent: 15, topic: 'Main Idea', correct: true },
+    { qNum: 8, timeSpent: 32, topic: 'Vocabulary', correct: true },
+    { qNum: 9, timeSpent: 98, topic: 'Trigonometry', correct: true }, // Slow
+    { qNum: 10, timeSpent: 45, topic: 'Grammar', correct: true },
+  ],
+  's-3': [ // Morgan Davis (Fast guessing solver, gets stuck on reading)
+    { qNum: 1, timeSpent: 12, topic: 'Algebra', correct: true }, // Rush
+    { qNum: 2, timeSpent: 14, topic: 'Grammar', correct: false }, // Rush
+    { qNum: 3, timeSpent: 110, topic: 'Inference', correct: false }, // Stuck!
+    { qNum: 4, timeSpent: 18, topic: 'Punctuation', correct: true },
+    { qNum: 5, timeSpent: 15, topic: 'Geometry', correct: false }, // Rush
+    { qNum: 6, timeSpent: 135, topic: 'Main Idea', correct: true }, // Stuck!
+    { qNum: 7, timeSpent: 22, topic: 'Data Analysis', correct: true },
+    { qNum: 8, timeSpent: 25, topic: 'Scientific Method', correct: true },
+    { qNum: 9, timeSpent: 115, topic: 'Conflicting Viewpoints', correct: false }, // Stuck!
+    { qNum: 10, timeSpent: 14, topic: 'Grammar', correct: true },
+  ],
+  's-4': [ // Casey Wilson (Consistently slow solving speeds)
+    { qNum: 1, timeSpent: 75, topic: 'Algebra', correct: true },
+    { qNum: 2, timeSpent: 82, topic: 'Grammar', correct: false },
+    { qNum: 3, timeSpent: 95, topic: 'Geometry', correct: true },
+    { qNum: 4, timeSpent: 70, topic: 'Punctuation', correct: true },
+    { qNum: 5, timeSpent: 88, topic: 'Main Idea', correct: true },
+    { qNum: 6, timeSpent: 120, topic: 'Inference', correct: false },
+    { qNum: 7, timeSpent: 78, topic: 'Data Analysis', correct: true },
+    { qNum: 8, timeSpent: 85, topic: 'Scientific Method', correct: false },
+    { qNum: 9, timeSpent: 135, topic: 'Geometry', correct: true },
+    { qNum: 10, timeSpent: 90, topic: 'Grammar', correct: true },
+  ]
+};
+
+const DEFAULT_PACING = [
+  { qNum: 1, timeSpent: 35, topic: 'Algebra', correct: true },
+  { qNum: 2, timeSpent: 42, topic: 'Grammar', correct: true },
+  { qNum: 3, timeSpent: 65, topic: 'Geometry', correct: true },
+  { qNum: 4, timeSpent: 38, topic: 'Punctuation', correct: true },
+  { qNum: 5, timeSpent: 52, topic: 'Main Idea', correct: false },
+  { qNum: 6, timeSpent: 88, topic: 'Inference', correct: true },
+  { qNum: 7, timeSpent: 40, topic: 'Data Analysis', correct: true },
+  { qNum: 8, timeSpent: 45, topic: 'Scientific Method', correct: true },
+  { qNum: 9, timeSpent: 92, topic: 'Geometry', correct: false },
+  { qNum: 10, timeSpent: 30, topic: 'Grammar', correct: true },
 ];
 
 type ViewMode = 'bar' | 'line' | 'radar';
@@ -90,7 +144,7 @@ export function TutorAnalyticsPage() {
   const { user } = useAuthStore();
   const [selectedStudent, setSelectedStudent] = useState<string>('all');
   
-  // REDESIGNED Scalable Comparison State
+  // Comparison & Autocomplete States
   const [comparisonIds, setComparisonIds] = useState<string[]>(['s-1', 's-3']);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -159,7 +213,58 @@ export function TutorAnalyticsPage() {
     { name: 'Science', accuracy: getSectionAccuracy('Science'), questions: 40, time: '35m' },
   ];
 
-  // REDESIGNED: Multi-mode scalable dataset computation
+  // Dynamic Pacing Details for Pacing Scatter Analysis
+  const pacingData = selectedStudent === 'all'
+    ? DEFAULT_PACING
+    : (PACING_MOCKS[selectedStudent] ?? DEFAULT_PACING);
+
+  // Time Management Pacing Metrics Computation
+  const pacingMetrics = useMemo(() => {
+    const totalTime = pacingData.reduce((a, q) => a + q.timeSpent, 0);
+    const avgTimePerQuestion = Math.round(totalTime / pacingData.length);
+    
+    // Inefficient solved indices (Got Stuck: spent >= 90 seconds)
+    const stuckQuestions = pacingData.filter(q => q.timeSpent >= 90);
+    
+    // Rushed solved indices (Rushed: spent < 20 seconds)
+    const rushedQuestions = pacingData.filter(q => q.timeSpent < 20);
+
+    // Dynamic Time Efficiency score calculation (combines pacing consistency & accuracy)
+    const pacingDeviation = pacingData.reduce((sum, q) => sum + Math.abs(q.timeSpent - 45), 0) / pacingData.length;
+    const timeEfficiencyScore = Math.max(40, Math.min(98, Math.round(100 - (pacingDeviation * 0.7) - (stuckQuestions.length * 3))));
+
+    return {
+      avgTimePerQuestion,
+      stuckCount: stuckQuestions.length,
+      rushedCount: rushedQuestions.length,
+      timeEfficiencyScore,
+      stuckQuestions
+    };
+  }, [pacingData]);
+
+  // Section Time comparison for bar charts
+  const sectionTimingData = useMemo(() => {
+    // English target time per question is roughly 36s, Math is 60s, Reading/Science is 52.5s
+    const targets = { English: 36, Math: 60, Reading: 52, Science: 52 };
+    
+    return ['English', 'Math', 'Reading', 'Science'].map(secName => {
+      let actual = 45;
+      if (selectedStudent !== 'all') {
+        // Compute student-specific timing based on their topic accuracy and profile
+        const hash = selectedStudent.charCodeAt(1) + secName.charCodeAt(0);
+        actual = 35 + (hash % 30);
+      } else {
+        actual = targets[secName as keyof typeof targets] + 2;
+      }
+      return {
+        section: secName,
+        'Target time (sec)': targets[secName as keyof typeof targets],
+        'Actual time (sec)': actual
+      };
+    });
+  }, [selectedStudent]);
+
+  // Comparison dataset
   const comparisonData = useMemo(() => {
     const activeCompareIds = comparisonIds.filter(id => !hiddenStudentIds.includes(id));
     
@@ -204,13 +309,12 @@ export function TutorAnalyticsPage() {
       return [dataRow];
     }
 
-    // Time Management Mode (Allocated vs Used time efficiency ratio)
+    // Time Management Mode efficiency ratio
     return ['English', 'Math', 'Reading', 'Science'].map((secName, idx) => {
       const dataRow: Record<string, string | number> = { name: `${secName} Time %` };
       activeCompareIds.forEach((id, sIdx) => {
         const student = activeStudents.find(s => s.id === id);
         if (student) {
-          // Mock time management efficiency ratio per section
           const hash = student.name.charCodeAt(0) + idx + sIdx;
           dataRow[student.name] = 75 + (hash % 25);
         }
@@ -219,7 +323,7 @@ export function TutorAnalyticsPage() {
     });
   }, [comparisonIds, hiddenStudentIds, comparisonMode, activeStudents]);
 
-  // Redesigned Autocomplete & Advanced filter logic for student list
+  // Autocomplete student list filters
   const filteredSelectorStudents = useMemo(() => {
     return activeStudents.filter(st => {
       const matchesSearch = st.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -231,7 +335,6 @@ export function TutorAnalyticsPage() {
         (filterRange === 'top' && (st.avgScore ?? 0) >= 28) || 
         (filterRange === 'focus' && (st.avgScore ?? 0) < 24);
 
-      // Filter by Weak Topic association using mock topic data
       let matchesWeakTopic = true;
       if (filterWeakTopic !== 'All') {
         const topics = STUDENT_TOPIC_DATA[st.id] ?? DEFAULT_TOPIC_DATA;
@@ -243,7 +346,6 @@ export function TutorAnalyticsPage() {
     });
   }, [activeStudents, searchQuery, filterGrade, filterRange, filterWeakTopic]);
 
-  // REDESIGNED Selection Limits (Max 4 students)
   const handleSelectStudent = (stId: string) => {
     if (comparisonIds.includes(stId)) {
       setComparisonIds(prev => prev.filter(x => x !== stId));
@@ -252,7 +354,6 @@ export function TutorAnalyticsPage() {
     } else {
       if (comparisonIds.length >= 4) {
         setShowWarning(true);
-        // Automatically hide warning banner after 4 seconds
         setTimeout(() => setShowWarning(false), 4000);
         return;
       }
@@ -315,7 +416,6 @@ export function TutorAnalyticsPage() {
             <p className="text-[11px] text-slate-400">Search and overlay up to 4 student performance profiles side-by-side</p>
           </div>
           
-          {/* Comparison Graph Controls */}
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             {/* View Mode Toggle */}
             <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
@@ -356,8 +456,6 @@ export function TutorAnalyticsPage() {
 
         {/* Scalable Student Searcher and Advanced Filters */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 items-start relative z-20">
-          
-          {/* Autocomplete Input Search Selector */}
           <div className="relative col-span-1 md:col-span-2">
             <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-xs focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
               <Search size={14} className="text-slate-400 mr-2 flex-shrink-0" />
@@ -376,7 +474,7 @@ export function TutorAnalyticsPage() {
               )}
             </div>
 
-            {/* Redesigned Grouped Autocomplete Selector Dropdown */}
+            {/* Dropdown */}
             {showDropdown && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowDropdown(false)} />
@@ -431,7 +529,6 @@ export function TutorAnalyticsPage() {
             )}
           </div>
 
-          {/* Quick Stats & Controls Actions */}
           <div className="flex items-center justify-between w-full">
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -456,7 +553,6 @@ export function TutorAnalyticsPage() {
         {/* Collapsible Advanced Filters Panel */}
         {showAdvancedFilters && (
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 animate-fadeIn relative z-10">
-            {/* Filter by Grade */}
             <div>
               <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Filter by Grade</label>
               <select 
@@ -471,7 +567,6 @@ export function TutorAnalyticsPage() {
               </select>
             </div>
 
-            {/* Filter by Performance Range */}
             <div>
               <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Performance Bracket</label>
               <select 
@@ -485,7 +580,6 @@ export function TutorAnalyticsPage() {
               </select>
             </div>
 
-            {/* Filter by Weak Topic */}
             <div>
               <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Weak syllabus topic</label>
               <select 
@@ -502,7 +596,7 @@ export function TutorAnalyticsPage() {
           </div>
         )}
 
-        {/* 4-Student Selection Warning Alert Banner */}
+        {/* 4-Student Selection Warning */}
         {showWarning && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex gap-2.5 items-center animate-shake">
             <AlertTriangle className="text-amber-500 w-5 h-5 flex-shrink-0" />
@@ -512,7 +606,7 @@ export function TutorAnalyticsPage() {
           </div>
         )}
 
-        {/* Redesigned Dynamic Collapsible Student Legend Chips */}
+        {/* Collapsible Student Legend Chips */}
         {activeCompareList.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4 bg-slate-50/50 p-2 border border-slate-100 rounded-xl">
             {activeCompareList.map((st, idx) => {
@@ -528,14 +622,12 @@ export function TutorAnalyticsPage() {
                     isHovered ? 'ring-2 ring-blue-500 border-blue-300 scale-105' : 'border-slate-200 hover:border-slate-300'
                   } ${isHidden ? 'opacity-40' : 'opacity-100'}`}
                 >
-                  {/* Color Circle Indicator */}
                   <div 
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
                     style={{ backgroundColor: COLORS[idx % COLORS.length] }} 
                   />
                   <span className="font-semibold text-slate-800">{st.name}</span>
                   
-                  {/* Action controls */}
                   <div className="flex items-center gap-1 ml-2 border-l border-slate-100 pl-1.5">
                     <button 
                       onClick={() => handleToggleHide(st.id)}
@@ -558,7 +650,7 @@ export function TutorAnalyticsPage() {
           </div>
         )}
 
-        {/* Scalable Chart Rendering */}
+        {/* Scalable Chart */}
         <div className="relative z-10 w-full h-[220px]">
           {comparisonIds.filter(id => !hiddenStudentIds.includes(id)).length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 gap-2">
@@ -568,7 +660,6 @@ export function TutorAnalyticsPage() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              {/* Dynamic Switch Visualizations */}
               {viewMode === 'bar' ? (
                 <BarChart data={comparisonData} barSize={10} barGap={3} margin={{ left: -10, right: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
@@ -655,6 +746,154 @@ export function TutorAnalyticsPage() {
         </div>
       </Card>
 
+      {/* NEW DETAILED TIME-MANAGEMENT & PACING DIAGNOSTICS DASHBOARD */}
+      <Card className="border border-slate-100 shadow-sm p-4 md:p-5 bg-white overflow-hidden">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-100 pb-3 mb-4 gap-2">
+          <div>
+            <h3 className="font-bold text-slate-850 text-sm flex items-center gap-2">
+              <Timer className="text-blue-500 w-5 h-5" /> 
+              Time-Management & Pacing Diagnostics
+            </h3>
+            <p className="text-[11px] text-slate-400">
+              Pacing deviation, stuck-question detection, and solving efficiency metrics for {selectedStudent === 'all' ? 'Class cohort' : currentStudentProfile?.name}
+            </p>
+          </div>
+          <Badge variant="info" className="bg-blue-50 text-blue-700 border-blue-100 font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
+            <Gauge size={10} /> PACING ENGINE
+          </Badge>
+        </div>
+
+        {/* Pacing Diagnostic Summary Scores */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+          <div className="bg-slate-50/50 p-3 border border-slate-100 rounded-xl text-center shadow-xs">
+            <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Pacing Efficiency</p>
+            <p className="text-xl font-black text-blue-600 mt-1">{pacingMetrics.timeEfficiencyScore}%</p>
+            <span className="text-[9px] text-slate-400 font-medium">Optimal solving pace</span>
+          </div>
+
+          <div className="bg-slate-50/50 p-3 border border-slate-100 rounded-xl text-center shadow-xs">
+            <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Avg Time/Question</p>
+            <p className="text-xl font-black text-slate-850 mt-1">{pacingMetrics.avgTimePerQuestion}s</p>
+            <span className="text-[9px] text-slate-400 font-medium">Target: 45-60s</span>
+          </div>
+
+          <div className="bg-red-50/20 p-3 border border-red-50 rounded-xl text-center shadow-xs">
+            <p className="text-[9px] text-red-500 uppercase font-bold tracking-wider">Stuck Questions</p>
+            <p className={`text-xl font-black mt-1 ${pacingMetrics.stuckCount > 0 ? 'text-red-600' : 'text-slate-650'}`}>
+              {pacingMetrics.stuckCount} Qs
+            </p>
+            <span className="text-[9px] text-red-500/80 font-medium">Spent ≥90 seconds</span>
+          </div>
+
+          <div className="bg-amber-50/20 p-3 border border-amber-50 rounded-xl text-center shadow-xs">
+            <p className="text-[9px] text-amber-600 uppercase font-bold tracking-wider">Rushed Solves</p>
+            <p className={`text-xl font-black mt-1 ${pacingMetrics.rushedCount > 0 ? 'text-amber-600' : 'text-slate-650'}`}>
+              {pacingMetrics.rushedCount} Qs
+            </p>
+            <span className="text-[9px] text-amber-500/80 font-medium">Solved &lt;20 seconds</span>
+          </div>
+
+          <div className="bg-slate-50/50 p-3 border border-slate-100 rounded-xl text-center shadow-xs col-span-2 md:col-span-1">
+            <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Pacing Profile</p>
+            <Badge 
+              variant={pacingMetrics.timeEfficiencyScore >= 80 ? 'success' : pacingMetrics.timeEfficiencyScore >= 65 ? 'warning' : 'danger'}
+              className="mt-2.5 text-[9px] font-extrabold uppercase px-2"
+            >
+              {pacingMetrics.timeEfficiencyScore >= 80 ? 'Optimal Pace' : pacingMetrics.timeEfficiencyScore >= 65 ? 'Inconsistent' : 'Severe Lag'}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
+          
+          {/* Scatter Chart: Question Pacing Analysis (2/3 width) */}
+          <div className="lg:col-span-2 bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <Activity size={12} className="text-blue-500" /> 
+                  Pacing Analysis Scatter Plot
+                </h4>
+                <p className="text-[10px] text-slate-400">Time spent on individual questions. Hover points for diagnostic details.</p>
+              </div>
+              <span className="text-[9px] text-slate-400 font-semibold bg-white border border-slate-150 px-2 py-0.5 rounded shadow-xs">
+                Question Pacing Matrix
+              </span>
+            </div>
+
+            <div className="h-[200px] w-full bg-white border border-slate-100 rounded-lg p-2 relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart margin={{ top: 10, right: 10, bottom: -5, left: -15 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
+                  <XAxis type="number" dataKey="qNum" name="Question #" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
+                  <YAxis type="number" dataKey="timeSpent" name="Time (sec)" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} unit="s" />
+                  <Tooltip 
+                    cursor={{ strokeDasharray: '3 3' }} 
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '11px' }}
+                    formatter={(value, name, props) => {
+                      if (name === 'Time (sec)') return [`${value} seconds`, name];
+                      if (name === 'Question #') return [`Question ${value}`, name];
+                      return [value, name];
+                    }}
+                  />
+                  {/* Optimal pace threshold reference line */}
+                  <ReferenceLine y={60} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Target Max Pace (60s)', fill: '#d97706', fontSize: 8, position: 'top' }} />
+                  <ReferenceLine y={90} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Stuck Threshold (90s)', fill: '#dc2626', fontSize: 8, position: 'top' }} />
+                  <Scatter name="Solve Pacing" data={pacingData} fill="#3b82f6">
+                    {pacingData.map((entry, index) => {
+                      const isStuck = entry.timeSpent >= 90;
+                      const isRush = entry.timeSpent < 20;
+                      const color = isStuck ? '#ef4444' : isRush ? '#f59e0b' : '#3b82f6';
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Time Mismanagement Log & Inefficient Questions (1/3 width) */}
+          <div className="bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs flex flex-col justify-between">
+            <div>
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 mb-1">
+                <AlertOctagon size={12} className="text-red-500" /> 
+                Pacing Anomalies
+              </h4>
+              <p className="text-[10px] text-slate-400 mb-3">Questions where student got stuck or lost valuable test time:</p>
+              
+              <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
+                {pacingMetrics.stuckQuestions.map((q) => (
+                  <div key={q.qNum} className="p-2 bg-white border border-red-50 rounded-lg flex items-center justify-between shadow-xs">
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-slate-800 block">Q{q.qNum}: {q.topic}</span>
+                      <span className="text-[9px] text-slate-400 block uppercase font-bold">{q.correct ? 'Correct' : 'Incorrect'} Solution</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-extrabold text-red-600 block">{q.timeSpent}s</span>
+                      <Badge variant="danger" className="text-[7px] font-extrabold px-1 py-0 border-red-150">Got Stuck</Badge>
+                    </div>
+                  </div>
+                ))}
+                {pacingMetrics.stuckQuestions.length === 0 && (
+                  <div className="py-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg bg-white">
+                    <CheckCircle2 size={16} className="text-emerald-500 mx-auto mb-2" />
+                    Pacing is optimal! No stuck solving patterns detected.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-150 flex items-center gap-1.5 bg-blue-50/50 p-2 border border-blue-100 rounded-lg">
+              <AlertCircle size={14} className="text-blue-500 flex-shrink-0" />
+              <p className="text-[9.5px] text-blue-700 leading-tight">
+                <strong>Tutor Action:</strong> Suggest targeted focus practice in <strong>{pacingMetrics.stuckQuestions[0]?.topic || 'Trigonometry'}</strong> to reduce question lag time.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </Card>
+
       {/* Heatmaps & Weak Topics Section Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         
@@ -707,28 +946,23 @@ export function TutorAnalyticsPage() {
             </div>
           </div>
 
-          {/* Historical Improvement Trends Line Graph */}
+          {/* Section timing allocated vs actual bar chart */}
           <div className="bg-white rounded-xl border border-slate-100 p-4 md:p-5 shadow-sm">
             <div>
-              <h3 className="font-bold text-slate-800 text-sm">Historical Improvement Trends</h3>
-              <p className="text-[11px] text-slate-400 mb-4">Monthly score progress map showing growth trajectory</p>
+              <h3 className="font-bold text-slate-800 text-sm">ACT Section Timing Comparisons</h3>
+              <p className="text-[11px] text-slate-400 mb-4">Comparison of target question time vs student actual average solving speeds</p>
             </div>
             
             <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={HISTORICAL_TRENDS}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis domain={[12, 36]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <BarChart data={sectionTimingData} barSize={12} barGap={4} margin={{ left: -10, right: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
+                <XAxis dataKey="section" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} unit="s" />
                 <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '11px' }} />
                 <Legend wrapperStyle={{ fontSize: '10px' }} />
-                {selectedStudent === 'all' ? (
-                  activeStudents.slice(0, 3).map((st, idx) => (
-                    <Line key={st.id} type="monotone" dataKey={st.name} stroke={COLORS[idx % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
-                  ))
-                ) : (
-                  <Line type="monotone" dataKey={currentStudentProfile?.name || ''} stroke="#3b82f6" strokeWidth={3} dot={{ r: 5 }} />
-                )}
-              </LineChart>
+                <Bar dataKey="Target time (sec)" fill="#cbd5e1" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Actual time (sec)" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -787,14 +1021,10 @@ export function TutorAnalyticsPage() {
 
       </div>
 
-      {/* Skill Profile Radial Web */}
+      {/* Radial skill profiler */}
       <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm md:p-5">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><Compass className="text-blue-500 w-4 h-4" /> Core Syllabus Skill Profiler</h3>
-            <p className="text-[11px] text-slate-400">Multi-axis radial comparison mapping overall proficiency percentages</p>
-          </div>
-        </div>
+        <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 mb-0.5"><Compass className="text-blue-500 w-4 h-4" /> Core Syllabus Skill Profiler</h3>
+        <p className="text-[10px] text-slate-400 mb-3">Multi-axis radial comparison mapping overall proficiency percentages</p>
         
         <div className="h-[220px] w-full">
           <ResponsiveContainer width="100%" height="100%">
