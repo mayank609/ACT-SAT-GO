@@ -38,6 +38,7 @@ export async function GET(
             question: {
               include: {
                 testQuestions: true,
+                topic: { select: { name: true } },
               },
             },
           },
@@ -66,22 +67,58 @@ export async function GET(
       timeUsed: number
     }[] = []
 
+    let questionPacingStats: {
+      questionIndex: number
+      sectionName: string
+      timeSpentSeconds: number
+      status: 'correct' | 'incorrect' | 'skipped'
+      difficulty: string
+      topicName: string
+    }[] = []
+
     if (attempts.length > 0) {
       const latest = attempts[attempts.length - 1]
+      let totalIndex = 1
       for (const sa of latest.sectionAttempts) {
         const sectionAnswers = latest.answers.filter((ans) => {
           const tq = ans.question.testQuestions.find((t) => t.testId === latest.testId)
           return tq?.sectionId === sa.sectionId
         })
+        
+        sectionAnswers.sort((a, b) => {
+          const tqA = a.question.testQuestions.find((t) => t.testId === latest.testId)
+          const tqB = b.question.testQuestions.find((t) => t.testId === latest.testId)
+          return (tqA?.orderIndex ?? 0) - (tqB?.orderIndex ?? 0)
+        })
+
         let correct = 0, incorrect = 0, skipped = 0
         for (const ans of sectionAnswers) {
-          if (ans.answerGiven === null) { skipped++; continue }
-          if (isAnswerCorrect(ans.answerGiven, ans.question.correctAnswer)) correct++
-          else incorrect++
+          let status: 'correct' | 'incorrect' | 'skipped' = 'skipped'
+          if (ans.answerGiven === null) { 
+            skipped++ 
+          } else {
+            const isCorrect = isAnswerCorrect(ans.answerGiven, ans.question.correctAnswer)
+            if (isCorrect) {
+              correct++
+              status = 'correct'
+            } else {
+              incorrect++
+              status = 'incorrect'
+            }
+          }
+
+          questionPacingStats.push({
+            questionIndex: totalIndex++,
+            sectionName: sa.section.name,
+            timeSpentSeconds: ans.timeSpentSeconds || 0,
+            status,
+            difficulty: ans.question.difficultyLevel.toLowerCase(),
+            topicName: (ans.question as any).topic?.name ?? 'General Skill'
+          })
         }
         const totalQuestions = sectionAnswers.length
         sectionStats.push({
-          sectionId: sa.sectionId,
+          sectionId: sa.section.name, // using section name as UI friendly id
           sectionName: sa.section.name,
           totalQuestions,
           correct,
@@ -106,6 +143,7 @@ export async function GET(
     return NextResponse.json({
       trend,
       sectionStats,
+      questionPacingStats,
       overallAccuracy,
       totalAttempts: attempts.length,
       latestScore: totalScore,
