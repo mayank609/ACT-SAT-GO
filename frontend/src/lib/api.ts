@@ -206,4 +206,33 @@ export const api = {
     }),
   markNotificationRead: (notifId: string) =>
     request<{ success: boolean }>(`/api/notifications/${notifId}`, { method: 'PATCH' }),
+
+  // Dynamic RBAC permissions matrix
+  getPermissions: () =>
+    request<{
+      permissions: Array<{
+        permission: string
+        label: string
+        category: 'view' | 'edit' | 'analytics' | 'monitoring' | 'assignment' | 'admin'
+        super_admin: boolean
+        admin: boolean
+        tutor: boolean
+        student: boolean
+      }>
+    }>('/api/permissions'),
+  updatePermissions: (
+    permissions: Array<{
+      permission: string
+      label: string
+      category: 'view' | 'edit' | 'analytics' | 'monitoring' | 'assignment' | 'admin'
+      super_admin: boolean
+      admin: boolean
+      tutor: boolean
+      student: boolean
+    }>
+  ) =>
+    request<{ success: boolean; permissions: any[] }>('/api/permissions', {
+      method: 'POST',
+      body: JSON.stringify({ permissions }),
+    }),
 }
