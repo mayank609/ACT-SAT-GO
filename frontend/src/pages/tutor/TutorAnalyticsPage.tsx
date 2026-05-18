@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react';
 import { 
   TrendingUp, AlertTriangle, Clock, Users, ArrowUpRight, 
   CheckCircle2, Award, Compass, BarChart3, HelpCircle, 
-  Search, SlidersHorizontal, Eye, EyeOff, Sparkles, RefreshCw, X,
-  Timer, Gauge, Activity, AlertCircle, AlertOctagon, HelpCircle as InfoIcon
+  Search, SlidersHorizontal, Eye, EyeOff, X,
+  Timer, Gauge, Activity, AlertCircle, AlertOctagon
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
@@ -85,31 +85,31 @@ const EXTENDED_STUDENTS = [
 
 // Mock Question-Level Pacing Data for Pacing Scatter Analysis
 const PACING_MOCKS: Record<string, { qNum: number; timeSpent: number; topic: string; correct: boolean }[]> = {
-  's-1': [ // Alex Thompson (Slow Solver on Hard Math, quick on English)
+  's-1': [ // Alex Thompson
     { qNum: 1, timeSpent: 22, topic: 'Algebra', correct: true },
     { qNum: 2, timeSpent: 28, topic: 'Grammar', correct: true },
-    { qNum: 3, timeSpent: 125, topic: 'Trigonometry', correct: false }, // Stuck!
+    { qNum: 3, timeSpent: 125, topic: 'Trigonometry', correct: false },
     { qNum: 4, timeSpent: 30, topic: 'Punctuation', correct: true },
     { qNum: 5, timeSpent: 42, topic: 'Geometry', correct: true },
-    { qNum: 6, timeSpent: 140, topic: 'Algebra', correct: false }, // Stuck!
+    { qNum: 6, timeSpent: 140, topic: 'Algebra', correct: false },
     { qNum: 7, timeSpent: 15, topic: 'Main Idea', correct: true },
     { qNum: 8, timeSpent: 32, topic: 'Vocabulary', correct: true },
-    { qNum: 9, timeSpent: 98, topic: 'Trigonometry', correct: true }, // Slow
+    { qNum: 9, timeSpent: 98, topic: 'Trigonometry', correct: true },
     { qNum: 10, timeSpent: 45, topic: 'Grammar', correct: true },
   ],
-  's-3': [ // Morgan Davis (Fast guessing solver, gets stuck on reading)
-    { qNum: 1, timeSpent: 12, topic: 'Algebra', correct: true }, // Rush
-    { qNum: 2, timeSpent: 14, topic: 'Grammar', correct: false }, // Rush
-    { qNum: 3, timeSpent: 110, topic: 'Inference', correct: false }, // Stuck!
+  's-3': [ // Morgan Davis
+    { qNum: 1, timeSpent: 12, topic: 'Algebra', correct: true },
+    { qNum: 2, timeSpent: 14, topic: 'Grammar', correct: false },
+    { qNum: 3, timeSpent: 110, topic: 'Inference', correct: false },
     { qNum: 4, timeSpent: 18, topic: 'Punctuation', correct: true },
-    { qNum: 5, timeSpent: 15, topic: 'Geometry', correct: false }, // Rush
-    { qNum: 6, timeSpent: 135, topic: 'Main Idea', correct: true }, // Stuck!
+    { qNum: 5, timeSpent: 15, topic: 'Geometry', correct: false },
+    { qNum: 6, timeSpent: 135, topic: 'Main Idea', correct: true },
     { qNum: 7, timeSpent: 22, topic: 'Data Analysis', correct: true },
     { qNum: 8, timeSpent: 25, topic: 'Scientific Method', correct: true },
-    { qNum: 9, timeSpent: 115, topic: 'Conflicting Viewpoints', correct: false }, // Stuck!
+    { qNum: 9, timeSpent: 115, topic: 'Conflicting Viewpoints', correct: false },
     { qNum: 10, timeSpent: 14, topic: 'Grammar', correct: true },
   ],
-  's-4': [ // Casey Wilson (Consistently slow solving speeds)
+  's-4': [ // Casey Wilson
     { qNum: 1, timeSpent: 75, topic: 'Algebra', correct: true },
     { qNum: 2, timeSpent: 82, topic: 'Grammar', correct: false },
     { qNum: 3, timeSpent: 95, topic: 'Geometry', correct: true },
@@ -229,7 +229,7 @@ export function TutorAnalyticsPage() {
     // Rushed solved indices (Rushed: spent < 20 seconds)
     const rushedQuestions = pacingData.filter(q => q.timeSpent < 20);
 
-    // Dynamic Time Efficiency score calculation (combines pacing consistency & accuracy)
+    // Dynamic Time Efficiency score calculation
     const pacingDeviation = pacingData.reduce((sum, q) => sum + Math.abs(q.timeSpent - 45), 0) / pacingData.length;
     const timeEfficiencyScore = Math.max(40, Math.min(98, Math.round(100 - (pacingDeviation * 0.7) - (stuckQuestions.length * 3))));
 
@@ -244,14 +244,12 @@ export function TutorAnalyticsPage() {
 
   // Section Time comparison for bar charts
   const sectionTimingData = useMemo(() => {
-    // English target time per question is roughly 36s, Math is 60s, Reading/Science is 52.5s
     const targets = { English: 36, Math: 60, Reading: 52, Science: 52 };
     
     return ['English', 'Math', 'Reading', 'Science'].map(secName => {
       let actual = 45;
       if (selectedStudent !== 'all') {
-        // Compute student-specific timing based on their topic accuracy and profile
-        const hash = selectedStudent.charCodeAt(1) + secName.charCodeAt(0);
+        const hash = selectedStudent.charCodeAt(0) + secName.charCodeAt(0);
         actual = 35 + (hash % 30);
       } else {
         actual = targets[secName as keyof typeof targets] + 2;
@@ -309,7 +307,6 @@ export function TutorAnalyticsPage() {
       return [dataRow];
     }
 
-    // Time Management Mode efficiency ratio
     return ['English', 'Math', 'Reading', 'Science'].map((secName, idx) => {
       const dataRow: Record<string, string | number> = { name: `${secName} Time %` };
       activeCompareIds.forEach((id, sIdx) => {
@@ -377,6 +374,16 @@ export function TutorAnalyticsPage() {
   };
 
   const activeCompareList = comparisonIds.map(id => activeStudents.find(s => s.id === id)).filter(Boolean) as typeof activeStudents;
+
+  // Render colorful dot for Scatter Plot
+  const renderDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (cx === undefined || cy === undefined || !payload) return null;
+    const isStuck = payload.timeSpent >= 90;
+    const isRush = payload.timeSpent < 20;
+    const color = isStuck ? '#ef4444' : isRush ? '#f59e0b' : '#3b82f6';
+    return <circle cx={cx} cy={cy} r={5} fill={color} stroke="#ffffff" strokeWidth={1} />;
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -746,7 +753,7 @@ export function TutorAnalyticsPage() {
         </div>
       </Card>
 
-      {/* NEW DETAILED TIME-MANAGEMENT & PACING DIAGNOSTICS DASHBOARD */}
+      {/* DETAILED TIME-MANAGEMENT & PACING DIAGNOSTICS DASHBOARD */}
       <Card className="border border-slate-100 shadow-sm p-4 md:p-5 bg-white overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-100 pb-3 mb-4 gap-2">
           <div>
@@ -805,7 +812,6 @@ export function TutorAnalyticsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
-          
           {/* Scatter Chart: Question Pacing Analysis (2/3 width) */}
           <div className="lg:col-span-2 bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs">
             <div className="flex justify-between items-center mb-3">
@@ -826,33 +832,25 @@ export function TutorAnalyticsPage() {
                 <ScatterChart margin={{ top: 10, right: 10, bottom: -5, left: -15 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
                   <XAxis type="number" dataKey="qNum" name="Question #" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                  <YAxis type="number" dataKey="timeSpent" name="Time (sec)" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} unit="s" />
+                  <YAxis type="number" dataKey="timeSpent" name="TimeSpent" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} unit="s" />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }} 
                     contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '11px' }}
-                    formatter={(value, name, props) => {
-                      if (name === 'Time (sec)') return [`${value} seconds`, name];
-                      if (name === 'Question #') return [`Question ${value}`, name];
+                    formatter={(value: any, name: any) => {
+                      if (name === 'TimeSpent') return [`${value} seconds`, 'Time Spent'];
+                      if (name === 'Question #') return [`Question ${value}`, 'Question'];
                       return [value, name];
                     }}
                   />
-                  {/* Optimal pace threshold reference line */}
                   <ReferenceLine y={60} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Target Max Pace (60s)', fill: '#d97706', fontSize: 8, position: 'top' }} />
                   <ReferenceLine y={90} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Stuck Threshold (90s)', fill: '#dc2626', fontSize: 8, position: 'top' }} />
-                  <Scatter name="Solve Pacing" data={pacingData} fill="#3b82f6">
-                    {pacingData.map((entry, index) => {
-                      const isStuck = entry.timeSpent >= 90;
-                      const isRush = entry.timeSpent < 20;
-                      const color = isStuck ? '#ef4444' : isRush ? '#f59e0b' : '#3b82f6';
-                      return <Cell key={`cell-${index}`} fill={color} />;
-                    })}
-                  </Scatter>
+                  <Scatter name="Solve Pacing" data={pacingData} fill="#3b82f6" shape={renderDot} />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Time Mismanagement Log & Inefficient Questions (1/3 width) */}
+          {/* Time Mismanagement Log & Inefficient Questions */}
           <div className="bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs flex flex-col justify-between">
             <div>
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 mb-1">
@@ -890,13 +888,11 @@ export function TutorAnalyticsPage() {
               </p>
             </div>
           </div>
-
         </div>
       </Card>
 
       {/* Heatmaps & Weak Topics Section Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        
         {/* Section Accuracy Heatmaps */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white rounded-xl border border-slate-100 p-4 md:p-5 shadow-sm">
@@ -969,7 +965,6 @@ export function TutorAnalyticsPage() {
 
         {/* Weak vs Strong Syllabus Concept cards */}
         <div className="space-y-4">
-          {/* Strong Syllabus Topics */}
           <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 mb-0.5"><CheckCircle2 className="text-emerald-500 w-4 h-4" /> Strong Syllabus Topics</h3>
             <p className="text-[10px] text-slate-400 mb-3">Concepts mastered with high proficiency</p>
@@ -993,7 +988,6 @@ export function TutorAnalyticsPage() {
             </div>
           </div>
 
-          {/* Weak Syllabus Topics */}
           <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-red-400" />
             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 mb-0.5"><AlertTriangle className="text-red-500 w-4 h-4 animate-pulse" /> Critical Syllabus Focus</h3>
@@ -1018,7 +1012,6 @@ export function TutorAnalyticsPage() {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Radial skill profiler */}
