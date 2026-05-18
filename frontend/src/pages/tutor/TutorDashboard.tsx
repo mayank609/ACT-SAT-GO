@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, TrendingUp, AlertTriangle, ChevronRight, Target, Shield, Eye, RefreshCw, AlertCircle, Clock, Zap, BookOpen } from 'lucide-react';
+import { Users, TrendingUp, AlertTriangle, ChevronRight, Target, Shield, Eye, RefreshCw, AlertCircle, Clock, Zap, BookOpen, Activity } from 'lucide-react';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { api, type DbUser } from '../../lib/api';
@@ -20,10 +20,22 @@ export function TutorDashboard() {
   const [loadingAttempts, setLoadingAttempts] = useState(false);
 
   useEffect(() => {
-    if (!dbId) return;
+    if (!dbId) {
+      setLoading(false);
+      return;
+    }
     api.getTutorAssignments({ tutorId: dbId })
-      .then((r) => setMyStudents(r.assignments.map((a) => a.student as DbUser)))
-      .catch(() => {})
+      .then((r) => {
+        if (r && r.assignments) {
+          const students = r.assignments
+            .map((a) => a.student as DbUser)
+            .filter((s): s is DbUser => s !== null && s !== undefined);
+          setMyStudents(students);
+        } else {
+          setMyStudents([]);
+        }
+      })
+      .catch(() => setMyStudents([]))
       .finally(() => setLoading(false));
   }, [dbId]);
 
@@ -42,14 +54,14 @@ export function TutorDashboard() {
   }, [activeTab]);
 
   const avgScore = myStudents.length
-    ? myStudents.reduce((a, s) => a + (s.avgScore ?? 0), 0) / myStudents.length
+    ? myStudents.reduce((a, s) => a + (s?.avgScore ?? 0), 0) / myStudents.length
     : 0;
-  const totalTests = myStudents.reduce((a, s) => a + (s.testsAttempted ?? 0), 0);
+  const totalTests = myStudents.reduce((a, s) => a + (s?.testsAttempted ?? 0), 0);
 
   const studentCompareData = myStudents.map((s) => ({
-    name: s.name.split(' ')[0],
-    score: s.avgScore ?? 0,
-    target: (s.targetScore as number | null) ?? 32,
+    name: s?.name?.split(' ')[0] ?? 'Student',
+    score: s?.avgScore ?? 0,
+    target: (s?.targetScore as number | null) ?? 32,
   }));
 
   if (loading) {
@@ -175,10 +187,10 @@ export function TutorDashboard() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
-                            {student.name.charAt(0).toUpperCase()}
+                            {student.name?.charAt(0).toUpperCase() ?? 'S'}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-slate-900 text-sm truncate">{student.name}</p>
+                            <p className="font-semibold text-slate-900 text-sm truncate">{student.name ?? 'Unnamed Student'}</p>
                             <p className="text-xs text-slate-500">{student.testsAttempted ?? 0} tests</p>
                           </div>
                         </div>
@@ -221,21 +233,21 @@ export function TutorDashboard() {
       ) : (
         /* Live Anti-Cheating Control Panel View */
         (() => {
-          const assignedStudentIds = new Set(myStudents.map(s => s.id));
-          const relevantAttempts = attempts.filter(att => assignedStudentIds.has(att.studentId));
+          const assignedStudentIds = new Set(myStudents.filter(Boolean).map(s => s.id));
+          const relevantAttempts = (attempts ?? []).filter(att => att && att.studentId && assignedStudentIds.has(att.studentId));
 
           const allLogs = relevantAttempts.flatMap(att => 
-            (att.cheatingLogs ?? []).map((log: any) => ({
+            (att?.cheatingLogs ?? []).map((log: any) => ({
               ...log,
-              studentName: att.studentName,
-              testTitle: att.testTitle,
-              attemptId: att.id
+              studentName: att?.studentName ?? 'Student',
+              testTitle: att?.testTitle ?? 'Test',
+              attemptId: att?.id
             }))
-          ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          ).filter(Boolean).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-          const totalTabSwitches = relevantAttempts.reduce((sum, a) => sum + (a.tabSwitches ?? 0), 0);
-          const activeTakers = relevantAttempts.filter(a => a.status === 'in_progress').length;
-          const flaggedCount = relevantAttempts.filter(a => (a.tabSwitches ?? 0) >= 3 || (a.cheatingLogs?.length ?? 0) >= 3).length;
+          const totalTabSwitches = relevantAttempts.reduce((sum, a) => sum + (a?.tabSwitches ?? 0), 0);
+          const activeTakers = relevantAttempts.filter(a => a?.status === 'in_progress').length;
+          const flaggedCount = relevantAttempts.filter(a => (a?.tabSwitches ?? 0) >= 3 || (a?.cheatingLogs?.length ?? 0) >= 3).length;
 
           if (loadingAttempts) {
             return (
