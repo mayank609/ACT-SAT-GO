@@ -6,6 +6,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
+import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
+import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import type { QuestionState } from '../../types';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -401,7 +403,7 @@ export function TestInterfacePage() {
             </div>
 
             <div className="text-sm md:text-base text-slate-900 leading-relaxed mb-5 md:mb-6">
-              {currentQuestion.text || `Question ${currentQIdx + 1}`}
+              <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
             </div>
 
             {/* MCQ options */}
@@ -412,22 +414,20 @@ export function TestInterfacePage() {
                     ? Array.isArray(selectedAnswer) && selectedAnswer.includes(opt.id)
                     : selectedAnswer === opt.id;
                   return (
-                    <button key={opt.id} onClick={() => {
-                      if (currentQuestion.type === 'mcq_multi') {
-                        const curr = Array.isArray(selectedAnswer) ? selectedAnswer as string[] : [];
-                        setSelectedAnswer(curr.includes(opt.id) ? curr.filter((x) => x !== opt.id) : [...curr, opt.id]);
-                      } else {
-                        setSelectedAnswer(opt.id);
-                      }
-                    }}
-                      className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-xl border-2 text-left transition-all ${
-                        isSelected ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                      }`}>
-                      <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                        isSelected ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-300 text-slate-500'
-                      }`}>{opt.id.toUpperCase()}</div>
-                      <span className={`text-sm ${isSelected ? 'text-blue-900 font-medium' : 'text-slate-700'}`}>{opt.text}</span>
-                    </button>
+                    <OptionRenderer
+                      key={opt.id}
+                      label={opt.id.toUpperCase()}
+                      text={opt.text}
+                      isSelected={isSelected}
+                      onClick={() => {
+                        if (currentQuestion.type === 'mcq_multi') {
+                          const curr = Array.isArray(selectedAnswer) ? selectedAnswer as string[] : [];
+                          setSelectedAnswer(curr.includes(opt.id) ? curr.filter((x) => x !== opt.id) : [...curr, opt.id]);
+                        } else {
+                          setSelectedAnswer(opt.id);
+                        }
+                      }}
+                    />
                   );
                 })}
               </div>

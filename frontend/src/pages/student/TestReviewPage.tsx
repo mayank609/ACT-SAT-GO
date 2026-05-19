@@ -3,6 +3,8 @@ import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
+import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
+import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -124,7 +126,7 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
           {correct ? <CheckCircle size={14} className="text-emerald-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-red-500'} />}
         </div>
         <p className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0">
-          {q.content.text || `Question ${index + 1}`}
+          <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
         </p>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {studentAnswer?.timeSpentSeconds ? (
@@ -138,26 +140,21 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
 
       <div className="px-3 md:px-4 py-3 bg-white">
         {options.length > 0 && (
-          <div className="space-y-1.5 mb-3">
+          <div className="space-y-2 mb-3">
             {options.map((opt) => {
               const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
               const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
               return (
-                <div key={opt.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm ${
-                  isCorrectOption ? 'bg-emerald-50 border border-emerald-200' :
-                  isUserAnswer && !isCorrectOption ? 'bg-red-50 border border-red-200' : 'border border-transparent'
-                }`}>
-                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                    isCorrectOption ? 'border-emerald-500 bg-emerald-500 text-white' :
-                    isUserAnswer ? 'border-red-400 bg-red-400 text-white' : 'border-slate-300 text-slate-500'
-                  }`}>{opt.id.toUpperCase()}</div>
-                  <span className={`flex-1 min-w-0 ${isCorrectOption ? 'text-emerald-800 font-medium' : isUserAnswer ? 'text-red-700 line-through' : 'text-slate-600'}`}>
-                    {opt.text}
-                  </span>
-                  {isCorrectOption && <span className="text-xs text-emerald-600 font-medium flex-shrink-0">✓</span>}
-                  {isUserAnswer && !isCorrectOption && <span className="text-xs text-red-500 font-medium flex-shrink-0">✗</span>}
-                </div>
-              )
+                <OptionRenderer
+                  key={opt.id}
+                  label={opt.id.toUpperCase()}
+                  text={opt.text}
+                  isSelected={isUserAnswer && !isCorrectOption}
+                  isCorrect={isCorrectOption}
+                  isIncorrect={isUserAnswer && !isCorrectOption}
+                  showFeedback={true}
+                />
+              );
             })}
           </div>
         )}
@@ -175,7 +172,9 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
           </button>
         )}
         {showExplanation && q.content.explanation && (
-          <div className="mt-2 p-3 bg-blue-50 rounded-xl text-xs text-blue-900">{q.content.explanation}</div>
+          <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+            <RichContentRenderer content={q.content.explanation} variant="explanation" />
+          </div>
         )}
       </div>
     </div>
