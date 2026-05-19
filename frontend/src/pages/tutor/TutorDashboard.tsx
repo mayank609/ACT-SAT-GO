@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, TrendingUp, AlertTriangle, ChevronRight, Target, Shield, Eye, RefreshCw, AlertCircle, Clock, Zap, BookOpen, Activity } from 'lucide-react';
+import { Users, TrendingUp, AlertTriangle, ChevronRight, Target, Shield, Eye, RefreshCw, AlertCircle, Clock, Activity } from 'lucide-react';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { api, type DbUser } from '../../lib/api';
@@ -403,7 +403,7 @@ export function TutorDashboard() {
                           </div>
                         ) : (
                           allLogs.map((log: any) => {
-                            let typeBadge = <Badge variant="secondary" size="sm">EVENT</Badge>;
+                            let typeBadge = <Badge variant="default" size="sm">EVENT</Badge>;
                             if (log.eventType === 'TAB_SWITCH') {
                               typeBadge = <Badge variant="warning" size="sm" className="bg-amber-50 text-amber-700 border-amber-200">TAB SWITCH</Badge>;
                             } else if (log.eventType === 'FULLSCREEN_EXIT') {

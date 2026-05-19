@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Target, Clock, Award, Zap, AlertTriangle, AlertCircle, RefreshCw } from 'lucide-react';
+import { TrendingUp, Target, Clock, Award, Zap, AlertCircle } from 'lucide-react';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { api } from '../../lib/api';
@@ -402,7 +402,7 @@ export function MyProgressPage() {
                           } else if (q.timeSpentSeconds < 20 && q.status !== 'skipped') {
                             paceBadge = <Badge variant="warning" size="sm" className="bg-amber-50 text-amber-700 border-amber-200">Rushed</Badge>;
                           } else if (q.status === 'skipped') {
-                            paceBadge = <Badge variant="secondary" size="sm">Skipped</Badge>;
+                            paceBadge = <Badge variant="default" size="sm">Skipped</Badge>;
                           }
                           
                           return (

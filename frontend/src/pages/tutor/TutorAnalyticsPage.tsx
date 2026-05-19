@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { 
-  TrendingUp, AlertTriangle, Clock, Users, ArrowUpRight, 
-  CheckCircle2, Award, X,
+import {
+  TrendingUp, AlertTriangle, Clock, Users, ArrowUpRight,
+  CheckCircle2, Award,
   Timer, Gauge, Activity, AlertCircle, AlertOctagon
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
@@ -10,10 +10,8 @@ import { MOCK_STUDENTS, MOCK_TUTORS } from '../../data/mockData';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Legend, ScatterChart, Scatter, ReferenceLine
+  Legend, ScatterChart, Scatter, ReferenceLine
 } from 'recharts';
-
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
 
 // Custom mocks for student-specific topic performance
 const STUDENT_TOPIC_DATA: Record<string, { topic: string; accuracy: number; category: string }[]> = {
@@ -65,13 +63,6 @@ const DEFAULT_TOPIC_DATA = [
   { topic: 'Inference', accuracy: 60, category: 'Reading' },
 ];
 
-const HISTORICAL_TRENDS = [
-  { month: 'Oct', 'Alex Thompson': 22, 'Jordan Lee': 20, 'Morgan Davis': 18, 'Casey Wilson': 16 },
-  { month: 'Nov', 'Alex Thompson': 24, 'Jordan Lee': 22, 'Morgan Davis': 21, 'Casey Wilson': 19 },
-  { month: 'Dec', 'Alex Thompson': 25, 'Jordan Lee': 24, 'Morgan Davis': 23, 'Casey Wilson': 21 },
-  { month: 'Jan', 'Alex Thompson': 27, 'Jordan Lee': 25, 'Morgan Davis': 24, 'Casey Wilson': 22 },
-  { month: 'Feb', 'Alex Thompson': 28, 'Jordan Lee': 26, 'Morgan Davis': 27, 'Casey Wilson': 24 },
-];
 
 // Expanded student mocks
 const EXTENDED_STUDENTS = [

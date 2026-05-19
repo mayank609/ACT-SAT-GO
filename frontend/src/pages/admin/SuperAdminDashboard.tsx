@@ -6,8 +6,6 @@ import { Card, StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
-import type { Role } from '../../types';
-
 type TabKey = 'overview' | 'users' | 'permissions' | 'system';
 
 const roleColors: Record<string, string> = {
@@ -16,23 +14,6 @@ const roleColors: Record<string, string> = {
   tutor: 'bg-emerald-100 text-emerald-700',
   student: 'bg-amber-100 text-amber-700',
 };
-
-const PERMISSIONS: { permission: string; super_admin: boolean; admin: boolean; tutor: boolean; student: boolean }[] = [
-  { permission: 'Create Tests', super_admin: true, admin: true, tutor: false, student: false },
-  { permission: 'Edit Tests', super_admin: true, admin: true, tutor: false, student: false },
-  { permission: 'Delete Tests', super_admin: true, admin: false, tutor: false, student: false },
-  { permission: 'Assign Tests', super_admin: true, admin: true, tutor: false, student: false },
-  { permission: 'View All Students', super_admin: true, admin: true, tutor: false, student: false },
-  { permission: 'View Assigned Students', super_admin: true, admin: true, tutor: true, student: false },
-  { permission: 'Manage Tutors', super_admin: true, admin: true, tutor: false, student: false },
-  { permission: 'View Reports', super_admin: true, admin: true, tutor: true, student: false },
-  { permission: 'Export Reports', super_admin: true, admin: true, tutor: false, student: false },
-  { permission: 'Take Tests', super_admin: false, admin: false, tutor: false, student: true },
-  { permission: 'View Own Results', super_admin: false, admin: false, tutor: false, student: true },
-  { permission: 'Manage Users', super_admin: true, admin: false, tutor: false, student: false },
-  { permission: 'Platform Settings', super_admin: true, admin: false, tutor: false, student: false },
-  { permission: 'System Monitoring', super_admin: true, admin: true, tutor: false, student: false },
-];
 
 export function SuperAdminDashboard() {
   const [tab, setTab] = useState<TabKey>('overview');

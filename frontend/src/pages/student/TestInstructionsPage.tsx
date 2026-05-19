@@ -79,6 +79,8 @@ export function transformDbTest(raw: DbTest): Test {
           topic: '',
           difficulty,
           explanation: q.content.explanation ?? undefined,
+          marks: 1,
+          marksNegative: 0,
         }
       }),
     })),

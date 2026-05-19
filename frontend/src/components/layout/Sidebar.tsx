@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, FileText, BarChart3, Settings,
+  LayoutDashboard, FileText, BarChart3, Settings,
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
   Activity, UserCheck, Database, BookCheck, LifeBuoy
 } from 'lucide-react';

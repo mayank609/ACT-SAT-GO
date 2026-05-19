@@ -51,7 +51,7 @@ export function ReportsPage() {
 
   const trendData = analytics?.trend.map((t) => ({
     date: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    score: t.totalScore ?? 0,
+    score: t.score ?? 0,
     title: t.testTitle,
   })) ?? [];
 

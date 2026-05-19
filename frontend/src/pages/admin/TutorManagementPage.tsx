@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, MoreVertical, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, Search, BookOpen, UserMinus, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -147,7 +147,6 @@ export function TutorManagementPage() {
   });
 
   const totalStudents = tutors.reduce((a, t) => a + (t.studentCount ?? 0), 0);
-  const avgStudentsPerTutor = tutors.length ? (totalStudents / tutors.length).toFixed(1) : '0';
   
   const tutorsWithScores = tutors.filter(t => t.avgScore != null);
   const avgScore = tutorsWithScores.length
@@ -199,7 +198,7 @@ export function TutorManagementPage() {
                 hue === 1 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
                 hue === 2 ? 'bg-purple-50 text-purple-700 border-purple-100' :
                 'bg-emerald-50 text-emerald-700 border-emerald-100';
-              return <Badge key={s} variant="secondary" className={`${badgeStyle} font-normal text-xs`}>{s}</Badge>;
+              return <Badge key={s} variant="default" className={`${badgeStyle} font-normal text-xs`}>{s}</Badge>;
             })}
             {specs.length > 2 && (
               <Badge variant="default" className="bg-slate-100 text-slate-600 border-slate-200 text-xs font-normal">+{specs.length - 2}</Badge>

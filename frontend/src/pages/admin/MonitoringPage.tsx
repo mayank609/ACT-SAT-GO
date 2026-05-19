@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  Activity, AlertTriangle, Clock, Eye, RefreshCw, Users, Wifi, 
-  ShieldAlert, UserCheck, ShieldOff, AlertCircle, Copy, HelpCircle, 
-  Send, Ban, Bell, CheckCircle2, Monitor, Minimize2, Sparkles
+import {
+  Activity, AlertTriangle, Clock, Eye, RefreshCw, Wifi,
+  ShieldAlert, UserCheck, ShieldOff, AlertCircle, Copy,
+  Ban, Bell, Monitor, Minimize2
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
@@ -42,13 +42,6 @@ function formatTime(s: number) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
-}
 
 export function MonitoringPage() {
   const [attempts, setAttempts] = useState<EnhancedAttempt[]>([]);
@@ -466,9 +459,9 @@ export function MonitoringPage() {
 
               {/* Action Buttons Drawer */}
               <div className="space-y-2 border-t border-slate-100 pt-3">
-                <Button 
-                  variant="warning" 
-                  size="sm" 
+                <Button
+                  variant="secondary"
+                  size="sm"
                   className="w-full flex justify-center items-center gap-1.5 text-xs font-bold py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-xs"
                   onClick={() => handleSendWarning(selectedAttempt)}
                   disabled={warningSent}

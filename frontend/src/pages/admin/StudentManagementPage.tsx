@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Upload, UserPlus, Mail, BookOpen, TrendingUp, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Upload, UserPlus, TrendingUp, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
