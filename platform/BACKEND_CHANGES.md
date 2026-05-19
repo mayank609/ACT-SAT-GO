@@ -11,6 +11,65 @@ Format for each entry:
 
 ## Pending Changes
 
+### Change #010 — Clean database for client handoff [PENDING]
+
+**Type:** SEED
+**Requested by:** Mayank
+**Why:** Client wants a blank slate to enter their own questions. All dev/demo data (sample tests, questions, students, tutors, attempts) should be removed. Admin account must survive so client can log in.
+
+**What to run (one command, from `platform/` directory):**
+```bash
+npm run db:reset
+```
+
+**What it does:**
+- Deletes: CheatingLogs, AttemptAnswers, SectionAttempts, TestAttempts, TestQuestions, TestSections, Tests, Questions, Topics, TutorAssignments, all STUDENT and TUTOR users
+- Keeps: all ADMIN and SUPER_ADMIN user accounts (so client can log in)
+- Safety: if zero admins remain after wipe, creates `admin@actsat.com` as fallback
+
+**After running, client logs in as admin and:**
+1. Creates questions via Test Builder (manual entry, CSV, image OCR, or PDF import)
+2. Adds their own tutors and students via the admin panel
+3. Publishes tests
+
+**Do NOT run `npm run db:seed` after this** — that will repopulate with demo data.
+
+---
+
+### Change #009 — Deployment: Render (backend) + Vercel (frontend) [PENDING]
+
+**Type:** ENV + CONFIG
+**Requested by:** Mayank
+**Why:** Client demo — deploying backend to Render, frontend to Vercel.
+
+**What Sunanda needs to do on Render:**
+
+Set these environment variables in Render dashboard → act-sat-platform → Environment:
+
+| Key | Value |
+|-----|-------|
+| `DATABASE_URL` | Supabase pooler URL — Settings → Database → Connection string (Transaction mode, port 6543) |
+| `DIRECT_URL` | Supabase direct URL — same page, port 5432 (needed for Prisma migrations) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `UPSTASH_REDIS_REST_URL` | Upstash REST URL |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash REST token |
+| `CORS_ORIGIN` | Set AFTER Vercel deploys frontend — paste the Vercel URL (e.g. `https://act-sat-go.vercel.app`) |
+| `NODE_ENV` | `production` |
+
+**Deploy order:**
+1. Deploy backend to Render first → copy the Render URL (e.g. `https://act-sat-platform.onrender.com`)
+2. Deploy frontend to Vercel → set `VITE_API_URL` = the Render URL above
+3. Copy the Vercel URL → go back to Render → set `CORS_ORIGIN` = the Vercel URL
+4. Trigger a redeploy on Render (Manual Deploy) so CORS_ORIGIN takes effect
+
+**Test it by:**
+- `GET https://act-sat-platform.onrender.com/api/health` → should return `{ "status": "ok" }`
+- Open the Vercel frontend URL → should load the login page with no CORS errors
+
+---
+
 ### Change #008 — Admin module: delete user endpoint + platform analytics [PENDING]
 
 **Type:** CODE
