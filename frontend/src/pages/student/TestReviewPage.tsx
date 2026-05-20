@@ -125,9 +125,16 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
           </div>
           {correct ? <CheckCircle size={14} className="text-emerald-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-red-500'} />}
         </div>
+<<<<<<< HEAD
         <p className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0">
           <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
         </p>
+=======
+        <div
+          className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 prose prose-slate max-w-none"
+          dangerouslySetInnerHTML={{ __html: q.content.text || `Question ${index + 1}` }}
+        />
+>>>>>>> a4f8073 (added some features improve things as per client)
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {studentAnswer?.timeSpentSeconds ? (
             <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>

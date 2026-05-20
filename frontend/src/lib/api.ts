@@ -160,6 +160,17 @@ export const api = {
       }>
     }>(`/api/questions${qs.toString() ? '?' + qs.toString() : ''}`)
   },
+  createQuestion: (body: {
+    type: string
+    text: string
+    options?: Array<{ id: string; text: string }>
+    correctAnswer: string | string[] | number
+    difficulty: string
+    topic?: string
+    explanation?: string
+    marks?: number
+    marksNegative?: number
+  }) => request<{ question: unknown }>('/api/questions', { method: 'POST', body: JSON.stringify(body) }),
   deleteQuestion: (id: string) =>
     request<{ success: boolean }>(`/api/questions?id=${id}`, { method: 'DELETE' }),
 

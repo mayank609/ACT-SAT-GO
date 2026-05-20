@@ -145,16 +145,33 @@ export function TestsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                  <Button variant="ghost" size="sm" icon={<Eye size={13} />} className="flex-1 justify-center"
-                    onClick={() => navigate(`/test-instructions/${test.id}`)}>
-                    Preview
-                  </Button>
-                  <button
-                    onClick={() => navigate(`/test-builder?testId=${test.id}`)}
-                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <Edit size={14} />
-                  </button>
+                  {statusLower === 'draft' ? (
+                    <>
+                      <Button variant="ghost" size="sm" icon={<Edit size={13} />} className="flex-1 justify-center"
+                        onClick={() => navigate(`/test-builder?testId=${test.id}`)}>
+                        Edit
+                      </Button>
+                      <button
+                        onClick={() => navigate(`/test-instructions/${test.id}`)}
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                      >
+                        <Eye size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="sm" icon={<Eye size={13} />} className="flex-1 justify-center"
+                        onClick={() => navigate(`/test-instructions/${test.id}`)}>
+                        Preview
+                      </Button>
+                      <button
+                        onClick={() => navigate(`/test-builder?testId=${test.id}`)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Edit size={14} />
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => setDeleteModal(test)}
                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

@@ -11,6 +11,199 @@ Format for each entry:
 
 ## Pending Changes
 
+### Change #011 — Extend PATCH /api/tests/[testId] to support full sections+questions update [DONE]
+
+**Type:** CODE
+**Requested by:** Mayank
+**Why:** Admin panel now supports editing a saved draft — the Test Builder loads the existing test and lets the admin add/edit questions. On save it calls `PATCH /api/tests/[testId]` with full sections payload. Current PATCH only handles title/description/status; this change adds section replacement so the edit saves correctly.
+
+**File to edit:** `src/app/api/tests/[testId]/route.ts`
+
+**What to do:** In the PATCH handler, after updating title/description/status, check if `body.sections` is present. If so, delete all existing TestSections for this test (cascade deletes TestQuestion join rows automatically), then recreate sections and questions exactly like the POST handler does.
+
+**Exact change — replace the entire `PATCH` export with this:**
+
+```typescript
+// ── PATCH ─────────────────────────────────────────────────────────────────────
+
+const STATUS_MAP: Record<string, 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'> = {
+  draft: 'DRAFT',
+  published: 'PUBLISHED',
+  archived: 'ARCHIVED',
+}
+
+type FrontendType = 'mcq_single' | 'mcq_multi' | 'numeric'
+type FrontendDifficulty = 'easy' | 'medium' | 'hard'
+
+const TYPE_MAP: Record<FrontendType, 'MCQ' | 'MSQ' | 'NUMERIC'> = {
+  mcq_single: 'MCQ',
+  mcq_multi: 'MSQ',
+  numeric: 'NUMERIC',
+}
+
+const DIFF_MAP: Record<FrontendDifficulty, 'EASY' | 'MEDIUM' | 'HARD'> = {
+  easy: 'EASY',
+  medium: 'MEDIUM',
+  hard: 'HARD',
+}
+
+function transformOptions(options: Array<{ id: string; text: string }>): Prisma.InputJsonValue {
+  const result: Record<string, string> = {}
+  for (const opt of options) result[opt.id.toUpperCase()] = opt.text
+  return result as Prisma.InputJsonValue
+}
+
+function transformCorrectAnswer(answer: string | string[] | number): Prisma.InputJsonValue {
+  if (typeof answer === 'number') return { value: answer } as Prisma.InputJsonValue
+  if (Array.isArray(answer)) return { keys: answer.map((k) => k.toUpperCase()) } as Prisma.InputJsonValue
+  return { key: answer.toUpperCase() } as Prisma.InputJsonValue
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ testId: string }> }
+) {
+  const { testId } = await params
+
+  let body: {
+    status?: string
+    title?: string
+    description?: string
+    sections?: Array<{
+      name: string
+      timeLimit: number
+      questions: Array<{
+        text: string
+        type: FrontendType
+        options?: Array<{ id: string; text: string }>
+        correctAnswer: string | string[] | number
+        topic?: string
+        difficulty: FrontendDifficulty
+        explanation?: string
+        marks?: number
+        marksNegative?: number
+      }>
+    }>
+  }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  try {
+    // ── 1. Update scalar fields ────────────────────────────────────────────────
+    const scalarData: { status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; title?: string; description?: string } = {}
+    if (body.title !== undefined) scalarData.title = body.title
+    if (body.description !== undefined) scalarData.description = body.description
+    if (body.status !== undefined) {
+      const mapped = STATUS_MAP[body.status.toLowerCase()]
+      if (!mapped) return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })
+      scalarData.status = mapped
+    }
+
+    if (!body.sections && Object.keys(scalarData).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+    }
+
+    if (!body.sections) {
+      // Simple scalar-only update (status/title/description)
+      const test = await prisma.test.update({
+        where: { id: testId },
+        data: scalarData,
+        include: {
+          sections: {
+            orderBy: { orderIndex: 'asc' },
+            include: { _count: { select: { questions: true } } },
+          },
+          _count: { select: { attempts: true } },
+        },
+      })
+      return NextResponse.json({ test })
+    }
+
+    // ── 2. Full sections+questions replacement ────────────────────────────────
+    const allTopics = await prisma.topic.findMany({ select: { id: true, name: true } })
+    const topicMap = new Map(allTopics.map((t) => [t.name.toLowerCase(), t.id]))
+
+    const test = await prisma.$transaction(async (tx) => {
+      // Update scalar fields
+      if (Object.keys(scalarData).length > 0) {
+        await tx.test.update({ where: { id: testId }, data: scalarData })
+      }
+
+      // Delete all existing sections (cascades to TestQuestion join rows)
+      await tx.testSection.deleteMany({ where: { testId } })
+
+      // Recreate sections and questions
+      for (let sIdx = 0; sIdx < body.sections!.length; sIdx++) {
+        const sec = body.sections![sIdx]
+        const newSection = await tx.testSection.create({
+          data: { testId, name: sec.name, durationMinutes: sec.timeLimit, orderIndex: sIdx },
+        })
+
+        for (let qIdx = 0; qIdx < sec.questions.length; qIdx++) {
+          const q = sec.questions[qIdx]
+          const dbType = TYPE_MAP[q.type]
+          if (!dbType) throw new Error(`Invalid question type: ${q.type}`)
+          const dbDiff = DIFF_MAP[q.difficulty]
+          if (!dbDiff) throw new Error(`Invalid difficulty: ${q.difficulty}`)
+          const topicId = q.topic ? (topicMap.get(q.topic.toLowerCase()) ?? null) : null
+
+          const newQuestion = await tx.question.create({
+            data: {
+              type: dbType,
+              content: { text: q.text, explanation: q.explanation ?? null } as Prisma.InputJsonValue,
+              options: q.options ? transformOptions(q.options) : Prisma.DbNull,
+              correctAnswer: transformCorrectAnswer(q.correctAnswer),
+              difficultyLevel: dbDiff,
+              topicId,
+            },
+          })
+
+          await tx.testQuestion.create({
+            data: {
+              testId,
+              sectionId: newSection.id,
+              questionId: newQuestion.id,
+              orderIndex: qIdx,
+              marksPositive: q.marks ?? 1,
+              marksNegative: q.marksNegative ?? 0,
+            },
+          })
+        }
+      }
+
+      return tx.test.findUnique({
+        where: { id: testId },
+        include: {
+          sections: {
+            orderBy: { orderIndex: 'asc' },
+            include: { _count: { select: { questions: true } } },
+          },
+          _count: { select: { attempts: true } },
+        },
+      })
+    })
+
+    return NextResponse.json({ test })
+  } catch (error) {
+    console.error('PATCH /api/tests/[testId]:', error)
+    return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
+  }
+}
+```
+
+Also add `import { Prisma } from '@prisma/client'` at the top of the file (it's already imported in `route.ts` at `/api/tests/route.ts` but not in the `[testId]/route.ts` file).
+
+**Test it by:**
+- Open the admin panel → Tests → click Edit (pencil icon) on any draft
+- Verify the builder loads with existing title, sections, and questions
+- Add a new question → click Update
+- Go back to Tests list → the draft should show the updated question count
+
+---
+
 ### Change #010 — Clean database for client handoff [PENDING]
 
 **Type:** SEED

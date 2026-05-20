@@ -402,9 +402,16 @@ export function TestInterfacePage() {
               </div>
             </div>
 
+<<<<<<< HEAD
             <div className="text-sm md:text-base text-slate-900 leading-relaxed mb-5 md:mb-6">
               <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
             </div>
+=======
+            <div
+              className="text-sm md:text-base text-slate-900 leading-relaxed mb-5 md:mb-6 prose prose-slate max-w-none"
+              dangerouslySetInnerHTML={{ __html: currentQuestion.text || `Question ${currentQIdx + 1}` }}
+            />
+>>>>>>> a4f8073 (added some features improve things as per client)
 
             {/* MCQ options */}
             {(currentQuestion.type === 'mcq_single' || currentQuestion.type === 'mcq_multi') && currentQuestion.options && (

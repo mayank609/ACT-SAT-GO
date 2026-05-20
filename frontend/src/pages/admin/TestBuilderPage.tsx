@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon, Database, Search } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -893,10 +893,169 @@ function QuestionCSVUploader({ sectionName, onImport, onClose }: CSVUploaderProp
   );
 }
 
+// ── Bank Picker Modal ────────────────────────────────────────────────────────
+
+type BankQuestion = Awaited<ReturnType<typeof api.getQuestions>>['questions'][0];
+
+const BANK_DIFF_VARIANT: Record<string, 'success' | 'warning' | 'danger'> = { EASY: 'success', MEDIUM: 'warning', HARD: 'danger' };
+
+function BankPickerModal({ onAdd, onClose }: { onAdd: (questions: Question[]) => void; onClose: () => void }) {
+  const [bankQs, setBankQs] = useState<BankQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [diffFilter, setDiffFilter] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    api.getQuestions().then((res) => setBankQs(res.questions)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const filtered = bankQs.filter((q) => {
+    const text = ((q.content as Record<string, unknown>).text as string) ?? '';
+    return (
+      (!typeFilter || q.type === typeFilter) &&
+      (!diffFilter || q.difficultyLevel === diffFilter) &&
+      (!search || text.toLowerCase().includes(search.toLowerCase()))
+    );
+  });
+
+  const toggle = (id: string) => setSelected((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const handleAdd = () => {
+    const TYPE_MAP: Record<string, QuestionType> = { MCQ: 'mcq_single', MSQ: 'mcq_multi', NUMERIC: 'numeric' };
+    const DIFF_MAP: Record<string, Difficulty> = { EASY: 'easy', MEDIUM: 'medium', HARD: 'hard' };
+
+    const mapped: Question[] = bankQs
+      .filter((q) => selected.has(q.id))
+      .map((q) => {
+        const content = q.content as { text: string; explanation?: string };
+        const rawOptions = q.options as Record<string, string> | null;
+        const options = rawOptions
+          ? Object.entries(rawOptions).map(([k, v]) => ({ id: k.toLowerCase(), text: v }))
+          : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
+
+        const ca = (q.correctAnswer ?? {}) as Record<string, unknown>;
+        let correctAnswer: string | string[] | number;
+        if (ca.value !== undefined) correctAnswer = ca.value as number;
+        else if (ca.keys) correctAnswer = (ca.keys as string[]).map((k: string) => k.toLowerCase());
+        else correctAnswer = ((ca.key as string) ?? 'a').toLowerCase();
+
+        return {
+          id: generateId(),
+          text: content.text ?? '',
+          type: (TYPE_MAP[q.type] ?? 'mcq_single') as QuestionType,
+          options,
+          correctAnswer,
+          difficulty: (DIFF_MAP[q.difficultyLevel] ?? 'medium') as Difficulty,
+          topic: q.topic?.name ?? '',
+          explanation: content.explanation ?? undefined,
+          marks: 1,
+          marksNegative: 0,
+        };
+      });
+
+    onAdd(mapped);
+    onClose();
+  };
+
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      title="Add from Question Bank"
+      size="lg"
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <span className="text-sm text-slate-500">{selected.size} selected</span>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+            <Button size="sm" icon={<Plus size={13} />} onClick={handleAdd} disabled={selected.size === 0}>
+              Add {selected.size > 0 ? `${selected.size} Question${selected.size > 1 ? 's' : ''}` : 'Questions'}
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        {/* Filters */}
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex-1 min-w-40 relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search questions..."
+              className="w-full pl-7 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Types</option>
+            <option value="MCQ">MCQ Single</option>
+            <option value="MSQ">MCQ Multi</option>
+            <option value="NUMERIC">Numeric</option>
+          </select>
+          <select value={diffFilter} onChange={(e) => setDiffFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Levels</option>
+            <option value="EASY">Easy</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HARD">Hard</option>
+          </select>
+        </div>
+
+        {/* List */}
+        <div className="max-h-96 overflow-y-auto space-y-1.5 pr-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 gap-2 text-slate-400">
+              <Loader2 size={18} className="animate-spin" />
+              <span className="text-sm">Loading bank…</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">
+              <Database size={28} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No questions match your filters</p>
+            </div>
+          ) : (
+            filtered.map((q) => {
+              const text = ((q.content as Record<string, unknown>).text as string ?? '').replace(/<[^>]*>/g, '').slice(0, 100);
+              const isSelected = selected.has(q.id);
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => toggle(q.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${
+                    isSelected ? 'border-blue-500 bg-blue-50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                    isSelected ? 'border-blue-500 bg-blue-500' : 'border-slate-300'
+                  }`}>
+                    {isSelected && <CheckCircle2 size={10} className="text-white" />}
+                  </div>
+                  <p className="flex-1 text-sm text-slate-700 truncate">{text || 'Untitled'}</p>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Badge variant="info" size="sm">{q.type}</Badge>
+                    <Badge variant={BANK_DIFF_VARIANT[q.difficultyLevel] ?? 'default'} size="sm">{q.difficultyLevel}</Badge>
+                    {q.topic && <span className="text-xs text-slate-400 hidden sm:inline">{q.topic.name}</span>}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Test Builder ─────────────────────────────────────────────────────────────
 
 export function TestBuilderPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, dbId } = useAuthStore();
 
   const [testTitle, setTestTitle] = useState('');
@@ -910,6 +1069,9 @@ export function TestBuilderPage() {
   const [showPDFUploader, setShowPDFUploader] = useState(false);
   const [saved, setSaved] = useState(false);
   const [titleError, setTitleError] = useState(false);
+  const [editTestId, setEditTestId] = useState<string | null>(null);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+  const [showBankPicker, setShowBankPicker] = useState(false);
 
   const [testSettings, setTestSettings] = useState({
     allowBackNavigation: false,
@@ -942,8 +1104,71 @@ export function TestBuilderPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  // Restore unsaved draft from localStorage on mount
+  // Load existing test into builder when editing
   useEffect(() => {
+    const testId = searchParams.get('testId');
+    if (!testId) return;
+
+    setEditTestId(testId);
+    setIsLoadingEdit(true);
+
+    api.getTest(testId).then((data: any) => {
+      const test = data.test as any;
+      setTestTitle(test.title ?? '');
+      setTestDesc(test.description ?? '');
+      setTestSettings((prev) => ({
+        ...prev,
+        publishStatus: (test.status?.toLowerCase() ?? 'draft') as TestStatus,
+      }));
+
+      const TYPE_MAP: Record<string, QuestionType> = { MCQ: 'mcq_single', MSQ: 'mcq_multi', NUMERIC: 'numeric' };
+      const DIFF_MAP: Record<string, Difficulty> = { EASY: 'easy', MEDIUM: 'medium', HARD: 'hard' };
+
+      const mappedSections: Section[] = (test.sections ?? []).map((sec: any) => ({
+        id: generateId(),
+        name: sec.name,
+        timeLimit: sec.durationMinutes,
+        questions: (sec.questions ?? []).map((tq: any) => {
+          const q = tq.question;
+          const content = q.content as { text: string; explanation?: string };
+          const rawOptions = q.options as Record<string, string> | null;
+          const options = rawOptions
+            ? Object.entries(rawOptions).map(([k, v]) => ({ id: k.toLowerCase(), text: v as string }))
+            : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
+
+          const ca = (q.correctAnswer ?? {}) as Record<string, unknown>;
+          let correctAnswer: string | string[] | number;
+          if (ca.value !== undefined) correctAnswer = ca.value as number;
+          else if (ca.keys) correctAnswer = (ca.keys as string[]).map((k: string) => k.toLowerCase());
+          else correctAnswer = ((ca.key as string) ?? 'a').toLowerCase();
+
+          return {
+            id: generateId(),
+            text: content?.text ?? '',
+            type: (TYPE_MAP[q.type] ?? 'mcq_single') as QuestionType,
+            options,
+            correctAnswer,
+            difficulty: (DIFF_MAP[q.difficultyLevel] ?? 'medium') as Difficulty,
+            topic: q.topic?.name ?? '',
+            explanation: content?.explanation ?? undefined,
+            marks: tq.marksPositive ?? 1,
+            marksNegative: tq.marksNegative ?? 0,
+          } as Question;
+        }),
+      }));
+
+      setSections(mappedSections.length > 0 ? mappedSections : [newSection()]);
+    }).catch(() => {
+      toast.error('Failed to load test for editing');
+    }).finally(() => {
+      setIsLoadingEdit(false);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Restore unsaved draft from localStorage on mount (skipped when editing an existing test)
+  useEffect(() => {
+    if (searchParams.get('testId')) return;
     const draft = localStorage.getItem('test_builder_draft');
     if (draft) {
       try {
@@ -995,15 +1220,24 @@ export function TestBuilderPage() {
     }
     setTitleError(false);
     try {
-      await api.createTest({
-        title: testTitle.trim(),
-        description: testDesc.trim() || undefined,
-        sections,
-        status: testSettings.publishStatus,
-        createdById: dbId ?? user?.id ?? '',
-        allowBackNavigation: testSettings.allowBackNavigation,
-        showResults: testSettings.showResults,
-      });
+      if (editTestId) {
+        await api.updateTest(editTestId, {
+          title: testTitle.trim(),
+          description: testDesc.trim() || undefined,
+          sections,
+          status: testSettings.publishStatus,
+        });
+      } else {
+        await api.createTest({
+          title: testTitle.trim(),
+          description: testDesc.trim() || undefined,
+          sections,
+          status: testSettings.publishStatus,
+          createdById: dbId ?? user?.id ?? '',
+          allowBackNavigation: testSettings.allowBackNavigation,
+          showResults: testSettings.showResults,
+        });
+      }
       setSaved(true);
       setTimeout(() => navigate('/tests'), 1000);
     } catch {
@@ -1011,14 +1245,32 @@ export function TestBuilderPage() {
     }
   };
 
+  if (isLoadingEdit) {
+    return (
+      <div className="flex items-center justify-center h-64 gap-3 text-slate-500">
+        <Loader2 size={20} className="animate-spin" />
+        <span>Loading test for editing…</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Toaster position="bottom-right" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Test Builder</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Create and manage test content</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Test Builder</h1>
+            {editTestId && (
+              <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                Editing
+              </span>
+            )}
+          </div>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {editTestId ? 'Edit questions and sections, then save.' : 'Create and manage test content'}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" icon={<Settings2 size={14} />} onClick={() => setShowSettings(true)}>Settings</Button>
@@ -1049,7 +1301,7 @@ export function TestBuilderPage() {
           </div>
 
           <Button size="sm" icon={<Save size={14} />} onClick={handleSave} variant={saved ? 'success' : 'primary'} disabled={saved}>
-            {saved ? '✓ Saved' : testSettings.publishStatus === 'published' ? 'Publish' : 'Save Draft'}
+            {saved ? '✓ Saved' : editTestId ? 'Update' : testSettings.publishStatus === 'published' ? 'Publish' : 'Save Draft'}
           </Button>
         </div>
       </div>
@@ -1153,9 +1405,12 @@ export function TestBuilderPage() {
                   ))}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button variant="secondary" onClick={addQuestion} icon={<Plus size={13} />} className="flex-1 py-3 border-dashed">
                     Add Question
+                  </Button>
+                  <Button variant="secondary" onClick={() => setShowBankPicker(true)} icon={<Database size={13} />} className="py-3 border-dashed px-4">
+                    From Bank
                   </Button>
                   <Button variant="secondary" onClick={() => setShowCSVUploader(true)} icon={<Upload size={13} />} className="py-3 border-dashed px-4">
                     Import CSV
@@ -1167,6 +1422,13 @@ export function TestBuilderPage() {
                     Import PDF
                   </Button>
                 </div>
+
+                {showBankPicker && (
+                  <BankPickerModal
+                    onAdd={(qs) => updateSection(activeSectionIdx, { questions: [...activeSection.questions, ...qs] })}
+                    onClose={() => setShowBankPicker(false)}
+                  />
+                )}
               </div>
             </div>
           </div>
