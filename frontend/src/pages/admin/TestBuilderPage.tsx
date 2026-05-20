@@ -48,10 +48,9 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
 
   const handleSaveQuestion = async () => {
     setIsSaving(true);
-    // Simulate high-speed database autosave block
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, 300));
     setIsSaving(false);
-    toast.success(`Question ${index + 1} saved successfully!`);
+    toast.success(`Question ${index + 1} updated. Click 'Update' at the top to save all changes.`, { duration: 4000 });
   };
 
   return (
@@ -1248,8 +1247,9 @@ export function TestBuilderPage() {
       }
       setSaved(true);
       setTimeout(() => navigate('/tests'), 1000);
-    } catch {
-      // keep button enabled so user can retry
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save test';
+      toast.error(msg);
     }
   };
 
