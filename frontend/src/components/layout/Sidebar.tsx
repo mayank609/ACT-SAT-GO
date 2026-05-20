@@ -1,23 +1,58 @@
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, BarChart3, Settings,
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
-  Activity, UserCheck, Database, BookCheck, LifeBuoy, History
+  Activity, UserCheck, Database, BookCheck, LifeBuoy, History, ChevronDown
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';
+
+interface NavSubItem {
+  label: string;
+  path: string;
+  subItems?: { label: string; path: string }[];
+}
 
 interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
   roles: Role[];
+  subItems?: NavSubItem[];
 }
 
 // Student-focused navigation (clean and minimal)
 const studentNavItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['student'] },
-  { label: 'Tests', path: '/my-tests', icon: <ClipboardList size={18} />, roles: ['student'] },
+  {
+    label: 'Tests',
+    path: '/my-tests',
+    icon: <ClipboardList size={18} />,
+    roles: ['student'],
+    subItems: [
+      { label: 'Mock', path: '/my-tests?category=Mock' },
+      {
+        label: 'Sectional',
+        path: '/my-tests?category=Sectional',
+        subItems: [
+          { label: 'English', path: '/my-tests?category=Sectional&subCategory=English' },
+          { label: 'Maths', path: '/my-tests?category=Sectional&subCategory=Maths' },
+        ],
+      },
+      { label: 'Micro', path: '/my-tests?category=Micro' },
+      {
+        label: 'Practice Sheet',
+        path: '/my-tests?category=Practice Sheet',
+        subItems: [
+          { label: 'Reading', path: '/my-tests?category=Practice Sheet&subCategory=Reading' },
+          { label: 'Writing', path: '/my-tests?category=Practice Sheet&subCategory=Writing' },
+          { label: 'Math', path: '/my-tests?category=Practice Sheet&subCategory=Math' },
+        ],
+      },
+      { label: 'Diagnostic', path: '/my-tests?category=Diagnostic' },
+    ],
+  },
   { label: 'Analytics', path: '/my-progress', icon: <BarChart3 size={18} />, roles: ['student'] },
   { label: 'Review Attempts', path: '/review-attempts', icon: <History size={18} />, roles: ['student'] },
   { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['student'] },
@@ -59,6 +94,12 @@ interface SidebarProps {
 export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [expandedItems, setExpandedItems] = React.useState<Record<string, boolean>>({});
+
+  const toggleExpand = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    setExpandedItems(prev => ({ ...prev, [path]: !prev[path] }));
+  };
 
   const filteredNav = navItems.filter((item) => user && item.roles.includes(user.role));
 
@@ -88,31 +129,90 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
       {/* Nav items */}
       <nav className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto scrollbar-hide">
         {filteredNav.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden ${
-                isActive
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-              } ${collapsed ? 'justify-center' : ''}`
-            }
-            title={collapsed ? item.label : undefined}
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
-                )}
-                <span className={`flex-shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
-                  {item.icon}
-                </span>
-                {!collapsed && <span className="truncate">{item.label}</span>}
-              </>
+          <div key={item.path}>
+            <NavLink
+              to={item.path}
+              end={item.path === '/my-tests' ? false : undefined}
+              onClick={(e) => {
+                if (item.subItems && !collapsed) toggleExpand(e, item.path);
+                else setMobileOpen(false);
+              }}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                } ${collapsed ? 'justify-center' : ''}`
+              }
+              title={collapsed ? item.label : undefined}
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && !item.subItems && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                  )}
+                  <span className={`flex-shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                    {item.icon}
+                  </span>
+                  {!collapsed && (
+                    <>
+                      <span className="truncate flex-1">{item.label}</span>
+                      {item.subItems && (
+                        <ChevronDown size={14} className={`transition-transform ${expandedItems[item.path] ? 'rotate-180' : ''}`} />
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </NavLink>
+            
+            {/* First level sub-items */}
+            {!collapsed && item.subItems && expandedItems[item.path] && (
+              <div className="ml-7 mt-1 border-l border-slate-200 pl-2 space-y-1">
+                {item.subItems.map(subItem => (
+                  <div key={subItem.path}>
+                    <NavLink
+                      to={subItem.path}
+                      onClick={(e) => {
+                        if (subItem.subItems) toggleExpand(e, subItem.path);
+                        else setMobileOpen(false);
+                      }}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isActive && !subItem.subItems ? 'text-blue-700 bg-blue-50 font-semibold' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-medium'
+                        }`
+                      }
+                    >
+                      <span>{subItem.label}</span>
+                      {subItem.subItems && (
+                        <ChevronDown size={14} className={`transition-transform ${expandedItems[subItem.path] ? 'rotate-180' : ''}`} />
+                      )}
+                    </NavLink>
+                    
+                    {/* Second level sub-items */}
+                    {subItem.subItems && expandedItems[subItem.path] && (
+                      <div className="ml-4 mt-1 border-l border-slate-200 pl-2 space-y-1">
+                        {subItem.subItems.map(subSubItem => (
+                          <NavLink
+                            key={subSubItem.path}
+                            to={subSubItem.path}
+                            onClick={() => setMobileOpen(false)}
+                            className={({ isActive }) =>
+                              `block px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                                isActive ? 'text-blue-700 bg-blue-50 font-semibold' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                              }`
+                            }
+                          >
+                            {subSubItem.label}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
-          </NavLink>
+          </div>
         ))}
       </nav>
 

@@ -1079,6 +1079,8 @@ export function TestBuilderPage() {
     enforceFullscreen: false,
     trackTabSwitching: true,
     publishStatus: 'draft' as TestStatus,
+    category: '',
+    subCategory: '',
   });
 
   const activeSection = sections[activeSectionIdx];
@@ -1119,6 +1121,8 @@ export function TestBuilderPage() {
       setTestSettings((prev) => ({
         ...prev,
         publishStatus: (test.status?.toLowerCase() ?? 'draft') as TestStatus,
+        category: test.category ?? '',
+        subCategory: test.subCategory ?? '',
       }));
 
       const TYPE_MAP: Record<string, QuestionType> = { MCQ: 'mcq_single', MSQ: 'mcq_multi', NUMERIC: 'numeric' };
@@ -1226,6 +1230,8 @@ export function TestBuilderPage() {
           description: testDesc.trim() || undefined,
           sections,
           status: testSettings.publishStatus,
+          category: testSettings.category || undefined,
+          subCategory: testSettings.subCategory || undefined,
         });
       } else {
         await api.createTest({
@@ -1233,6 +1239,8 @@ export function TestBuilderPage() {
           description: testDesc.trim() || undefined,
           sections,
           status: testSettings.publishStatus,
+          category: testSettings.category || undefined,
+          subCategory: testSettings.subCategory || undefined,
           createdById: dbId ?? user?.id ?? '',
           allowBackNavigation: testSettings.allowBackNavigation,
           showResults: testSettings.showResults,
@@ -1583,6 +1591,47 @@ export function TestBuilderPage() {
               <option value="published">Published</option>
               <option value="archived">Archived</option>
             </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
+              <select
+                value={testSettings.category}
+                onChange={(e) => setTestSettings((prev) => ({ ...prev, category: e.target.value, subCategory: '' }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">None</option>
+                <option value="Mock">Mock</option>
+                <option value="Sectional">Sectional</option>
+                <option value="Micro">Micro</option>
+                <option value="Practice Sheet">Practice Sheet</option>
+                <option value="Diagnostic">Diagnostic</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Sub-Category</label>
+              <select
+                value={testSettings.subCategory}
+                onChange={(e) => setTestSettings((prev) => ({ ...prev, subCategory: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!testSettings.category}
+              >
+                <option value="">None</option>
+                {testSettings.category === 'Sectional' && (
+                  <>
+                    <option value="English">English</option>
+                    <option value="Maths">Maths</option>
+                  </>
+                )}
+                {testSettings.category === 'Practice Sheet' && (
+                  <>
+                    <option value="Reading">Reading</option>
+                    <option value="Writing">Writing</option>
+                    <option value="Math">Math</option>
+                  </>
+                )}
+              </select>
+            </div>
           </div>
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowSettings(false)}>Apply</Button>

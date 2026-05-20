@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BookOpen, Clock, Play, RotateCcw, Target, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -11,6 +11,8 @@ interface ApiTest {
   testId: string;
   title: string;
   description?: string;
+  category?: string;
+  subCategory?: string;
   dueDate?: string;
   availableFrom?: string;
   availableUntil?: string;
@@ -25,10 +27,14 @@ interface ApiTest {
 
 export function MyTestsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { dbId } = useAuthStore();
 
   const [tests, setTests] = useState<ApiTest[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const categoryFilter = searchParams.get('category');
+  const subCategoryFilter = searchParams.get('subCategory');
 
   useEffect(() => {
     async function load() {
@@ -49,6 +55,12 @@ export function MyTestsPage() {
     load();
   }, [dbId]);
 
+  const filteredTests = tests.filter(t => {
+    if (categoryFilter && t.category !== categoryFilter) return false;
+    if (subCategoryFilter && t.subCategory !== subCategoryFilter) return false;
+    return true;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-40">
@@ -60,11 +72,11 @@ export function MyTestsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">My Tests</h1>
-        <p className="text-slate-400 text-sm mt-0.5">{tests.length} test{tests.length !== 1 ? 's' : ''} available</p>
+        <h1 className="text-xl font-semibold text-slate-900">My Tests {categoryFilter ? `- ${categoryFilter}` : ''} {subCategoryFilter ? `(${subCategoryFilter})` : ''}</h1>
+        <p className="text-slate-400 text-sm mt-0.5">{filteredTests.length} test{filteredTests.length !== 1 ? 's' : ''} available</p>
       </div>
 
-      {tests.length === 0 && (
+      {filteredTests.length === 0 && (
         <div className="text-center py-16 bg-white rounded-xl border border-slate-100">
           <BookOpen size={32} className="text-slate-300 mx-auto mb-3" />
           <p className="text-slate-500 text-sm">No tests available yet</p>
@@ -72,7 +84,7 @@ export function MyTestsPage() {
       )}
 
       <div className="space-y-2">
-        {tests.map((test) => {
+        {filteredTests.map((test) => {
           const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
           const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
           const availability = `${test.availableFrom ? new Date(test.availableFrom).toLocaleString() : 'Now'} - ${test.availableUntil ? new Date(test.availableUntil).toLocaleString() : 'No end'}`;

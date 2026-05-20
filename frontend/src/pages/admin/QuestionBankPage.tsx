@@ -21,6 +21,8 @@ const TOPICS = ['Algebra', 'Geometry', 'Trigonometry', 'Statistics', 'Grammar', 
 
 interface DraftQuestion {
   id: string;
+  referenceId: string;
+  subject: string;
   text: string;
   type: QType;
   options: { id: string; text: string }[];
@@ -35,6 +37,8 @@ interface DraftQuestion {
 function emptyDraft(): DraftQuestion {
   return {
     id: Math.random().toString(36).substr(2, 9),
+    referenceId: '',
+    subject: '',
     type: 'mcq_single',
     text: '',
     options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }],
@@ -59,6 +63,8 @@ async function saveQuestionsToBank(questions: DraftQuestion[]): Promise<Question
         correctAnswer: q.correctAnswer,
         difficulty: q.difficulty,
         topic: q.topic || undefined,
+        subject: q.subject || undefined,
+        referenceId: q.referenceId || undefined,
         explanation: q.explanation || undefined,
         marks: q.marks,
         marksNegative: q.marksNegative,
@@ -178,7 +184,7 @@ function parseCSVContent(text: string): CSVParseResult[] {
 
   for (let i = 1; i < lines.length; i++) {
     const f = parseCSVLine(lines[i]);
-    const [typeRaw = '', qText = '', optA = '', optB = '', optC = '', optD = '', ansRaw = '', diffRaw = '', expl = '', marksRaw = '', marksNegRaw = ''] = f;
+    const [typeRaw = '', qText = '', optA = '', optB = '', optC = '', optD = '', ansRaw = '', diffRaw = '', expl = '', marksRaw = '', marksNegRaw = '', refIdRaw = '', subjectRaw = ''] = f;
     const errors: string[] = [];
     const typeUpper = typeRaw.trim().toUpperCase();
     let questionType: QType;
@@ -218,6 +224,8 @@ function parseCSVContent(text: string): CSVParseResult[] {
       lineNum: i + 1, type: typeUpper, text: qText.trim(), correctAnswerDisplay, difficulty, errors,
       question: {
         id: Math.random().toString(36).substr(2, 9),
+        referenceId: refIdRaw.trim(),
+        subject: subjectRaw.trim(),
         text: qText.trim(), type: questionType,
         options: questionType !== 'numeric' ? opts : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }],
         correctAnswer, difficulty, topic: '',
@@ -230,7 +238,7 @@ function parseCSVContent(text: string): CSVParseResult[] {
   return results;
 }
 
-const CSV_TEMPLATE = `type,text,option_a,option_b,option_c,option_d,correct_answer,difficulty,explanation,marks,marks_negative\r\nMCQ,"If 2x + 3 = 11, what is the value of x?",2,3,4,5,C,easy,Subtract 3 from both sides then divide by 2,1,0.25\r\nNUMERIC,"What is the area of a rectangle with length 8 and width 5?",,,,,40,easy,Area = length × width = 8 × 5 = 40,2,0\r\nMSQ,"Which of the following are prime numbers?",2,3,4,5,"A,B,D",medium,2 and 3 and 5 are prime; 4 is not,1,0\r\n`;
+const CSV_TEMPLATE = `type,text,option_a,option_b,option_c,option_d,correct_answer,difficulty,explanation,marks,marks_negative,reference_id,subject\r\nMCQ,"If 2x + 3 = 11, what is the value of x?",2,3,4,5,C,easy,Subtract 3 from both sides then divide by 2,1,0.25,MATH-001,Math\r\nNUMERIC,"What is the area of a rectangle with length 8 and width 5?",,,,,40,easy,Area = length × width = 8 × 5 = 40,2,0,MATH-002,Math\r\nMSQ,"Which of the following are prime numbers?",2,3,4,5,"A,B,D",medium,2 and 3 and 5 are prime; 4 is not,1,0,MATH-003,Math\r\n`;
 
 // ── Add Question (Manual) Modal ───────────────────────────────────────────────
 
@@ -283,6 +291,19 @@ function AddQuestionModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
               <option value="medium">Medium</option>
               <option value="hard">Hard</option>
             </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Question ID / Reference</label>
+            <input type="text" value={draft.referenceId} onChange={(e) => update({ referenceId: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. MATH-001" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Subject Filter</label>
+            <input type="text" value={draft.subject} onChange={(e) => update({ subject: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Math, English" />
           </div>
         </div>
 
@@ -406,7 +427,7 @@ function PDFImportModal({ onClose, onSaved }: { onClose: () => void; onSaved: (q
 
   const handleSave = async () => {
     const toSave: DraftQuestion[] = questions.filter((q) => q.selected).map((q) => ({
-      id: q.id, text: q.text, type: q.detectedType, options: q.options,
+      id: q.id, referenceId: '', subject: '', text: q.text, type: q.detectedType, options: q.options,
       correctAnswer: q.detectedType === 'mcq_single' ? 'a' : 0,
       difficulty: 'medium', topic: '', explanation: '', marks: 1, marksNegative: 0,
     }));
@@ -567,6 +588,7 @@ function OCRImportModal({ onClose, onSaved }: { onClose: () => void; onSaved: (q
     if (!parsed) return;
     const draft: DraftQuestion = {
       id: Math.random().toString(36).substr(2, 9),
+      referenceId: '', subject: '',
       text: editedText,
       type: parsed.detectedType,
       options: parsed.options,
@@ -735,7 +757,7 @@ function CSVImportModal({ onClose, onSaved }: { onClose: () => void; onSaved: (q
         <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
           <div>
             <p className="text-sm font-medium text-blue-900">CSV Template</p>
-            <p className="text-xs text-blue-600 mt-0.5">Columns: type, text, option_a–d, correct_answer, difficulty, explanation, marks, marks_negative</p>
+            <p className="text-xs text-blue-600 mt-0.5">Columns: type, text, option_a–d, correct_answer, difficulty, explanation, marks, marks_negative, reference_id, subject</p>
           </div>
           <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
             <Download size={12} /> Download
@@ -810,6 +832,8 @@ function QuestionPreviewModal({ question, onClose }: { question: Question; onClo
           <Badge variant="info" size="sm">{TYPE_LABELS[question.type] ?? question.type}</Badge>
           <Badge variant={DIFF_VARIANT[question.difficultyLevel] ?? 'default'} size="sm">{question.difficultyLevel}</Badge>
           {question.topic && <Badge variant="default" size="sm">{question.topic.name}</Badge>}
+          {question.subject && <Badge variant="default" size="sm">Subject: {question.subject}</Badge>}
+          {question.referenceId && <Badge variant="default" size="sm">ID: {question.referenceId}</Badge>}
         </div>
         <div className="p-4 bg-slate-50 rounded-xl text-sm text-slate-800 leading-relaxed">
           <MathRenderer html={question.content.text} />
@@ -863,9 +887,13 @@ function QuestionRow({ q, onPreview, onDelete }: { q: Question; onPreview: () =>
     <div className="border border-slate-100 rounded-xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-slate-800 truncate">{text || 'No text'}</p>
+          <div className="flex items-center gap-2 mb-0.5">
+            {q.referenceId && <span className="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{q.referenceId}</span>}
+            <p className="text-sm text-slate-800 truncate">{text || 'No text'}</p>
+          </div>
         </div>
         <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+          {q.subject && <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{q.subject}</span>}
           <Badge variant="info" size="sm">{q.type}</Badge>
           <Badge variant={DIFF_VARIANT[q.difficultyLevel] ?? 'default'} size="sm">{q.difficultyLevel}</Badge>
           {q.topic && <span className="text-xs text-slate-400">{q.topic.name}</span>}
@@ -905,6 +933,7 @@ export function QuestionBankPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [diffFilter, setDiffFilter] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
   const [previewQ, setPreviewQ] = useState<Question | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -916,11 +945,11 @@ export function QuestionBankPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.getQuestions({ type: typeFilter || undefined, difficulty: diffFilter || undefined, search: search || undefined });
+      const res = await api.getQuestions({ type: typeFilter || undefined, difficulty: diffFilter || undefined, search: search || undefined, subject: subjectFilter || undefined });
       setQuestions(res.questions);
     } catch { setQuestions([]); }
     finally { setLoading(false); }
-  }, [typeFilter, diffFilter, search]);
+  }, [typeFilter, diffFilter, search, subjectFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -997,6 +1026,11 @@ export function QuestionBankPage() {
               <option value="MSQ">MCQ Multi</option>
               <option value="NUMERIC">Numeric</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Subject</label>
+            <input value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} placeholder="e.g. Math"
+              className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Difficulty</label>

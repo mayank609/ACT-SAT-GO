@@ -64,6 +64,8 @@ export async function GET(
         testId: assignment.testId,
         title: assignment.test.title,
         description: assignment.test.description,
+        category: assignment.test.category,
+        subCategory: assignment.test.subCategory,
         dueDate: assignment.dueAt,
         availableFrom: assignment.availableFrom,
         availableUntil: assignment.availableUntil,

@@ -78,6 +78,8 @@ export async function PATCH(
     status?: string
     title?: string
     description?: string
+    category?: string
+    subCategory?: string
     sections?: Array<{
       name: string
       timeLimit: number
@@ -100,9 +102,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const scalarData: { status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; title?: string; description?: string } = {}
+  const scalarData: { status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; title?: string; description?: string; category?: string; subCategory?: string } = {}
   if (body.title !== undefined) scalarData.title = body.title
   if (body.description !== undefined) scalarData.description = body.description
+  if (body.category !== undefined) scalarData.category = body.category
+  if (body.subCategory !== undefined) scalarData.subCategory = body.subCategory
   if (body.status !== undefined) {
     const mapped = STATUS_MAP[body.status.toLowerCase()]
     if (!mapped) return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })

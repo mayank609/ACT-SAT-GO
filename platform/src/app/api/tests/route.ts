@@ -7,10 +7,16 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const all = searchParams.get('all') === 'true'
+  const category = searchParams.get('category')
+  const subCategory = searchParams.get('subCategory')
 
   try {
     const tests = await prisma.test.findMany({
-      where: all ? undefined : { status: 'PUBLISHED' },
+      where: {
+        ...(all ? {} : { status: 'PUBLISHED' }),
+        ...(category ? { category: { equals: category, mode: 'insensitive' } } : {}),
+        ...(subCategory ? { subCategory: { equals: subCategory, mode: 'insensitive' } } : {}),
+      },
       include: {
         sections: {
           orderBy: { orderIndex: 'asc' },
@@ -92,6 +98,8 @@ interface PostBody {
   title: string
   description?: string
   status: FrontendStatus
+  category?: string
+  subCategory?: string
   createdById: string
   sections: FrontendSection[]
 }
@@ -106,7 +114,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { title, description, status, createdById, sections } = body
+  const { title, description, status, category, subCategory, createdById, sections } = body
 
   if (!title || !status || !createdById || !Array.isArray(sections)) {
     return NextResponse.json(
@@ -132,6 +140,8 @@ export async function POST(request: NextRequest) {
           title,
           description: description ?? null,
           status: dbStatus,
+          category: category ?? null,
+          subCategory: subCategory ?? null,
           createdById,
         },
       })

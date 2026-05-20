@@ -24,6 +24,8 @@ export interface Question {
   type: QuestionType;
   options?: Option[];
   correctAnswer: string | string[] | number;
+  subject?: string;
+  referenceId?: string;
   topic: string;
   subTopic?: string;
   difficulty: Difficulty;
@@ -45,6 +47,8 @@ export interface Test {
   id: string;
   title: string;
   description?: string;
+  category?: string;
+  subCategory?: string;
   sections: Section[];
   status: TestStatus;
   createdBy: string;

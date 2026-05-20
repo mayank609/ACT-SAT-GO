@@ -73,8 +73,18 @@ export const api = {
     request<{ success: boolean }>(`/api/tutor-assignments?tutorId=${tutorId}&studentId=${studentId}`, { method: 'DELETE' }),
 
   // Tests (admin)
-  getAllTests: () => request<{ tests: unknown[] }>('/api/tests?all=true'),
-  getPublishedTests: () => request<{ tests: unknown[] }>('/api/tests'),
+  getAllTests: (params?: { category?: string; subCategory?: string }) => {
+    const qs = new URLSearchParams({ all: 'true' });
+    if (params?.category) qs.set('category', params.category);
+    if (params?.subCategory) qs.set('subCategory', params.subCategory);
+    return request<{ tests: unknown[] }>(`/api/tests?${qs.toString()}`);
+  },
+  getPublishedTests: (params?: { category?: string; subCategory?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.category) qs.set('category', params.category);
+    if (params?.subCategory) qs.set('subCategory', params.subCategory);
+    return request<{ tests: unknown[] }>(`/api/tests${qs.toString() ? '?' + qs.toString() : ''}`);
+  },
   getAvailableTests: (studentId: string) =>
     request<{ tests: unknown[] }>(`/api/tests/available?studentId=${studentId}`),
   getTest: (testId: string) => request<{ test: unknown }>(`/api/tests/${testId}`),
@@ -158,16 +168,18 @@ export const api = {
     }>(`/api/analytics/student/${studentId}`),
 
   // Questions (Question Bank)
-  getQuestions: (params?: { type?: string; difficulty?: string; search?: string }) => {
+  getQuestions: (params?: { type?: string; difficulty?: string; search?: string; subject?: string }) => {
     const qs = new URLSearchParams()
     if (params?.type) qs.set('type', params.type)
     if (params?.difficulty) qs.set('difficulty', params.difficulty)
     if (params?.search) qs.set('search', params.search)
+    if (params?.subject) qs.set('subject', params.subject)
     return request<{
       questions: Array<{
         id: string; type: string; content: { text: string; explanation?: string }
         options: Record<string, string> | null; correctAnswer: Record<string, unknown>
         difficultyLevel: string; topic: { id: string; name: string } | null
+        referenceId: string | null; subject: string | null;
         createdAt: string; usedInTests: Array<{ testId: string; testTitle: string }>
       }>
     }>(`/api/questions${qs.toString() ? '?' + qs.toString() : ''}`)
@@ -179,6 +191,8 @@ export const api = {
     correctAnswer: string | string[] | number
     difficulty: string
     topic?: string
+    subject?: string
+    referenceId?: string
     explanation?: string
     marks?: number
     marksNegative?: number

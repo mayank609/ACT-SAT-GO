@@ -9,12 +9,14 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type')
   const difficulty = searchParams.get('difficulty')
   const search = searchParams.get('search')
+    const subject = searchParams.get('subject')
 
   try {
     const questions = await prisma.question.findMany({
       where: {
         ...(type ? { type: type as 'MCQ' | 'MSQ' | 'NUMERIC' } : {}),
         ...(difficulty ? { difficultyLevel: difficulty as 'EASY' | 'MEDIUM' | 'HARD' } : {}),
+        ...(subject ? { subject: { equals: subject, mode: 'insensitive' } } : {}),
       },
       include: {
         topic: { select: { id: true, name: true } },
@@ -42,6 +44,8 @@ export async function GET(request: NextRequest) {
         correctAnswer: q.correctAnswer,
         difficultyLevel: q.difficultyLevel,
         topic: q.topic,
+        referenceId: q.referenceId,
+        subject: q.subject,
         createdAt: q.createdAt,
         usedInTests: q.testQuestions.map((tq) => ({
           testId: tq.testId,
@@ -87,6 +91,8 @@ export async function POST(request: NextRequest) {
     correctAnswer: string | string[] | number
     difficulty: FrontendDifficulty
     topic?: string
+    subject?: string
+    referenceId?: string
     explanation?: string
     marks?: number
     marksNegative?: number
@@ -119,6 +125,8 @@ export async function POST(request: NextRequest) {
         correctAnswer: transformCorrectAnswer(body.correctAnswer),
         difficultyLevel: dbDiff,
         topicId,
+        subject: body.subject ?? null,
+        referenceId: body.referenceId ?? null,
       },
       include: {
         topic: { select: { id: true, name: true } },
@@ -135,6 +143,8 @@ export async function POST(request: NextRequest) {
         correctAnswer: question.correctAnswer,
         difficultyLevel: question.difficultyLevel,
         topic: question.topic,
+        referenceId: question.referenceId,
+        subject: question.subject,
         createdAt: question.createdAt,
         usedInTests: [],
       },
