@@ -53,15 +53,12 @@ interface RichTextEditorProps {
   onChange: (html: string) => void;
   /** Compact mode for inline use (e.g. answer options). Smaller toolbar, minimal height. */
   compact?: boolean;
-  /** Placeholder text shown when editor is empty */
-  placeholder?: string;
 }
 
-export function RichTextEditor({ 
-  content, 
+export function RichTextEditor({
+  content,
   onChange,
   compact = false,
-  placeholder,
 }: RichTextEditorProps) {
   const [showMathToolbar, setShowMathToolbar] = useState(false);
   const [showImageUploader, setShowImageUploader] = useState(false);
