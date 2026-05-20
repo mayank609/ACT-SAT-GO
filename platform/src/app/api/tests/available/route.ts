@@ -10,14 +10,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const attempts = await prisma.testAttempt.findMany({
-      where: { studentId },
-      select: { testId: true, status: true, totalScore: true, id: true },
+    const assignments = await prisma.testAssignment.findMany({
+      where: { studentId, isActive: true },
+      select: { testId: true },
     })
-    const attemptMap = new Map(attempts.map((a) => [a.testId, a]))
+    const assignedTestIds = assignments.map((a) => a.testId)
 
     const tests = await prisma.test.findMany({
-      where: { status: 'PUBLISHED' },
+      where: {
+        status: 'PUBLISHED',
+        ...(assignedTestIds.length > 0 ? { id: { in: assignedTestIds } } : {}),
+      },
       include: {
         sections: {
           orderBy: { orderIndex: 'asc' },
@@ -27,9 +30,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({
-      tests: tests.map((t) => ({ ...t, attempt: attemptMap.get(t.id) ?? null })),
-    })
+    return NextResponse.json({ tests })
   } catch (error) {
     console.error('GET /api/tests/available:', error)
     return NextResponse.json({ error: 'Failed to fetch available tests' }, { status: 500 })

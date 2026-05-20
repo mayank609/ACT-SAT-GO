@@ -7,21 +7,20 @@ import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface ApiTest {
-  id: string;
+  assignmentId: string;
+  testId: string;
   title: string;
   description?: string;
+  dueDate?: string;
+  availableFrom?: string;
+  availableUntil?: string;
+  status: 'Not Started' | 'In Progress' | 'Completed' | 'Expired';
+  completionStatus: string;
+  remainingAttempts: number;
+  maxAttempts: number;
+  inProgressAttemptId?: string | null;
+  submittedAttemptId?: string | null;
   sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }>;
-  attemptStatus?: 'not_started' | 'in_progress' | 'submitted';
-  attemptId?: string;
-  totalScore?: number;
-}
-
-interface ApiAttempt {
-  id: string;
-  testId: string;
-  status: string;
-  totalScore?: number;
-  completedAt?: string;
 }
 
 export function MyTestsPage() {
@@ -29,7 +28,6 @@ export function MyTestsPage() {
   const { dbId } = useAuthStore();
 
   const [tests, setTests] = useState<ApiTest[]>([]);
-  const [attempts, setAttempts] = useState<ApiAttempt[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,16 +35,10 @@ export function MyTestsPage() {
       setLoading(true);
       try {
         if (dbId) {
-          const [testsData, attemptsData] = await Promise.all([
-            api.getAvailableTests(dbId),
-            api.getStudentAttempts(dbId),
-          ]);
-          setTests(testsData.tests as ApiTest[]);
-          setAttempts(attemptsData.attempts as ApiAttempt[]);
+          const testsData = await api.getAssignedTests(dbId);
+          setTests(testsData.assignedTests as ApiTest[]);
         } else {
-          // No DB user yet — show published tests without attempt status
-          const testsData = await api.getPublishedTests();
-          setTests(testsData.tests as ApiTest[]);
+          setTests([]);
         }
       } catch {
         // fallback: keep empty lists
@@ -81,14 +73,12 @@ export function MyTestsPage() {
 
       <div className="space-y-2">
         {tests.map((test) => {
-          const attempt = attempts.find((a) => a.testId === test.id);
-          const isCompleted = attempt?.status === 'SUBMITTED';
-          const inProgress = attempt?.status === 'IN_PROGRESS';
           const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
           const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
+          const availability = `${test.availableFrom ? new Date(test.availableFrom).toLocaleString() : 'Now'} - ${test.availableUntil ? new Date(test.availableUntil).toLocaleString() : 'No end'}`;
 
           return (
-            <div key={test.id} className="bg-white border border-slate-100 rounded-xl p-4">
+            <div key={test.assignmentId} className="bg-white border border-slate-100 rounded-xl p-4">
               <div className="flex items-start gap-4">
                 <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <BookOpen size={15} className="text-blue-500" />
@@ -99,15 +89,18 @@ export function MyTestsPage() {
                       <p className="font-medium text-slate-900 text-sm truncate">{test.title}</p>
                       {test.description && <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{test.description}</p>}
                     </div>
-                    <Badge variant={isCompleted ? 'success' : inProgress ? 'warning' : 'default'} size="sm" className="flex-shrink-0">
-                      {isCompleted ? 'Completed' : inProgress ? 'In Progress' : 'Not Started'}
+                    <Badge variant={test.status === 'Completed' ? 'success' : test.status === 'In Progress' ? 'warning' : test.status === 'Expired' ? 'danger' : 'default'} size="sm" className="flex-shrink-0">
+                      {test.status}
                     </Badge>
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-slate-400 mt-2">
+                  <div className="flex items-center gap-3 text-xs text-slate-400 mt-2 flex-wrap">
                     <span className="flex items-center gap-1"><Target size={10} /> {totalQ} questions</span>
                     <span className="flex items-center gap-1"><Clock size={10} /> {totalTime} min</span>
                     <span>{test.sections.length} sections</span>
+                    <span>Due: {test.dueDate ? new Date(test.dueDate).toLocaleString() : 'N/A'}</span>
+                    <span>Window: {availability}</span>
+                    <span>Attempts Left: {test.remainingAttempts}/{test.maxAttempts}</span>
                   </div>
 
                   <div className="flex flex-wrap gap-1 mt-2">
@@ -116,31 +109,25 @@ export function MyTestsPage() {
                     ))}
                   </div>
 
-                  {isCompleted && attempt && (
+                  {test.status === 'Completed' && test.submittedAttemptId && (
                     <div className="flex items-center gap-4 mt-3 p-3 bg-emerald-50 rounded-lg">
-                      <div>
-                        <span className="text-xl font-semibold text-slate-900">{attempt.totalScore ?? '—'}</span>
-                        <span className="text-slate-400 text-xs">/36</span>
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        <p>{attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString() : '—'}</p>
-                      </div>
-                      <button onClick={() => navigate(`/test-review/${attempt.id}`)} className="ml-auto text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                      <button onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)} className="ml-auto text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
                         Review <ChevronRight size={11} />
                       </button>
                     </div>
                   )}
 
                   <div className="flex gap-2 mt-3">
-                    {isCompleted ? (
-                      <>
-                        <Button variant="secondary" size="sm" onClick={() => navigate(`/test-review/${attempt?.id}`)}>Review Answers</Button>
-                        <Button variant="ghost" size="sm" icon={<RotateCcw size={12} />}>Retake</Button>
-                      </>
+                    {test.status === 'Completed' ? (
+                      <Button variant="secondary" size="sm" onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)}>Review Attempt</Button>
+                    ) : test.status === 'Expired' ? (
+                      <Button variant="ghost" size="sm" disabled>Expired</Button>
                     ) : (
-                      <Button size="sm" icon={inProgress ? <RotateCcw size={12} /> : <Play size={12} />}
-                        onClick={() => navigate(`/test-instructions/${test.id}`)}>
-                        {inProgress ? 'Continue' : 'Start Test'}
+                      <Button size="sm" icon={test.status === 'In Progress' ? <RotateCcw size={12} /> : <Play size={12} />}
+                        onClick={() => test.status === 'In Progress' && test.inProgressAttemptId
+                          ? navigate(`/test/${test.testId}?attemptId=${test.inProgressAttemptId}`)
+                          : navigate(`/test-instructions/${test.testId}`)}>
+                        {test.status === 'In Progress' ? 'Resume Test' : 'Start Test'}
                       </Button>
                     )}
                   </div>

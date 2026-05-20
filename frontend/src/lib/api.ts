@@ -94,6 +94,8 @@ export const api = {
   getAttempt: (attemptId: string) => request<{ attempt: unknown }>(`/api/attempts/${attemptId}`),
   getStudentAttempts: (studentId: string) =>
     request<{ attempts: unknown[] }>(`/api/students/${studentId}/attempts`),
+  getAssignedTests: (studentId: string) =>
+    request<{ assignedTests: unknown[] }>(`/api/students/${studentId}/assigned-tests`),
 
   // Test engine
   startSection: (attemptId: string, sectionId: string) =>
@@ -103,12 +105,22 @@ export const api = {
     ),
   autosaveAnswer: (
     attemptId: string,
-    body: { questionId: string; answerGiven: unknown; timeSpentSeconds: number; isFlagged?: boolean }
+    body: {
+      questionId?: string
+      answerGiven?: unknown
+      timeSpentSeconds?: number
+      isFlagged?: boolean
+      attemptState?: unknown
+    }
   ) =>
     request<{ success: boolean }>(`/api/attempts/${attemptId}/autosave`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  getAutosaveState: (attemptId: string) =>
+    request<{ state: unknown; answers: Record<string, unknown> }>(`/api/attempts/${attemptId}/autosave`),
+  getSectionTimer: (attemptId: string, sectionId: string) =>
+    request<{ remainingSeconds: number; expired: boolean }>(`/api/attempts/${attemptId}/sections/${sectionId}/timer`),
   submitSection: (attemptId: string, sectionId: string) =>
     request<{ success: boolean }>(
       `/api/attempts/${attemptId}/sections/${sectionId}/submit`,

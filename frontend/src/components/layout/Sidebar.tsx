@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, BarChart3, Settings,
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
-  Activity, UserCheck, Database, BookCheck, LifeBuoy
+  Activity, UserCheck, Database, BookCheck, LifeBuoy, History
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';
@@ -14,8 +14,19 @@ interface NavItem {
   roles: Role[];
 }
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['super_admin', 'admin', 'tutor', 'student'] },
+// Student-focused navigation (clean and minimal)
+const studentNavItems: NavItem[] = [
+  { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['student'] },
+  { label: 'Tests', path: '/my-tests', icon: <ClipboardList size={18} />, roles: ['student'] },
+  { label: 'Analytics', path: '/my-progress', icon: <BarChart3 size={18} />, roles: ['student'] },
+  { label: 'Review Attempts', path: '/review-attempts', icon: <History size={18} />, roles: ['student'] },
+  { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['student'] },
+  { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['student'] },
+];
+
+// Admin/Tutor navigation
+const adminNavItems: NavItem[] = [
+  { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Students', path: '/students', icon: <GraduationCap size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Tutors', path: '/tutors', icon: <UserCheck size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Test Builder', path: '/tests', icon: <ClipboardList size={18} />, roles: ['super_admin', 'admin'] },
@@ -24,9 +35,11 @@ const navItems: NavItem[] = [
   { label: 'Analytics', path: '/analytics', icon: <BarChart3 size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Live Monitoring', path: '/monitoring', icon: <Activity size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Reports', path: '/reports', icon: <FileText size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['super_admin', 'admin', 'tutor', 'student'] },
-  { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['super_admin', 'admin', 'tutor', 'student'] },
+  { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
+  { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
 ];
+
+const navItems: NavItem[] = [...studentNavItems, ...adminNavItems];
 
 const roleLabels: Record<Role, string> = {
   super_admin: 'Super Admin',

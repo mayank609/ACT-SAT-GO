@@ -32,6 +32,7 @@ import { TestInterfacePage } from './pages/student/TestInterfacePage';
 import { TestReviewPage } from './pages/student/TestReviewPage';
 import { MyTestsPage } from './pages/student/MyTestsPage';
 import { MyProgressPage } from './pages/student/MyProgressPage';
+import { ReviewAttemptsPage } from './pages/student/ReviewAttemptsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -102,6 +103,7 @@ export default function App() {
           {/* Student */}
           <Route path="my-tests" element={<MyTestsPage />} />
           <Route path="my-progress" element={<MyProgressPage />} />
+          <Route path="review-attempts" element={<ReviewAttemptsPage />} />
           <Route path="test-review/:attemptId" element={<TestReviewPage />} />
 
           {/* Shared */}

@@ -49,6 +49,7 @@ model User {
   // Relations
   testsCreated Test[]
   attempts     TestAttempt[]
+  testAssignments TestAssignment[]
 
   // Tutor assignments: a user can be a tutor for many, or a student under many tutors
   students TutorAssignment[] @relation("TutorToStudent")
@@ -106,6 +107,7 @@ model Test {
   sections    TestSection[]
   questions   TestQuestion[]
   attempts    TestAttempt[]
+  assignments TestAssignment[]
 }
 
 model TestSection {
@@ -150,6 +152,23 @@ model TestAttempt {
   sectionAttempts SectionAttempt[]
   answers         AttemptAnswer[]
   cheatingLogs    CheatingLog[]
+}
+
+model TestAssignment {
+  id              String   @id @default(uuid())
+  testId           String
+  studentId        String
+  dueAt            DateTime?
+  availableFrom    DateTime?
+  availableUntil   DateTime?
+  maxAttempts      Int      @default(1)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  test             Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student          User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, studentId])
 }
 
 model SectionAttempt {

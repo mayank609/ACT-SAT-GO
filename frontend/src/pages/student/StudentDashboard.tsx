@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Play, RotateCcw, ChevronRight, TrendingUp, Clock, BookOpen, Target } from 'lucide-react';
-import { Button } from '../../components/common/Button';
-import { Badge } from '../../components/common/Badge';
+import { TrendingUp } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
+import { AssignedTestsSection } from '../../components/dashboard/AssignedTestsSection';
 import { MOCK_TRENDS } from '../../data/mockData';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -28,24 +26,20 @@ interface ApiAttempt {
 }
 
 export function StudentDashboard() {
-  const navigate = useNavigate();
   const { user, dbId } = useAuthStore();
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   const [attempts, setAttempts] = useState<ApiAttempt[]>([]);
-  const [availableTests, setAvailableTests] = useState<ApiAttempt['test'][]>([]);
 
   useEffect(() => {
     async function load() {
       try {
         const studentId = dbId;
         if (studentId) {
-          const [attData, testData] = await Promise.all([
+          const [attData] = await Promise.all([
             api.getStudentAttempts(studentId),
-            api.getAvailableTests(studentId),
           ]);
           setAttempts(attData.attempts as ApiAttempt[]);
-          setAvailableTests((testData.tests as ApiAttempt['test'][]).slice(0, 3));
         }
       } catch {
         // keep empty — page still renders with mock trend chart
@@ -76,12 +70,12 @@ export function StudentDashboard() {
           <p className="text-2xl font-semibold text-slate-900">{completedAttempts.length}</p>
         </Card>
         <Card padding="sm">
-          <p className="text-xs text-slate-400 mb-1">Tests Available</p>
-          <p className="text-2xl font-semibold text-slate-900">{availableTests.length}</p>
-        </Card>
-        <Card padding="sm">
           <p className="text-xs text-slate-400 mb-1">In Progress</p>
           <p className="text-2xl font-semibold text-slate-900">{attempts.filter((a) => a.status === 'IN_PROGRESS').length}</p>
+        </Card>
+        <Card padding="sm">
+          <p className="text-xs text-slate-400 mb-1">Accuracy</p>
+          <p className="text-2xl font-semibold text-slate-900">—<span className="text-sm font-normal text-slate-400">%</span></p>
         </Card>
       </div>
 
@@ -131,67 +125,18 @@ export function StudentDashboard() {
               </div>
             ))}
           </div>
-          <button onClick={() => navigate('/my-progress')} className="mt-4 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
-            Full breakdown <ChevronRight size={12} />
-          </button>
+          <a href="/my-progress" className="mt-4 text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1">
+            Full breakdown →
+          </a>
         </div>
       </div>
 
-      {/* Available tests */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="font-medium text-slate-900 text-sm">Available Tests</p>
-          <button onClick={() => navigate('/my-tests')} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
-            View all <ChevronRight size={12} />
-          </button>
-        </div>
-        <div className="space-y-2">
-          {availableTests.length === 0 && (
-            <div className="text-center py-8 bg-white rounded-xl border border-slate-100">
-              <BookOpen size={24} className="text-slate-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-400">No tests available yet</p>
-            </div>
-          )}
-          {availableTests.map((test) => {
-            if (!test) return null;
-            const attempt = attempts.find((a) => a.testId === test.id);
-            const isCompleted = attempt?.status === 'SUBMITTED';
-            const inProgress = attempt?.status === 'IN_PROGRESS';
-            const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
-            const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
-
-            return (
-              <div key={test.id} className="bg-white border border-slate-100 rounded-xl p-4 flex items-center gap-4">
-                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
-                  <BookOpen size={15} className="text-slate-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
-                    <span className="flex items-center gap-1"><Target size={10} /> {totalQ}q</span>
-                    <span className="flex items-center gap-1"><Clock size={10} /> {totalTime}m</span>
-                    <span>{test.sections.length} sections</span>
-                  </p>
-                </div>
-                {isCompleted && (
-                  <span className="text-sm font-semibold text-slate-900 flex-shrink-0">{attempt?.totalScore ?? '—'}<span className="text-xs font-normal text-slate-400">/36</span></span>
-                )}
-                <Badge variant={isCompleted ? 'success' : inProgress ? 'warning' : 'default'} size="sm">
-                  {isCompleted ? 'Done' : inProgress ? 'Active' : 'New'}
-                </Badge>
-                <Button
-                  size="sm"
-                  variant={isCompleted ? 'secondary' : 'primary'}
-                  icon={inProgress ? <RotateCcw size={12} /> : isCompleted ? undefined : <Play size={12} />}
-                  onClick={() => isCompleted ? navigate(`/test-review/${attempt?.id}`) : navigate(`/test-instructions/${test.id}`)}
-                >
-                  {isCompleted ? 'Review' : inProgress ? 'Resume' : 'Start'}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Assigned Tests Section */}
+      <AssignedTestsSection 
+        studentId={dbId ?? undefined}
+        maxDisplay={5}
+        showViewAll={true}
+      />
     </div>
   );
 }

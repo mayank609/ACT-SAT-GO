@@ -15,6 +15,7 @@ async function main() {
   await prisma.attemptAnswer.deleteMany()
   await prisma.sectionAttempt.deleteMany()
   await prisma.testAttempt.deleteMany()
+  await prisma.testAssignment.deleteMany()
   await prisma.testQuestion.deleteMany()
   await prisma.testSection.deleteMany()
   await prisma.test.deleteMany()
@@ -297,6 +298,57 @@ async function main() {
   })
   await prisma.sectionAttempt.create({
     data: { attemptId: attempt3.id, sectionId: mathNoCalc.id, startedAt: new Date('2026-05-17T08:00:00Z') },
+  })
+
+  // ── Test Assignments ────────────────────────────────────────────────────────
+  await prisma.testAssignment.createMany({
+    data: [
+      {
+        testId: actFull1.id,
+        studentId: student1.id,
+        dueAt: new Date('2026-06-15T23:59:59Z'),
+        availableFrom: new Date('2026-05-01T00:00:00Z'),
+        availableUntil: new Date('2026-06-15T23:59:59Z'),
+        maxAttempts: 2,
+        isActive: true,
+      },
+      {
+        testId: actMath.id,
+        studentId: student1.id,
+        dueAt: new Date('2026-06-10T23:59:59Z'),
+        availableFrom: new Date('2026-05-10T00:00:00Z'),
+        availableUntil: new Date('2026-06-10T23:59:59Z'),
+        maxAttempts: 2,
+        isActive: true,
+      },
+      {
+        testId: satPractice.id,
+        studentId: student1.id,
+        dueAt: new Date('2026-06-20T23:59:59Z'),
+        availableFrom: new Date('2026-05-20T00:00:00Z'),
+        availableUntil: new Date('2026-06-20T23:59:59Z'),
+        maxAttempts: 1,
+        isActive: true,
+      },
+      {
+        testId: actFull1.id,
+        studentId: student2.id,
+        dueAt: new Date('2026-06-15T23:59:59Z'),
+        availableFrom: new Date('2026-05-01T00:00:00Z'),
+        availableUntil: new Date('2026-06-15T23:59:59Z'),
+        maxAttempts: 2,
+        isActive: true,
+      },
+      {
+        testId: satPractice.id,
+        studentId: student3.id,
+        dueAt: new Date('2026-06-18T23:59:59Z'),
+        availableFrom: new Date('2026-05-20T00:00:00Z'),
+        availableUntil: new Date('2026-06-18T23:59:59Z'),
+        maxAttempts: 1,
+        isActive: true,
+      },
+    ],
   })
 
   console.log('✓ Test attempts, answers & cheating logs')

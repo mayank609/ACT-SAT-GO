@@ -19,6 +19,7 @@ async function main() {
   await prisma.attemptAnswer.deleteMany()
   await prisma.sectionAttempt.deleteMany()
   await prisma.testAttempt.deleteMany()
+  await prisma.testAssignment.deleteMany()
   await prisma.testQuestion.deleteMany()
   await prisma.testSection.deleteMany()
   await prisma.test.deleteMany()
@@ -107,6 +108,38 @@ async function main() {
   })
 
   console.log('✅ Test and sections created')
+
+  await prisma.testAssignment.createMany({
+    data: [
+      {
+        testId: test.id,
+        studentId: student1.id,
+        dueAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        availableFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        availableUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        maxAttempts: 2,
+        isActive: true,
+      },
+      {
+        testId: test.id,
+        studentId: student2.id,
+        dueAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+        availableFrom: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        availableUntil: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+        maxAttempts: 2,
+        isActive: true,
+      },
+      {
+        testId: test.id,
+        studentId: student3.id,
+        dueAt: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
+        availableFrom: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        availableUntil: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
+        maxAttempts: 1,
+        isActive: true,
+      },
+    ],
+  })
 
   // ── 5. Questions ────────────────────────────────────────────────────────────
   console.log('❓ Creating questions...')

@@ -91,11 +91,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'testId and studentId are required' }, { status: 400 })
     }
 
+    const assignment = await prisma.testAssignment.findFirst({
+      where: { testId, studentId, isActive: true },
+    })
+    if (!assignment) {
+      return NextResponse.json({ error: 'This test is not assigned to the student' }, { status: 403 })
+    }
+
+    const now = Date.now()
+    if (assignment.availableFrom && now < assignment.availableFrom.getTime()) {
+      return NextResponse.json({ error: 'This test is not yet available' }, { status: 403 })
+    }
+    if (assignment.availableUntil && now > assignment.availableUntil.getTime()) {
+      return NextResponse.json({ error: 'This test assignment has expired' }, { status: 403 })
+    }
+
     const existing = await prisma.testAttempt.findFirst({
       where: { testId, studentId, status: 'IN_PROGRESS' },
     })
     if (existing) {
       return NextResponse.json({ attemptId: existing.id, alreadyStarted: true })
+    }
+
+    const attemptsUsed = await prisma.testAttempt.count({ where: { testId, studentId } })
+    if (attemptsUsed >= assignment.maxAttempts) {
+      return NextResponse.json({ error: 'No attempts remaining for this test' }, { status: 403 })
     }
 
     const attempt = await prisma.testAttempt.create({

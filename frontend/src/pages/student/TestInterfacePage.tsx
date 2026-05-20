@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Flag, ChevronLeft, ChevronRight, Send, AlertTriangle, Grid3X3 } from 'lucide-react';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -9,6 +9,8 @@ import { Button } from '../../components/common/Button';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import type { QuestionState } from '../../types';
+import type { TestAttempt } from '../../types';
+import { transformDbTest } from './TestInstructionsPage';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,8 +65,9 @@ const stateColors: Record<QuestionState, string> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TestInterfacePage() {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { currentAttempt, activeTest, updateQuestionState, navigateToQuestion, advanceSection, recordTabSwitch, clearAttempt } = useTestStore();
+  const { currentAttempt, activeTest, startAttempt, updateQuestionState, navigateToQuestion, advanceSection, recordTabSwitch, clearAttempt } = useTestStore();
   const { user } = useAuthStore();
 
   const [selectedAnswer, setSelectedAnswer] = useState<string | string[] | number | null>(null);
@@ -81,6 +84,70 @@ export function TestInterfacePage() {
 
   const test = activeTest;
   const attempt = currentAttempt;
+  const attemptIdFromQuery = searchParams.get('attemptId');
+
+  useEffect(() => {
+    async function restoreAttemptFromBackend() {
+      if (!attemptIdFromQuery || currentAttempt) return;
+      try {
+        const [attemptRes, autosaveRes] = await Promise.all([
+          api.getAttempt(attemptIdFromQuery),
+          api.getAutosaveState(attemptIdFromQuery),
+        ]);
+        const rawAttempt = attemptRes.attempt as any;
+        const restoredTest = transformDbTest(rawAttempt.test);
+        const state = (autosaveRes.state as any) ?? {};
+        const answersMap = (autosaveRes.answers as Record<string, any>) ?? {};
+
+        const sections: TestAttempt['sections'] = {};
+        restoredTest.sections.forEach((section) => {
+          const dbSectionAttempt = rawAttempt.sectionAttempts.find((s: any) => s.sectionId === section.id);
+          const questions: TestAttempt['sections'][string]['questions'] = {};
+          section.questions.forEach((q) => {
+            const dbAnswer = rawAttempt.answers.find((a: any) => a.questionId === q.id);
+            const cached = answersMap[q.id] ?? null;
+            const fromDb = dbAnswer?.answerGiven ?? null;
+            const answerPayload = cached?.answerGiven ?? fromDb;
+            const normalizedAnswer = answerPayload?.value ?? answerPayload?.keys?.map((k: string) => k.toLowerCase()) ?? answerPayload?.key?.toLowerCase() ?? null;
+            const isFlagged = Boolean(cached?.isFlagged ?? dbAnswer?.isFlagged);
+            const hasAnswer = normalizedAnswer !== null && normalizedAnswer !== '' && !(Array.isArray(normalizedAnswer) && normalizedAnswer.length === 0);
+            const stateFromCache = state?.sections?.[section.id]?.questions?.[q.id]?.state as QuestionState | undefined;
+            questions[q.id] = {
+              questionId: q.id,
+              state: stateFromCache ?? (isFlagged ? (hasAnswer ? 'answered_marked' : 'marked_review') : (hasAnswer ? 'answered' : 'not_visited')),
+              selectedAnswer: normalizedAnswer,
+              timeSpent: cached?.timeSpentSeconds ?? dbAnswer?.timeSpentSeconds ?? 0,
+            };
+          });
+          sections[section.id] = {
+            sectionId: section.id,
+            startedAt: dbSectionAttempt?.startedAt,
+            completedAt: dbSectionAttempt?.completedAt ?? undefined,
+            timeUsed: state?.sections?.[section.id]?.timeUsed ?? 0,
+            questions,
+          };
+        });
+
+        const restoredAttempt: TestAttempt = {
+          id: rawAttempt.id,
+          testId: rawAttempt.testId,
+          studentId: rawAttempt.studentId,
+          status: rawAttempt.status === 'IN_PROGRESS' ? 'in_progress' : 'completed',
+          startedAt: rawAttempt.startedAt,
+          completedAt: rawAttempt.completedAt ?? undefined,
+          currentSectionIndex: state?.currentSectionIndex ?? 0,
+          currentQuestionIndex: state?.currentQuestionIndex ?? 0,
+          sections,
+          tabSwitchCount: rawAttempt.cheatingLogs?.filter((l: any) => l.eventType === 'TAB_SWITCH').length ?? 0,
+          isFullScreen: false,
+        };
+        startAttempt(restoredAttempt, restoredTest);
+      } catch {
+        navigate('/my-tests');
+      }
+    }
+    restoreAttemptFromBackend();
+  }, [attemptIdFromQuery, currentAttempt, startAttempt, navigate]);
 
   useEffect(() => {
     if (!test || !attempt) navigate('/dashboard');
@@ -133,6 +200,17 @@ export function TestInterfacePage() {
     navigate(`/test-review/${attempt.id}`);
   };
 
+  const autosaveAttemptState = useCallback(() => {
+    if (!attempt) return;
+    api.autosaveAnswer(attempt.id, {
+      attemptState: {
+        currentSectionIndex: attempt.currentSectionIndex,
+        currentQuestionIndex: attempt.currentQuestionIndex,
+        sections: attempt.sections,
+      },
+    }).catch(() => {});
+  }, [attempt]);
+
   // Update the timer-expire handler every render so it always has fresh state
   timerExpireHandlerRef.current = () => {
     if (!test || !attempt || !currentSection) return;
@@ -164,6 +242,29 @@ export function TestInterfacePage() {
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     };
   }, [attempt]);
+
+  useEffect(() => {
+    if (!attempt || !currentSection) return;
+    const sync = () => {
+      api.getSectionTimer(attempt.id, currentSection.id)
+        .then((r) => resetTimerRef.current(r.remainingSeconds))
+        .catch(() => {});
+    };
+    sync();
+    const interval = setInterval(sync, 15000);
+    return () => clearInterval(interval);
+  }, [attempt?.id, currentSection?.id]);
+
+  useEffect(() => {
+    if (!attempt) return;
+    const interval = setInterval(autosaveAttemptState, 8000);
+    const onBeforeUnload = () => autosaveAttemptState();
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [attempt?.id, autosaveAttemptState]);
 
   // Tab switching Tracking
   useEffect(() => {
@@ -288,6 +389,11 @@ export function TestInterfacePage() {
       answerGiven: toDbAnswer(currentQuestion.type, finalAns),
       timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
       isFlagged: newState === 'marked_review' || newState === 'answered_marked',
+      attemptState: {
+        currentSectionIndex: nextSectionIdx ?? currentSectionIdx,
+        currentQuestionIndex: nextSectionIdx !== undefined ? 0 : nextQIdx,
+        sections: attempt.sections,
+      },
     }).catch(() => {});
 
     if (nextSectionIdx !== undefined) {
@@ -308,6 +414,11 @@ export function TestInterfacePage() {
       answerGiven: toDbAnswer(currentQuestion.type, finalAns),
       timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
       isFlagged: true,
+      attemptState: {
+        currentSectionIndex: currentSectionIdx,
+        currentQuestionIndex: currentQIdx,
+        sections: attempt.sections,
+      },
     }).catch(() => {});
     if (!isLastQuestion) navigateToQuestion(currentSectionIdx, currentQIdx + 1);
   };
