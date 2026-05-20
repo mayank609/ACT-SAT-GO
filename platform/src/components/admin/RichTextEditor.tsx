@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import { Bold, Italic, ImageIcon, List, ListOrdered, Sigma, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { ImageUploader } from './ImageUploader'
 
 const MATH_CATEGORIES = [
   {
@@ -57,6 +58,7 @@ export default function RichTextEditor({
   onChange: (html: string) => void 
 }) {
   const [showMathToolbar, setShowMathToolbar] = useState(false)
+  const [showImageUploader, setShowImageUploader] = useState(false)
   const [activeCategory, setActiveCategory] = useState(0)
 
   const editor = useEditor({
@@ -84,13 +86,6 @@ export default function RichTextEditor({
 
   if (!editor) {
     return null
-  }
-
-  const addImage = () => {
-    const url = window.prompt('URL of the image (e.g. https://...):')
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run()
-    }
   }
 
   const insertFormula = (latex: string) => {
@@ -139,16 +134,22 @@ export default function RichTextEditor({
         <div className="w-px h-6 bg-slate-700 mx-1"></div>
         
         <button
-          onClick={addImage}
-          className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-          title="Add Image via URL"
+          onClick={() => {
+            setShowImageUploader(!showImageUploader)
+            setShowMathToolbar(false)
+          }}
+          className={`p-2 rounded-lg transition-colors ${showImageUploader ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+          title="Image Manager"
           type="button"
         >
           <ImageIcon size={18} />
         </button>
 
         <button
-          onClick={() => setShowMathToolbar(!showMathToolbar)}
+          onClick={() => {
+            setShowMathToolbar(!showMathToolbar)
+            setShowImageUploader(false)
+          }}
           className={`p-2 rounded-lg transition-colors ${showMathToolbar ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
           title="Insert Math/Scientific Formula"
           type="button"
@@ -156,6 +157,18 @@ export default function RichTextEditor({
           <Sigma size={18} />
         </button>
       </div>
+
+      {/* Image Manager Panel */}
+      {showImageUploader && (
+        <div className="border-b border-slate-700">
+          <ImageUploader
+            onInsertImage={(url) => {
+              editor.chain().focus().setImage({ src: url }).run()
+            }}
+            context="questions"
+          />
+        </div>
+      )}
 
       {/* Math Insert Helper Toolbar */}
       {showMathToolbar && (

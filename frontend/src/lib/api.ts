@@ -258,4 +258,34 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ permissions }),
     }),
+
+  // Image Upload & Delete Support
+  uploadImage: async (file: File, context = 'questions') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('context', context)
+    const res = await fetch(`${BASE}/api/images/upload`, {
+      method: 'POST',
+      body: formData,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error ?? 'Upload failed')
+    }
+    return res.json() as Promise<{ url: string; path: string; fileName: string; size: number }>
+  },
+
+  deleteImage: async (path: string) => {
+    const res = await fetch(`${BASE}/api/images/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error ?? 'Delete failed')
+    }
+    return res.json() as Promise<{ success: boolean; wasDeleted: boolean }>
+  },
 }
+
