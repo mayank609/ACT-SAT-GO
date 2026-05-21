@@ -1,11 +1,184 @@
 import { useState, useEffect } from 'react';
-import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { useAdminStore, type ApiTest } from '../../store/useAdminStore';
+import { api, type DbUser } from '../../lib/api';
+import { toast } from 'react-hot-toast';
+
+// ── Assign Modal ──────────────────────────────────────────────────────────────
+
+interface AssignModalProps {
+  test: ApiTest;
+  onClose: () => void;
+}
+
+function AssignModal({ test, onClose }: AssignModalProps) {
+  const [students, setStudents] = useState<DbUser[]>([]);
+  const [assigned, setAssigned] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dueAt, setDueAt] = useState('');
+  const [availableFrom, setAvailableFrom] = useState('');
+  const [availableUntil, setAvailableUntil] = useState('');
+  const [maxAttempts, setMaxAttempts] = useState(1);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      api.getUsersByRole('STUDENT'),
+      api.getTestAssignments(test.id),
+    ]).then(([usersRes, assignRes]) => {
+      setStudents(usersRes.users);
+      setAssigned(new Set(assignRes.assignments.map((a) => a.studentId)));
+    }).catch(() => {
+      toast.error('Failed to load students');
+    }).finally(() => setLoadingStudents(false));
+  }, [test.id]);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleAssign = async () => {
+    if (selected.size === 0) return;
+    setSaving(true);
+    try {
+      const res = await api.createTestAssignments({
+        testId: test.id,
+        studentIds: [...selected],
+        dueAt: dueAt || null,
+        availableFrom: availableFrom || null,
+        availableUntil: availableUntil || null,
+        maxAttempts,
+      });
+      toast.success(`Assigned to ${res.created} student${res.created !== 1 ? 's' : ''}${res.skipped > 0 ? ` (${res.skipped} already assigned)` : ''}`);
+      onClose();
+    } catch {
+      toast.error('Failed to assign test');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemove = async (studentId: string) => {
+    try {
+      await api.deleteTestAssignment(test.id, studentId);
+      setAssigned((prev) => { const next = new Set(prev); next.delete(studentId); return next; });
+      toast.success('Assignment removed');
+    } catch {
+      toast.error('Failed to remove assignment');
+    }
+  };
+
+  const filtered = students.filter((s) =>
+    !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <Modal isOpen onClose={onClose} title={`Assign — ${test.title}`} size="lg">
+      <div className="space-y-4">
+        {/* Already assigned */}
+        {assigned.size > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Already Assigned ({assigned.size})</p>
+            <div className="flex flex-wrap gap-2">
+              {students.filter((s) => assigned.has(s.id)).map((s) => (
+                <span key={s.id} className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs px-2.5 py-1 rounded-full">
+                  <CheckCircle2 size={11} />
+                  {s.name}
+                  <button onClick={() => handleRemove(s.id)} className="text-emerald-400 hover:text-red-500 ml-0.5">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Student picker */}
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Select Students to Assign</p>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or email…"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+          />
+          {loadingStudents ? (
+            <div className="flex justify-center py-6"><Loader2 size={18} className="animate-spin text-slate-400" /></div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-4">No students found</p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-lg divide-y divide-slate-50">
+              {filtered.filter((s) => !assigned.has(s.id)).map((s) => (
+                <label key={s.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(s.id)}
+                    onChange={() => toggle(s.id)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
+                    <p className="text-xs text-slate-400 truncate">{s.email}</p>
+                  </div>
+                </label>
+              ))}
+              {filtered.filter((s) => !assigned.has(s.id)).length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">All matching students are already assigned</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Options */}
+        {selected.size > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Due Date (optional)</label>
+              <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Max Attempts</label>
+              <input type="number" min={1} max={10} value={maxAttempts} onChange={(e) => setMaxAttempts(Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Available From (optional)</label>
+              <input type="datetime-local" value={availableFrom} onChange={(e) => setAvailableFrom(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Available Until (optional)</label>
+              <input type="datetime-local" value={availableUntil} onChange={(e) => setAvailableUntil(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" icon={<UserPlus size={13} />} onClick={handleAssign}
+            disabled={selected.size === 0 || saving} loading={saving}>
+            Assign to {selected.size > 0 ? `${selected.size} Student${selected.size !== 1 ? 's' : ''}` : 'Students'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function TestsPage() {
   const navigate = useNavigate();
@@ -13,10 +186,10 @@ export function TestsPage() {
 
   useEffect(() => { fetchTests(); }, [fetchTests]);
   const [deleteModal, setDeleteModal] = useState<ApiTest | null>(null);
+  const [assignModal, setAssignModal] = useState<ApiTest | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
 
-  // DB status is uppercase; filter is lowercase — normalise for comparison
   const filtered = tests.filter(
     (t) => filter === 'all' || t.status.toLowerCase() === filter
   );
@@ -42,13 +215,10 @@ export function TestsPage() {
       {/* Filter tabs */}
       <div className="flex gap-1">
         {(['all', 'published', 'draft', 'archived'] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
+          <button key={f} onClick={() => setFilter(f)}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all capitalize ${
               filter === f ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
+            }`}>
             {f}
             <span className={`ml-1.5 text-xs ${filter === f ? 'text-blue-200' : 'text-slate-400'}`}>
               ({f === 'all' ? tests.length : tests.filter((t) => t.status.toLowerCase() === f).length})
@@ -70,6 +240,7 @@ export function TestsPage() {
           ))}
         </div>
       )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((test) => {
           const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
@@ -135,7 +306,6 @@ export function TestsPage() {
                   <span className="flex items-center gap-1"><Users size={11} /> {attemptsCount} attempts</span>
                 </div>
 
-                {/* Section pills */}
                 <div className="flex flex-wrap gap-1 mb-4">
                   {test.sections.map((sec) => (
                     <span key={sec.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
@@ -145,37 +315,34 @@ export function TestsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                  {statusLower === 'draft' ? (
-                    <>
-                      <Button variant="ghost" size="sm" icon={<Edit size={13} />} className="flex-1 justify-center"
-                        onClick={() => navigate(`/test-builder?testId=${test.id}`)}>
-                        Edit
-                      </Button>
-                      <button
-                        onClick={() => navigate(`/test-instructions/${test.id}`)}
-                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                      >
-                        <Eye size={14} />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <Button variant="ghost" size="sm" icon={<Eye size={13} />} className="flex-1 justify-center"
-                        onClick={() => navigate(`/test-instructions/${test.id}`)}>
-                        Preview
-                      </Button>
-                      <button
-                        onClick={() => navigate(`/test-builder?testId=${test.id}`)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Edit size={14} />
-                      </button>
-                    </>
+                  {/* Assign button — only for published tests */}
+                  {statusLower === 'published' && (
+                    <Button variant="primary" size="sm" icon={<UserPlus size={13} />}
+                      className="flex-1 justify-center"
+                      onClick={() => setAssignModal(test)}>
+                      Assign
+                    </Button>
                   )}
-                  <button
-                    onClick={() => setDeleteModal(test)}
-                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
+
+                  {statusLower === 'draft' ? (
+                    <Button variant="ghost" size="sm" icon={<Edit size={13} />}
+                      className={statusLower === 'draft' ? 'flex-1 justify-center' : ''}
+                      onClick={() => navigate(`/test-builder?testId=${test.id}`)}>
+                      Edit
+                    </Button>
+                  ) : (
+                    <button onClick={() => navigate(`/test-builder?testId=${test.id}`)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <Edit size={14} />
+                    </button>
+                  )}
+
+                  <button onClick={() => navigate(`/test-instructions/${test.id}`)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <Eye size={14} />
+                  </button>
+                  <button onClick={() => setDeleteModal(test)}
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -184,7 +351,6 @@ export function TestsPage() {
           );
         })}
 
-        {/* Create new card */}
         <Link to="/test-builder">
           <Card padding="none" className="border-dashed hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer h-full min-h-[200px]">
             <div className="p-5 flex flex-col items-center justify-center h-full text-center">
@@ -198,19 +364,19 @@ export function TestsPage() {
         </Link>
       </div>
 
+      {/* Assign Modal */}
+      {assignModal && (
+        <AssignModal test={assignModal} onClose={() => setAssignModal(null)} />
+      )}
+
       {/* Delete modal */}
-      <Modal
-        isOpen={!!deleteModal}
-        onClose={() => setDeleteModal(null)}
-        title="Delete Test"
-        size="sm"
+      <Modal isOpen={!!deleteModal} onClose={() => setDeleteModal(null)} title="Delete Test" size="sm"
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setDeleteModal(null)}>Cancel</Button>
             <Button variant="danger" size="sm" onClick={() => { if (deleteModal) { deleteTest(deleteModal.id); setDeleteModal(null); } }}>Delete Test</Button>
           </div>
-        }
-      >
+        }>
         <p className="text-sm text-slate-600">
           Are you sure you want to delete <strong>"{deleteModal?.title}"</strong>? This action cannot be undone and will remove all associated data.
         </p>

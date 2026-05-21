@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, Clock, Target, BookOpen, MessageSquare, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Clock, Target, BookOpen, MessageSquare, PlusCircle } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import toast from 'react-hot-toast';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend
@@ -33,7 +34,7 @@ interface DbTest { id: string; title: string; status: string; sections: unknown[
 export function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, dbId } = useAuthStore();
 
   const [student, setStudent] = useState<DbUser | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -42,9 +43,10 @@ export function StudentDetailPage() {
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedTestId, setSelectedTestId] = useState('');
-  const [assignSuccess, setAssignSuccess] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
 
   useEffect(() => {
@@ -58,16 +60,28 @@ export function StudentDetailPage() {
     ]).finally(() => setLoading(false));
   }, [id]);
 
-  const handleAddNote = () => {
-    if (!noteText.trim()) return;
-    setNotes((prev) => [{
-      id: Date.now().toString(),
-      text: noteText.trim(),
-      createdAt: new Date().toISOString().split('T')[0],
-      author: user?.name ?? 'Tutor',
-    }, ...prev]);
-    setNoteText('');
-    setNoteOpen(false);
+  // Load persisted notes once tutorId (dbId) is available
+  useEffect(() => {
+    if (!dbId || !id) return;
+    api.getNotes(dbId, id)
+      .then((r) => setNotes(r.notes))
+      .catch(() => {});
+  }, [dbId, id]);
+
+  const handleAddNote = async () => {
+    if (!noteText.trim() || !dbId || !id) return;
+    setNoteSaving(true);
+    try {
+      const { note } = await api.addNote(dbId, id, noteText.trim(), user?.name ?? 'Tutor');
+      setNotes((prev) => [note, ...prev]);
+      setNoteText('');
+      setNoteOpen(false);
+      toast.success('Note saved.');
+    } catch {
+      toast.error('Failed to save note.');
+    } finally {
+      setNoteSaving(false);
+    }
   };
 
   if (loading) {
@@ -250,27 +264,30 @@ export function StudentDetailPage() {
       </div>
 
       {/* Assign Test Modal */}
-      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestId(''); setAssignSuccess(''); }}
+      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestId(''); }}
         title="Assign Test" size="md"
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setAssignOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={() => {
-              if (!selectedTestId) return;
-              const test = publishedTests.find((t) => t.id === selectedTestId);
-              setAssignSuccess(`"${test?.title}" noted for assignment.`);
-              setSelectedTestId('');
-              setTimeout(() => { setAssignSuccess(''); setAssignOpen(false); }, 1800);
-            }} disabled={!selectedTestId}>Assign</Button>
+            <Button size="sm" disabled={!selectedTestId || assignLoading} onClick={async () => {
+              if (!selectedTestId || !id) return;
+              setAssignLoading(true);
+              try {
+                await api.createTestAssignments({ testId: selectedTestId, studentIds: [id] });
+                const test = publishedTests.find((t) => t.id === selectedTestId);
+                toast.success(`"${test?.title}" assigned successfully.`);
+                setAssignOpen(false);
+                setSelectedTestId('');
+              } catch (err: unknown) {
+                toast.error(err instanceof Error ? err.message : 'Failed to assign test.');
+              } finally {
+                setAssignLoading(false);
+              }
+            }}>{assignLoading ? 'Assigning...' : 'Assign'}</Button>
           </div>
         }>
         <div className="space-y-3">
           <p className="text-sm text-slate-500">Select a published test to assign to <strong>{student.name}</strong>.</p>
-          {assignSuccess && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg text-emerald-700 text-sm">
-              <CheckCircle2 size={14} /> {assignSuccess}
-            </div>
-          )}
           {publishedTests.length === 0 ? (
             <p className="text-sm text-slate-400 py-2">No published tests available.</p>
           ) : (
@@ -298,7 +315,9 @@ export function StudentDetailPage() {
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setNoteOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleAddNote} disabled={!noteText.trim()}>Save Note</Button>
+            <Button size="sm" onClick={handleAddNote} disabled={!noteText.trim() || noteSaving}>
+              {noteSaving ? 'Saving...' : 'Save Note'}
+            </Button>
           </div>
         }>
         <div className="space-y-3">

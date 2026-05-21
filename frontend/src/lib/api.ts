@@ -72,6 +72,14 @@ export const api = {
   deleteTutorAssignment: (tutorId: string, studentId: string) =>
     request<{ success: boolean }>(`/api/tutor-assignments?tutorId=${tutorId}&studentId=${studentId}`, { method: 'DELETE' }),
 
+  // Test assignments
+  getTestAssignments: (testId: string) =>
+    request<{ assignments: Array<{ id: string; testId: string; studentId: string; studentName: string; studentEmail: string; dueAt: string | null; availableFrom: string | null; availableUntil: string | null; maxAttempts: number; isActive: boolean; createdAt: string }> }>(`/api/test-assignments?testId=${testId}`),
+  createTestAssignments: (body: { testId: string; studentIds: string[]; dueAt?: string | null; availableFrom?: string | null; availableUntil?: string | null; maxAttempts?: number }) =>
+    request<{ created: number; skipped: number }>('/api/test-assignments', { method: 'POST', body: JSON.stringify(body) }),
+  deleteTestAssignment: (testId: string, studentId: string) =>
+    request<{ success: boolean }>(`/api/test-assignments?testId=${testId}&studentId=${studentId}`, { method: 'DELETE' }),
+
   // Tests (admin)
   getAllTests: (params?: { category?: string; subCategory?: string }) => {
     const qs = new URLSearchParams({ all: 'true' });
@@ -160,6 +168,14 @@ export const api = {
         accuracy: number
         timeAllocated: number
         timeUsed: number
+      }>
+      questionPacingStats: Array<{
+        questionIndex: number
+        sectionName: string
+        timeSpentSeconds: number
+        status: 'correct' | 'incorrect' | 'skipped'
+        difficulty: string
+        topicName: string
       }>
       overallAccuracy: number
       totalAttempts: number
@@ -288,6 +304,21 @@ export const api = {
     }
     return res.json() as Promise<{ url: string; path: string; fileName: string; size: number }>
   },
+
+  // Tutor Notes
+  getNotes: (tutorId: string, studentId: string) =>
+    request<{ notes: Array<{ id: string; text: string; author: string; createdAt: string }> }>(
+      `/api/notes?tutorId=${tutorId}&studentId=${studentId}`
+    ),
+  addNote: (tutorId: string, studentId: string, text: string, author: string) =>
+    request<{ note: { id: string; text: string; author: string; createdAt: string } }>('/api/notes', {
+      method: 'POST',
+      body: JSON.stringify({ tutorId, studentId, text, author }),
+    }),
+  deleteNote: (tutorId: string, studentId: string, noteId: string) =>
+    request<{ success: boolean }>(`/api/notes?tutorId=${tutorId}&studentId=${studentId}&noteId=${noteId}`, {
+      method: 'DELETE',
+    }),
 
   deleteImage: async (path: string) => {
     const res = await fetch(`${BASE}/api/images/delete`, {

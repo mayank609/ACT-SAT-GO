@@ -26,8 +26,8 @@ export function MyStudentsPage() {
   const [sort, setSort] = useState<SortKey>('name');
   const [addOpen, setAddOpen] = useState(false);
   const [addEmail, setAddEmail] = useState('');
-  const [addName, setAddName] = useState('');
   const [addMsg, setAddMsg] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
 
   useEffect(() => {
     if (!dbId) return;
@@ -227,29 +227,47 @@ export function MyStudentsPage() {
         </div>
       )}
 
-      <Modal isOpen={addOpen} onClose={() => { setAddOpen(false); setAddEmail(''); setAddName(''); setAddMsg(''); }}
+      <Modal isOpen={addOpen} onClose={() => { setAddOpen(false); setAddEmail(''); setAddMsg(''); }}
         title="Add Student" size="sm"
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={() => { setAddMsg('Invite sent!'); setTimeout(() => { setAddOpen(false); setAddMsg(''); }, 1500); }}>
-              Send Invite
+            <Button size="sm" disabled={addLoading} onClick={async () => {
+              if (!addEmail.trim()) { setAddMsg('Please enter an email address.'); return; }
+              if (!dbId) return;
+              setAddLoading(true);
+              setAddMsg('');
+              try {
+                const { users } = await api.getUsersByRole('STUDENT');
+                const found = users.find(u => u.email.toLowerCase() === addEmail.trim().toLowerCase());
+                if (!found) { setAddMsg('No student found with that email.'); return; }
+                await api.createTutorAssignment(dbId, found.id);
+                const r = await api.getTutorAssignments({ tutorId: dbId });
+                setMyStudents(r.assignments.map(a => a.student as DbUser));
+                setAddMsg('Student added successfully!');
+                setTimeout(() => { setAddOpen(false); setAddEmail(''); setAddMsg(''); }, 1500);
+              } catch (err: unknown) {
+                setAddMsg(err instanceof Error ? err.message : 'Failed to add student.');
+              } finally {
+                setAddLoading(false);
+              }
+            }}>
+              {addLoading ? 'Adding...' : 'Add Student'}
             </Button>
           </div>
         }>
         <div className="space-y-4">
-          <p className="text-sm text-slate-500">Send an invite to a student to join your class.</p>
+          <p className="text-sm text-slate-500">Enter the student's email address to add them to your class.</p>
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Full Name</label>
-            <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Student name"
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Email Address</label>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Student Email</label>
             <input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="student@email.com"
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
           </div>
-          {addMsg && <p className="text-sm text-emerald-600 font-medium">{addMsg}</p>}
+          {addMsg && (
+            <p className={`text-sm font-medium ${addMsg.includes('success') ? 'text-emerald-600' : 'text-red-500'}`}>
+              {addMsg}
+            </p>
+          )}
         </div>
       </Modal>
     </div>

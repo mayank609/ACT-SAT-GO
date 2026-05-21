@@ -53,7 +53,10 @@ export async function GET(
       redis.hgetall(`answers:${attemptId}`),
     ])
 
-    const state = stateRaw ? JSON.parse(stateRaw) : null
+    // Upstash auto-deserializes JSON — handle both string and already-parsed object
+    const state = stateRaw
+      ? (typeof stateRaw === 'string' ? JSON.parse(stateRaw) : stateRaw)
+      : null
     const answers = Object.fromEntries(
       Object.entries((answersRaw ?? {}) as Record<string, unknown>).map(([questionId, raw]) => [
         questionId,

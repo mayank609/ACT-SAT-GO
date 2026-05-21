@@ -38,24 +38,41 @@ export function ReviewAttemptsPage() {
       setError(null);
 
       try {
-        // Fetch completed attempts
-        const response = await api.getStudentAttempts?.(dbId);
+        const response = await api.getStudentAttempts(dbId);
         if (response && Array.isArray(response.attempts)) {
-          // Filter only submitted/evaluated attempts
           const submittedAttempts = response.attempts
-            .filter((a: any) => a?.status === 'Submitted' || a?.status === 'Evaluated')
-            .map((a: any) => ({
-              id: String(a.id),
-              testId: String(a.testId),
-              testTitle: String(a.testTitle),
-              submitDate: String(a.submitDate),
-              score: Number(a.score),
-              totalScore: Number(a.totalScore),
-              accuracy: Number(a.accuracy),
-              status: a.status === 'Evaluated' ? 'Evaluated' : 'Submitted',
-              timeSpent: Number(a.timeSpent),
-              totalTime: Number(a.totalTime),
-            })) as TestAttempt[];
+            .filter((a: any) => a?.status === 'SUBMITTED')
+            .map((a: any) => {
+              const sections: any[] = a.test?.sections ?? [];
+              const totalQ = sections.reduce((sum: number, s: any) => sum + (s._count?.questions ?? 0), 0);
+              const totalTimeMins = sections.reduce((sum: number, s: any) => sum + (s.durationMinutes ?? 0), 0);
+
+              // Calculate time spent from section attempts
+              const timeSpentMins = Math.round(
+                (a.sectionAttempts ?? []).reduce((sum: number, sa: any) => {
+                  if (sa.startedAt && sa.completedAt) {
+                    return sum + (new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime());
+                  }
+                  return sum;
+                }, 0) / 60000
+              );
+
+              const score = a.totalScore ?? 0;
+              const accuracy = totalQ > 0 ? Math.round((score / totalQ) * 100) : 0;
+
+              return {
+                id: String(a.id),
+                testId: String(a.testId),
+                testTitle: a.test?.title ?? 'Unknown Test',
+                submitDate: a.completedAt ?? a.startedAt,
+                score,
+                totalScore: totalQ,
+                accuracy,
+                status: 'Submitted' as const,
+                timeSpent: timeSpentMins,
+                totalTime: totalTimeMins,
+              };
+            }) as TestAttempt[];
           setAttempts(submittedAttempts);
         }
       } catch (err) {

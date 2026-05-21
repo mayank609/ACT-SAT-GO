@@ -59,10 +59,11 @@ export async function POST(
       await redis.del(`answers:${attemptId}`)
     }
 
-    // 2. Mark section complete
-    await prisma.sectionAttempt.update({
+    // 2. Mark section complete — upsert in case startSection was never called
+    await prisma.sectionAttempt.upsert({
       where: { attemptId_sectionId: { attemptId, sectionId } },
-      data: { completedAt: new Date() },
+      update: { completedAt: new Date() },
+      create: { attemptId, sectionId, startedAt: new Date(), completedAt: new Date() },
     })
 
     // 3. Clean up Redis timer
