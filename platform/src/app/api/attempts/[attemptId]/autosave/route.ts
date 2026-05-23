@@ -66,7 +66,8 @@ export async function GET(
 
     return NextResponse.json({ state, answers })
   } catch (error) {
-    console.error('GET /api/attempts/[attemptId]/autosave:', error)
-    return NextResponse.json({ error: 'Failed to load autosave state' }, { status: 500 })
+    console.error('GET /api/attempts/[attemptId]/autosave Redis failed (falling back to empty/DB):', error)
+    // Return empty fallback instead of 500ing, so database answers can be used!
+    return NextResponse.json({ state: null, answers: {} })
   }
 }

@@ -13,7 +13,19 @@ export async function GET(
     const attempt = await prisma.testAttempt.findUnique({
       where: { id: attemptId },
       include: {
-        test: true,
+        test: {
+          include: {
+            sections: {
+              orderBy: { orderIndex: 'asc' },
+              include: {
+                questions: {
+                  orderBy: { orderIndex: 'asc' },
+                  include: { question: true },
+                },
+              },
+            },
+          },
+        },
         sectionAttempts: {
           include: {
             section: {

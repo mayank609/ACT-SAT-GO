@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Flag, ChevronLeft, ChevronRight, Send, AlertTriangle, Grid3X3 } from 'lucide-react';
+import { Flag, ChevronLeft, ChevronRight, Send, AlertTriangle, Grid3X3, Loader2 } from 'lucide-react';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
@@ -75,6 +75,8 @@ export function TestInterfacePage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [restoring, setRestoring] = useState(Boolean(searchParams.get('attemptId')));
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   const questionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Ref so timer-expire callback always sees latest reset function
@@ -88,23 +90,34 @@ export function TestInterfacePage() {
 
   useEffect(() => {
     async function restoreAttemptFromBackend() {
-      if (!attemptIdFromQuery || currentAttempt) return;
+      if (!attemptIdFromQuery || currentAttempt) {
+        setRestoring(false);
+        return;
+      }
+      setRestoring(true);
+      setRestoreError(null);
       try {
         const [attemptRes, autosaveRes] = await Promise.all([
           api.getAttempt(attemptIdFromQuery),
           api.getAutosaveState(attemptIdFromQuery),
         ]);
         const rawAttempt = attemptRes.attempt as any;
+        if (!rawAttempt || !rawAttempt.test) {
+          throw new Error('Attempt data is missing or incomplete. The test may have been deleted.');
+        }
         const restoredTest = transformDbTest(rawAttempt.test);
+        if (!restoredTest.sections || restoredTest.sections.length === 0) {
+          throw new Error('Test has no sections. It may have been modified or corrupted.');
+        }
         const state = (autosaveRes.state as any) ?? {};
         const answersMap = (autosaveRes.answers as Record<string, any>) ?? {};
 
         const sections: TestAttempt['sections'] = {};
         restoredTest.sections.forEach((section) => {
-          const dbSectionAttempt = rawAttempt.sectionAttempts.find((s: any) => s.sectionId === section.id);
+          const dbSectionAttempt = rawAttempt.sectionAttempts?.find((s: any) => s.sectionId === section.id);
           const questions: TestAttempt['sections'][string]['questions'] = {};
           section.questions.forEach((q) => {
-            const dbAnswer = rawAttempt.answers.find((a: any) => a.questionId === q.id);
+            const dbAnswer = rawAttempt.answers?.find((a: any) => a.questionId === q.id);
             const cached = answersMap[q.id] ?? null;
             const fromDb = dbAnswer?.answerGiven ?? null;
             const answerPayload = cached?.answerGiven ?? fromDb;
@@ -121,37 +134,54 @@ export function TestInterfacePage() {
           });
           sections[section.id] = {
             sectionId: section.id,
-            startedAt: dbSectionAttempt?.startedAt,
-            completedAt: dbSectionAttempt?.completedAt ?? undefined,
+            startedAt: dbSectionAttempt?.startedAt ? new Date(dbSectionAttempt.startedAt).toISOString() : undefined,
+            completedAt: dbSectionAttempt?.completedAt ? new Date(dbSectionAttempt.completedAt).toISOString() : undefined,
             timeUsed: state?.sections?.[section.id]?.timeUsed ?? 0,
             questions,
           };
         });
+
+        // Resolve active section index: prefer Redis state, fallback to DB
+        let currentSectionIdx = state?.currentSectionIndex as number | undefined;
+        if (currentSectionIdx === undefined || currentSectionIdx === null) {
+          const activeSecAttempt = rawAttempt.sectionAttempts?.find(
+            (sa: any) => sa.startedAt && !sa.completedAt
+          );
+          if (activeSecAttempt) {
+            currentSectionIdx = restoredTest.sections.findIndex(
+              (s) => s.id === activeSecAttempt.sectionId
+            );
+          }
+          currentSectionIdx = (currentSectionIdx === undefined || currentSectionIdx === null || currentSectionIdx === -1) ? 0 : currentSectionIdx;
+        }
 
         const restoredAttempt: TestAttempt = {
           id: rawAttempt.id,
           testId: rawAttempt.testId,
           studentId: rawAttempt.studentId,
           status: rawAttempt.status === 'IN_PROGRESS' ? 'in_progress' : 'completed',
-          startedAt: rawAttempt.startedAt,
-          completedAt: rawAttempt.completedAt ?? undefined,
-          currentSectionIndex: state?.currentSectionIndex ?? 0,
+          startedAt: rawAttempt.startedAt ? new Date(rawAttempt.startedAt).toISOString() : new Date().toISOString(),
+          completedAt: rawAttempt.completedAt ? new Date(rawAttempt.completedAt).toISOString() : undefined,
+          currentSectionIndex: currentSectionIdx,
           currentQuestionIndex: state?.currentQuestionIndex ?? 0,
           sections,
           tabSwitchCount: rawAttempt.cheatingLogs?.filter((l: any) => l.eventType === 'TAB_SWITCH').length ?? 0,
           isFullScreen: false,
         };
         startAttempt(restoredAttempt, restoredTest);
-      } catch {
-        navigate('/my-tests');
+        setRestoring(false);
+      } catch (err: any) {
+        console.error('[Resume] Failed to restore attempt:', err);
+        setRestoring(false);
+        setRestoreError(err?.message ?? 'An unexpected error occurred while restoring your test attempt.');
       }
     }
     restoreAttemptFromBackend();
   }, [attemptIdFromQuery, currentAttempt, startAttempt, navigate]);
 
   useEffect(() => {
-    if (!test || !attempt) navigate('/dashboard');
-  }, [test, attempt, navigate]);
+    if (!restoring && !restoreError && !test && !attempt && !attemptIdFromQuery) navigate('/dashboard');
+  }, [test, attempt, navigate, restoring, restoreError, attemptIdFromQuery]);
 
   const currentSectionIdx = attempt?.currentSectionIndex ?? 0;
   const currentQIdx = attempt?.currentQuestionIndex ?? 0;
@@ -362,6 +392,38 @@ export function TestInterfacePage() {
       setNumericInput('');
     }
   }, [currentQuestion?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Loading & Error views for resume ────────────────────────────────────────
+  if (restoring) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="text-center space-y-4 max-w-sm bg-white p-8 rounded-2xl border border-slate-200 shadow-md">
+          <Loader2 size={36} className="text-blue-600 animate-spin mx-auto" />
+          <h3 className="font-semibold text-slate-800 text-base">Resuming Test Attempt…</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Restoring your progress, question palette, and remaining time from our server safely.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (restoreError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="text-center space-y-4 max-w-md bg-white p-8 rounded-2xl border border-red-100 shadow-md">
+          <AlertTriangle size={36} className="text-red-500 mx-auto" />
+          <h3 className="font-semibold text-slate-800 text-base">Failed to Resume Test</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">{restoreError}</p>
+          <div className="pt-2">
+            <Button onClick={() => navigate('/dashboard')} size="sm" variant="secondary" className="px-6">
+              Go back to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!test || !attempt || !currentSection || !currentQuestion) return null;
 
