@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Upload, UserPlus, TrendingUp, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, Calendar, User2 } from 'lucide-react';
+// Phone, School, Calendar, User2 used in the Add/Edit modal form sections
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -11,13 +13,14 @@ import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 type TabKey = 'all' | 'active' | 'inactive';
 
 export function StudentManagementPage() {
+  const navigate = useNavigate();
   const [students, setStudents] = useState<DbUser[]>([]);
   const [tutors, setTutors] = useState<DbUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<DbUser | null>(null);
+
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState(false);
@@ -315,8 +318,8 @@ export function StudentManagementPage() {
               onSelectionChange={setSelectedIds}
               actions={(row) => (
                 <div className="flex items-center gap-0.5 md:gap-1 justify-end">
-                  <button onClick={() => setSelectedStudent(row as unknown as DbUser)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="View Analytics">
+                  <button onClick={() => navigate(`/students/${row.id}`)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="View Profile">
                     <TrendingUp size={14} />
                   </button>
                   <button onClick={() => {
@@ -531,69 +534,6 @@ export function StudentManagementPage() {
         </div>
       </Modal>
 
-      {/* Student detail modal */}
-      {selectedStudent && (
-        <Modal isOpen={!!selectedStudent} onClose={() => setSelectedStudent(null)} title="Student Profile" size="md">
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xl flex-shrink-0">
-                {selectedStudent.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-base font-semibold text-slate-900 truncate">{selectedStudent.name}</h3>
-                <p className="text-sm text-slate-500 truncate">{selectedStudent.email}</p>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {selectedStudent.grade && <Badge variant="default" size="sm">Grade {selectedStudent.grade}</Badge>}
-                  {selectedStudent.targetScore && <Badge variant="info" size="sm">Target: {selectedStudent.targetScore}</Badge>}
-                  {selectedStudent.schoolName && <Badge variant="default" size="sm">{selectedStudent.schoolName}</Badge>}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 md:gap-3">
-              {[
-                { label: 'Tests Attempted', value: selectedStudent.testsAttempted ?? 0 },
-                { label: 'Average Score', value: selectedStudent.avgScore ?? '—' },
-                { label: 'Target Score', value: selectedStudent.targetScore ?? '—' },
-              ].map((s) => (
-                <div key={s.label} className="bg-slate-50 rounded-xl p-3 text-center">
-                  <p className="text-xl font-bold text-slate-900">{s.value}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: <Phone size={13} />, label: 'Student Phone', value: selectedStudent.phone },
-                { icon: <Phone size={13} />, label: 'Parent / Guardian', value: selectedStudent.parentPhone },
-                { icon: <Calendar size={13} />, label: 'Date of Birth', value: selectedStudent.dob ? new Date(selectedStudent.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null },
-                { icon: <School size={13} />, label: 'School', value: selectedStudent.schoolName },
-              ].map((item) => item.value ? (
-                <div key={item.label} className="flex items-start gap-2 p-2.5 bg-slate-50 rounded-lg">
-                  <span className="text-slate-400 mt-0.5 flex-shrink-0">{item.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{item.label}</p>
-                    <p className="text-sm text-slate-700 font-medium truncate">{item.value}</p>
-                  </div>
-                </div>
-              ) : null)}
-            </div>
-
-            <div>
-              <h4 className="text-sm font-semibold text-slate-700 mb-2">Assigned Tutor</h4>
-              {selectedStudent.tutorName ? (
-                <div className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl">
-                  <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold flex-shrink-0">
-                    {selectedStudent.tutorName.charAt(0)}
-                  </div>
-                  <span className="text-sm text-slate-700 truncate">{selectedStudent.tutorName}</span>
-                </div>
-              ) : <p className="text-sm text-slate-400">No tutor assigned</p>}
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

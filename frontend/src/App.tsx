@@ -10,6 +10,7 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { SuperAdminDashboard } from './pages/admin/SuperAdminDashboard';
 import { TestBuilderPage } from './pages/admin/TestBuilderPage';
 import { StudentManagementPage } from './pages/admin/StudentManagementPage';
+import { AdminStudentProfilePage } from './pages/admin/AdminStudentProfilePage';
 import { TutorManagementPage } from './pages/admin/TutorManagementPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
 import { TestsPage } from './pages/admin/TestsPage';
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="tests" element={<TestsPage />} />
           <Route path="test-builder" element={<TestBuilderPage />} />
           <Route path="students" element={<StudentManagementPage />} />
+          <Route path="students/:id" element={<AdminStudentProfilePage />} />
           <Route path="tutors" element={<TutorManagementPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="monitoring" element={<MonitoringPage />} />
