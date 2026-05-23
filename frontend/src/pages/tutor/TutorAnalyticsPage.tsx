@@ -169,10 +169,8 @@ export function TutorAnalyticsPage() {
     return { avgTimePerQuestion, stuckCount: stuckQuestions.length, rushedCount: rushedQuestions.length, timeEfficiencyScore, stuckQuestions };
   }, [pacingData]);
 
-  const renderDot = (props: Record<string, unknown>) => {
-    const cx = props.cx as number | undefined;
-    const cy = props.cy as number | undefined;
-    const payload = props.payload as { timeSpent: number } | undefined;
+  const renderDot = (props: { cx?: number; cy?: number; payload?: { timeSpent: number } }) => {
+    const { cx, cy, payload } = props;
     if (cx === undefined || cy === undefined || !payload) return null;
     const color = payload.timeSpent >= 90 ? '#ef4444' : payload.timeSpent < 20 ? '#f59e0b' : '#3b82f6';
     return <circle cx={cx} cy={cy} r={5} fill={color} stroke="#ffffff" strokeWidth={1} />;
@@ -301,10 +299,10 @@ export function TutorAnalyticsPage() {
                           <Tooltip
                             cursor={{ strokeDasharray: '3 3' }}
                             contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '11px' }}
-                            formatter={(value: unknown, name: unknown) => {
-                              if (name === 'TimeSpent') return [`${value} seconds`, 'Time Spent'];
-                              if (name === 'Question #') return [`Question ${value}`, 'Question'];
-                              return [value, name];
+                            formatter={(value: number | string, name: string) => {
+                              if (name === 'TimeSpent') return [`${value} seconds`, 'Time Spent'] as [string, string];
+                              if (name === 'Question #') return [`Question ${value}`, 'Question'] as [string, string];
+                              return [`${value}`, name] as [string, string];
                             }}
                           />
                           <ReferenceLine y={60} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Target Max Pace (60s)', fill: '#d97706', fontSize: 8, position: 'top' }} />
