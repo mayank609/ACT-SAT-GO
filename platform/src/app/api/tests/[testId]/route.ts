@@ -62,10 +62,16 @@ function transformOptions(options: Array<{ id: string; text: string }>): Prisma.
   return result as Prisma.InputJsonValue
 }
 
-function transformCorrectAnswer(answer: string | string[] | number): Prisma.InputJsonValue {
-  if (typeof answer === 'number') return { value: answer } as Prisma.InputJsonValue
-  if (Array.isArray(answer)) return { keys: answer.map((k) => k.toUpperCase()) } as Prisma.InputJsonValue
-  return { key: answer.toUpperCase() } as Prisma.InputJsonValue
+function transformCorrectAnswer(answer: string | string[] | number | null | undefined): Prisma.InputJsonValue {
+  if (answer === null || answer === undefined) return { key: 'A' } as Prisma.InputJsonValue
+  if (typeof answer === 'number') {
+    return { value: isNaN(answer) ? 0 : answer } as Prisma.InputJsonValue
+  }
+  if (Array.isArray(answer)) {
+    const keys = answer.filter(Boolean).map((k) => k.toUpperCase())
+    return { keys: keys.length ? keys : ['A'] } as Prisma.InputJsonValue
+  }
+  return { key: (answer || 'A').toUpperCase() } as Prisma.InputJsonValue
 }
 
 export async function PATCH(

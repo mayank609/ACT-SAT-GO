@@ -199,8 +199,12 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
           {question.type === 'numeric' && (
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Correct Answer</label>
-              <input type="number" value={typeof question.correctAnswer === 'number' ? question.correctAnswer : ''}
-                onChange={(e) => onUpdate({ ...question, correctAnswer: parseFloat(e.target.value) })}
+              <input type="number"
+                value={typeof question.correctAnswer === 'number' && !isNaN(question.correctAnswer) ? question.correctAnswer : ''}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  onUpdate({ ...question, correctAnswer: isNaN(v) ? 0 : v });
+                }}
                 className="w-40 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Numeric answer" />
             </div>
           )}
@@ -1378,12 +1382,29 @@ export function TestBuilderPage() {
       return;
     }
     setTitleError(false);
+
+    // Sanitize: ensure no NaN/null/undefined correctAnswer reaches the backend
+    const sanitizedSections = sections.map(sec => ({
+      ...sec,
+      questions: sec.questions.map(q => ({
+        ...q,
+        correctAnswer: (() => {
+          if (q.type === 'numeric') {
+            const n = typeof q.correctAnswer === 'number' ? q.correctAnswer : parseFloat(String(q.correctAnswer));
+            return isNaN(n) ? 0 : n;
+          }
+          if (Array.isArray(q.correctAnswer)) return q.correctAnswer.length ? q.correctAnswer : ['a'];
+          return (q.correctAnswer as string) || 'a';
+        })(),
+      })),
+    }));
+
     try {
       if (editTestId) {
         await api.updateTest(editTestId, {
           title: testTitle.trim(),
           description: testDesc.trim() || undefined,
-          sections,
+          sections: sanitizedSections,
           status: testSettings.publishStatus,
           category: testSettings.category || undefined,
           subCategory: testSettings.subCategory || undefined,
@@ -1392,7 +1413,7 @@ export function TestBuilderPage() {
         await api.createTest({
           title: testTitle.trim(),
           description: testDesc.trim() || undefined,
-          sections,
+          sections: sanitizedSections,
           status: testSettings.publishStatus,
           category: testSettings.category || undefined,
           subCategory: testSettings.subCategory || undefined,

@@ -488,6 +488,47 @@ CORS_ORIGIN="https://your-frontend.vercel.app"
 
 ---
 
+### Change #014 — Defensive null/NaN guard in transformCorrectAnswer [DONE]
+
+**Type:** CODE
+**Requested by:** Mayank
+**Why:** When a NUMERIC question's answer field is left empty, the frontend serialises `NaN` as JSON `null`. The backend `transformCorrectAnswer` function doesn't handle `null`/`undefined`, falls through to `null.toUpperCase()`, and throws a TypeError → 500 on PATCH /api/tests/[testId].
+
+**File to edit:** `src/app/api/tests/[testId]/route.ts`
+
+**Replace** the existing `transformCorrectAnswer` function:
+
+```ts
+function transformCorrectAnswer(answer: string | string[] | number): Prisma.InputJsonValue {
+  if (typeof answer === 'number') return { value: answer } as Prisma.InputJsonValue
+  if (Array.isArray(answer)) return { keys: answer.map((k) => k.toUpperCase()) } as Prisma.InputJsonValue
+  return { key: answer.toUpperCase() } as Prisma.InputJsonValue
+}
+```
+
+**With:**
+
+```ts
+function transformCorrectAnswer(answer: string | string[] | number | null | undefined): Prisma.InputJsonValue {
+  if (answer === null || answer === undefined) return { key: 'A' } as Prisma.InputJsonValue
+  if (typeof answer === 'number') {
+    return { value: isNaN(answer) ? 0 : answer } as Prisma.InputJsonValue
+  }
+  if (Array.isArray(answer)) {
+    const keys = answer.filter(Boolean).map((k) => k.toUpperCase())
+    return { keys: keys.length ? keys : ['A'] } as Prisma.InputJsonValue
+  }
+  return { key: (answer || 'A').toUpperCase() } as Prisma.InputJsonValue
+}
+```
+
+**Test it by:**
+1. Create a test with a NUMERIC question and leave the answer blank
+2. Click Save/Update — should succeed (no 500)
+3. Verify the question is saved with `correctAnswer: { value: 0 }` in the DB
+
+---
+
 ## Template for New Changes
 
 ```
