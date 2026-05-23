@@ -299,10 +299,10 @@ export function TutorAnalyticsPage() {
                           <Tooltip
                             cursor={{ strokeDasharray: '3 3' }}
                             contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '11px' }}
-                            formatter={(value: number | string, name: string) => {
+                            formatter={(value, name) => {
                               if (name === 'TimeSpent') return [`${value} seconds`, 'Time Spent'] as [string, string];
                               if (name === 'Question #') return [`Question ${value}`, 'Question'] as [string, string];
-                              return [`${value}`, name] as [string, string];
+                              return [`${value}`, `${name}`] as [string, string];
                             }}
                           />
                           <ReferenceLine y={60} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Target Max Pace (60s)', fill: '#d97706', fontSize: 8, position: 'top' }} />
