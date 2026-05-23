@@ -15,15 +15,40 @@ const MATH_CATEGORIES = [
       { label: "Exponent", latex: "x^{y}" },
       { label: "Subscript", latex: "x_{i}" },
       { label: "Vector", latex: "\\vec{v}" },
+      { label: "Absolute |x|", latex: "\\left|x\\right|" },
+      { label: "Floor ⌊x⌋", latex: "\\lfloor x \\rfloor" },
+      { label: "Ceiling ⌈x⌉", latex: "\\lceil x \\rceil" },
+      { label: "Plus-Minus", latex: "\\pm x" },
+    ]
+  },
+  {
+    name: "Trigonometry",
+    items: [
+      { label: "sin(x)", latex: "\\sin(x)" },
+      { label: "cos(x)", latex: "\\cos(x)" },
+      { label: "tan(x)", latex: "\\tan(x)" },
+      { label: "cot(x)", latex: "\\cot(x)" },
+      { label: "sec(x)", latex: "\\sec(x)" },
+      { label: "csc(x)", latex: "\\csc(x)" },
+      { label: "arcsin", latex: "\\arcsin(x)" },
+      { label: "arccos", latex: "\\arccos(x)" },
+      { label: "arctan", latex: "\\arctan(x)" },
+      { label: "sinh(x)", latex: "\\sinh(x)" },
+      { label: "cosh(x)", latex: "\\cosh(x)" },
+      { label: "tanh(x)", latex: "\\tanh(x)" },
+      { label: "sin²+cos²", latex: "\\sin^2(x) + \\cos^2(x) = 1" },
+      { label: "sin(π/2)", latex: "\\sin\\!\\left(\\frac{\\pi}{2}\\right)" },
     ]
   },
   {
     name: "Calculus & Matrices",
     items: [
-      { label: "Integral", latex: "\\int_{a}^{b} x dx" },
+      { label: "Integral", latex: "\\int_{a}^{b} x\\, dx" },
       { label: "Summation (Σ)", latex: "\\sum_{i=1}^{n} i" },
       { label: "Limit", latex: "\\lim_{x \\to \\infty}" },
-      { label: "2x2 Matrix", latex: "\\begin{matrix} a & b \\\\ c & d \\end{matrix}" },
+      { label: "Derivative", latex: "\\frac{d}{dx}f(x)" },
+      { label: "Partial ∂", latex: "\\frac{\\partial f}{\\partial x}" },
+      { label: "2×2 Matrix", latex: "\\begin{matrix} a & b \\\\ c & d \\end{matrix}" },
     ]
   },
   {
@@ -35,6 +60,8 @@ const MATH_CATEGORIES = [
       { label: "Pi (π)", latex: "\\pi" },
       { label: "Sigma (σ)", latex: "\\sigma" },
       { label: "Delta (Δ)", latex: "\\Delta" },
+      { label: "Lambda (λ)", latex: "\\lambda" },
+      { label: "Omega (ω)", latex: "\\omega" },
     ]
   },
   {
