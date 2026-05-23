@@ -158,27 +158,40 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Options</label>
               <div className="space-y-2">
-                {question.options.map((opt) => (
-                  <div key={opt.id} className="flex items-center gap-2">
-                    {question.type === 'mcq_single' ? (
-                      <input type="radio" name={`correct-${question.id}`} checked={question.correctAnswer === opt.id} onChange={() => onUpdate({ ...question, correctAnswer: opt.id })} className="text-blue-600" />
-                    ) : (
-                      <input type="checkbox" checked={Array.isArray(question.correctAnswer) && question.correctAnswer.includes(opt.id)}
-                        onChange={(e) => {
-                          const curr = Array.isArray(question.correctAnswer) ? question.correctAnswer : [];
-                          onUpdate({ ...question, correctAnswer: e.target.checked ? [...curr, opt.id] : curr.filter((x) => x !== opt.id) });
-                        }} className="rounded text-blue-600" />
-                    )}
-                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">{opt.id.toUpperCase()}</div>
-                    <input type="text" value={opt.text}
-                      onChange={(e) => {
-                        const opts = question.options!.map((o) => o.id === opt.id ? { ...o, text: e.target.value } : o);
-                        onUpdate({ ...question, options: opts });
-                      }}
-                      className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
-                      placeholder={`Option ${opt.id.toUpperCase()}`} />
-                  </div>
-                ))}
+                {question.options.map((opt) => {
+                  const isCorrect = question.type === 'mcq_single'
+                    ? question.correctAnswer === opt.id
+                    : Array.isArray(question.correctAnswer) && question.correctAnswer.includes(opt.id);
+                  return (
+                    <div key={opt.id} className={`flex items-start gap-2 rounded-xl border p-2 transition-colors ${isCorrect ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'}`}>
+                      {question.type === 'mcq_single' ? (
+                        <input type="radio" name={`correct-${question.id}`} checked={isCorrect}
+                          onChange={() => onUpdate({ ...question, correctAnswer: opt.id })}
+                          className="text-emerald-600 mt-2.5 flex-shrink-0" />
+                      ) : (
+                        <input type="checkbox" checked={isCorrect}
+                          onChange={(e) => {
+                            const curr = Array.isArray(question.correctAnswer) ? question.correctAnswer : [];
+                            onUpdate({ ...question, correctAnswer: e.target.checked ? [...curr, opt.id] : curr.filter((x) => x !== opt.id) });
+                          }}
+                          className="rounded text-emerald-600 mt-2.5 flex-shrink-0" />
+                      )}
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1.5 ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        {opt.id.toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <RichTextEditor
+                          compact
+                          content={opt.text}
+                          onChange={(html) => {
+                            const opts = question.options!.map((o) => o.id === opt.id ? { ...o, text: html } : o);
+                            onUpdate({ ...question, options: opts });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -225,25 +238,75 @@ interface ParsedPDFQuestion {
   selected: boolean;
 }
 
-function parsePDFText(fullText: string): ParsedPDFQuestion[] {
-  const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
-  const questions: ParsedPDFQuestion[] = [];
+interface ParsedPDFSection {
+  id: string;
+  name: string;
+  questions: ParsedPDFQuestion[];
+  collapsed: boolean;
+}
 
-  // Patterns that mark the start of a new question
+const SECTION_PATTERNS = [
+  /^section\s+\d+\s*(?:[:\-–]\s*(.+))?$/i,
+  /^part\s+\d+\s*(?:[:\-–]\s*(.+))?$/i,
+  /^module\s+\d+\s*(?:[:\-–]\s*(.+))?$/i,
+  /^(english|mathematics?|math|reading|science|writing)\s*(?:test|section|module)?\s*\d*$/i,
+  /^\d+\s*[:\-–]\s*(english|mathematics?|math|reading|science|writing)\s*(?:test|section)?$/i,
+];
+
+function isSectionHeader(line: string): boolean {
+  if (line.length > 80) return false;
+  if (/^(\d{1,3})[.)]\s+/.test(line)) return false;
+  return SECTION_PATTERNS.some(p => p.test(line));
+}
+
+// Split lines like "A. foo   B. bar   C. baz   D. qux" into separate option lines.
+// Also handles (A), F/G/H/J style (ACT).
+function expandInlineOptions(line: string): string[] {
+  // Match 2+ option markers on the same line
+  const markerRe = /(?:^|\s{2,})(\(([A-Ja-j])\)|([A-Ja-j])[.)]\s)/g;
+  const matches = [...line.matchAll(markerRe)];
+  if (matches.length < 2) return [line];
+
+  const parts: string[] = [];
+  let prev = 0;
+  for (const m of matches) {
+    // trim leading whitespace to find the real start of this option
+    const rawIdx = m.index! + (m[0].length - m[0].trimStart().length);
+    if (rawIdx > prev) {
+      const head = line.slice(prev, rawIdx).trim();
+      if (head) parts.push(head);
+    }
+    prev = rawIdx;
+  }
+  const tail = line.slice(prev).trim();
+  if (tail) parts.push(tail);
+  return parts.filter(Boolean);
+}
+
+function parsePDFText(fullText: string): ParsedPDFSection[] {
+  // Pre-process: expand inline options before splitting into lines
+  const rawLines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines: string[] = [];
+  for (const l of rawLines) lines.push(...expandInlineOptions(l));
+
+  const sections: ParsedPDFSection[] = [];
+  let currentName = 'Imported';
+  let currentQuestions: ParsedPDFQuestion[] = [];
+
   const qStartPat = /^(\d{1,3})[.)]\s+(.+)/;
-  // Patterns for options A-D
-  const optPat = /^(?:\(([A-Da-d])\)|([A-Da-d])[.):])\s*(.+)/;
+  // Support A-D and ACT's F-J, with . ) or : after the letter, or just a space
+  const optPat = /^(?:\(([A-Ja-j])\)|([A-Ja-j])[.):\s])\s*(.+)/;
 
   let current: { num: number; textLines: string[]; optMap: Record<string, string> } | null = null;
 
-  const flush = () => {
+  const flushQuestion = () => {
     if (!current || !current.textLines.length) return;
     const text = current.textLines.join(' ').replace(/\s{2,}/g, ' ').trim();
     const optCount = Object.keys(current.optMap).length;
     const options = optCount >= 2
       ? Object.entries(current.optMap).slice(0, 4).map(([id, t]) => ({ id, text: t }))
       : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
-    questions.push({
+    currentQuestions.push({
       id: Math.random().toString(36).substr(2, 9),
       num: current.num,
       text,
@@ -251,12 +314,26 @@ function parsePDFText(fullText: string): ParsedPDFQuestion[] {
       detectedType: optCount >= 2 ? 'mcq_single' : 'numeric',
       selected: true,
     });
+    current = null;
+  };
+
+  const flushSection = () => {
+    if (currentQuestions.length > 0) {
+      sections.push({ id: Math.random().toString(36).substr(2, 9), name: currentName, questions: currentQuestions, collapsed: false });
+    }
+    currentQuestions = [];
   };
 
   for (const line of lines) {
+    if (isSectionHeader(line)) {
+      flushQuestion();
+      flushSection();
+      currentName = line.replace(/\s+/g, ' ').trim();
+      continue;
+    }
     const qm = line.match(qStartPat);
     if (qm) {
-      flush();
+      flushQuestion();
       current = { num: parseInt(qm[1]), textLines: [qm[2]], optMap: {} };
       continue;
     }
@@ -264,49 +341,70 @@ function parsePDFText(fullText: string): ParsedPDFQuestion[] {
       const om = line.match(optPat);
       if (om) {
         const letter = (om[1] ?? om[2]).toLowerCase();
-        current.optMap[letter] = om[3].trim();
+        // Avoid treating single-letter answers mid-sentence as options
+        if (['a','b','c','d','e','f','g','h','j'].includes(letter)) {
+          current.optMap[letter] = (om[3] ?? '').trim();
+        }
       } else {
-        // continuation of question text (only if no options seen yet)
         if (Object.keys(current.optMap).length === 0) current.textLines.push(line);
       }
     }
   }
-  flush();
-  return questions;
+  flushQuestion();
+  flushSection();
+  return sections;
 }
 
-function PDFQuestionUploader({ sectionName, onImport, onClose }: { sectionName: string; onImport: (q: Question[]) => void; onClose: () => void }) {
+function PDFQuestionUploader({ onImport, onClose }: { onImport: (sections: { name: string; questions: Question[] }[]) => void; onClose: () => void }) {
   const [parsing, setParsing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState('');
-  const [questions, setQuestions] = useState<ParsedPDFQuestion[]>([]);
+  const [sections, setSections] = useState<ParsedPDFSection[]>([]);
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
     if (file.type !== 'application/pdf') { setError('Please upload a .pdf file'); return; }
-    setError(''); setFileName(file.name); setParsing(true); setProgress(0); setQuestions([]);
+    setError(''); setFileName(file.name); setParsing(true); setProgress(0); setSections([]);
     try {
       const pdfjsLib = await import('pdfjs-dist');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-        'pdfjs-dist/build/pdf.worker.min.mjs',
-        import.meta.url
-      ).href;
-
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href;
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let fullText = '';
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
-        fullText += content.items.map((item: unknown) => (item as { str: string }).str).join('\n') + '\n';
+
+        // Group text items by Y position (rounded to 3px buckets) so fragments
+        // on the same visual line get joined into one string, not separate lines.
+        const yBuckets = new Map<number, Array<{ x: number; str: string }>>();
+        for (const item of content.items as Array<{ str: string; transform: number[] }>) {
+          if (!item.str) continue;
+          const y = Math.round(item.transform[5] / 3) * 3;
+          if (!yBuckets.has(y)) yBuckets.set(y, []);
+          yBuckets.get(y)!.push({ x: item.transform[4], str: item.str });
+        }
+        const pageLines = [...yBuckets.entries()]
+          .sort(([ya], [yb]) => yb - ya) // PDF y-axis is bottom-up
+          .map(([, items]) => {
+            const sorted = items.sort((a, b) => a.x - b.x);
+            let line = '';
+            for (const it of sorted) {
+              if (line && !line.endsWith(' ') && !it.str.startsWith(' ')) line += ' ';
+              line += it.str;
+            }
+            return line.trim();
+          })
+          .filter(Boolean);
+        fullText += pageLines.join('\n') + '\n';
         setProgress(Math.round((i / pdf.numPages) * 100));
       }
       const parsed = parsePDFText(fullText);
-      if (!parsed.length) {
+      if (!parsed.length || parsed.every(s => s.questions.length === 0)) {
         setError('No numbered questions detected. Make sure questions are numbered like "1." or "1)".');
       } else {
-        setQuestions(parsed);
+        setSections(parsed);
       }
     } catch {
       setError('Failed to read PDF. Make sure it contains selectable text (not a scanned image).');
@@ -315,32 +413,47 @@ function PDFQuestionUploader({ sectionName, onImport, onClose }: { sectionName: 
     }
   };
 
-  const toggleAll = (val: boolean) => setQuestions(q => q.map(x => ({ ...x, selected: val })));
-  const selectedCount = questions.filter(q => q.selected).length;
+  const toggleQuestion = (secId: string, qId: string) =>
+    setSections(prev => prev.map(s => s.id !== secId ? s : { ...s, questions: s.questions.map(q => q.id === qId ? { ...q, selected: !q.selected } : q) }));
+
+  const toggleSection = (secId: string, val: boolean) =>
+    setSections(prev => prev.map(s => s.id !== secId ? s : { ...s, questions: s.questions.map(q => ({ ...q, selected: val })) }));
+
+  const toggleCollapse = (secId: string) =>
+    setSections(prev => prev.map(s => s.id !== secId ? s : { ...s, collapsed: !s.collapsed }));
+
+  const updateSectionName = (secId: string, name: string) =>
+    setSections(prev => prev.map(s => s.id !== secId ? s : { ...s, name }));
+
+  const totalSelected = sections.reduce((a, s) => a + s.questions.filter(q => q.selected).length, 0);
+  const totalQuestions = sections.reduce((a, s) => a + s.questions.length, 0);
 
   const handleImport = () => {
-    const toImport: Question[] = questions
-      .filter(q => q.selected)
-      .map(q => ({
-        id: q.id,
-        text: q.text,
-        type: q.detectedType,
-        options: q.options,
-        correctAnswer: q.detectedType === 'mcq_single' ? 'a' : 0,
-        difficulty: 'medium' as Difficulty,
-        topic: '',
-        marks: 1,
-        marksNegative: 0,
-      }));
+    const toImport = sections
+      .map(s => ({
+        name: s.name,
+        questions: s.questions.filter(q => q.selected).map(q => ({
+          id: q.id,
+          text: q.text,
+          type: q.detectedType,
+          options: q.options,
+          correctAnswer: q.detectedType === 'mcq_single' ? 'a' : 0,
+          difficulty: 'medium' as Difficulty,
+          topic: '',
+          marks: 1,
+          marksNegative: 0,
+        } as Question)),
+      }))
+      .filter(s => s.questions.length > 0);
     onImport(toImport);
     onClose();
-    toast.success(`${toImport.length} question${toImport.length !== 1 ? 's' : ''} imported from PDF!`);
+    const sCount = toImport.length;
+    toast.success(`${totalSelected} question${totalSelected !== 1 ? 's' : ''} imported across ${sCount} section${sCount !== 1 ? 's' : ''}!`);
   };
 
   return (
     <div className="space-y-4">
-      {/* Drop zone */}
-      {!questions.length && (
+      {!sections.length && (
         <div
           className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
             error ? 'border-red-300 bg-red-50' : parsing ? 'border-blue-300 bg-blue-50/30' : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50/20'
@@ -365,7 +478,8 @@ function PDFQuestionUploader({ sectionName, onImport, onClose }: { sectionName: 
                 <FileText size={24} className="text-red-400" />
               </div>
               <p className="text-sm font-medium text-slate-700">Drop PDF file here or click to browse</p>
-              <p className="text-xs text-slate-400 mt-1">Questions must be numbered: 1. 2. 3. — Options: A. B. C. D.</p>
+              <p className="text-xs text-slate-400 mt-1">Questions: numbered 1. 2. 3. — Options: A. B. C. D.</p>
+              <p className="text-xs text-slate-400">Section headers like "Section 1", "English Test", "Math Section" are auto-detected</p>
             </>
           )}
         </div>
@@ -373,63 +487,81 @@ function PDFQuestionUploader({ sectionName, onImport, onClose }: { sectionName: 
 
       {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
-      {/* Questions preview */}
-      {questions.length > 0 && (
+      {sections.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-800">{questions.length} questions detected in <span className="text-blue-600">{fileName}</span></p>
-              <p className="text-xs text-slate-500 mt-0.5">{selectedCount} selected for import</p>
+              <p className="text-sm font-semibold text-slate-800">
+                {totalQuestions} questions across {sections.length} section{sections.length !== 1 ? 's' : ''} in <span className="text-blue-600">{fileName}</span>
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">{totalSelected} selected for import</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => toggleAll(true)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">All</button>
-              <span className="text-slate-300">|</span>
-              <button onClick={() => toggleAll(false)} className="text-xs text-slate-500 hover:text-slate-700 font-medium">None</button>
-              <button onClick={() => { setQuestions([]); setFileName(''); setError(''); }}
-                className="text-xs text-red-500 hover:text-red-700 font-medium ml-2">Change file</button>
-            </div>
+            <button onClick={() => { setSections([]); setFileName(''); setError(''); }}
+              className="text-xs text-red-500 hover:text-red-700 font-medium">Change file</button>
           </div>
 
-          <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-            {questions.map((q) => (
-              <label key={q.id} className={`flex items-start gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${
-                q.selected ? 'border-blue-200 bg-blue-50/40' : 'border-slate-100 bg-white hover:bg-slate-50'
-              }`}>
-                <input type="checkbox" checked={q.selected}
-                  onChange={() => setQuestions(prev => prev.map(x => x.id === q.id ? { ...x, selected: !x.selected } : x))}
-                  className="rounded text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start gap-2">
-                    <span className="text-xs font-bold text-slate-400 flex-shrink-0 mt-0.5">Q{q.num}</span>
-                    <p className="text-sm text-slate-800 line-clamp-2">{q.text || <span className="text-slate-400 italic">Empty question text</span>}</p>
+          <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+            {sections.map(sec => {
+              const secSelected = sec.questions.filter(q => q.selected).length;
+              const allSelected = secSelected === sec.questions.length;
+              return (
+                <div key={sec.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border-b border-blue-100">
+                    <input type="checkbox" checked={allSelected}
+                      onChange={e => toggleSection(sec.id, e.target.checked)}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0" />
+                    <input
+                      value={sec.name}
+                      onChange={e => updateSectionName(sec.id, e.target.value)}
+                      className="flex-1 text-sm font-semibold text-blue-800 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-300 rounded px-1 min-w-0"
+                    />
+                    <span className="text-xs text-blue-500 flex-shrink-0">{secSelected}/{sec.questions.length}</span>
+                    <button onClick={() => toggleCollapse(sec.id)} className="text-blue-400 hover:text-blue-600 flex-shrink-0">
+                      {sec.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                    </button>
                   </div>
-                  {q.options.some(o => o.text) && (
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 ml-5">
-                      {q.options.filter(o => o.text).map(o => (
-                        <span key={o.id} className="text-xs text-slate-500">
-                          <span className="font-semibold text-slate-600">{o.id.toUpperCase()}.</span> {o.text.length > 30 ? o.text.slice(0, 30) + '…' : o.text}
-                        </span>
+                  {!sec.collapsed && (
+                    <div className="divide-y divide-slate-50">
+                      {sec.questions.map(q => (
+                        <label key={q.id} className={`flex items-start gap-3 px-3 py-2 cursor-pointer transition-colors ${q.selected ? 'bg-blue-50/40' : 'bg-white hover:bg-slate-50'}`}>
+                          <input type="checkbox" checked={q.selected}
+                            onChange={() => toggleQuestion(sec.id, q.id)}
+                            className="rounded text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-2">
+                              <span className="text-xs font-bold text-slate-400 flex-shrink-0 mt-0.5">Q{q.num}</span>
+                              <p className="text-sm text-slate-800 line-clamp-2">{q.text || <span className="text-slate-400 italic">Empty</span>}</p>
+                            </div>
+                            {q.options.some(o => o.text) && (
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 ml-5">
+                                {q.options.filter(o => o.text).map(o => (
+                                  <span key={o.id} className="text-xs text-slate-500">
+                                    <span className="font-semibold text-slate-600">{o.id.toUpperCase()}.</span> {o.text.length > 25 ? o.text.slice(0, 25) + '…' : o.text}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${q.detectedType === 'mcq_single' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                            {q.detectedType === 'mcq_single' ? 'MCQ' : 'NUM'}
+                          </span>
+                        </label>
                       ))}
                     </div>
                   )}
                 </div>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${
-                  q.detectedType === 'mcq_single' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                }`}>
-                  {q.detectedType === 'mcq_single' ? 'MCQ' : 'NUM'}
-                </span>
-              </label>
-            ))}
+              );
+            })}
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-            <strong>Tip:</strong> Correct answers are not auto-detected — set them in the question editor after import. Math formulas may need LaTeX formatting.
+            <strong>Tip:</strong> Section names are editable — rename before importing. Correct answers are not auto-detected.
           </div>
 
           <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
             <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" onClick={handleImport} disabled={!selectedCount}>
-              Import {selectedCount} question{selectedCount !== 1 ? 's' : ''} to {sectionName}
+            <Button size="sm" onClick={handleImport} disabled={!totalSelected}>
+              Import {totalSelected > 0 ? `${totalSelected} question${totalSelected !== 1 ? 's' : ''}` : 'questions'} → {sections.filter(s => s.questions.some(q => q.selected)).length} section{sections.filter(s => s.questions.some(q => q.selected)).length !== 1 ? 's' : ''}
             </Button>
           </div>
         </div>
@@ -751,7 +883,29 @@ function parseCSVContent(text: string): CSVParseResult[] {
   return results;
 }
 
-const CSV_TEMPLATE = `type,text,option_a,option_b,option_c,option_d,correct_answer,difficulty,explanation,marks,marks_negative\r\nMCQ,"If 2x + 3 = 11, what is the value of x?",2,3,4,5,C,easy,Subtract 3 from both sides then divide by 2,1,0.25\r\nNUMERIC,"What is the area of a rectangle with length 8 and width 5?",,,,,40,easy,Area = length × width = 8 × 5 = 40,2,0\r\nMSQ,"Which of the following are prime numbers?",2,3,4,5,"A,B,D",medium,2 and 3 and 5 are prime; 4 is not,1,0\r\n`;
+const CSV_TEMPLATE = [
+  // Header row
+  'type,text,option_a,option_b,option_c,option_d,correct_answer,difficulty,explanation,marks,marks_negative',
+
+  // ── MCQ (single correct) ──────────────────────────────────────────────────
+  // correct_answer = one letter: A B C or D
+  'MCQ,"If 2x + 3 = 11, what is the value of x?",2,3,4,5,C,easy,"Subtract 3: 2x = 8, then divide by 2: x = 4",1,0.25',
+  'MCQ,"Which planet is closest to the Sun?",Venus,Mercury,Mars,Earth,B,easy,Mercury is the closest planet to the Sun.,1,0',
+  'MCQ,"A train travels 120 km in 2 hours. What is its average speed?","40 km/h","60 km/h","80 km/h","100 km/h",B,medium,Speed = Distance / Time = 120 / 2 = 60 km/h,1,0.25',
+  'MCQ,"What is the value of sin(90°)?",0,1,-1,0.5,B,easy,sin(90°) = 1,1,0',
+
+  // ── MSQ (multiple correct) — correct_answer = comma-separated letters in quotes ──
+  // correct_answer must be quoted when multiple: "A,C" not A,C
+  'MSQ,"Which of the following are prime numbers?",2,3,4,6,"A,B",medium,"2 and 3 are prime; 4 = 2×2, 6 = 2×3",1,0',
+  'MSQ,"Select all correct simplifications of √48.",4√3,2√12,√3 × 4,"48^0.5","A,B,C",hard,"√48 = √(16×3) = 4√3 = 2√12 = 4×√3",2,0.5',
+
+  // ── NUMERIC (number answer — leave options blank) ─────────────────────────
+  // correct_answer = a number (integer or decimal). Commas in text need quotes.
+  'NUMERIC,"What is the area of a rectangle with length 8 cm and width 5 cm?",,,,,40,easy,Area = length × width = 8 × 5 = 40 cm²,2,0',
+  'NUMERIC,"If f(x) = 3x² − 2x + 1, what is f(2)?",,,,,9,medium,"f(2) = 3(4) − 2(2) + 1 = 12 − 4 + 1 = 9",1,0',
+  'NUMERIC,"A circle has radius 7. What is its area to the nearest whole number? (use π ≈ 3.14)",,,,,154,medium,Area = π × r² ≈ 3.14 × 49 ≈ 153.86 ≈ 154,2,0.5',
+  '',
+].join('\r\n');
 
 interface CSVUploaderProps {
   sectionName: string;
@@ -799,15 +953,48 @@ function QuestionCSVUploader({ sectionName, onImport, onClose }: CSVUploaderProp
 
   return (
     <div className="space-y-4">
-      {/* Template download */}
-      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
-        <div>
-          <p className="text-sm font-medium text-blue-900">CSV Template</p>
-          <p className="text-xs text-blue-600 mt-0.5">Columns: type, text, option_a–d, correct_answer, difficulty, explanation, marks, marks_negative</p>
+      {/* Template download + column guide */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <div>
+            <p className="text-sm font-medium text-blue-900">Download Template</p>
+            <p className="text-xs text-blue-600 mt-0.5">Pre-filled with examples for all 3 question types</p>
+          </div>
+          <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+            <Download size={12} /> Download
+          </button>
         </div>
-        <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
-          <Download size={12} /> Download
-        </button>
+
+        {/* Column reference */}
+        <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
+          <div className="bg-slate-50 px-3 py-1.5 font-semibold text-slate-600 uppercase tracking-wide border-b border-slate-200">Column Reference</div>
+          <div className="divide-y divide-slate-100">
+            {[
+              { col: 'type', req: true,  vals: 'MCQ · MSQ · NUMERIC', note: 'MCQ = single correct, MSQ = multiple correct, NUMERIC = number answer' },
+              { col: 'text', req: true,  vals: 'Any text',             note: 'Wrap in quotes if it contains commas: "If x=2, find y?"' },
+              { col: 'option_a … option_d', req: false, vals: 'Any text', note: 'Required for MCQ/MSQ. Leave all 4 blank for NUMERIC.' },
+              { col: 'correct_answer', req: true, vals: 'A/B/C/D · "A,C" · 42',  note: 'MCQ → single letter. MSQ → quoted comma list "A,B,D". NUMERIC → the number.' },
+              { col: 'difficulty', req: false, vals: 'easy · medium · hard', note: 'Defaults to medium if blank or misspelled.' },
+              { col: 'explanation', req: false, vals: 'Any text', note: 'Shown to students after submission. Optional.' },
+              { col: 'marks', req: false, vals: '1 · 1.5 · 2', note: 'Points for correct answer. Defaults to 1.' },
+              { col: 'marks_negative', req: false, vals: '0 · 0.25 · 0.5', note: 'Points deducted for wrong answer. Use 0 for no penalty.' },
+            ].map(({ col, req, vals, note }) => (
+              <div key={col} className="grid grid-cols-[140px_1fr] gap-2 px-3 py-2 hover:bg-slate-50">
+                <div className="flex items-start gap-1">
+                  <code className="text-blue-700 font-mono">{col}</code>
+                  {req && <span className="text-red-400 font-bold leading-none mt-px">*</span>}
+                </div>
+                <div>
+                  <span className="text-emerald-700 font-medium">{vals}</span>
+                  <span className="text-slate-400 ml-2">{note}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-amber-50 border-t border-amber-100 px-3 py-1.5 text-amber-700">
+            <span className="font-semibold">Rule:</span> If your text contains a comma, wrap the entire cell in double-quotes. To include a literal quote inside, use two quotes: <code className="bg-amber-100 px-1 rounded">""like this""</code>
+          </div>
+        </div>
       </div>
 
       {/* Drop zone */}
@@ -1169,37 +1356,6 @@ export function TestBuilderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Restore unsaved draft from localStorage on mount (skipped when editing an existing test)
-  useEffect(() => {
-    if (searchParams.get('testId')) return;
-    const draft = localStorage.getItem('test_builder_draft');
-    if (draft) {
-      try {
-        const parsed = JSON.parse(draft);
-        if (parsed.testTitle || parsed.sections?.length > 1 || parsed.sections?.[0]?.questions?.length > 1) {
-          setTestTitle(parsed.testTitle || '');
-          setTestDesc(parsed.testDesc || '');
-          setSections(parsed.sections || [newSection()]);
-          toast.success("Restored your unsaved draft!", { id: 'restore-draft' });
-        }
-      } catch (e) {
-        console.error("Failed to restore draft", e);
-      }
-    }
-  }, []);
-
-  // Debounced auto-save every few seconds while typing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      localStorage.setItem('test_builder_draft', JSON.stringify({
-        testTitle,
-        testDesc,
-        sections
-      }));
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [testTitle, testDesc, sections]);
-
   const updateSection = (idx: number, updates: Partial<Section>) =>
     setSections((prev) => prev.map((s, i) => i === idx ? { ...s, ...updates } : s));
 
@@ -1550,10 +1706,25 @@ export function TestBuilderPage() {
       </Modal>
 
       {/* PDF Bulk Import Modal */}
-      <Modal isOpen={showPDFUploader} onClose={() => setShowPDFUploader(false)} title={`Bulk Import from PDF — ${activeSection.name}`} size="lg">
+      <Modal isOpen={showPDFUploader} onClose={() => setShowPDFUploader(false)} title="Bulk Import from PDF" size="lg">
         <PDFQuestionUploader
-          sectionName={activeSection.name}
-          onImport={(imported) => updateSection(activeSectionIdx, { questions: [...activeSection.questions, ...imported] })}
+          onImport={(importedSections) => {
+            setSections(prev => {
+              const updated = [...prev];
+              const isDefaultBlank = updated.length === 1 && updated[0].questions.length === 0 && updated[0].name === 'New Section';
+              if (isDefaultBlank) updated.splice(0, 1);
+              for (const sec of importedSections) {
+                const existingIdx = updated.findIndex(s => s.name.toLowerCase() === sec.name.toLowerCase());
+                if (existingIdx >= 0) {
+                  updated[existingIdx] = { ...updated[existingIdx], questions: [...updated[existingIdx].questions, ...sec.questions] };
+                } else {
+                  updated.push({ id: generateId(), name: sec.name, timeLimit: 45, questions: sec.questions });
+                }
+              }
+              return updated.length > 0 ? updated : [newSection()];
+            });
+            setActiveSectionIdx(0);
+          }}
           onClose={() => setShowPDFUploader(false)}
         />
       </Modal>
