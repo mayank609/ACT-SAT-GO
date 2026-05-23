@@ -205,8 +205,9 @@ export async function PATCH(
 
     return NextResponse.json({ test })
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('PATCH /api/tests/[testId]:', error)
-    return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
