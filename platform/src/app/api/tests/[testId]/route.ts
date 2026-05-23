@@ -201,7 +201,7 @@ export async function PATCH(
           _count: { select: { attempts: true } },
         },
       })
-    })
+    }, { timeout: 30000 })
 
     return NextResponse.json({ test })
   } catch (error) {
