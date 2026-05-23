@@ -28,6 +28,10 @@ export interface DbUser {
   grade?: string | null
   targetScore?: number | null
   specialization?: string[]
+  phone?: string | null
+  parentPhone?: string | null
+  dob?: string | null
+  schoolName?: string | null
 }
 
 export const api = {
@@ -43,7 +47,11 @@ export const api = {
     targetScore?: number
     tutorId?: string
     specialization?: string[]
-  }) => request<{ user: DbUser }>('/api/users', { method: 'POST', body: JSON.stringify(body) }),
+    phone?: string
+    parentPhone?: string
+    dob?: string
+    schoolName?: string
+  }) => request<{ user: DbUser; tempPassword?: string; warning?: string }>('/api/users', { method: 'POST', body: JSON.stringify(body) }),
   updateUser: (userId: string, body: {
     name?: string
     grade?: string
@@ -51,6 +59,10 @@ export const api = {
     specialization?: string[]
     tutorId?: string | null
     notifications?: Record<string, boolean>
+    phone?: string
+    parentPhone?: string
+    dob?: string
+    schoolName?: string
   }) => request<{ user: DbUser }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteUser: (userId: string) =>
     request<{ success: boolean }>(`/api/users/${userId}`, { method: 'DELETE' }),

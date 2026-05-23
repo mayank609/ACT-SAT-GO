@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Upload, UserPlus, TrendingUp, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Upload, UserPlus, TrendingUp, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, Calendar, User2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -22,9 +22,11 @@ export function StudentManagementPage() {
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '' });
+  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
+  const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
@@ -68,6 +70,10 @@ export function StudentManagementPage() {
           grade: row.grade ?? row.Grade ?? undefined,
           targetScore: (row.targetScore ?? row['Target Score']) ? Number(row.targetScore ?? row['Target Score']) : undefined,
           tutorId: row.tutorId ?? undefined,
+          phone: row.phone ?? row.Phone ?? undefined,
+          parentPhone: row.parentPhone ?? row['Parent Phone'] ?? undefined,
+          dob: row.dob ?? row.DOB ?? row['Date of Birth'] ?? undefined,
+          schoolName: row.schoolName ?? row['School Name'] ?? row.school ?? undefined,
         });
         created++;
       } catch { /* skip invalid rows */ }
@@ -80,35 +86,53 @@ export function StudentManagementPage() {
   };
 
   const downloadTemplate = () => {
-    exportToCsv([{ name: 'John Doe', email: 'john@school.edu', grade: '11', targetScore: '32', tutorId: '' }], 'student_upload_template.csv');
+    exportToCsv([
+      { name: 'John Doe', email: 'john@school.edu', grade: '11', targetScore: '32', tutorId: '', phone: '555-0100', parentPhone: '555-0101', dob: '2008-03-15', schoolName: 'Lincoln High School' },
+      { name: 'Jane Smith', email: 'jane@school.edu', grade: '10', targetScore: '30', tutorId: '', phone: '555-0200', parentPhone: '555-0201', dob: '2009-07-22', schoolName: 'Washington Academy' },
+    ], 'student_upload_template.csv');
   };
 
   const handleAddStudent = async () => {
     if (!addForm.email) return;
     setAddError(''); setAddLoading(true);
+    const fullName = `${addForm.firstName} ${addForm.lastName}`.trim() || addForm.email.split('@')[0];
     try {
       if (isEditing && editingStudentId) {
         await api.updateUser(editingStudentId, {
-          name: `${addForm.firstName} ${addForm.lastName}`.trim() || addForm.email.split('@')[0],
+          name: fullName,
           grade: addForm.grade || undefined,
           targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
           tutorId: addForm.tutorId || undefined,
+          phone: addForm.phone || undefined,
+          parentPhone: addForm.parentPhone || undefined,
+          dob: addForm.dob || undefined,
+          schoolName: addForm.schoolName || undefined,
         });
+        setShowAddModal(false);
+        setIsEditing(false);
+        setEditingStudentId(null);
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+        reload();
       } else {
-        await api.createUser({
-          name: `${addForm.firstName} ${addForm.lastName}`.trim() || addForm.email.split('@')[0],
+        const res = await api.createUser({
+          name: fullName,
           email: addForm.email,
           role: 'STUDENT',
           grade: addForm.grade || undefined,
           targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
           tutorId: addForm.tutorId || undefined,
+          phone: addForm.phone || undefined,
+          parentPhone: addForm.parentPhone || undefined,
+          dob: addForm.dob || undefined,
+          schoolName: addForm.schoolName || undefined,
         });
+        setShowAddModal(false);
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+        reload();
+        if (res.tempPassword) {
+          setCreatedPassword({ name: fullName, email: addForm.email, password: res.tempPassword });
+        }
       }
-      setShowAddModal(false);
-      setIsEditing(false);
-      setEditingStudentId(null);
-      setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '' });
-      reload();
     } catch (e) {
       setAddError((e as Error).message);
     } finally {
@@ -240,7 +264,7 @@ export function StudentManagementPage() {
             </div>
           )}
           <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
-          <Button size="sm" icon={<Plus size={13} />} onClick={() => { setIsEditing(false); setEditingStudentId(null); setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '' }); setShowAddModal(true); }}>Add Student</Button>
+          <Button size="sm" icon={<Plus size={13} />} onClick={() => { setIsEditing(false); setEditingStudentId(null); setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' }); setShowAddModal(true); }}>Add Student</Button>
         </div>
       </div>
 
@@ -306,6 +330,10 @@ export function StudentManagementPage() {
                       grade: row.grade || '',
                       targetScore: row.targetScore ? String(row.targetScore) : '',
                       tutorId: row.tutorId || '',
+                      phone: (row as unknown as DbUser).phone || '',
+                      parentPhone: (row as unknown as DbUser).parentPhone || '',
+                      dob: (row as unknown as DbUser).dob || '',
+                      schoolName: (row as unknown as DbUser).schoolName || '',
                     });
                     setIsEditing(true);
                     setEditingStudentId(row.id);
@@ -328,59 +356,141 @@ export function StudentManagementPage() {
         </div>
       </Card>
 
-      {/* Add Student Modal */}
-      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setAddError(''); setIsEditing(false); setEditingStudentId(null); }} title={isEditing ? "Edit Student Details" : "Add New Student"}
+      {/* Add / Edit Student Modal */}
+      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setAddError(''); setIsEditing(false); setEditingStudentId(null); }} title={isEditing ? 'Edit Student Details' : 'Add New Student'} size="md"
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => { setShowAddModal(false); setIsEditing(false); setEditingStudentId(null); }}>Cancel</Button>
             <Button size="sm" icon={isEditing ? <Pencil size={13} /> : <UserPlus size={13} />} onClick={handleAddStudent} disabled={addLoading}>
-              {addLoading ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create')}
+              {addLoading ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Student')}
             </Button>
           </div>
         }>
-        <div className="space-y-3">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           {addError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{addError}</p>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
-              <input value={addForm.firstName} onChange={(e) => setAddForm(f => ({ ...f, firstName: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="First name" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
-              <input value={addForm.lastName} onChange={(e) => setAddForm(f => ({ ...f, lastName: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Last name" />
-            </div>
-          </div>
+
+          {/* Personal Info */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email Address *</label>
-            <input type="email" value={addForm.email} onChange={(e) => setAddForm(f => ({ ...f, email: e.target.value }))} disabled={isEditing}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400" placeholder="student@example.com" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
-              <select value={addForm.grade} onChange={(e) => setAddForm(f => ({ ...f, grade: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Grade</option>
-                {['9', '10', '11', '12'].map((g) => <option key={g} value={g}>Grade {g}</option>)}
-              </select>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              <User2 size={12} /> Personal Information
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Target Score</label>
-              <input type="number" value={addForm.targetScore} onChange={(e) => setAddForm(f => ({ ...f, targetScore: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 32" />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">First Name *</label>
+                  <input value={addForm.firstName} onChange={(e) => setAddForm(f => ({ ...f, firstName: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="First name" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Last Name</label>
+                  <input value={addForm.lastName} onChange={(e) => setAddForm(f => ({ ...f, lastName: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Last name" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Email Address *</label>
+                <input type="email" value={addForm.email} onChange={(e) => setAddForm(f => ({ ...f, email: e.target.value }))} disabled={isEditing}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400" placeholder="student@example.com" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Date of Birth</label>
+                  <input type="date" value={addForm.dob} onChange={(e) => setAddForm(f => ({ ...f, dob: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">School Name</label>
+                  <input value={addForm.schoolName} onChange={(e) => setAddForm(f => ({ ...f, schoolName: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Lincoln High School" />
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Contact */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Assign Tutor</label>
-            <select value={addForm.tutorId} onChange={(e) => setAddForm(f => ({ ...f, tutorId: e.target.value }))}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">No tutor</option>
-              {tutors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              <Phone size={12} /> Contact Details
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Student Phone</label>
+                <input type="tel" value={addForm.phone} onChange={(e) => setAddForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="555-0100" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Parent / Guardian Phone</label>
+                <input type="tel" value={addForm.parentPhone} onChange={(e) => setAddForm(f => ({ ...f, parentPhone: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="555-0101" />
+              </div>
+            </div>
           </div>
+
+          {/* Academic */}
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              <School size={12} /> Academic Info
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Grade</label>
+                <select value={addForm.grade} onChange={(e) => setAddForm(f => ({ ...f, grade: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">—</option>
+                  {['9', '10', '11', '12'].map((g) => <option key={g} value={g}>Grade {g}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Target ACT Score</label>
+                <input type="number" min={1} max={36} value={addForm.targetScore} onChange={(e) => setAddForm(f => ({ ...f, targetScore: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 32" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Assign Tutor</label>
+                <select value={addForm.tutorId} onChange={(e) => setAddForm(f => ({ ...f, tutorId: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">No tutor</option>
+                  {tutors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {!isEditing && (
+            <p className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
+              A temporary password will be generated and shown to you after creation. Share it with the student for first login.
+            </p>
+          )}
         </div>
+      </Modal>
+
+      {/* Temp Password Modal */}
+      <Modal isOpen={!!createdPassword} onClose={() => { setCreatedPassword(null); setCopiedPassword(false); }} title="Student Created" size="sm"
+        footer={<Button size="sm" onClick={() => { setCreatedPassword(null); setCopiedPassword(false); }}>Done</Button>}>
+        {createdPassword && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+              <CheckCircle size={18} className="text-emerald-600 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-emerald-900">{createdPassword.name}</p>
+                <p className="text-xs text-emerald-700 truncate">{createdPassword.email}</p>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                <KeyRound size={12} /> Temporary Password
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <code className="flex-1 text-base font-mono font-bold text-amber-900 tracking-widest select-all">{createdPassword.password}</code>
+                <button onClick={() => { navigator.clipboard.writeText(createdPassword.password); setCopiedPassword(true); setTimeout(() => setCopiedPassword(false), 2000); }}
+                  className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors flex-shrink-0" title="Copy password">
+                  {copiedPassword ? <CheckCircle size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Share this with the student. They should change it after first login.</p>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Bulk Upload Modal */}
@@ -435,9 +545,11 @@ export function StudentManagementPage() {
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {selectedStudent.grade && <Badge variant="default" size="sm">Grade {selectedStudent.grade}</Badge>}
                   {selectedStudent.targetScore && <Badge variant="info" size="sm">Target: {selectedStudent.targetScore}</Badge>}
+                  {selectedStudent.schoolName && <Badge variant="default" size="sm">{selectedStudent.schoolName}</Badge>}
                 </div>
               </div>
             </div>
+
             <div className="grid grid-cols-3 gap-2 md:gap-3">
               {[
                 { label: 'Tests Attempted', value: selectedStudent.testsAttempted ?? 0 },
@@ -450,6 +562,24 @@ export function StudentManagementPage() {
                 </div>
               ))}
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: <Phone size={13} />, label: 'Student Phone', value: selectedStudent.phone },
+                { icon: <Phone size={13} />, label: 'Parent / Guardian', value: selectedStudent.parentPhone },
+                { icon: <Calendar size={13} />, label: 'Date of Birth', value: selectedStudent.dob ? new Date(selectedStudent.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null },
+                { icon: <School size={13} />, label: 'School', value: selectedStudent.schoolName },
+              ].map((item) => item.value ? (
+                <div key={item.label} className="flex items-start gap-2 p-2.5 bg-slate-50 rounded-lg">
+                  <span className="text-slate-400 mt-0.5 flex-shrink-0">{item.icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{item.label}</p>
+                    <p className="text-sm text-slate-700 font-medium truncate">{item.value}</p>
+                  </div>
+                </div>
+              ) : null)}
+            </div>
+
             <div>
               <h4 className="text-sm font-semibold text-slate-700 mb-2">Assigned Tutor</h4>
               {selectedStudent.tutorName ? (

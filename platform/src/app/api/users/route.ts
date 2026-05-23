@@ -57,6 +57,10 @@ export async function GET(request: NextRequest) {
           grade: perms.grade ?? null,
           targetScore: perms.targetScore ?? null,
           specialization: perms.specialization ?? [],
+          phone: perms.phone ?? null,
+          parentPhone: perms.parentPhone ?? null,
+          dob: perms.dob ?? null,
+          schoolName: perms.schoolName ?? null,
         }
       }),
     })
@@ -69,10 +73,15 @@ export async function GET(request: NextRequest) {
 import { createAdminClient } from '@/lib/supabase/admin'
 import { randomUUID } from 'crypto'
 
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('') + '@1'
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, email, role, grade, targetScore, tutorId, specialization } = body as {
+    const { name, email, role, grade, targetScore, tutorId, specialization, phone, parentPhone, dob, schoolName } = body as {
       name: string
       email: string
       role: string
@@ -80,6 +89,10 @@ export async function POST(request: NextRequest) {
       targetScore?: number
       tutorId?: string
       specialization?: string[]
+      phone?: string
+      parentPhone?: string
+      dob?: string
+      schoolName?: string
     }
 
     // 1. Validation
@@ -121,10 +134,9 @@ export async function POST(request: NextRequest) {
     let authUserId: any = randomUUID()
     let supabaseWarning = null
     const supabaseAdmin = createAdminClient()
+    const tempPassword = generateTempPassword()
 
     if (supabaseAdmin) {
-      // Temporary password for student
-      const tempPassword = 'StudentDefaultPass123!'
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: tempPassword,
@@ -151,6 +163,10 @@ export async function POST(request: NextRequest) {
     if (grade) permissions.grade = grade
     if (targetScore) permissions.targetScore = Number(targetScore)
     if (specialization?.length) permissions.specialization = specialization
+    if (phone) permissions.phone = phone
+    if (parentPhone) permissions.parentPhone = parentPhone
+    if (dob) permissions.dob = dob
+    if (schoolName) permissions.schoolName = schoolName
 
     const user = await prisma.user.create({
       data: {
@@ -171,6 +187,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       user: { ...user, name: displayName, role: user.role.toLowerCase() },
+      tempPassword,
       warning: supabaseWarning
     }, { status: 201 })
   } catch (error) {

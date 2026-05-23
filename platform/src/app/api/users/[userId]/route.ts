@@ -50,6 +50,10 @@ export async function GET(
         grade: perms.grade ?? null,
         targetScore: perms.targetScore ?? null,
         specialization: perms.specialization ?? [],
+        phone: perms.phone ?? null,
+        parentPhone: perms.parentPhone ?? null,
+        dob: perms.dob ?? null,
+        schoolName: perms.schoolName ?? null,
       },
     })
   } catch (error) {
@@ -79,13 +83,17 @@ export async function PATCH(
   const { userId } = await params
   try {
     const body = await request.json()
-    const { name, grade, targetScore, specialization, tutorId, notifications } = body as {
+    const { name, grade, targetScore, specialization, tutorId, notifications, phone, parentPhone, dob, schoolName } = body as {
       name?: string
       grade?: string
       targetScore?: number
       specialization?: string[]
       tutorId?: string | null
       notifications?: Record<string, boolean>
+      phone?: string
+      parentPhone?: string
+      dob?: string
+      schoolName?: string
     }
 
     const existing = await prisma.user.findUnique({ where: { id: userId } })
@@ -98,6 +106,10 @@ export async function PATCH(
     if (targetScore !== undefined) permissions.targetScore = targetScore
     if (specialization !== undefined) permissions.specialization = specialization
     if (notifications !== undefined) permissions.notifications = notifications
+    if (phone !== undefined) permissions.phone = phone
+    if (parentPhone !== undefined) permissions.parentPhone = parentPhone
+    if (dob !== undefined) permissions.dob = dob
+    if (schoolName !== undefined) permissions.schoolName = schoolName
 
     const user = await prisma.user.update({
       where: { id: userId },
