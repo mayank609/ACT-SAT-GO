@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon, Database, Search } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon, Database, Search, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -30,6 +30,13 @@ function generateId() { return Math.random().toString(36).substr(2, 9); }
 function newQuestion(): Question {
   return { id: generateId(), text: '', type: 'mcq_single', options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }], correctAnswer: 'a', topic: '', difficulty: 'medium', marks: 1, marksNegative: 0 };
 }
+
+function getNumericAnswers(correctAnswer: Question['correctAnswer']): string[] {
+  if (Array.isArray(correctAnswer)) return correctAnswer.map(String);
+  if (typeof correctAnswer === 'number') return [String(correctAnswer)];
+  if (typeof correctAnswer === 'string' && correctAnswer !== '') return [correctAnswer];
+  return [''];
+}
 function newSection(): Section {
   return { id: generateId(), name: 'New Section', timeLimit: 45, questions: [newQuestion()] };
 }
@@ -39,11 +46,17 @@ interface QuestionEditorProps {
   index: number;
   onUpdate: (q: Question) => void;
   onDelete: () => void;
+  onDragStart: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
+  isDragOver: boolean;
 }
 
-function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorProps) {
+function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }: QuestionEditorProps) {
   const [expanded, setExpanded] = useState(index === 0);
   const [isSaving, setIsSaving] = useState(false);
+  const dragFromHandle = useRef(false);
   const difficultyColors: Record<Difficulty, 'success' | 'warning' | 'danger'> = { easy: 'success', medium: 'warning', hard: 'danger' };
 
   const handleSaveQuestion = async () => {
@@ -54,9 +67,25 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
   };
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+    <div
+      draggable
+      onDragStart={(e) => {
+        if (!dragFromHandle.current) { e.preventDefault(); return; }
+        e.dataTransfer.effectAllowed = 'move';
+        onDragStart();
+      }}
+      onDragOver={(e) => { e.preventDefault(); onDragOver(e); }}
+      onDrop={(e) => { e.preventDefault(); onDrop(); }}
+      onDragEnd={() => { dragFromHandle.current = false; onDragEnd(); }}
+      className={`rounded-xl overflow-hidden bg-white transition-all ${isDragOver ? 'ring-2 ring-blue-400 border-blue-300 shadow-lg scale-[1.01]' : 'border border-slate-200 shadow-sm hover:shadow-md'}`}
+    >
       <div className="flex items-center gap-2 px-3 md:px-4 py-3 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setExpanded(!expanded)}>
-        <GripVertical size={13} className="text-slate-400 cursor-grab flex-shrink-0" />
+        <GripVertical
+          size={13}
+          className="text-slate-400 cursor-grab active:cursor-grabbing flex-shrink-0"
+          onPointerDown={(e) => { e.stopPropagation(); dragFromHandle.current = true; }}
+          onPointerUp={() => { dragFromHandle.current = false; }}
+        />
         <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold flex-shrink-0">{index + 1}</div>
         <MathRenderer html={question.text || 'Untitled question'} className="flex-1 text-sm text-slate-700 truncate min-w-0 pointer-events-none math-header-preview" />
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -202,18 +231,73 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
             </div>
           )}
 
-          {question.type === 'numeric' && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Correct Answer</label>
-              <input type="number"
-                value={typeof question.correctAnswer === 'number' && !isNaN(question.correctAnswer) ? question.correctAnswer : ''}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  onUpdate({ ...question, correctAnswer: isNaN(v) ? 0 : v });
-                }}
-                className="w-40 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Numeric answer" />
-            </div>
-          )}
+          {question.type === 'numeric' && (() => {
+            const answers = getNumericAnswers(question.correctAnswer);
+            const setAnswers = (next: string[]) => onUpdate({ ...question, correctAnswer: next.length ? next : [''] });
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Accepted Answers (grid-in)</label>
+                  <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-medium">+ve max 5 chars &nbsp;·&nbsp; −ve max 6 chars</span>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 flex items-start gap-2">
+                  <span className="mt-0.5 flex-shrink-0">ℹ</span>
+                  <span>Add every equivalent form — a student's answer matches if it equals <strong>any one</strong> entry. Allowed: digits <code>0–9</code>, decimal <code>.</code>, fraction slash <code>/</code>, minus sign <code>-</code> (start only).</span>
+                </div>
+
+                <div className="space-y-2">
+                  {answers.map((ans, i) => {
+                    const isNeg = ans.startsWith('-');
+                    const limit = isNeg ? 6 : 5;
+                    const len = ans.length;
+                    const over = len > limit;
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={ans}
+                            maxLength={7}
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/[^0-9./\-]/g, '');
+                              if (val.indexOf('-') > 0) val = val.replace(/-/g, '');
+                              const next = [...answers];
+                              next[i] = val;
+                              setAnswers(next);
+                            }}
+                            placeholder={i === 0 ? 'e.g. 3/4' : i === 1 ? 'e.g. 0.75' : 'e.g. .75'}
+                            className={`w-36 px-3 py-2 text-sm border rounded-lg font-mono focus:outline-none focus:ring-2 ${over ? 'border-red-400 focus:ring-red-300 bg-red-50' : 'border-slate-200 focus:ring-blue-500'}`}
+                          />
+                        </div>
+                        <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded ${over ? 'bg-red-100 text-red-600' : len === limit ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {len}/{limit}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium w-20 truncate">
+                          {ans.includes('/') ? 'fraction' : ans.includes('.') ? 'decimal' : ans.startsWith('-') ? 'negative' : ans.length > 0 ? 'integer' : ''}
+                        </span>
+                        {answers.length > 1 && (
+                          <button type="button" onClick={() => setAnswers(answers.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-500 transition-colors">
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {answers.length < 6 && (
+                  <button
+                    type="button"
+                    onClick={() => setAnswers([...answers, ''])}
+                    className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                  >
+                    <Plus size={12} /> Add another accepted form
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Explanation (optional)</label>
@@ -1366,6 +1450,9 @@ export function TestBuilderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
   const updateSection = (idx: number, updates: Partial<Section>) =>
     setSections((prev) => prev.map((s, i) => i === idx ? { ...s, ...updates } : s));
 
@@ -1375,6 +1462,16 @@ export function TestBuilderPage() {
   };
   const deleteQuestion = (qId: string) => updateSection(activeSectionIdx, { questions: activeSection.questions.filter((q) => q.id !== qId) });
   const addQuestion = () => updateSection(activeSectionIdx, { questions: [...activeSection.questions, newQuestion()] });
+
+  const handleQuestionDrop = (targetIdx: number) => {
+    if (dragSrcIdx === null || dragSrcIdx === targetIdx) { setDragSrcIdx(null); setDragOverIdx(null); return; }
+    const qs = [...activeSection.questions];
+    const [moved] = qs.splice(dragSrcIdx, 1);
+    qs.splice(targetIdx, 0, moved);
+    updateSection(activeSectionIdx, { questions: qs });
+    setDragSrcIdx(null);
+    setDragOverIdx(null);
+  };
   const addSection = () => { setSections((prev) => [...prev, newSection()]); setActiveSectionIdx(sections.length); };
   const deleteSection = (idx: number) => { setSections((prev) => prev.filter((_, i) => i !== idx)); setActiveSectionIdx(Math.max(0, idx - 1)); };
 
@@ -1592,7 +1689,18 @@ export function TestBuilderPage() {
                 {/* Questions */}
                 <div className="space-y-2">
                   {activeSection.questions.map((q, idx) => (
-                    <QuestionEditor key={q.id} question={q} index={idx} onUpdate={(updated) => updateQuestion(q.id, updated)} onDelete={() => deleteQuestion(q.id)} />
+                    <QuestionEditor
+                      key={q.id}
+                      question={q}
+                      index={idx}
+                      onUpdate={(updated) => updateQuestion(q.id, updated)}
+                      onDelete={() => deleteQuestion(q.id)}
+                      onDragStart={() => setDragSrcIdx(idx)}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverIdx(idx); }}
+                      onDrop={() => handleQuestionDrop(idx)}
+                      onDragEnd={() => { setDragSrcIdx(null); setDragOverIdx(null); }}
+                      isDragOver={dragOverIdx === idx && dragSrcIdx !== idx}
+                    />
                   ))}
                 </div>
 
