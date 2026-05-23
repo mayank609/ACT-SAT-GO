@@ -179,7 +179,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1.5 ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
                         {opt.id.toUpperCase()}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 space-y-1">
                         <RichTextEditor
                           compact
                           content={opt.text}
@@ -188,6 +188,12 @@ function QuestionEditor({ question, index, onUpdate, onDelete }: QuestionEditorP
                             onUpdate({ ...question, options: opts });
                           }}
                         />
+                        {opt.text && opt.text.includes('$') && (
+                          <div className="px-2 py-1 bg-slate-50 border border-slate-100 rounded text-xs text-slate-500">
+                            <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400 mr-1">Preview:</span>
+                            <MathRenderer html={opt.text} className="inline" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
