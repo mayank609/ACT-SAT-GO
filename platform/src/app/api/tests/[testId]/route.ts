@@ -168,10 +168,15 @@ export async function PATCH(
           if (!dbDiff) throw new Error(`Invalid difficulty: ${q.difficulty}`)
           const topicId = q.topic ? (topicMap.get(q.topic.toLowerCase()) ?? null) : null
 
+          // Temporary fallback: if DB doesn't accept PASSAGE enum, store as MCQ and mark content.meta.isPassage
+          const isPassage = dbType === 'PASSAGE'
+          const writeType = isPassage ? 'MCQ' : dbType
+          const contentJson = { text: q.text, explanation: q.explanation ?? null, meta: isPassage ? { isPassage: true } : undefined } as Prisma.InputJsonValue
+
           const newQuestion = await tx.question.create({
             data: {
-              type: dbType,
-              content: { text: q.text, explanation: q.explanation ?? null } as Prisma.InputJsonValue,
+              type: writeType as any,
+              content: contentJson,
               options: q.options ? transformOptions(q.options) : Prisma.DbNull,
               correctAnswer: transformCorrectAnswer(q.correctAnswer),
               difficultyLevel: dbDiff,

@@ -1,0 +1,23 @@
+{
+  "sections": [
+    {
+      "name": "Reading",
+      "timeLimit": 10,
+      "questions": [
+        {
+          "text": "<p>Sample passage text</p>",
+          "type": "passage",
+          "options": [
+            { "id": "a", "text": "" },
+            { "id": "b", "text": "" },
+            { "id": "c", "text": "" },
+            { "id": "d", "text": "" }
+          ],
+          "correctAnswer": "a",
+          "difficulty": "medium",
+          "marks": 1
+        }
+      ]
+    }
+  ]
+}

@@ -55,6 +55,7 @@ interface QuestionEditorProps {
 
 function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }: QuestionEditorProps) {
   const [expanded, setExpanded] = useState(index === 0);
+  const [showPreview, setShowPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const dragFromHandle = useRef(false);
   const difficultyColors: Record<Difficulty, 'success' | 'warning' | 'danger'> = { easy: 'success', medium: 'warning', hard: 'danger' };
@@ -486,6 +487,55 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                   <p className="text-xs text-slate-500 italic">No internal questions added yet. Click "Add Question" to create one.</p>
                 )}
               </div>
+
+              {/* Preview Toggle + Split Preview */}
+              <div className="flex items-center justify-between mt-3">
+                <div className="text-xs text-slate-500">Preview how this passage and its internal questions will appear to students.</div>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview((s) => !s)}
+                  className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md border border-slate-200"
+                >
+                  {showPreview ? 'Hide Preview' : 'Show Preview'}
+                </button>
+              </div>
+
+              {showPreview && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="prose-slate max-h-64 overflow-y-auto p-3 border border-slate-200 rounded-lg bg-white">
+                    <div className="text-xs font-semibold text-slate-600 mb-2">Passage (Left)</div>
+                    <MathRenderer html={question.text || '<p>(No passage text)</p>'} />
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto p-3 border border-slate-200 rounded-lg bg-white">
+                    <div className="text-xs font-semibold text-slate-600 mb-2">Internal Questions (Right)</div>
+                    {(question.linkedQuestions && question.linkedQuestions.length > 0) ? (
+                      <div className="space-y-3">
+                        {question.linkedQuestions.map((lq, i) => (
+                          <div key={lq.id} className="border rounded-md p-2">
+                            <div className="text-sm text-slate-700 mb-2"><MathRenderer html={lq.text || 'Untitled question'} /></div>
+                            {(lq.type === 'mcq_single' || lq.type === 'mcq_multi') && lq.options && (
+                              <div className="space-y-1">
+                                {lq.options.map((opt) => (
+                                  <div key={opt.id} className="flex items-start gap-2">
+                                    <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{opt.id.toUpperCase()}</div>
+                                    <div className="text-sm text-slate-700"><MathRenderer html={opt.text || ''} /></div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {lq.type === 'numeric' && (
+                              <div className="text-sm text-slate-600 italic">Numeric answer input</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500 italic">No internal questions added yet.</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

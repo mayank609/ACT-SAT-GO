@@ -1,0 +1,1 @@
+ALTER TABLE "Question" ADD COLUMN IF NOT EXISTS "parentQuestionId" uuid;
