@@ -131,6 +131,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                 <option value="mcq_single">MCQ — Single Correct</option>
                 <option value="mcq_multi">MCQ — Multiple Correct</option>
                 <option value="numeric">Numeric Response</option>
+                <option value="passage">Passage Question</option>
               </select>
             </div>
             <div>
@@ -298,6 +299,33 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
               </div>
             );
           })()}
+
+          {question.type === 'passage' && (
+            <div className="space-y-4 border-t border-slate-200 pt-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 flex items-start gap-2">
+                <span className="mt-0.5 flex-shrink-0">ℹ</span>
+                <span>
+                  <strong>Passage Question Format:</strong> The passage text above is the main content. Linked questions are added separately in the Question Bank and grouped under this passage in tests.
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Linked Questions</h4>
+                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-medium">Beta Feature</span>
+                </div>
+                <p className="text-xs text-slate-600 mb-3">
+                  After saving this passage, you can create questions linked to it by marking them as "Linked to Passage" in the Question Bank.
+                </p>
+                <button
+                  type="button"
+                  disabled={true}
+                  className="text-xs text-slate-500 bg-slate-200 px-3 py-1.5 rounded-lg opacity-50 cursor-not-allowed"
+                >
+                  Manage Linked Questions (Save passage first)
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Explanation (optional)</label>
@@ -1207,7 +1235,7 @@ function BankPickerModal({ onAdd, onClose }: { onAdd: (questions: Question[]) =>
   });
 
   const handleAdd = () => {
-    const TYPE_MAP: Record<string, QuestionType> = { MCQ: 'mcq_single', MSQ: 'mcq_multi', NUMERIC: 'numeric' };
+    const TYPE_MAP: Record<string, QuestionType> = { MCQ: 'mcq_single', MSQ: 'mcq_multi', NUMERIC: 'numeric', PASSAGE: 'passage' };
     const DIFF_MAP: Record<string, Difficulty> = { EASY: 'easy', MEDIUM: 'medium', HARD: 'hard' };
 
     const mapped: Question[] = bankQs
@@ -1405,7 +1433,7 @@ export function TestBuilderPage() {
         subCategory: test.subCategory ?? '',
       }));
 
-      const TYPE_MAP: Record<string, QuestionType> = { MCQ: 'mcq_single', MSQ: 'mcq_multi', NUMERIC: 'numeric' };
+      const TYPE_MAP: Record<string, QuestionType> = { MCQ: 'mcq_single', MSQ: 'mcq_multi', NUMERIC: 'numeric', PASSAGE: 'passage' };
       const DIFF_MAP: Record<string, Difficulty> = { EASY: 'easy', MEDIUM: 'medium', HARD: 'hard' };
 
       const mappedSections: Section[] = (test.sections ?? []).map((sec: any) => ({

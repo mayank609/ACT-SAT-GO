@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 type FrontendStatus = 'draft' | 'published' | 'archived'
-type FrontendType = 'mcq_single' | 'mcq_multi' | 'numeric'
+type FrontendType = 'mcq_single' | 'mcq_multi' | 'numeric' | 'passage'
 type FrontendDifficulty = 'easy' | 'medium' | 'hard'
 
 const STATUS_MAP: Record<FrontendStatus, 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'> = {
@@ -45,9 +45,12 @@ const STATUS_MAP: Record<FrontendStatus, 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'> = {
   archived: 'ARCHIVED',
 }
 
-const TYPE_MAP: Record<FrontendType, 'MCQ' | 'MSQ' | 'NUMERIC'> = {
+const TYPE_MAP: Record<FrontendType, 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE'> = {
   mcq_single: 'MCQ',
   mcq_multi: 'MSQ',
+  numeric: 'NUMERIC',
+  passage: 'PASSAGE',
+}
   numeric: 'NUMERIC',
 }
 

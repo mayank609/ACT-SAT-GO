@@ -47,8 +47,28 @@ function formatTime(s: number) {
 }
 
 // Converts frontend answer to DB storage format so scoring comparison works
-function toDbAnswer(type: string, answer: string | string[] | number | null): unknown {
+function toDbAnswer(type: string, answer: string | string[] | number | null | Record<string, any>): unknown {
   if (answer === null || answer === '' || (Array.isArray(answer) && answer.length === 0)) return null;
+  
+  // For passage questions, answer is an object with linked question answers
+  if (type === 'passage') {
+    if (typeof answer !== 'object' || Array.isArray(answer)) return null;
+    
+    const passageAnswers: Record<string, any> = {};
+    for (const [qId, qAnswer] of Object.entries(answer)) {
+      if (qAnswer === null || qAnswer === '' || (Array.isArray(qAnswer) && qAnswer.length === 0)) {
+        passageAnswers[qId] = null;
+      } else if (typeof qAnswer === 'number') {
+        passageAnswers[qId] = { value: qAnswer };
+      } else if (Array.isArray(qAnswer)) {
+        passageAnswers[qId] = { keys: qAnswer.map((k: string) => k.toUpperCase()) };
+      } else {
+        passageAnswers[qId] = { key: String(qAnswer).toUpperCase() };
+      }
+    }
+    return passageAnswers;
+  }
+  
   if (type === 'numeric') return { value: typeof answer === 'number' ? answer : parseFloat(String(answer)) || null };
   if (type === 'mcq_multi') return { keys: (answer as string[]).map((k) => k.toUpperCase()) };
   return { key: (answer as string).toUpperCase() };
@@ -70,7 +90,7 @@ export function TestInterfacePage() {
   const { currentAttempt, activeTest, startAttempt, updateQuestionState, navigateToQuestion, advanceSection, recordTabSwitch, clearAttempt } = useTestStore();
   const { user } = useAuthStore();
 
-  const [selectedAnswer, setSelectedAnswer] = useState<string | string[] | number | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | string[] | number | Record<string, any> | null>(null);
   const [numericInput, setNumericInput] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
@@ -695,6 +715,99 @@ export function TestInterfacePage() {
                   className="w-40 md:w-48 px-4 py-3 border-2 border-slate-200 rounded-xl text-lg focus:outline-none focus:border-blue-500 transition-all" />
               </div>
             )}
+
+            {/* Passage Question */}
+            {currentQuestion.type === 'passage' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                {/* Passage on left */}
+                <div className="order-2 lg:order-1">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 md:p-5 max-h-96 overflow-y-auto">
+                    <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Reading Passage</h3>
+                    <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed">
+                      <RichContentRenderer content={currentQuestion.text} variant="question" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Linked questions on right */}
+                <div className="order-1 lg:order-2 space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 md:p-4">
+                    <p className="text-xs text-blue-700">
+                      <span className="font-semibold">Based on the passage:</span> Answer the questions using information from the passage text.
+                    </p>
+                  </div>
+
+                  {currentQuestion.linkedQuestions && currentQuestion.linkedQuestions.length > 0 ? (
+                    <div className="space-y-4">
+                      {currentQuestion.linkedQuestions.map((linkedQ, idx) => (
+                        <div key={linkedQ.id} className="p-4 border border-slate-200 rounded-xl bg-white">
+                          <p className="text-xs font-semibold text-slate-500 mb-2">Question {idx + 1}</p>
+                          <p className="text-sm font-medium text-slate-900 mb-3">
+                            <RichContentRenderer content={linkedQ.text} variant="question" />
+                          </p>
+
+                          {/* MCQ options for linked questions */}
+                          {(linkedQ.type === 'mcq_single' || linkedQ.type === 'mcq_multi') && linkedQ.options && (
+                            <div className="space-y-2">
+                              {linkedQ.options.map((opt) => {
+                                const linkedQAnswer = typeof selectedAnswer === 'object' && selectedAnswer !== null
+                                  ? (selectedAnswer as Record<string, any>)[linkedQ.id]
+                                  : null;
+                                const isSelected = linkedQ.type === 'mcq_multi'
+                                  ? Array.isArray(linkedQAnswer) && linkedQAnswer.includes(opt.id)
+                                  : linkedQAnswer === opt.id;
+                                return (
+                                  <OptionRenderer
+                                    key={opt.id}
+                                    label={opt.id.toUpperCase()}
+                                    text={opt.text}
+                                    isSelected={isSelected}
+                                    onClick={() => {
+                                      const current = (selectedAnswer as Record<string, any>) || {};
+                                      if (linkedQ.type === 'mcq_multi') {
+                                        const curr = Array.isArray(current[linkedQ.id]) ? current[linkedQ.id] as string[] : [];
+                                        setSelectedAnswer({
+                                          ...current,
+                                          [linkedQ.id]: curr.includes(opt.id) ? curr.filter((x) => x !== opt.id) : [...curr, opt.id],
+                                        });
+                                      } else {
+                                        setSelectedAnswer({ ...current, [linkedQ.id]: opt.id });
+                                      }
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Numeric for linked questions */}
+                          {linkedQ.type === 'numeric' && (
+                            <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-2">Enter answer:</label>
+                              <input
+                                type="number"
+                                value={typeof selectedAnswer === 'object' && selectedAnswer !== null && (selectedAnswer as Record<string, any>)[linkedQ.id] ? (selectedAnswer as Record<string, any>)[linkedQ.id] : ''}
+                                onChange={(e) => {
+                                  const current = (selectedAnswer as Record<string, any>) || {};
+                                  setSelectedAnswer({ ...current, [linkedQ.id]: parseFloat(e.target.value) || 0 });
+                                }}
+                                placeholder="Enter number"
+                                className="w-full md:w-48 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-slate-500 text-sm p-4 bg-slate-50 rounded-lg">
+                      No linked questions available yet for this passage.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Action buttons */}

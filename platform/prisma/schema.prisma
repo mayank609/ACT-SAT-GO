@@ -17,6 +17,7 @@ enum QuestionType {
   MCQ
   MSQ
   NUMERIC
+  PASSAGE
 }
 
 enum Difficulty {
@@ -89,9 +90,12 @@ model Question {
   topicId          String?
   referenceId      String?
   subject          String?
+  parentQuestionId String?      // For linked questions under a passage
   createdAt        DateTime     @default(now())
 
   topic            Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  parentQuestion   Question?    @relation("ParentChild", fields: [parentQuestionId], references: [id], onDelete: Cascade)
+  childQuestions   Question[]   @relation("ParentChild")
   testQuestions    TestQuestion[]
   attemptAnswers   AttemptAnswer[]
 }

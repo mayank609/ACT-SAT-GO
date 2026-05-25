@@ -10,7 +10,7 @@ export interface User {
   assignedStudentIds?: string[];
 }
 
-export type QuestionType = 'mcq_single' | 'mcq_multi' | 'numeric';
+export type QuestionType = 'mcq_single' | 'mcq_multi' | 'numeric' | 'passage';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export interface Option {
@@ -32,6 +32,8 @@ export interface Question {
   explanation?: string;
   marks: number;
   marksNegative: number;
+  parentQuestionId?: string;      // For linked questions under a passage
+  linkedQuestions?: Question[];   // For passage questions containing multiple questions
 }
 
 export interface Section {

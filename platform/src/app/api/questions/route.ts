@@ -61,11 +61,11 @@ export async function GET(request: NextRequest) {
 
 // ── POST — create standalone question in the bank ────────────────────────────
 
-type FrontendType = 'mcq_single' | 'mcq_multi' | 'numeric'
+type FrontendType = 'mcq_single' | 'mcq_multi' | 'numeric' | 'passage'
 type FrontendDifficulty = 'easy' | 'medium' | 'hard'
 
-const TYPE_MAP: Record<FrontendType, 'MCQ' | 'MSQ' | 'NUMERIC'> = {
-  mcq_single: 'MCQ', mcq_multi: 'MSQ', numeric: 'NUMERIC',
+const TYPE_MAP: Record<FrontendType, 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE'> = {
+  mcq_single: 'MCQ', mcq_multi: 'MSQ', numeric: 'NUMERIC', passage: 'PASSAGE',
 }
 const DIFF_MAP: Record<FrontendDifficulty, 'EASY' | 'MEDIUM' | 'HARD'> = {
   easy: 'EASY', medium: 'MEDIUM', hard: 'HARD',

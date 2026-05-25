@@ -276,11 +276,12 @@ function AddQuestionModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
             <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Type</label>
             <select value={draft.type} onChange={(e) => {
               const t = e.target.value as QType;
-              update({ type: t, correctAnswer: t === 'numeric' ? 0 : t === 'mcq_multi' ? [] : 'a' });
+              update({ type: t, correctAnswer: t === 'numeric' ? 0 : t === 'mcq_multi' ? [] : t === 'passage' ? {} : 'a' });
             }} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="mcq_single">MCQ — Single Correct</option>
               <option value="mcq_multi">MCQ — Multiple Correct</option>
               <option value="numeric">Numeric Response</option>
+              <option value="passage">Passage Question</option>
             </select>
           </div>
           <div>
@@ -352,6 +353,18 @@ function AddQuestionModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
             <input type="number" value={typeof draft.correctAnswer === 'number' ? draft.correctAnswer : ''}
               onChange={(e) => update({ correctAnswer: parseFloat(e.target.value) || 0 })}
               className="w-40 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Numeric answer" />
+          </div>
+        )}
+
+        {draft.type === 'passage' && (
+          <div className="space-y-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <span className="text-blue-600 mt-0.5">ℹ</span>
+              <div className="text-xs text-blue-800">
+                <p className="font-semibold mb-1">Passage Question</p>
+                <p>The passage text is entered in the "Question Text" field above. This question type groups multiple related questions under one reading passage.</p>
+              </div>
+            </div>
           </div>
         )}
 
