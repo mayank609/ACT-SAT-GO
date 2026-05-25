@@ -51,8 +51,7 @@ const TYPE_MAP: Record<FrontendType, 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE'> = {
   numeric: 'NUMERIC',
   passage: 'PASSAGE',
 }
-  numeric: 'NUMERIC',
-}
+
 
 const DIFF_MAP: Record<FrontendDifficulty, 'EASY' | 'MEDIUM' | 'HARD'> = {
   easy: 'EASY',

@@ -28,7 +28,7 @@ const SUB_TOPICS: Record<string, string[]> = {
 function generateId() { return Math.random().toString(36).substr(2, 9); }
 
 function newQuestion(): Question {
-  return { id: generateId(), text: '', type: 'mcq_single', options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }], correctAnswer: 'a', topic: '', difficulty: 'medium', marks: 1, marksNegative: 0 };
+  return { id: generateId(), text: '', type: 'mcq_single', options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }], correctAnswer: 'a', topic: '', difficulty: 'medium', marks: 1, marksNegative: 0, linkedQuestions: [] };
 }
 
 function getNumericAnswers(correctAnswer: Question['correctAnswer']): string[] {
@@ -305,24 +305,186 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 flex items-start gap-2">
                 <span className="mt-0.5 flex-shrink-0">ℹ</span>
                 <span>
-                  <strong>Passage Question Format:</strong> The passage text above is the main content. Linked questions are added separately in the Question Bank and grouped under this passage in tests.
+                  <strong>Passage Question Format:</strong> Add internal questions below. The passage text above appears on the left, and these questions appear on the right during the test.
                 </span>
               </div>
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Linked Questions</h4>
-                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-medium">Beta Feature</span>
+
+              {/* Linked Questions Editor */}
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Internal Questions ({(question.linkedQuestions || []).length})</h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newLinkedQ = newQuestion();
+                      newLinkedQ.id = generateId();
+                      newLinkedQ.parentQuestionId = question.id;
+                      const updated = { ...question, linkedQuestions: [...(question.linkedQuestions || []), newLinkedQ] };
+                      onUpdate(updated);
+                    }}
+                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1"
+                  >
+                    <Plus size={12} /> Add Question
+                  </button>
                 </div>
-                <p className="text-xs text-slate-600 mb-3">
-                  After saving this passage, you can create questions linked to it by marking them as "Linked to Passage" in the Question Bank.
-                </p>
-                <button
-                  type="button"
-                  disabled={true}
-                  className="text-xs text-slate-500 bg-slate-200 px-3 py-1.5 rounded-lg opacity-50 cursor-not-allowed"
-                >
-                  Manage Linked Questions (Save passage first)
-                </button>
+
+                {(question.linkedQuestions && question.linkedQuestions.length > 0) ? (
+                  <div className="space-y-3">
+                    {question.linkedQuestions.map((linkedQ, idx) => (
+                      <div key={linkedQ.id} className="border border-slate-300 rounded-lg p-3 bg-white">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <span className="text-xs font-semibold text-slate-600">Question {idx + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = {
+                                ...question,
+                                linkedQuestions: (question.linkedQuestions || []).filter((q) => q.id !== linkedQ.id),
+                              };
+                              onUpdate(updated);
+                            }}
+                            className="p-0.5 text-red-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {/* Type */}
+                          <select
+                            value={linkedQ.type}
+                            onChange={(e) => {
+                              const updated = { ...linkedQ, type: e.target.value as QuestionType };
+                              if (e.target.value === 'mcq_single' || e.target.value === 'mcq_multi') {
+                                updated.options = linkedQ.options || [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
+                                updated.correctAnswer = e.target.value === 'mcq_single' ? 'a' : ['a'];
+                              }
+                              const passageUpdated = {
+                                ...question,
+                                linkedQuestions: (question.linkedQuestions || []).map((q) => (q.id === linkedQ.id ? updated : q)),
+                              };
+                              onUpdate(passageUpdated);
+                            }}
+                            className="w-full px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="mcq_single">MCQ — Single</option>
+                            <option value="mcq_multi">MCQ — Multiple</option>
+                            <option value="numeric">Numeric</option>
+                          </select>
+
+                          {/* Question Text */}
+                          <div>
+                            <label className="text-xs font-semibold text-slate-600 block mb-1">Question Text</label>
+                            <RichTextEditor
+                              compact
+                              content={linkedQ.text}
+                              onChange={(html) => {
+                                const updated = { ...linkedQ, text: html };
+                                const passageUpdated = {
+                                  ...question,
+                                  linkedQuestions: (question.linkedQuestions || []).map((q) => (q.id === linkedQ.id ? updated : q)),
+                                };
+                                onUpdate(passageUpdated);
+                              }}
+                            />
+                          </div>
+
+                          {/* MCQ Options */}
+                          {(linkedQ.type === 'mcq_single' || linkedQ.type === 'mcq_multi') && linkedQ.options && (
+                            <div>
+                              <label className="text-xs font-semibold text-slate-600 block mb-1">Options</label>
+                              <div className="space-y-1">
+                                {linkedQ.options.map((opt) => {
+                                  const isCorrect = linkedQ.type === 'mcq_single'
+                                    ? linkedQ.correctAnswer === opt.id
+                                    : Array.isArray(linkedQ.correctAnswer) && linkedQ.correctAnswer.includes(opt.id);
+                                  return (
+                                    <div key={opt.id} className="flex items-center gap-1.5">
+                                      {linkedQ.type === 'mcq_single' ? (
+                                        <input
+                                          type="radio"
+                                          checked={isCorrect}
+                                          onChange={() => {
+                                            const updated = { ...linkedQ, correctAnswer: opt.id };
+                                            const passageUpdated = {
+                                              ...question,
+                                              linkedQuestions: (question.linkedQuestions || []).map((q) => (q.id === linkedQ.id ? updated : q)),
+                                            };
+                                            onUpdate(passageUpdated);
+                                          }}
+                                          className="text-emerald-600"
+                                        />
+                                      ) : (
+                                        <input
+                                          type="checkbox"
+                                          checked={isCorrect}
+                                          onChange={(e) => {
+                                            const curr = Array.isArray(linkedQ.correctAnswer) ? linkedQ.correctAnswer : [];
+                                            const updated = {
+                                              ...linkedQ,
+                                              correctAnswer: e.target.checked ? [...curr, opt.id] : curr.filter((x) => x !== opt.id),
+                                            };
+                                            const passageUpdated = {
+                                              ...question,
+                                              linkedQuestions: (question.linkedQuestions || []).map((q) => (q.id === linkedQ.id ? updated : q)),
+                                            };
+                                            onUpdate(passageUpdated);
+                                          }}
+                                          className="rounded text-emerald-600"
+                                        />
+                                      )}
+                                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600">
+                                        {opt.id.toUpperCase()}
+                                      </div>
+                                      <input
+                                        type="text"
+                                        value={opt.text}
+                                        onChange={(e) => {
+                                          const opts = linkedQ.options!.map((o) => (o.id === opt.id ? { ...o, text: e.target.value } : o));
+                                          const updated = { ...linkedQ, options: opts };
+                                          const passageUpdated = {
+                                            ...question,
+                                            linkedQuestions: (question.linkedQuestions || []).map((q) => (q.id === linkedQ.id ? updated : q)),
+                                          };
+                                          onUpdate(passageUpdated);
+                                        }}
+                                        placeholder={`Option ${opt.id.toUpperCase()}`}
+                                        className="flex-1 px-2 py-0.5 text-xs border border-slate-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Numeric Answer */}
+                          {linkedQ.type === 'numeric' && (
+                            <div>
+                              <label className="text-xs font-semibold text-slate-600 block mb-1">Correct Answer</label>
+                              <input
+                                type="number"
+                                value={typeof linkedQ.correctAnswer === 'number' ? linkedQ.correctAnswer : ''}
+                                onChange={(e) => {
+                                  const updated = { ...linkedQ, correctAnswer: parseFloat(e.target.value) || 0 };
+                                  const passageUpdated = {
+                                    ...question,
+                                    linkedQuestions: (question.linkedQuestions || []).map((q) => (q.id === linkedQ.id ? updated : q)),
+                                  };
+                                  onUpdate(passageUpdated);
+                                }}
+                                placeholder="e.g. 42"
+                                className="w-24 px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">No internal questions added yet. Click "Add Question" to create one.</p>
+                )}
               </div>
             </div>
           )}
