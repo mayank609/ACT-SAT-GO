@@ -30,12 +30,21 @@ async function main() {
   // ── 2. Users ────────────────────────────────────────────────────────────────
   console.log('👤 Creating users...')
 
+  const superAdmin = await prisma.user.create({
+    data: {
+      name: 'Super Admin',
+      email: 'admin@actsat.com',
+      role: 'SUPER_ADMIN',
+      permissions: { displayName: 'Super Admin' },
+    },
+  })
+
   const admin = await prisma.user.create({
     data: {
-      name: 'Admin User',
-      email: 'admin@actsat.com',
+      name: 'Staff Admin',
+      email: 'staff@actsat.com',
       role: 'ADMIN',
-      permissions: { displayName: 'Admin User' },
+      permissions: { displayName: 'Staff Admin' },
     },
   })
 
@@ -376,9 +385,10 @@ async function main() {
   console.log(`  Math section:    ${mathSection.id} (5 questions, 60 min)`)
   console.log(`  English section: ${englishSection.id} (5 questions, 45 min)`)
   console.log('\nLogin as any user to test:')
-  console.log('  Admin role   → admin@actsat.com')
-  console.log('  Tutor role   → emily.rodriguez@actsat.com')
-  console.log('  Student role → alex.thompson@student.com (or morgan/casey)')
+  console.log('  Super Admin role → admin@actsat.com')
+  console.log('  Admin role       → staff@actsat.com')
+  console.log('  Tutor role       → emily.rodriguez@actsat.com')
+  console.log('  Student role     → alex.thompson@student.com (or morgan/casey)')
 }
 
 main()

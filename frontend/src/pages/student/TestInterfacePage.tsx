@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams, useBlocker } from 'react-router-dom';
 import { Flag, ChevronLeft, ChevronRight, Send, AlertTriangle, Grid3X3, Loader2 } from 'lucide-react';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -78,6 +78,24 @@ export function TestInterfacePage() {
   const [restoring, setRestoring] = useState(Boolean(searchParams.get('attemptId')));
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
+  const { testId } = useParams<{ testId: string }>();
+  const isPreview = searchParams.get('preview') === 'true';
+
+  const [isFullscreenBlocked, setIsFullscreenBlocked] = useState(true);
+  const [showExitWarningModal, setShowExitWarningModal] = useState(false);
+  const [allowNavigationAway, setAllowNavigationAway] = useState(false);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      !allowNavigationAway && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      setShowExitWarningModal(true);
+    }
+  }, [blocker.state]);
+
   const questionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Ref so timer-expire callback always sees latest reset function
   const resetTimerRef = useRef<(s: number) => void>(() => {});
@@ -90,6 +108,48 @@ export function TestInterfacePage() {
 
   useEffect(() => {
     async function restoreAttemptFromBackend() {
+      if (isPreview && !currentAttempt && testId) {
+        setRestoring(true);
+        setRestoreError(null);
+        try {
+          const { test: rawTest } = await api.getTest(testId);
+          const restoredTest = transformDbTest(rawTest as any);
+          const sections: Record<string, SectionAttempt> = {};
+          restoredTest.sections.forEach((sec) => {
+            const questions: SectionAttempt['questions'] = {};
+            sec.questions.forEach((q) => {
+              questions[q.id] = { questionId: q.id, state: 'not_visited', timeSpent: 0 };
+            });
+            sections[sec.id] = {
+              sectionId: sec.id,
+              startedAt: new Date().toISOString(),
+              completedAt: undefined,
+              timeUsed: 0,
+              questions,
+            };
+          });
+          const attempt: TestAttempt = {
+            id: 'preview',
+            testId,
+            studentId: user?.id ?? 'preview',
+            status: 'in_progress',
+            startedAt: new Date().toISOString(),
+            currentSectionIndex: 0,
+            currentQuestionIndex: 0,
+            sections,
+            tabSwitchCount: 0,
+            isFullScreen: false,
+          };
+          startAttempt(attempt, restoredTest);
+          setRestoring(false);
+        } catch (err: any) {
+          console.error('[Preview] Failed to restore preview attempt:', err);
+          setRestoring(false);
+          setRestoreError(err?.message ?? 'Failed to restore preview.');
+        }
+        return;
+      }
+
       if (!attemptIdFromQuery || currentAttempt) {
         setRestoring(false);
         return;
@@ -206,9 +266,13 @@ export function TestInterfacePage() {
   const doSectionTransition = async (fromSectionId: string, toSectionIdx: number) => {
     if (!attempt || !test) return;
     try {
-      await api.submitSection(attempt.id, fromSectionId);
-      const result = await api.startSection(attempt.id, test.sections[toSectionIdx].id) as { endTime: number };
-      resetTimerRef.current(Math.max(10, Math.floor((result.endTime - Date.now()) / 1000)));
+      if (!isPreview) {
+        await api.submitSection(attempt.id, fromSectionId);
+        const result = await api.startSection(attempt.id, test.sections[toSectionIdx].id) as { endTime: number };
+        resetTimerRef.current(Math.max(10, Math.floor((result.endTime - Date.now()) / 1000)));
+      } else {
+        resetTimerRef.current((test.sections[toSectionIdx]?.timeLimit ?? 45) * 60);
+      }
     } catch {
       resetTimerRef.current((test.sections[toSectionIdx]?.timeLimit ?? 45) * 60);
     }
@@ -217,21 +281,23 @@ export function TestInterfacePage() {
   const doFinalSubmit = async () => {
     if (!attempt || !currentSection || !currentQuestion) return;
     const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
-    // Autosave last question's answer
-    api.autosaveAnswer(attempt.id, {
-      questionId: currentQuestion.id,
-      answerGiven: toDbAnswer(currentQuestion.type, finalAns),
-      timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
-      isFlagged: false,
-    }).catch(() => {});
-    // Submit last section (also triggers score calculation in backend)
-    await api.submitSection(attempt.id, currentSection.id).catch(() => {});
+    if (!isPreview) {
+      // Autosave last question's answer
+      api.autosaveAnswer(attempt.id, {
+        questionId: currentQuestion.id,
+        answerGiven: toDbAnswer(currentQuestion.type, finalAns),
+        timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+        isFlagged: false,
+      }).catch(() => {});
+      // Submit last section (also triggers score calculation in backend)
+      await api.submitSection(attempt.id, currentSection.id).catch(() => {});
+    }
     clearAttempt();
-    navigate(`/test-review/${attempt.id}`);
+    navigate(isPreview ? '/tests' : `/test-review/${attempt.id}`);
   };
 
   const autosaveAttemptState = useCallback(() => {
-    if (!attempt) return;
+    if (!attempt || isPreview) return;
     api.autosaveAnswer(attempt.id, {
       attemptState: {
         currentSectionIndex: attempt.currentSectionIndex,
@@ -239,7 +305,7 @@ export function TestInterfacePage() {
         sections: attempt.sections,
       },
     }).catch(() => {});
-  }, [attempt]);
+  }, [attempt, isPreview]);
 
   // Update the timer-expire handler every render so it always has fresh state
   timerExpireHandlerRef.current = () => {
@@ -257,13 +323,20 @@ export function TestInterfacePage() {
   // Fullscreen Exit Tracking
   useEffect(() => {
     if (!attempt) return;
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    document.documentElement.requestFullscreen?.().then(() => setIsFullscreenBlocked(false)).catch(() => setIsFullscreenBlocked(true));
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        api.logCheatingEvent(attempt.id, 'FULLSCREEN_EXIT', {
-          timestamp: new Date().toISOString(),
-        }).catch(() => {});
-        setTimeout(() => document.documentElement.requestFullscreen?.().catch(() => {}), 1000);
+        setIsFullscreenBlocked(true);
+        if (!isPreview) {
+          api.logCheatingEvent(attempt.id, 'FULLSCREEN_EXIT', {
+            timestamp: new Date().toISOString(),
+          }).catch(() => {});
+        }
+        if (!allowNavigationAway) {
+          setShowExitWarningModal(true);
+        }
+      } else {
+        setIsFullscreenBlocked(false);
       }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -271,10 +344,10 @@ export function TestInterfacePage() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     };
-  }, [attempt]);
+  }, [attempt, isPreview, allowNavigationAway]);
 
   useEffect(() => {
-    if (!attempt || !currentSection) return;
+    if (!attempt || !currentSection || isPreview) return;
     const sync = () => {
       api.getSectionTimer(attempt.id, currentSection.id)
         .then((r) => resetTimerRef.current(r.remainingSeconds))
@@ -283,7 +356,7 @@ export function TestInterfacePage() {
     sync();
     const interval = setInterval(sync, 15000);
     return () => clearInterval(interval);
-  }, [attempt?.id, currentSection?.id]);
+  }, [attempt?.id, currentSection?.id, isPreview]);
 
   useEffect(() => {
     if (!attempt) return;
@@ -301,7 +374,7 @@ export function TestInterfacePage() {
     const handleVisibility = () => {
       if (document.hidden) {
         recordTabSwitch();
-        if (attempt) {
+        if (attempt && !isPreview) {
           api.logCheatingEvent(attempt.id, 'TAB_SWITCH', {
             count: (attempt.tabSwitchCount ?? 0) + 1,
             timestamp: new Date().toISOString(),
@@ -309,15 +382,18 @@ export function TestInterfacePage() {
         }
         setTabSwitchWarning(true);
         setTimeout(() => setTabSwitchWarning(false), 3000);
+        if (!allowNavigationAway) {
+          setShowExitWarningModal(true);
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [recordTabSwitch, attempt]);
+  }, [recordTabSwitch, attempt, isPreview, allowNavigationAway]);
 
   // Inactivity Tracking
   useEffect(() => {
-    if (!attempt) return;
+    if (!attempt || isPreview) return;
     let inactivityTimeout: ReturnType<typeof setTimeout>;
 
     const resetInactivityTimer = () => {
@@ -338,11 +414,11 @@ export function TestInterfacePage() {
       clearTimeout(inactivityTimeout);
       events.forEach(ev => window.removeEventListener(ev, resetInactivityTimer));
     };
-  }, [attempt]);
+  }, [attempt, isPreview]);
 
   // Copy/Paste and Right-Click Tracking
   useEffect(() => {
-    if (!attempt) return;
+    if (!attempt || isPreview) return;
 
     const handleCopy = () => {
       api.logCheatingEvent(attempt.id, 'SUSPICIOUS_INPUT', {
@@ -375,7 +451,7 @@ export function TestInterfacePage() {
       document.removeEventListener('paste', handlePaste);
       document.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [attempt]);
+  }, [attempt, isPreview]);
 
   useEffect(() => {
     questionTimerRef.current = setInterval(() => {}, 1000);
@@ -446,17 +522,19 @@ export function TestInterfacePage() {
     updateQuestionState(currentSection.id, currentQuestion.id, newState, finalAns);
 
     // Autosave to Redis
-    api.autosaveAnswer(attempt.id, {
-      questionId: currentQuestion.id,
-      answerGiven: toDbAnswer(currentQuestion.type, finalAns),
-      timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
-      isFlagged: newState === 'marked_review' || newState === 'answered_marked',
-      attemptState: {
-        currentSectionIndex: nextSectionIdx ?? currentSectionIdx,
-        currentQuestionIndex: nextSectionIdx !== undefined ? 0 : nextQIdx,
-        sections: attempt.sections,
-      },
-    }).catch(() => {});
+    if (!isPreview) {
+      api.autosaveAnswer(attempt.id, {
+        questionId: currentQuestion.id,
+        answerGiven: toDbAnswer(currentQuestion.type, finalAns),
+        timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+        isFlagged: newState === 'marked_review' || newState === 'answered_marked',
+        attemptState: {
+          currentSectionIndex: nextSectionIdx ?? currentSectionIdx,
+          currentQuestionIndex: nextSectionIdx !== undefined ? 0 : nextQIdx,
+          sections: attempt.sections,
+        },
+      }).catch(() => {});
+    }
 
     if (nextSectionIdx !== undefined) {
       advanceSection();
@@ -471,17 +549,19 @@ export function TestInterfacePage() {
     const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '';
     updateQuestionState(currentSection.id, currentQuestion.id, hasAnswer ? 'answered_marked' : 'marked_review', finalAns);
-    api.autosaveAnswer(attempt.id, {
-      questionId: currentQuestion.id,
-      answerGiven: toDbAnswer(currentQuestion.type, finalAns),
-      timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
-      isFlagged: true,
-      attemptState: {
-        currentSectionIndex: currentSectionIdx,
-        currentQuestionIndex: currentQIdx,
-        sections: attempt.sections,
-      },
-    }).catch(() => {});
+    if (!isPreview) {
+      api.autosaveAnswer(attempt.id, {
+        questionId: currentQuestion.id,
+        answerGiven: toDbAnswer(currentQuestion.type, finalAns),
+        timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+        isFlagged: true,
+        attemptState: {
+          currentSectionIndex: currentSectionIdx,
+          currentQuestionIndex: currentQIdx,
+          sections: attempt.sections,
+        },
+      }).catch(() => {});
+    }
     if (!isLastQuestion) navigateToQuestion(currentSectionIdx, currentQIdx + 1);
   };
 
@@ -763,6 +843,60 @@ export function TestInterfacePage() {
           <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
             <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
             Once submitted, you cannot change your answers.
+          </div>
+        </div>
+      </Modal>
+
+      {/* Fullscreen blocker overlay */}
+      {isFullscreenBlocked && (
+        <div className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-2xl">
+            <AlertTriangle size={48} className="text-amber-500 mx-auto" />
+            <h2 className="text-xl font-bold text-slate-900">Fullscreen Required</h2>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              To start or resume your exam, you must enter fullscreen mode. Escaping fullscreen may be logged as a suspicious activity.
+            </p>
+            <Button size="lg" className="w-full mt-4" onClick={() => {
+              document.documentElement.requestFullscreen?.().catch(() => {});
+              setIsFullscreenBlocked(false);
+            }}>
+              Enter Fullscreen & Resume Test
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Warning Modal */}
+      <Modal isOpen={showExitWarningModal} onClose={() => {}} title="Warning: Suspicious Activity Detected" size="sm">
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 p-4 rounded-xl flex gap-3 text-red-800 text-sm">
+            <AlertTriangle size={20} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold mb-1">Are you sure you want to exit fullscreen or navigate away?</p>
+              <p>This activity has been recorded as a suspicious behavior.</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="danger" size="sm" onClick={() => {
+              setAllowNavigationAway(true);
+              clearAttempt();
+              if (blocker.state === 'blocked') {
+                blocker.proceed();
+              } else {
+                navigate(isPreview ? '/tests' : '/dashboard');
+              }
+            }}>
+              Exit Anyway
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => {
+              setShowExitWarningModal(false);
+              document.documentElement.requestFullscreen?.().catch(() => {});
+              if (blocker.state === 'blocked') {
+                blocker.reset();
+              }
+            }}>
+              Continue Test
+            </Button>
           </div>
         </div>
       </Modal>

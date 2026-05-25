@@ -193,6 +193,14 @@ export const api = {
       totalAttempts: number
       latestScore: number
       avgScore: number
+      cheatingLogs?: Array<{
+        id: string
+        attemptId: string
+        testTitle: string
+        eventType: string
+        metadata: any
+        createdAt: string
+      }>
     }>(`/api/analytics/student/${studentId}`),
 
   // Questions (Question Bank)

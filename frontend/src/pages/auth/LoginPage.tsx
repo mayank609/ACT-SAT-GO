@@ -33,16 +33,18 @@ export function LoginPage() {
   const [demoUsers, setDemoUsers] = useState<DbUser[]>([]);
 
   useEffect(() => {
-    // Load a handful of real users for quick-demo buttons (admin, tutors, students)
+    // Load a handful of real users for quick-demo buttons (super_admin, admin, tutors, students)
     Promise.all([
+      api.getUsersByRole('SUPER_ADMIN'),
       api.getUsersByRole('ADMIN'),
       api.getUsersByRole('TUTOR'),
       api.getUsersByRole('STUDENT'),
-    ]).then(([admins, tutors, students]) => {
+    ]).then(([superAdmins, admins, tutors, students]) => {
       const picks: DbUser[] = [
+        ...(superAdmins.users ?? []).slice(0, 1),
         ...(admins.users ?? []).slice(0, 1),
         ...(tutors.users ?? []).slice(0, 1),
-        ...(students.users ?? []).slice(0, 3),
+        ...(students.users ?? []).slice(0, 1),
       ];
       setDemoUsers(picks);
     }).catch(() => {
@@ -89,13 +91,17 @@ export function LoginPage() {
   };
 
   const roleColor = (role: string) => {
-    if (role === 'admin' || role === 'super_admin') return 'bg-blue-600';
-    if (role === 'tutor') return 'bg-emerald-600';
-    return 'bg-amber-600';
+    if (role === 'super_admin') return 'bg-purple-600 hover:bg-purple-700';
+    if (role === 'admin') return 'bg-blue-600 hover:bg-blue-700';
+    if (role === 'tutor') return 'bg-emerald-600 hover:bg-emerald-700';
+    return 'bg-amber-600 hover:bg-amber-700';
   };
 
   const roleLabel = (u: DbUser) => {
-    const base = u.role.charAt(0).toUpperCase() + u.role.slice(1).replace('_', ' ');
+    const base = u.role
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
     return `${base}: ${u.name}`;
   };
 

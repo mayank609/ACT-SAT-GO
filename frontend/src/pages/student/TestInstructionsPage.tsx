@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Clock, FileText, AlertTriangle, Play, Loader2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -92,6 +92,10 @@ export function transformDbTest(raw: DbTest): Test {
 export function TestInstructionsPage() {
   const { testId } = useParams<{ testId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isPreview = searchParams.get('preview') === 'true';
+
   const { startAttempt } = useTestStore();
   const { dbId } = useAuthStore();
 
@@ -132,11 +136,15 @@ export function TestInstructionsPage() {
     setStarting(true);
     setError(null);
     try {
-      // 1. Create attempt in DB
-      const { attemptId } = await api.startAttempt(testId, dbId) as { attemptId: string };
+      let attemptId = 'preview';
 
-      // 2. Start first section in DB + Redis
-      await api.startSection(attemptId, test.sections[0].id);
+      if (!isPreview) {
+        // 1. Create attempt in DB
+        const res = await api.startAttempt(testId, dbId) as { attemptId: string };
+        attemptId = res.attemptId;
+        // 2. Start first section in DB + Redis
+        await api.startSection(attemptId, test.sections[0].id);
+      }
 
       // 3. Build local attempt state (keyed by section/question UUIDs from DB)
       const sections: Record<string, SectionAttempt> = {};
@@ -168,7 +176,7 @@ export function TestInstructionsPage() {
       };
 
       startAttempt(attempt, test);
-      navigate(`/test/${testId}`);
+      navigate(`/test/${testId}${isPreview ? '?preview=true' : ''}`);
     } catch (e) {
       setError(`Failed to start: ${(e as Error).message}`);
       setStarting(false);

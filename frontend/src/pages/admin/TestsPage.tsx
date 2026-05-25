@@ -337,8 +337,10 @@ export function TestsPage() {
                     </button>
                   )}
 
-                  <button onClick={() => navigate(`/test-instructions/${test.id}`)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                  <button onClick={() => navigate(`/test-instructions/${test.id}?preview=true`)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    title="Preview Test"
+                  >
                     <Eye size={14} />
                   </button>
                   <button onClick={() => setDeleteModal(test)}

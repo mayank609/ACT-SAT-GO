@@ -17,14 +17,14 @@ interface AuthState {
 export const MOCK_USERS: Record<Role, User> = {
   super_admin: {
     id: 'sa-1',
-    name: 'Admin User',
+    name: 'Super Admin',
     email: 'admin@actsat.com',
     role: 'super_admin',
   },
   admin: {
     id: 'admin-1',
-    name: 'Admin User',
-    email: 'admin@actsat.com',
+    name: 'Staff Admin',
+    email: 'staff@actsat.com',
     role: 'admin',
   },
   tutor: {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, Clock, Target, BookOpen, MessageSquare, PlusCircle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Clock, Target, BookOpen, MessageSquare, PlusCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
@@ -27,6 +27,14 @@ interface Analytics {
   totalAttempts: number;
   latestScore: number;
   avgScore: number;
+  cheatingLogs?: Array<{
+    id: string;
+    attemptId: string;
+    testTitle: string;
+    eventType: string;
+    metadata: any;
+    createdAt: string;
+  }>;
 }
 
 interface DbTest { id: string; title: string; status: string; sections: unknown[] }
@@ -237,6 +245,31 @@ export function StudentDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Security & Integrity Logs */}
+      {analytics?.cheatingLogs && analytics.cheatingLogs.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-100">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
+            <p className="font-medium text-slate-900 text-sm flex items-center gap-1.5"><AlertTriangle size={14} className="text-red-500" /> Security & Integrity Logs</p>
+          </div>
+          <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
+            {analytics.cheatingLogs.map((log) => (
+              <div key={log.id} className="flex flex-col gap-1 px-5 py-3 hover:bg-slate-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-red-600 font-medium flex items-center gap-1.5">{log.eventType}</p>
+                  <p className="text-xs text-slate-400">{new Date(log.createdAt).toLocaleString()}</p>
+                </div>
+                <p className="text-xs text-slate-600">Test: {log.testTitle}</p>
+                {log.metadata && (
+                  <pre className="mt-1 text-[10px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 overflow-x-auto">
+                    {JSON.stringify(log.metadata, null, 2)}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tutor Notes */}
       <div className="bg-white rounded-xl border border-slate-100">

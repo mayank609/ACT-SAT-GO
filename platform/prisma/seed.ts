@@ -25,11 +25,12 @@ async function main() {
   await prisma.user.deleteMany()
 
   // ── Users ─────────────────────────────────────────────────────────────────
-  const superAdmin = await prisma.user.create({ data: { email: 'admin@actsat.com', role: 'SUPER_ADMIN' } })
-  const tutor1     = await prisma.user.create({ data: { email: 'emily@actsat.com', role: 'TUTOR' } })
-  const student1   = await prisma.user.create({ data: { email: 'alex@actsat.com',  role: 'STUDENT' } })
-  const student2   = await prisma.user.create({ data: { email: 'morgan@actsat.com', role: 'STUDENT' } })
-  const student3   = await prisma.user.create({ data: { email: 'casey@actsat.com',  role: 'STUDENT' } })
+  const superAdmin = await prisma.user.create({ data: { email: 'admin@actsat.com', role: 'SUPER_ADMIN', name: 'Super Admin' } })
+  const admin      = await prisma.user.create({ data: { email: 'staff@actsat.com', role: 'ADMIN', name: 'Staff Admin' } })
+  const tutor1     = await prisma.user.create({ data: { email: 'emily@actsat.com', role: 'TUTOR', name: 'Emily Rodriguez' } })
+  const student1   = await prisma.user.create({ data: { email: 'alex@actsat.com',  role: 'STUDENT', name: 'Alex Thompson' } })
+  const student2   = await prisma.user.create({ data: { email: 'morgan@actsat.com', role: 'STUDENT', name: 'Morgan Vance' } })
+  const student3   = await prisma.user.create({ data: { email: 'casey@actsat.com',  role: 'STUDENT', name: 'Casey Miller' } })
 
   await prisma.tutorAssignment.createMany({
     data: [

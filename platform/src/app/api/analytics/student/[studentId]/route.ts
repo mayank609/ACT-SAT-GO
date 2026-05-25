@@ -140,6 +140,21 @@ export async function GET(
       ? Math.round(attempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / attempts.length * 10) / 10
       : 0
 
+    const cheatingLogsData = await prisma.cheatingLog.findMany({
+      where: { attempt: { studentId } },
+      include: { attempt: { include: { test: { select: { title: true } } } } },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    const cheatingLogs = cheatingLogsData.map(log => ({
+      id: log.id,
+      attemptId: log.attemptId,
+      testTitle: log.attempt.test.title,
+      eventType: log.eventType,
+      metadata: log.metadata,
+      createdAt: log.createdAt.toISOString()
+    }))
+
     return NextResponse.json({
       trend,
       sectionStats,
@@ -148,6 +163,7 @@ export async function GET(
       totalAttempts: attempts.length,
       latestScore: totalScore,
       avgScore,
+      cheatingLogs,
     })
   } catch (error) {
     console.error('GET /api/analytics/student/[studentId]:', error)

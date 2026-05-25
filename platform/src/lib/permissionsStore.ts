@@ -15,6 +15,7 @@ const FILE_PATH = path.join(process.cwd(), 'permissions.json')
 
 const DEFAULT_PERMISSIONS: PermissionRow[] = [
   { permission: 'view_tests', label: 'View Tests', category: 'view', super_admin: true, admin: true, tutor: true, student: true },
+  { permission: 'preview_tests', label: 'Preview Tests Anytime', category: 'view', super_admin: true, admin: true, tutor: true, student: false },
   { permission: 'edit_tests', label: 'Create & Edit Tests', category: 'edit', super_admin: true, admin: true, tutor: false, student: false },
   { permission: 'delete_tests', label: 'Delete Tests', category: 'edit', super_admin: true, admin: false, tutor: false, student: false },
   { permission: 'assign_tests', label: 'Assign Tests to Students', category: 'assignment', super_admin: true, admin: true, tutor: true, student: false },

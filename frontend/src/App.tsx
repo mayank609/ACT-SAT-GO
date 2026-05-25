@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/useAuthStore';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 
@@ -57,63 +57,65 @@ function AnalyticsRouter() {
   return <ReportsPage />;
 }
 
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <>
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Full-screen test pages (no dashboard layout) */}
+      <Route path="/test-instructions/:testId" element={
+        <ProtectedRoute><TestInstructionsPage /></ProtectedRoute>
+      } />
+      <Route path="/test/:testId" element={
+        <ProtectedRoute><TestInterfacePage /></ProtectedRoute>
+      } />
+
+      {/* Dashboard layout */}
+      <Route path="/" element={
+        <ProtectedRoute>
+          <DashboardLayout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardRouter />} />
+
+        {/* Admin + Super Admin */}
+        <Route path="tests" element={<TestsPage />} />
+        <Route path="test-builder" element={<TestBuilderPage />} />
+        <Route path="students" element={<StudentManagementPage />} />
+        <Route path="students/:id" element={<AdminStudentProfilePage />} />
+        <Route path="tutors" element={<TutorManagementPage />} />
+        <Route path="reports" element={<ReportsPage />} />
+        <Route path="monitoring" element={<MonitoringPage />} />
+
+        {/* Admin new pages */}
+        <Route path="question-bank" element={<QuestionBankPage />} />
+        <Route path="assignments" element={<AssignmentsPage />} />
+        <Route path="support" element={<SupportPage />} />
+
+        {/* Super Admin only */}
+        <Route path="user-management" element={<SuperAdminDashboard />} />
+
+        {/* Tutor */}
+        <Route path="my-students" element={<MyStudentsPage />} />
+        <Route path="student/:id" element={<StudentDetailPage />} />
+        <Route path="analytics" element={<AnalyticsRouter />} />
+
+        {/* Student */}
+        <Route path="my-tests" element={<MyTestsPage />} />
+        <Route path="my-progress" element={<MyProgressPage />} />
+        <Route path="review-attempts" element={<ReviewAttemptsPage />} />
+        <Route path="test-review/:attemptId" element={<TestReviewPage />} />
+
+        {/* Shared */}
+        <Route path="settings" element={<SettingsPage />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </>
+  )
+);
+
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-
-        {/* Full-screen test pages (no dashboard layout) */}
-        <Route path="/test-instructions/:testId" element={
-          <ProtectedRoute><TestInstructionsPage /></ProtectedRoute>
-        } />
-        <Route path="/test/:testId" element={
-          <ProtectedRoute><TestInterfacePage /></ProtectedRoute>
-        } />
-
-        {/* Dashboard layout */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardRouter />} />
-
-          {/* Admin + Super Admin */}
-          <Route path="tests" element={<TestsPage />} />
-          <Route path="test-builder" element={<TestBuilderPage />} />
-          <Route path="students" element={<StudentManagementPage />} />
-          <Route path="students/:id" element={<AdminStudentProfilePage />} />
-          <Route path="tutors" element={<TutorManagementPage />} />
-          <Route path="reports" element={<ReportsPage />} />
-          <Route path="monitoring" element={<MonitoringPage />} />
-
-          {/* Admin new pages */}
-          <Route path="question-bank" element={<QuestionBankPage />} />
-          <Route path="assignments" element={<AssignmentsPage />} />
-          <Route path="support" element={<SupportPage />} />
-
-          {/* Super Admin only */}
-          <Route path="user-management" element={<SuperAdminDashboard />} />
-
-          {/* Tutor */}
-          <Route path="my-students" element={<MyStudentsPage />} />
-          <Route path="student/:id" element={<StudentDetailPage />} />
-          <Route path="analytics" element={<AnalyticsRouter />} />
-
-          {/* Student */}
-          <Route path="my-tests" element={<MyTestsPage />} />
-          <Route path="my-progress" element={<MyProgressPage />} />
-          <Route path="review-attempts" element={<ReviewAttemptsPage />} />
-          <Route path="test-review/:attemptId" element={<TestReviewPage />} />
-
-          {/* Shared */}
-          <Route path="settings" element={<SettingsPage />} />
-        </Route>
-
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </BrowserRouter>
-  );
+  return <RouterProvider router={router} />;
 }
