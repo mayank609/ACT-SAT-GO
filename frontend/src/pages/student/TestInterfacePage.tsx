@@ -340,7 +340,7 @@ export function TestInterfacePage() {
 
   // ── Side effects ─────────────────────────────────────────────────────────────
 
-  // Fullscreen Exit Tracking
+  // Fullscreen — enter once when attempt starts, exit only on unmount
   useEffect(() => {
     if (!attempt) return;
     document.documentElement.requestFullscreen?.().then(() => setIsFullscreenBlocked(false)).catch(() => setIsFullscreenBlocked(true));

@@ -25,7 +25,9 @@ function AssignModal({ test, onClose }: AssignModalProps) {
   const [dueAt, setDueAt] = useState('');
   const [availableFrom, setAvailableFrom] = useState('');
   const [availableUntil, setAvailableUntil] = useState('');
-  const [maxAttempts, setMaxAttempts] = useState(1);
+  const [attemptsMode, setAttemptsMode] = useState<'single' | 'multiple'>('single');
+  const [multipleCount, setMultipleCount] = useState(3);
+  const maxAttempts = attemptsMode === 'single' ? 1 : multipleCount;
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -142,26 +144,70 @@ function AssignModal({ test, onClose }: AssignModalProps) {
 
         {/* Options */}
         {selected.size > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="space-y-3 pt-1">
+            {/* Attempts selector */}
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Due Date (optional)</label>
-              <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Attempts Allowed</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAttemptsMode('single')}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                    attemptsMode === 'single'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  <span className="text-base">1×</span>
+                  <span className="text-xs">Single Attempt</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Complete once, done</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttemptsMode('multiple')}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                    attemptsMode === 'multiple'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  <span className="text-base">N×</span>
+                  <span className="text-xs">Multiple Attempts</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Student can retake</span>
+                </button>
+              </div>
+              {attemptsMode === 'multiple' && (
+                <div className="mt-2 flex items-center gap-3">
+                  <label className="text-xs text-slate-500 flex-shrink-0">Number of attempts:</label>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setMultipleCount(c => Math.max(2, c - 1))}
+                      className="w-7 h-7 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-sm">−</button>
+                    <span className="w-8 text-center text-sm font-semibold text-slate-900">{multipleCount}</span>
+                    <button type="button" onClick={() => setMultipleCount(c => Math.min(20, c + 1))}
+                      className="w-7 h-7 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-sm">+</button>
+                  </div>
+                  <span className="text-xs text-slate-400">Each attempt must be completed fully</span>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Max Attempts</label>
-              <input type="number" min={1} max={10} value={maxAttempts} onChange={(e) => setMaxAttempts(Number(e.target.value))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Available From (optional)</label>
-              <input type="datetime-local" value={availableFrom} onChange={(e) => setAvailableFrom(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Available Until (optional)</label>
-              <input type="datetime-local" value={availableUntil} onChange={(e) => setAvailableUntil(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+
+            {/* Date fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Due Date (optional)</label>
+                <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Available From (optional)</label>
+                <input type="datetime-local" value={availableFrom} onChange={(e) => setAvailableFrom(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Available Until (optional)</label>
+                <input type="datetime-local" value={availableUntil} onChange={(e) => setAvailableUntil(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
             </div>
           </div>
         )}

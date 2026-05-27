@@ -219,18 +219,21 @@ export function StudentDetailPage() {
       <div className="bg-white rounded-xl border border-slate-100">
         <div className="px-5 py-3.5 border-b border-slate-50">
           <p className="font-medium text-slate-900 text-sm">Test History</p>
+          <p className="text-xs text-slate-400 mt-0.5">Click any test to view full review</p>
         </div>
         {!analytics || analytics.trend.length === 0 ? (
           <p className="px-5 py-4 text-sm text-slate-400">No tests taken yet.</p>
         ) : (
           <div className="divide-y divide-slate-50">
             {analytics.trend.map((entry, i) => (
-              <div key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+              <div key={i}
+                onClick={() => navigate(`/test-review/${entry.attemptId}`)}
+                className="flex items-center gap-3 px-5 py-3 hover:bg-blue-50/40 transition-colors cursor-pointer group">
                 <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                   <BookOpen size={13} className="text-blue-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-800 truncate">{entry.testTitle}</p>
+                  <p className="text-sm text-slate-800 group-hover:text-blue-700 transition-colors truncate">{entry.testTitle}</p>
                   <p className="text-xs text-slate-400">{entry.date}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -240,6 +243,7 @@ export function StudentDetailPage() {
                 <div className="hidden sm:block w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden flex-shrink-0">
                   <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(entry.score / 36) * 100}%` }} />
                 </div>
+                <ArrowLeft size={13} className="text-slate-300 group-hover:text-blue-500 rotate-180 transition-colors flex-shrink-0" />
               </div>
             ))}
           </div>

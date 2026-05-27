@@ -861,21 +861,21 @@ function PDFQuestionUploader({ onImport, onClose }: { onImport: (sections: { nam
                           <input type="checkbox" checked={q.selected}
                             onChange={() => toggleQuestion(sec.id, q.id)}
                             className="rounded text-blue-600 mt-0.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start gap-2">
+                          <span className="flex-1 min-w-0 flex flex-col">
+                            <span className="flex items-start gap-2">
                               <span className="text-xs font-bold text-slate-400 flex-shrink-0 mt-0.5">Q{q.num}</span>
-                              <p className="text-sm text-slate-800 line-clamp-2">{q.text || <span className="text-slate-400 italic">Empty</span>}</p>
-                            </div>
+                              <span className="text-sm text-slate-800 line-clamp-2">{q.text || <span className="text-slate-400 italic">Empty</span>}</span>
+                            </span>
                             {q.options.some(o => o.text) && (
-                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 ml-5">
+                              <span className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 ml-5">
                                 {q.options.filter(o => o.text).map(o => (
                                   <span key={o.id} className="text-xs text-slate-500">
                                     <span className="font-semibold text-slate-600">{o.id.toUpperCase()}.</span> {o.text.length > 25 ? o.text.slice(0, 25) + '…' : o.text}
                                   </span>
                                 ))}
-                              </div>
+                              </span>
                             )}
-                          </div>
+                          </span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${q.detectedType === 'mcq_single' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                             {q.detectedType === 'mcq_single' ? 'MCQ' : 'NUM'}
                           </span>
@@ -1839,7 +1839,7 @@ export function TestBuilderPage() {
           <div className="space-y-4 min-w-0 animate-fade-in">
             {/* Test meta */}
             <Card padding="sm">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4 items-start">
                 <div className="md:col-span-2 space-y-2">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Test Title *</label>
@@ -1873,29 +1873,29 @@ export function TestBuilderPage() {
               </div>
             </Card>
 
-            <div className="flex flex-col md:flex-row gap-4">
-              {/* Mobile section nav toggle */}
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Mobile/tablet section nav toggle — hidden only on lg+ */}
               <button onClick={() => setShowSectionNav(!showSectionNav)}
-                className="md:hidden flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700">
+                className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700">
                 <Menu size={15} />
                 Sections ({sections.length}) — {activeSection.name}
                 <ChevronDown size={14} className={`ml-auto transition-transform ${showSectionNav ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Section sidebar */}
-              <div className={`${showSectionNav ? 'block' : 'hidden'} md:block md:w-48 lg:w-52 flex-shrink-0 space-y-1`}>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-2 mb-2 hidden md:block">Sections</p>
+              <div className={`${showSectionNav ? 'block' : 'hidden'} lg:block lg:w-60 xl:w-64 flex-shrink-0 space-y-1`}>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-2 mb-2 hidden lg:block">Sections</p>
                 {sections.map((sec, idx) => (
                   <div key={sec.id} className="group flex items-center gap-1">
                     <button onClick={() => { setActiveSectionIdx(idx); setShowSectionNav(false); }}
                       className={`flex-1 text-left px-3 py-2.5 rounded-lg text-sm transition-all ${
                         activeSectionIdx === idx ? 'bg-blue-600 text-white font-medium' : 'text-slate-600 hover:bg-slate-100'
                       }`}>
-                      <p className="truncate">{sec.name}</p>
+                      <p className="truncate text-xs leading-snug">{sec.name}</p>
                       <p className={`text-xs mt-0.5 ${activeSectionIdx === idx ? 'text-blue-200' : 'text-slate-400'}`}>{sec.questions.length}q · {sec.timeLimit}m</p>
                     </button>
                     {sections.length > 1 && (
-                      <button onClick={() => deleteSection(idx)} className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:text-red-600 rounded transition-all">
+                      <button onClick={() => deleteSection(idx)} className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:text-red-600 rounded transition-all flex-shrink-0">
                         <Trash2 size={11} />
                       </button>
                     )}
@@ -1907,10 +1907,10 @@ export function TestBuilderPage() {
               </div>
 
               {/* Section editor */}
-              <div className="flex-1 space-y-3 min-w-0">
+              <div className="flex-1 space-y-3 min-w-0 overflow-hidden">
                 {/* Section settings */}
                 <Card padding="sm">
-                  <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+                  <div className="flex flex-col md:flex-row gap-3 md:items-end">
                     <div className="flex-1">
                       <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Section Name</label>
                       <input type="text" value={activeSection.name} onChange={(e) => updateSection(activeSectionIdx, { name: e.target.value })}
@@ -2120,10 +2120,10 @@ export function TestBuilderPage() {
                 onChange={(e) => setTestSettings((prev) => ({ ...prev, [s.key]: e.target.checked }))}
                 className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
               />
-              <div>
-                <p className="text-sm font-medium text-slate-900">{s.label}</p>
-                <p className="text-xs text-slate-500">{s.desc}</p>
-              </div>
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-slate-900">{s.label}</span>
+                <span className="text-xs text-slate-500">{s.desc}</span>
+              </span>
             </label>
           ))}
           <div>

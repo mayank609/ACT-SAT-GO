@@ -6,6 +6,7 @@ import { Badge } from '../../components/common/Badge';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
+import { useAuthStore } from '../../store/useAuthStore';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
@@ -186,6 +187,8 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
 export function TestReviewPage() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isTutorOrAdmin = user?.role === 'tutor' || user?.role === 'admin' || user?.role === 'super_admin';
   const [activeSection, setActiveSection] = useState(0);
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -358,9 +361,18 @@ export function TestReviewPage() {
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-end">
-        <Button variant="secondary" onClick={() => navigate('/dashboard')}>Dashboard</Button>
-        <Button variant="secondary" onClick={() => navigate('/my-tests')}>My Tests</Button>
-        <Button variant="secondary" onClick={() => navigate('/my-progress')}>View Progress</Button>
+        {isTutorOrAdmin ? (
+          <>
+            <Button variant="secondary" onClick={() => navigate(-1)}>Back to Student</Button>
+            <Button variant="secondary" onClick={() => navigate('/dashboard')}>Dashboard</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="secondary" onClick={() => navigate('/dashboard')}>Dashboard</Button>
+            <Button variant="secondary" onClick={() => navigate('/my-tests')}>My Tests</Button>
+            <Button variant="secondary" onClick={() => navigate('/my-progress')}>View Progress</Button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -87,7 +87,6 @@ export function MyTestsPage() {
         {filteredTests.map((test) => {
           const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
           const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
-          const availability = `${test.availableFrom ? new Date(test.availableFrom).toLocaleString() : 'Now'} - ${test.availableUntil ? new Date(test.availableUntil).toLocaleString() : 'No end'}`;
 
           return (
             <div key={test.assignmentId} className="bg-white border border-slate-100 rounded-xl p-4">
@@ -110,9 +109,10 @@ export function MyTestsPage() {
                     <span className="flex items-center gap-1"><Target size={10} /> {totalQ} questions</span>
                     <span className="flex items-center gap-1"><Clock size={10} /> {totalTime} min</span>
                     <span>{test.sections.length} sections</span>
-                    <span>Due: {test.dueDate ? new Date(test.dueDate).toLocaleString() : 'N/A'}</span>
-                    <span>Window: {availability}</span>
-                    <span>Attempts Left: {test.remainingAttempts}/{test.maxAttempts}</span>
+                    {test.dueDate && <span>Due: {new Date(test.dueDate).toLocaleDateString()}</span>}
+                    <span className={`font-medium ${test.remainingAttempts === 0 ? 'text-red-400' : 'text-blue-500'}`}>
+                      {test.remainingAttempts}/{test.maxAttempts} attempts left
+                    </span>
                   </div>
 
                   <div className="flex flex-wrap gap-1 mt-2">
@@ -122,16 +122,31 @@ export function MyTestsPage() {
                   </div>
 
                   {test.status === 'Completed' && test.submittedAttemptId && (
-                    <div className="flex items-center gap-4 mt-3 p-3 bg-emerald-50 rounded-lg">
-                      <button onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)} className="ml-auto text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                        Review <ChevronRight size={11} />
+                    <div className={`flex items-center justify-between mt-3 p-3 rounded-lg ${test.remainingAttempts > 0 ? 'bg-blue-50 border border-blue-100' : 'bg-emerald-50 border border-emerald-100'}`}>
+                      <p className={`text-xs font-medium ${test.remainingAttempts > 0 ? 'text-blue-700' : 'text-emerald-700'}`}>
+                        {test.remainingAttempts > 0
+                          ? `${test.remainingAttempts} attempt${test.remainingAttempts !== 1 ? 's' : ''} remaining — you can retake this test`
+                          : 'All attempts used — test complete'}
+                      </p>
+                      <button onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 flex-shrink-0 ml-3">
+                        Review last <ChevronRight size={11} />
                       </button>
                     </div>
                   )}
 
                   <div className="flex gap-2 mt-3">
                     {test.status === 'Completed' ? (
-                      <Button variant="secondary" size="sm" onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)}>Review Attempt</Button>
+                      <>
+                        <Button variant="secondary" size="sm" onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)}>
+                          Review Attempt
+                        </Button>
+                        {test.remainingAttempts > 0 && (
+                          <Button size="sm" icon={<RotateCcw size={12} />}
+                            onClick={() => navigate(`/test-instructions/${test.testId}`)}>
+                            Retake Test
+                          </Button>
+                        )}
+                      </>
                     ) : test.status === 'Expired' ? (
                       <Button variant="ghost" size="sm" disabled>Expired</Button>
                     ) : (

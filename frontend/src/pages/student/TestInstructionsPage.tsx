@@ -54,11 +54,11 @@ export function transformDbTest(raw: DbTest): Test {
     createdAt: raw.createdAt,
     allowBackNavigation: false,
     showResults: true,
-    sections: raw.sections.map((sec): Section => ({
+    sections: raw.sections.slice().sort((a, b) => a.orderIndex - b.orderIndex).map((sec): Section => ({
       id: sec.id,
       name: sec.name,
       timeLimit: sec.durationMinutes,
-      questions: sec.questions.map((tq): Question => {
+      questions: sec.questions.slice().sort((a, b) => a.orderIndex - b.orderIndex).map((tq): Question => {
         const q = tq.question
         const type: QuestionType = q.type === 'MCQ' ? 'mcq_single' : q.type === 'MSQ' ? 'mcq_multi' : 'numeric'
         const difficulty: Difficulty = q.difficultyLevel.toLowerCase() as Difficulty
