@@ -123,26 +123,6 @@ export async function PATCH(
 
   const scalarData: { status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; title?: string; description?: string; category?: string; subCategory?: string } = {}
   if (body.title !== undefined) scalarData.title = body.title
-  if (body.description !== undefined) scalarData.description = body.description
-  if (body.category !== undefined) scalarData.category = body.category
-  if (body.subCategory !== undefined) scalarData.subCategory = body.subCategory
-  if (body.status !== undefined) {
-    const mapped = STATUS_MAP[body.status.toLowerCase()]
-    if (!mapped) return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })
-    scalarData.status = mapped
-  }
-
-  if (!body.sections && Object.keys(scalarData).length === 0) {
-    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
-  }
-
-  try {
-    // ── Scalar-only update (status / title / description) ─────────────────────
-    if (!body.sections) {
-      const test = await prisma.test.update({
-        where: { id: testId },
-        data: scalarData,
-        include: {
           sections: {
             orderBy: { orderIndex: 'asc' },
             include: { _count: { select: { questions: true } } },
