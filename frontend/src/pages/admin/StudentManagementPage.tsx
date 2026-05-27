@@ -562,7 +562,7 @@ export function StudentManagementPage() {
                   <BarChart data={topicStats} margin={{ top: 4, right: 16, left: 0, bottom: 60 }}>
                     <XAxis dataKey="topic" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
                     <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
-                    <Tooltip formatter={(v: number | undefined) => [v != null ? `${v.toFixed(1)}%` : '', 'Accuracy']} />
+                    <Tooltip formatter={(v) => [typeof v === 'number' ? `${v.toFixed(1)}%` : '', 'Accuracy']} />
                     <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
                       {topicStats.map((t, i) => (
                         <Cell key={i} fill={t.accuracy >= 80 ? '#10b981' : t.accuracy >= 60 ? '#f59e0b' : '#ef4444'} />
