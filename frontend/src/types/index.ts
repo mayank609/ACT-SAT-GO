@@ -33,6 +33,7 @@ export interface Question {
   marks: number;
   marksNegative: number;
   parentQuestionId?: string;      // For linked questions under a passage
+  parentQuestionText?: string;    // Passage text carried by flattened sub-questions
   linkedQuestions?: Question[];   // For passage questions containing multiple questions
 }
 

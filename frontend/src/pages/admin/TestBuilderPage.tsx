@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon, Database, Search, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
@@ -1654,7 +1654,7 @@ export function TestBuilderPage() {
         timeLimit: sec.durationMinutes,
         questions: (sec.questions ?? []).map((tq: any) => {
           const q = tq.question;
-          const content = q.content as { text: string; explanation?: string };
+          const content = q.content as { text: string; explanation?: string; meta?: { isPassage?: boolean } };
           const rawOptions = q.options as Record<string, string> | null;
           const options = rawOptions
             ? Object.entries(rawOptions).map(([k, v]) => ({ id: k.toLowerCase(), text: v as string }))
@@ -1666,10 +1666,39 @@ export function TestBuilderPage() {
           else if (ca.keys) correctAnswer = (ca.keys as string[]).map((k: string) => k.toLowerCase());
           else correctAnswer = ((ca.key as string) ?? 'a').toLowerCase();
 
+          const isPassage = q.type === 'PASSAGE' || content?.meta?.isPassage === true;
+          const type = (isPassage ? 'passage' : TYPE_MAP[q.type] ?? 'mcq_single') as QuestionType;
+
+          const linkedQuestions = (q.childQuestions ?? []).map((cq: any) => {
+            const cqContent = cq.content as { text: string; explanation?: string };
+            const cqRawOptions = cq.options as Record<string, string> | null;
+            const cqOptions = cqRawOptions
+              ? Object.entries(cqRawOptions).map(([k, v]) => ({ id: k.toLowerCase(), text: v as string }))
+              : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
+
+            const cqCa = (cq.correctAnswer ?? {}) as Record<string, unknown>;
+            let cqCorrectAnswer: string | string[] | number;
+            if (cqCa.value !== undefined) cqCorrectAnswer = cqCa.value as number;
+            else if (cqCa.keys) cqCorrectAnswer = (cqCa.keys as string[]).map((k: string) => k.toLowerCase());
+            else cqCorrectAnswer = ((cqCa.key as string) ?? 'a').toLowerCase();
+
+            return {
+              id: cq.id || generateId(),
+              text: cqContent?.text ?? '',
+              type: (TYPE_MAP[cq.type] ?? 'mcq_single') as QuestionType,
+              options: cqOptions,
+              correctAnswer: cqCorrectAnswer,
+              difficulty: (DIFF_MAP[cq.difficultyLevel] ?? 'medium') as Difficulty,
+              topic: cq.topic?.name ?? '',
+              explanation: cqContent?.explanation ?? undefined,
+              parentQuestionId: q.id,
+            };
+          });
+
           return {
-            id: generateId(),
+            id: q.id || generateId(),
             text: content?.text ?? '',
-            type: (TYPE_MAP[q.type] ?? 'mcq_single') as QuestionType,
+            type,
             options,
             correctAnswer,
             difficulty: (DIFF_MAP[q.difficultyLevel] ?? 'medium') as Difficulty,
@@ -1677,6 +1706,7 @@ export function TestBuilderPage() {
             explanation: content?.explanation ?? undefined,
             marks: tq.marksPositive ?? 1,
             marksNegative: tq.marksNegative ?? 0,
+            linkedQuestions,
           } as Question;
         }),
       }));
@@ -2214,7 +2244,25 @@ function ExamPreviewContent({
   const [showPaletteDrawer, setShowPaletteDrawer] = useState(false);
   const [showAdminAnswers, setShowAdminAnswers] = useState(true);
 
-  const section = sections[activeSectionIdx] || sections[0];
+  const flattenedSections = useMemo(() => {
+    return sections.map((sec) => ({
+      ...sec,
+      questions: sec.questions.flatMap((q) => {
+        if (q.type !== 'passage' || !q.linkedQuestions?.length) return [q];
+        return q.linkedQuestions.map((lq, idx) => ({
+          ...lq,
+          type: lq.type,
+          parentQuestionId: q.id,
+          parentQuestionText: q.text,
+          marks: lq.marks ?? q.marks,
+          marksNegative: lq.marksNegative ?? q.marksNegative,
+          _passageSubIndex: idx,
+        }));
+      }),
+    }));
+  }, [sections]);
+
+  const section = flattenedSections[activeSectionIdx] || flattenedSections[0];
   const question = section?.questions[activeQuestionIdx];
 
   // Mark active question as visited
@@ -2339,7 +2387,7 @@ function ExamPreviewContent({
       {/* Section Tabs */}
       <div className="bg-white border-b border-slate-200 px-3 py-1 flex-shrink-0">
         <div className="flex gap-1 overflow-x-auto py-1 scrollbar-hide">
-          {sections.map((sec, idx) => (
+          {flattenedSections.map((sec, idx) => (
             <button
               key={sec.id}
               onClick={() => onNavigate(idx, 0)}
@@ -2360,124 +2408,256 @@ function ExamPreviewContent({
         {/* Left Side: Question Canvas */}
         <div className="flex-1 flex flex-col gap-3 min-w-0 h-full overflow-y-auto">
           {question ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-4 flex-1 flex flex-col min-h-0 overflow-y-auto">
-              <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2 flex-shrink-0">
-                <span className="text-xs font-bold text-slate-400">Question {activeQuestionIdx + 1} of {totalQuestions}</span>
-                <div className="flex gap-1.5">
-                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full capitalize font-semibold">{question.difficulty}</span>
-                  {question.topic && <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{question.topic}</span>}
-                </div>
-              </div>
-
-              {/* Question Text */}
-              <div className="flex-1 overflow-y-auto text-slate-800 text-sm leading-relaxed mb-4 text-left">
-                <MathRenderer html={question.text || 'Write question text to see preview...'} className="w-full" />
-              </div>
-
-              {/* Answers View Toggle */}
-              <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mb-3 text-left">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Developer Tools</span>
-                  <label className="flex items-center gap-1 text-[10px] text-blue-600 font-bold cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showAdminAnswers}
-                      onChange={(e) => setShowAdminAnswers(e.target.checked)}
-                      className="rounded text-blue-600 w-3 h-3"
-                    />
-                    Highlight Answers
-                  </label>
-                </div>
-              </div>
-
-              {/* Option Rendering */}
-              {question.type !== 'numeric' && question.options ? (
-                <div className="space-y-2 flex-shrink-0">
-                  {question.options.map((opt) => {
-                    const isSelected = question.type === 'mcq_multi'
-                      ? Array.isArray(answers[question.id]) && answers[question.id].includes(opt.id)
-                      : answers[question.id] === opt.id;
-                    const isCorrect = showAdminAnswers && (
-                      question.type === 'mcq_multi'
-                        ? Array.isArray(question.correctAnswer) && (question.correctAnswer as string[]).includes(opt.id)
-                        : question.correctAnswer === opt.id
-                    );
-
-                    return (
-                      <button
-                        key={opt.id}
-                        onClick={() => {
-                          if (question.type === 'mcq_multi') {
-                            const curr = Array.isArray(answers[question.id]) ? answers[question.id] : [];
-                            setAnswers((prev) => ({
-                              ...prev,
-                              [question.id]: curr.includes(opt.id)
-                                ? curr.filter((x: string) => x !== opt.id)
-                                : [...curr, opt.id],
-                            }));
-                          } else {
-                            setAnswers((prev) => ({ ...prev, [question.id]: opt.id }));
-                          }
-                        }}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
-                          isCorrect
-                            ? 'border-emerald-500 bg-emerald-50/50'
-                            : isSelected
-                            ? 'border-blue-500 bg-blue-50/50'
-                            : 'border-slate-200 bg-white hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                          isCorrect
-                            ? 'border-emerald-500 bg-emerald-500 text-white'
-                            : isSelected
-                            ? 'border-blue-500 bg-blue-500 text-white'
-                            : 'border-slate-300 text-slate-500'
-                        }`}>
-                          {opt.id.toUpperCase()}
-                        </div>
-                        <div className="flex-1 text-xs">
-                          <MathRenderer html={opt.text || `Option ${opt.id.toUpperCase()}`} />
-                        </div>
-                        {isCorrect && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full ml-auto">
-                            Correct Answer
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                /* Numeric Answers */
-                <div className="text-left flex-shrink-0">
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Enter numeric value:</label>
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="number"
-                      value={answers[question.id] || ''}
-                      onChange={(e) => setAnswers((prev) => ({ ...prev, [question.id]: e.target.value }))}
-                      placeholder="Type number..."
-                      className="w-36 px-3 py-2 border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-                    />
-                    {showAdminAnswers && question.correctAnswer !== undefined && (
-                      <div className="text-xs bg-emerald-100 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-lg font-semibold flex items-center gap-1">
-                        <span>Target:</span>
-                        <code className="font-bold">{String(question.correctAnswer)}</code>
-                      </div>
-                    )}
+            question.parentQuestionText ? (
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 min-w-0 h-full overflow-hidden">
+                {/* Passage Panel (Left) */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col overflow-y-auto min-w-0 h-full">
+                  <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2 border-b border-slate-100 pb-1.5 flex-shrink-0">Reading Passage</h3>
+                  <div className="prose prose-slate max-w-none text-slate-800 text-sm leading-relaxed overflow-y-auto flex-1 text-left">
+                    <MathRenderer html={question.parentQuestionText} className="w-full" />
                   </div>
                 </div>
-              )}
 
-              {/* Explanation rendering if available */}
-              {showAdminAnswers && question.explanation && (
-                <div className="mt-3 bg-blue-50 border border-blue-100 text-blue-900 rounded-lg p-3 text-left text-xs leading-relaxed">
-                  <p className="font-bold text-[10px] text-blue-700 uppercase tracking-wide mb-0.5">Admin Explanation</p>
-                  {question.explanation}
+                {/* Question Panel (Right) */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col overflow-y-auto min-w-0 h-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2 flex-shrink-0">
+                    <span className="text-xs font-bold text-slate-400">Question {activeQuestionIdx + 1} of {totalQuestions}</span>
+                    <div className="flex gap-1.5">
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full capitalize font-semibold">{question.difficulty}</span>
+                      {question.topic && <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{question.topic}</span>}
+                    </div>
+                  </div>
+
+                  {/* Question Text */}
+                  <div className="text-slate-800 text-sm leading-relaxed mb-4 text-left font-medium flex-shrink-0">
+                    <MathRenderer html={question.text || 'Write question text to see preview...'} className="w-full" />
+                  </div>
+
+                  {/* Answers View Toggle */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mb-3 text-left flex-shrink-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Developer Tools</span>
+                      <label className="flex items-center gap-1 text-[10px] text-blue-600 font-bold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showAdminAnswers}
+                          onChange={(e) => setShowAdminAnswers(e.target.checked)}
+                          className="rounded text-blue-600 w-3 h-3"
+                        />
+                        Highlight Answers
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Option Rendering */}
+                  {question.type !== 'numeric' && question.options ? (
+                    <div className="space-y-2 flex-shrink-0">
+                      {question.options.map((opt) => {
+                        const isSelected = question.type === 'mcq_multi'
+                          ? Array.isArray(answers[question.id]) && answers[question.id].includes(opt.id)
+                          : answers[question.id] === opt.id;
+                        const isCorrect = showAdminAnswers && (
+                          question.type === 'mcq_multi'
+                            ? Array.isArray(question.correctAnswer) && (question.correctAnswer as string[]).includes(opt.id)
+                            : question.correctAnswer === opt.id
+                        );
+
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => {
+                              if (question.type === 'mcq_multi') {
+                                const curr = Array.isArray(answers[question.id]) ? answers[question.id] : [];
+                                setAnswers((prev) => ({
+                                  ...prev,
+                                  [question.id]: curr.includes(opt.id)
+                                    ? curr.filter((x: string) => x !== opt.id)
+                                    : [...curr, opt.id],
+                                }));
+                              } else {
+                                setAnswers((prev) => ({ ...prev, [question.id]: opt.id }));
+                              }
+                            }}
+                            className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
+                              isCorrect
+                                ? 'border-emerald-500 bg-emerald-50/50'
+                                : isSelected
+                                ? 'border-blue-500 bg-blue-50/50'
+                                : 'border-slate-200 bg-white hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                              isCorrect
+                                ? 'border-emerald-500 bg-emerald-500 text-white'
+                                : isSelected
+                                ? 'border-blue-500 bg-blue-500 text-white'
+                                : 'border-slate-300 text-slate-500'
+                            }`}>
+                              {opt.id.toUpperCase()}
+                            </div>
+                            <div className="flex-1 text-xs">
+                              <MathRenderer html={opt.text || `Option ${opt.id.toUpperCase()}`} />
+                            </div>
+                            {isCorrect && (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full ml-auto">
+                                Correct Answer
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Numeric Answers */
+                    <div className="text-left flex-shrink-0">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">Enter numeric value:</label>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          value={answers[question.id] || ''}
+                          onChange={(e) => setAnswers((prev) => ({ ...prev, [question.id]: e.target.value }))}
+                          placeholder="Type number..."
+                          className="w-36 px-3 py-2 border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                        />
+                        {showAdminAnswers && question.correctAnswer !== undefined && (
+                          <div className="text-xs bg-emerald-100 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-lg font-semibold flex items-center gap-1">
+                            <span>Target:</span>
+                            <code className="font-bold">{String(question.correctAnswer)}</code>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Explanation rendering if available */}
+                  {showAdminAnswers && question.explanation && (
+                    <div className="mt-3 bg-blue-50 border border-blue-100 text-blue-900 rounded-lg p-3 text-left text-xs leading-relaxed flex-shrink-0">
+                      <p className="font-bold text-[10px] text-blue-700 uppercase tracking-wide mb-0.5">Admin Explanation</p>
+                      {question.explanation}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 flex-1 flex flex-col min-h-0 overflow-y-auto">
+                <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2 flex-shrink-0">
+                  <span className="text-xs font-bold text-slate-400">Question {activeQuestionIdx + 1} of {totalQuestions}</span>
+                  <div className="flex gap-1.5">
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full capitalize font-semibold">{question.difficulty}</span>
+                    {question.topic && <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">{question.topic}</span>}
+                  </div>
+                </div>
+
+                {/* Question Text */}
+                <div className="flex-1 overflow-y-auto text-slate-800 text-sm leading-relaxed mb-4 text-left">
+                  <MathRenderer html={question.text || 'Write question text to see preview...'} className="w-full" />
+                </div>
+
+                {/* Answers View Toggle */}
+                <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mb-3 text-left">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Developer Tools</span>
+                    <label className="flex items-center gap-1 text-[10px] text-blue-600 font-bold cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showAdminAnswers}
+                        onChange={(e) => setShowAdminAnswers(e.target.checked)}
+                        className="rounded text-blue-600 w-3 h-3"
+                      />
+                      Highlight Answers
+                    </label>
+                  </div>
+                </div>
+
+                {/* Option Rendering */}
+                {question.type !== 'numeric' && question.options ? (
+                  <div className="space-y-2 flex-shrink-0">
+                    {question.options.map((opt) => {
+                      const isSelected = question.type === 'mcq_multi'
+                        ? Array.isArray(answers[question.id]) && answers[question.id].includes(opt.id)
+                        : answers[question.id] === opt.id;
+                      const isCorrect = showAdminAnswers && (
+                        question.type === 'mcq_multi'
+                          ? Array.isArray(question.correctAnswer) && (question.correctAnswer as string[]).includes(opt.id)
+                          : question.correctAnswer === opt.id
+                      );
+
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => {
+                            if (question.type === 'mcq_multi') {
+                              const curr = Array.isArray(answers[question.id]) ? answers[question.id] : [];
+                              setAnswers((prev) => ({
+                                ...prev,
+                                [question.id]: curr.includes(opt.id)
+                                  ? curr.filter((x: string) => x !== opt.id)
+                                  : [...curr, opt.id],
+                              }));
+                            } else {
+                              setAnswers((prev) => ({ ...prev, [question.id]: opt.id }));
+                            }
+                          }}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
+                            isCorrect
+                              ? 'border-emerald-500 bg-emerald-50/50'
+                              : isSelected
+                              ? 'border-blue-500 bg-blue-50/50'
+                              : 'border-slate-200 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                            isCorrect
+                              ? 'border-emerald-500 bg-emerald-500 text-white'
+                              : isSelected
+                              ? 'border-blue-500 bg-blue-500 text-white'
+                              : 'border-slate-300 text-slate-500'
+                          }`}>
+                            {opt.id.toUpperCase()}
+                          </div>
+                          <div className="flex-1 text-xs">
+                            <MathRenderer html={opt.text || `Option ${opt.id.toUpperCase()}`} />
+                          </div>
+                          {isCorrect && (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full ml-auto">
+                              Correct Answer
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Numeric Answers */
+                  <div className="text-left flex-shrink-0">
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Enter numeric value:</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        value={answers[question.id] || ''}
+                        onChange={(e) => setAnswers((prev) => ({ ...prev, [question.id]: e.target.value }))}
+                        placeholder="Type number..."
+                        className="w-36 px-3 py-2 border-2 border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                      />
+                      {showAdminAnswers && question.correctAnswer !== undefined && (
+                        <div className="text-xs bg-emerald-100 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-lg font-semibold flex items-center gap-1">
+                          <span>Target:</span>
+                          <code className="font-bold">{String(question.correctAnswer)}</code>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Explanation rendering if available */}
+                {showAdminAnswers && question.explanation && (
+                  <div className="mt-3 bg-blue-50 border border-blue-100 text-blue-900 rounded-lg p-3 text-left text-xs leading-relaxed">
+                    <p className="font-bold text-[10px] text-blue-700 uppercase tracking-wide mb-0.5">Admin Explanation</p>
+                    {question.explanation}
+                  </div>
+                )}
+              </div>
+            )
           ) : (
             <div className="bg-white rounded-xl border border-slate-200 p-8 flex-1 flex items-center justify-center text-slate-400 italic text-sm">
               Create a question in this section to view its exam preview.

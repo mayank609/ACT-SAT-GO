@@ -17,6 +17,8 @@ interface DbQuestion {
   options: Record<string, string> | null
   correctAnswer: { key?: string; keys?: string[]; value?: number }
   difficultyLevel: string
+  childQuestions?: DbQuestion[]
+  parentQuestionId?: string
 }
 
 interface DbTestQuestion {
@@ -24,6 +26,8 @@ interface DbTestQuestion {
   questionId: string
   orderIndex: number
   question: DbQuestion
+  marksPositive?: number
+  marksNegative?: number
 }
 
 interface DbSection {
@@ -60,7 +64,8 @@ export function transformDbTest(raw: DbTest): Test {
       timeLimit: sec.durationMinutes,
       questions: sec.questions.slice().sort((a, b) => a.orderIndex - b.orderIndex).map((tq): Question => {
         const q = tq.question
-        const type: QuestionType = q.type === 'MCQ' ? 'mcq_single' : q.type === 'MSQ' ? 'mcq_multi' : 'numeric'
+        const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true)
+        const type: QuestionType = isPassage ? 'passage' : q.type === 'MCQ' ? 'mcq_single' : q.type === 'MSQ' ? 'mcq_multi' : 'numeric'
         const difficulty: Difficulty = q.difficultyLevel.toLowerCase() as Difficulty
         const options: Option[] | undefined = q.options
           ? Object.entries(q.options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }))
@@ -70,21 +75,81 @@ export function transformDbTest(raw: DbTest): Test {
         if (ca.value !== undefined) correctAnswer = ca.value
         else if (ca.keys) correctAnswer = ca.keys.map((k) => k.toLowerCase())
         else if (ca.key) correctAnswer = ca.key.toLowerCase()
+
+        const linkedQuestions = q.childQuestions
+          ? q.childQuestions.map((cq: any): Question => {
+              const cType: QuestionType = cq.type === 'MCQ' ? 'mcq_single' : cq.type === 'MSQ' ? 'mcq_multi' : 'numeric'
+              const cDiff: Difficulty = cq.difficultyLevel.toLowerCase() as Difficulty
+              const cOptions: Option[] | undefined = cq.options
+                ? Object.entries(cq.options).map(([k, v]) => ({ id: k.toLowerCase(), text: v as string }))
+                : undefined
+              const cCa = cq.correctAnswer
+              let cCorrectAnswer: string | string[] | number = ''
+              if (cCa.value !== undefined) cCorrectAnswer = cCa.value
+              else if (cCa.keys) cCorrectAnswer = cCa.keys.map((k: string) => k.toLowerCase())
+              else if (cCa.key) cCorrectAnswer = cCa.key.toLowerCase()
+
+              return {
+                id: cq.id,
+                text: cq.content?.text ?? '',
+                type: cType,
+                options: cOptions,
+                correctAnswer: cCorrectAnswer,
+                topic: '',
+                difficulty: cDiff,
+                explanation: cq.content?.explanation ?? undefined,
+                marks: 1,
+                marksNegative: 0,
+                parentQuestionId: q.id,
+              }
+            })
+          : undefined
+
         return {
           id: q.id,
-          text: q.content.text,
+          text: q.content?.text ?? '',
           type,
           options,
           correctAnswer,
           topic: '',
           difficulty,
-          explanation: q.content.explanation ?? undefined,
-          marks: 1,
-          marksNegative: 0,
+          explanation: q.content?.explanation ?? undefined,
+          marks: tq.marksPositive ?? 1,
+          marksNegative: tq.marksNegative ?? 0,
+          linkedQuestions,
         }
       }),
     })),
   }
+}
+
+/**
+ * flattenTest: expands each "passage" question into individual sub-questions
+ * that carry `parentQuestionText` so the renderer can show the SAT split-screen.
+ * Non-passage questions are kept as-is. The test is mutated in-place per section.
+ */
+export function flattenTest(test: import('../../types').Test): import('../../types').Test {
+  return {
+    ...test,
+    sections: test.sections.map((sec) => ({
+      ...sec,
+      questions: sec.questions.flatMap((q) => {
+        if (q.type !== 'passage' || !q.linkedQuestions?.length) return [q];
+        // Expand each linked sub-question and tag it with the passage text
+        return q.linkedQuestions.map((lq, idx) => ({
+          ...lq,
+          type: lq.type, // keeps mcq_single / mcq_multi / numeric
+          parentQuestionId: q.id,
+          parentQuestionText: q.text,
+          // Carry marks from the parent if not individually set
+          marks: lq.marks ?? q.marks,
+          marksNegative: lq.marksNegative ?? q.marksNegative,
+          // give a stable UI label
+          _passageSubIndex: idx,
+        }));
+      }),
+    })),
+  };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

@@ -19,7 +19,16 @@ export async function GET(
           include: {
             questions: {
               orderBy: { orderIndex: 'asc' },
-              include: { question: true },
+              include: {
+                question: {
+                  include: {
+                    childQuestions: {
+                      orderBy: { createdAt: 'asc' },
+                    },
+                    parentQuestion: true,
+                  },
+                },
+              },
             },
           },
         },
@@ -75,6 +84,19 @@ function transformCorrectAnswer(answer: string | string[] | number | null | unde
   return { key: (answer || 'A').toUpperCase() } as Prisma.InputJsonValue
 }
 
+interface FrontendQuestion {
+  text: string
+  type: FrontendType
+  options?: Array<{ id: string; text: string }>
+  correctAnswer: string | string[] | number
+  topic?: string
+  difficulty: FrontendDifficulty
+  explanation?: string
+  marks?: number
+  marksNegative?: number
+  linkedQuestions?: FrontendQuestion[]
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ testId: string }> }
@@ -90,17 +112,7 @@ export async function PATCH(
     sections?: Array<{
       name: string
       timeLimit: number
-      questions: Array<{
-        text: string
-        type: FrontendType
-        options?: Array<{ id: string; text: string }>
-        correctAnswer: string | string[] | number
-        topic?: string
-        difficulty: FrontendDifficulty
-        explanation?: string
-        marks?: number
-        marksNegative?: number
-      }>
+      questions: Array<FrontendQuestion>
     }>
   }
   try {
@@ -184,6 +196,27 @@ export async function PATCH(
             },
           })
 
+          if (isPassage && q.linkedQuestions && Array.isArray(q.linkedQuestions)) {
+            for (const child of q.linkedQuestions) {
+              const childDbType = TYPE_MAP[child.type] || 'MCQ'
+              const childDbDiff = DIFF_MAP[child.difficulty] || 'MEDIUM'
+              const childTopicId = child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null
+              const childContentJson = { text: child.text, explanation: child.explanation ?? null } as Prisma.InputJsonValue
+
+              await tx.question.create({
+                data: {
+                  type: childDbType as any,
+                  content: childContentJson,
+                  options: child.options ? transformOptions(child.options) : Prisma.DbNull,
+                  correctAnswer: transformCorrectAnswer(child.correctAnswer),
+                  difficultyLevel: childDbDiff as any,
+                  topicId: childTopicId,
+                  parentQuestionId: newQuestion.id,
+                },
+              })
+            }
+          }
+
           await tx.testQuestion.create({
             data: {
               testId,
@@ -196,6 +229,26 @@ export async function PATCH(
           })
         }
       }
+
+      return tx.test.findUnique({
+        where: { id: testId },
+        include: {
+          sections: {
+            orderBy: { orderIndex: 'asc' },
+            include: { _count: { select: { questions: true } } },
+          },
+          _count: { select: { attempts: true } },
+        },
+      })
+    }, { timeout: 30000 })
+
+    return NextResponse.json({ test })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('PATCH /api/tests/[testId]:', error)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
 
       return tx.test.findUnique({
         where: { id: testId },

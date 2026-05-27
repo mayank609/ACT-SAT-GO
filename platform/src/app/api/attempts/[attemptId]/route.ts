@@ -20,7 +20,16 @@ export async function GET(
               include: {
                 questions: {
                   orderBy: { orderIndex: 'asc' },
-                  include: { question: true },
+                  include: {
+                    question: {
+                      include: {
+                        childQuestions: {
+                          orderBy: { createdAt: 'asc' },
+                        },
+                        parentQuestion: true,
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -32,7 +41,16 @@ export async function GET(
               include: {
                 questions: {
                   orderBy: { orderIndex: 'asc' },
-                  include: { question: true },
+                  include: {
+                    question: {
+                      include: {
+                        childQuestions: {
+                          orderBy: { createdAt: 'asc' },
+                        },
+                        parentQuestion: true,
+                      },
+                    },
+                  },
                 },
               },
             },

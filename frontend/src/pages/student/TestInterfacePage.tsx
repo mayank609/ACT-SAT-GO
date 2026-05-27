@@ -10,7 +10,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import type { QuestionState, SectionAttempt } from '../../types';
 import type { TestAttempt } from '../../types';
-import { transformDbTest } from './TestInstructionsPage';
+import { transformDbTest, flattenTest } from './TestInstructionsPage';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -133,7 +133,7 @@ export function TestInterfacePage() {
         setRestoreError(null);
         try {
           const { test: rawTest } = await api.getTest(testId);
-          const restoredTest = transformDbTest(rawTest as any);
+          const restoredTest = flattenTest(transformDbTest(rawTest as any));
           const sections: Record<string, SectionAttempt> = {};
           restoredTest.sections.forEach((sec) => {
             const questions: SectionAttempt['questions'] = {};
@@ -185,7 +185,7 @@ export function TestInterfacePage() {
         if (!rawAttempt || !rawAttempt.test) {
           throw new Error('Attempt data is missing or incomplete. The test may have been deleted.');
         }
-        const restoredTest = transformDbTest(rawAttempt.test);
+        const restoredTest = flattenTest(transformDbTest(rawAttempt.test));
         if (!restoredTest.sections || restoredTest.sections.length === 0) {
           throw new Error('Test has no sections. It may have been modified or corrupted.');
         }
@@ -650,167 +650,153 @@ export function TestInterfacePage() {
         </div>
       </div>
 
-      <div className="flex-1 flex max-w-6xl mx-auto w-full gap-3 md:gap-4 p-3 md:p-4">
-        {/* Question area */}
-        <div className="flex-1 flex flex-col gap-3 md:gap-4 min-w-0">
-          <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-4 md:p-6 flex-1">
-            <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-500">Q {currentQIdx + 1}</span>
-                <span className="text-slate-300">/</span>
-                <span className="text-sm text-slate-400">{totalQInSection}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {currentQAttempt?.timeSpent && currentQAttempt.timeSpent > 0 && (
-                  <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">{currentQAttempt.timeSpent}s</span>
-                )}
-                <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                  currentQuestion.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-700' :
-                  currentQuestion.difficulty === 'medium' ? 'bg-amber-50 text-amber-700' :
-                  'bg-red-50 text-red-700'
-                }`}>{currentQuestion.difficulty}</span>
-                {currentQuestion.topic && (
-                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-lg hidden sm:inline">{currentQuestion.topic}</span>
-                )}
+      <div className="flex-1 flex max-w-6xl mx-auto w-full gap-3 md:gap-4 p-3 md:p-4 min-h-0">
+        {currentQuestion.parentQuestionText ? (
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0">
+            {/* Passage Panel (Left) */}
+            <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-4 md:p-6 flex flex-col h-[calc(100vh-280px)] lg:h-auto overflow-y-auto min-w-0 shadow-sm">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 border-b border-slate-100 pb-2">Reading Passage</h3>
+              <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed overflow-y-auto flex-1 text-left">
+                <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
               </div>
             </div>
 
-            <div className="text-sm md:text-base text-slate-900 leading-relaxed mb-5 md:mb-6">
-              <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
-            </div>
-
-            {/* MCQ options */}
-            {(currentQuestion.type === 'mcq_single' || currentQuestion.type === 'mcq_multi') && currentQuestion.options && (
-              <div className="space-y-2">
-                {currentQuestion.options.map((opt) => {
-                  const isSelected = currentQuestion.type === 'mcq_multi'
-                    ? Array.isArray(selectedAnswer) && selectedAnswer.includes(opt.id)
-                    : selectedAnswer === opt.id;
-                  return (
-                    <OptionRenderer
-                      key={opt.id}
-                      label={opt.id.toUpperCase()}
-                      text={opt.text}
-                      isSelected={isSelected}
-                      onClick={() => {
-                        if (currentQuestion.type === 'mcq_multi') {
-                          const curr = Array.isArray(selectedAnswer) ? selectedAnswer as string[] : [];
-                          setSelectedAnswer(curr.includes(opt.id) ? curr.filter((x) => x !== opt.id) : [...curr, opt.id]);
-                        } else {
-                          setSelectedAnswer(opt.id);
-                        }
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Numeric */}
-            {currentQuestion.type === 'numeric' && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Enter your answer:</label>
-                <input type="number" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
-                  placeholder="Type numeric answer"
-                  className="w-40 md:w-48 px-4 py-3 border-2 border-slate-200 rounded-xl text-lg focus:outline-none focus:border-blue-500 transition-all" />
-              </div>
-            )}
-
-            {/* Passage Question */}
-            {currentQuestion.type === 'passage' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                {/* Passage on left */}
-                <div className="order-2 lg:order-1">
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 md:p-5 max-h-96 overflow-y-auto">
-                    <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Reading Passage</h3>
-                    <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed">
-                      <RichContentRenderer content={currentQuestion.text} variant="question" />
-                    </div>
-                  </div>
+            {/* Question Panel (Right) */}
+            <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-4 md:p-6 flex flex-col h-[calc(100vh-280px)] lg:h-auto overflow-y-auto min-w-0 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-4 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-500">Q {currentQIdx + 1}</span>
+                  <span className="text-slate-300">/</span>
+                  <span className="text-sm text-slate-400">{totalQInSection}</span>
                 </div>
-
-                {/* Linked questions on right */}
-                <div className="order-1 lg:order-2 space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 md:p-4">
-                    <p className="text-xs text-blue-700">
-                      <span className="font-semibold">Based on the passage:</span> Answer the questions using information from the passage text.
-                    </p>
-                  </div>
-
-                  {currentQuestion.linkedQuestions && currentQuestion.linkedQuestions.length > 0 ? (
-                    <div className="space-y-4">
-                      {currentQuestion.linkedQuestions.map((linkedQ, idx) => (
-                        <div key={linkedQ.id} className="p-4 border border-slate-200 rounded-xl bg-white">
-                          <p className="text-xs font-semibold text-slate-500 mb-2">Question {idx + 1}</p>
-                          <p className="text-sm font-medium text-slate-900 mb-3">
-                            <RichContentRenderer content={linkedQ.text} variant="question" />
-                          </p>
-
-                          {/* MCQ options for linked questions */}
-                          {(linkedQ.type === 'mcq_single' || linkedQ.type === 'mcq_multi') && linkedQ.options && (
-                            <div className="space-y-2">
-                              {linkedQ.options.map((opt) => {
-                                const linkedQAnswer = typeof selectedAnswer === 'object' && selectedAnswer !== null
-                                  ? (selectedAnswer as Record<string, any>)[linkedQ.id]
-                                  : null;
-                                const isSelected = linkedQ.type === 'mcq_multi'
-                                  ? Array.isArray(linkedQAnswer) && linkedQAnswer.includes(opt.id)
-                                  : linkedQAnswer === opt.id;
-                                return (
-                                  <OptionRenderer
-                                    key={opt.id}
-                                    label={opt.id.toUpperCase()}
-                                    text={opt.text}
-                                    isSelected={isSelected}
-                                    onClick={() => {
-                                      const current = (selectedAnswer as Record<string, any>) || {};
-                                      if (linkedQ.type === 'mcq_multi') {
-                                        const curr = Array.isArray(current[linkedQ.id]) ? current[linkedQ.id] as string[] : [];
-                                        setSelectedAnswer({
-                                          ...current,
-                                          [linkedQ.id]: curr.includes(opt.id) ? curr.filter((x) => x !== opt.id) : [...curr, opt.id],
-                                        });
-                                      } else {
-                                        setSelectedAnswer({ ...current, [linkedQ.id]: opt.id });
-                                      }
-                                    }}
-                                  />
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Numeric for linked questions */}
-                          {linkedQ.type === 'numeric' && (
-                            <div>
-                              <label className="block text-xs font-medium text-slate-700 mb-2">Enter answer:</label>
-                              <input
-                                type="number"
-                                value={typeof selectedAnswer === 'object' && selectedAnswer !== null && (selectedAnswer as Record<string, any>)[linkedQ.id] ? (selectedAnswer as Record<string, any>)[linkedQ.id] : ''}
-                                onChange={(e) => {
-                                  const current = (selectedAnswer as Record<string, any>) || {};
-                                  setSelectedAnswer({ ...current, [linkedQ.id]: parseFloat(e.target.value) || 0 });
-                                }}
-                                placeholder="Enter number"
-                                className="w-full md:w-48 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center text-slate-500 text-sm p-4 bg-slate-50 rounded-lg">
-                      No linked questions available yet for this passage.
-                    </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {currentQAttempt?.timeSpent && currentQAttempt.timeSpent > 0 && (
+                    <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">{currentQAttempt.timeSpent}s</span>
+                  )}
+                  <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
+                    currentQuestion.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-700' :
+                    currentQuestion.difficulty === 'medium' ? 'bg-amber-50 text-amber-700' :
+                    'bg-red-50 text-red-700'
+                  }`}>{currentQuestion.difficulty}</span>
+                  {currentQuestion.topic && (
+                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-lg">{currentQuestion.topic}</span>
                   )}
                 </div>
               </div>
-            )}
 
+              <div className="text-sm md:text-base text-slate-900 leading-relaxed mb-5 md:mb-6 flex-shrink-0 text-left font-medium">
+                <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
+              </div>
+
+              {/* MCQ options */}
+              {(currentQuestion.type === 'mcq_single' || currentQuestion.type === 'mcq_multi') && currentQuestion.options && (
+                <div className="space-y-2 flex-shrink-0 text-left">
+                  {currentQuestion.options.map((opt) => {
+                    const isSelected = currentQuestion.type === 'mcq_multi'
+                      ? Array.isArray(selectedAnswer) && selectedAnswer.includes(opt.id)
+                      : selectedAnswer === opt.id;
+                    return (
+                      <OptionRenderer
+                        key={opt.id}
+                        label={opt.id.toUpperCase()}
+                        text={opt.text}
+                        isSelected={isSelected}
+                        onClick={() => {
+                          if (currentQuestion.type === 'mcq_multi') {
+                            const curr = Array.isArray(selectedAnswer) ? selectedAnswer as string[] : [];
+                            setSelectedAnswer(curr.includes(opt.id) ? curr.filter((x) => x !== opt.id) : [...curr, opt.id]);
+                          } else {
+                            setSelectedAnswer(opt.id);
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Numeric */}
+              {currentQuestion.type === 'numeric' && (
+                <div className="text-left">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Enter your answer:</label>
+                  <input type="number" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
+                    placeholder="Type numeric answer"
+                    className="w-40 md:w-48 px-4 py-3 border-2 border-slate-200 rounded-xl text-lg focus:outline-none focus:border-blue-500 transition-all" />
+                </div>
+              )}
+            </div>
           </div>
+        ) : (
+          /* Question area (Standard Layout) */
+          <div className="flex-1 flex flex-col gap-3 md:gap-4 min-w-0">
+            <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-4 md:p-6 flex-1 shadow-sm text-left">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-500">Q {currentQIdx + 1}</span>
+                  <span className="text-slate-300">/</span>
+                  <span className="text-sm text-slate-400">{totalQInSection}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {currentQAttempt?.timeSpent && currentQAttempt.timeSpent > 0 && (
+                    <span className="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">{currentQAttempt.timeSpent}s</span>
+                  )}
+                  <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
+                    currentQuestion.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-700' :
+                    currentQuestion.difficulty === 'medium' ? 'bg-amber-50 text-amber-700' :
+                    'bg-red-50 text-red-700'
+                  }`}>{currentQuestion.difficulty}</span>
+                  {currentQuestion.topic && (
+                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-lg hidden sm:inline">{currentQuestion.topic}</span>
+                  )}
+                </div>
+              </div>
 
-          {/* Action buttons */}
+              <div className="text-sm md:text-base text-slate-900 leading-relaxed mb-5 md:mb-6">
+                <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
+              </div>
+
+              {/* MCQ options */}
+              {(currentQuestion.type === 'mcq_single' || currentQuestion.type === 'mcq_multi') && currentQuestion.options && (
+                <div className="space-y-2">
+                  {currentQuestion.options.map((opt) => {
+                    const isSelected = currentQuestion.type === 'mcq_multi'
+                      ? Array.isArray(selectedAnswer) && selectedAnswer.includes(opt.id)
+                      : selectedAnswer === opt.id;
+                    return (
+                      <OptionRenderer
+                        key={opt.id}
+                        label={opt.id.toUpperCase()}
+                        text={opt.text}
+                        isSelected={isSelected}
+                        onClick={() => {
+                          if (currentQuestion.type === 'mcq_multi') {
+                            const curr = Array.isArray(selectedAnswer) ? selectedAnswer as string[] : [];
+                            setSelectedAnswer(curr.includes(opt.id) ? curr.filter((x) => x !== opt.id) : [...curr, opt.id]);
+                          } else {
+                            setSelectedAnswer(opt.id);
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Numeric */}
+              {currentQuestion.type === 'numeric' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Enter your answer:</label>
+                  <input type="number" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
+                    placeholder="Type numeric answer"
+                    className="w-40 md:w-48 px-4 py-3 border-2 border-slate-200 rounded-xl text-lg focus:outline-none focus:border-blue-500 transition-all" />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons — always rendered below question area */}
+        <div className="max-w-6xl mx-auto w-full px-3 md:px-4 pb-3 md:pb-4">
           <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-3 md:p-4">
             <div className="flex flex-wrap items-center gap-2 justify-between">
               <div className="flex flex-wrap gap-1.5 md:gap-2">
@@ -845,49 +831,49 @@ export function TestInterfacePage() {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Desktop palette */}
-        <div className="hidden md:block w-56 lg:w-64 flex-shrink-0">
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 sticky top-4">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">{currentSection.name}</h3>
-            <div className="grid grid-cols-2 gap-1 mb-3 text-xs">
-              {[
-                { color: 'bg-slate-200', label: 'Not Visited' },
-                { color: 'bg-red-500', label: 'Not Answered' },
-                { color: 'bg-emerald-500', label: 'Answered' },
-                { color: 'bg-purple-500', label: 'Marked' },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-1">
-                  <div className={`w-3 h-3 rounded-full ${item.color} flex-shrink-0`} />
-                  <span className="text-slate-500 text-xs leading-tight">{item.label}</span>
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-6 gap-1 max-h-72 overflow-y-auto">
-              {currentSection.questions.map((q, idx) => {
-                const state = getQuestionState(currentSection.id, q.id);
-                const isActive = idx === currentQIdx;
-                return (
-                  <button key={q.id} onClick={() => navigateToQuestion(currentSectionIdx, idx)}
-                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${stateColors[state]} ${isActive ? 'ring-2 ring-offset-1 ring-slate-500 scale-110' : ''}`}>
-                    {idx + 1}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
-              {[
-                { label: 'Answered', color: 'text-emerald-600', count: answeredCount },
-                { label: 'Marked', color: 'text-purple-600', count: markedCount },
-                { label: 'Not Ans.', color: 'text-red-500', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'not_answered').length },
-                { label: 'Unvisited', color: 'text-slate-500', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'not_visited').length },
-              ].map((s) => (
-                <div key={s.label} className="text-center">
-                  <p className={`text-sm font-bold ${s.color}`}>{s.count}</p>
-                  <p className="text-slate-400 text-xs">{s.label}</p>
-                </div>
-              ))}
-            </div>
+      {/* Desktop palette — fixed right sidebar */}
+      <div className="hidden md:block fixed right-4 top-1/4 w-52 z-10">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-lg">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3">{currentSection.name}</h3>
+          <div className="grid grid-cols-2 gap-1 mb-3 text-xs">
+            {[
+              { color: 'bg-slate-200', label: 'Not Visited' },
+              { color: 'bg-red-500', label: 'Not Answered' },
+              { color: 'bg-emerald-500', label: 'Answered' },
+              { color: 'bg-purple-500', label: 'Marked' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-1">
+                <div className={`w-3 h-3 rounded-full ${item.color} flex-shrink-0`} />
+                <span className="text-slate-500 text-xs leading-tight">{item.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-5 gap-1 max-h-64 overflow-y-auto">
+            {currentSection.questions.map((q, idx) => {
+              const state = getQuestionState(currentSection.id, q.id);
+              const isActive = idx === currentQIdx;
+              return (
+                <button key={q.id} onClick={() => navigateToQuestion(currentSectionIdx, idx)}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${stateColors[state]} ${isActive ? 'ring-2 ring-offset-1 ring-slate-500 scale-110' : ''}`}>
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+            {[
+              { label: 'Answered', color: 'text-emerald-600', count: answeredCount },
+              { label: 'Marked', color: 'text-purple-600', count: markedCount },
+              { label: 'Not Ans.', color: 'text-red-500', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'not_answered').length },
+              { label: 'Unvisited', color: 'text-slate-500', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'not_visited').length },
+            ].map((s) => (
+              <div key={s.label} className="text-center">
+                <p className={`text-sm font-bold ${s.color}`}>{s.count}</p>
+                <p className="text-slate-400 text-xs">{s.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -88,6 +88,7 @@ interface FrontendQuestion {
   explanation?: string
   marks?: number
   marksNegative?: number
+  linkedQuestions?: FrontendQuestion[]
 }
 
 interface FrontendSection {
@@ -188,6 +189,27 @@ export async function POST(request: NextRequest) {
               topicId,
             },
           })
+
+          if (isPassage && q.linkedQuestions && Array.isArray(q.linkedQuestions)) {
+            for (const child of q.linkedQuestions) {
+              const childDbType = TYPE_MAP[child.type] || 'MCQ'
+              const childDbDiff = DIFF_MAP[child.difficulty] || 'MEDIUM'
+              const childTopicId = child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null
+              const childContentJson = { text: child.text, explanation: child.explanation ?? null } as Prisma.InputJsonValue
+
+              await tx.question.create({
+                data: {
+                  type: childDbType as any,
+                  content: childContentJson,
+                  options: child.options ? transformOptions(child.options) : Prisma.DbNull,
+                  correctAnswer: transformCorrectAnswer(child.correctAnswer),
+                  difficultyLevel: childDbDiff as any,
+                  topicId: childTopicId,
+                  parentQuestionId: newQuestion.id,
+                },
+              })
+            }
+          }
 
           await tx.testQuestion.create({
             data: {

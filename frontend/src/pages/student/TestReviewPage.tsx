@@ -26,6 +26,7 @@ interface DbQuestion {
   options: Record<string, string> | null
   correctAnswer: DbAnswer
   difficultyLevel: string
+  childQuestions?: DbQuestion[]
 }
 
 interface DbTestQuestion {
@@ -117,6 +118,93 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
   const userAnswerDisplay = dbAnswerToDisplay(studentAnswer?.answerGiven ?? null)
   const correctAnswerDisplay = dbAnswerToDisplay(q.correctAnswer)
 
+  const parentQuestionText = (q as any).parentQuestionText;
+
+  if (parentQuestionText) {
+    return (
+      <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-emerald-200' : skipped ? 'border-slate-200' : 'border-red-200'}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white">
+          {/* Left Panel: Passage */}
+          <div className="p-4 bg-slate-50 text-left overflow-y-auto max-h-[400px]">
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2 border-b border-slate-200/60 pb-1 flex-shrink-0">Reading Passage</h4>
+            <div className="prose prose-slate max-w-none text-slate-800 text-sm leading-relaxed">
+              <RichContentRenderer content={parentQuestionText} variant="question" className="prose-sm" />
+            </div>
+          </div>
+
+          {/* Right Panel: Question */}
+          <div className="flex flex-col">
+            <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${correct ? 'bg-emerald-50' : skipped ? 'bg-slate-50' : 'bg-red-50'}`}>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-emerald-500' : skipped ? 'bg-slate-400' : 'bg-red-500'}`}>
+                  {index + 1}
+                </div>
+                {correct ? <CheckCircle size={14} className="text-emerald-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-red-500'} />}
+              </div>
+              <div className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 text-left font-medium">
+                <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {studentAnswer?.timeSpentSeconds ? (
+                  <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                ) : null}
+                <Badge variant={correct ? 'success' : skipped ? 'default' : 'danger'} size="sm">
+                  {correct ? 'Correct' : skipped ? 'Skip' : 'Wrong'}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="px-3 md:px-4 py-3 bg-white flex-1 flex flex-col justify-between">
+              <div>
+                {options.length > 0 && (
+                  <div className="space-y-2 mb-3 text-left">
+                    {options.map((opt) => {
+                      const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                      const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                      return (
+                        <OptionRenderer
+                          key={opt.id}
+                          label={opt.id.toUpperCase()}
+                          text={opt.text}
+                          isSelected={isUserAnswer && !isCorrectOption}
+                          isCorrect={isCorrectOption}
+                          isIncorrect={isUserAnswer && !isCorrectOption}
+                          showFeedback={true}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+                {q.type === 'NUMERIC' && (
+                  <div className="flex gap-4 text-sm mb-3 text-left">
+                    <span className="text-slate-500">Your answer: <strong className={correct ? 'text-emerald-600' : 'text-red-500'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
+                    <span className="text-slate-500">Correct: <strong className="text-emerald-600">{q.correctAnswer.value}</strong></span>
+                  </div>
+                )}
+              </div>
+              <div>
+                {q.content.explanation && (
+                  <div className="text-left mt-2">
+                    <button onClick={() => setShowExplanation(!showExplanation)}
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                      {showExplanation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                      {showExplanation ? 'Hide' : 'Show'} Explanation
+                    </button>
+                  </div>
+                )}
+                {showExplanation && q.content.explanation && (
+                  <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-left">
+                    <RichContentRenderer content={q.content.explanation} variant="explanation" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-emerald-200' : skipped ? 'border-slate-200' : 'border-red-200'}`}>
       <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${correct ? 'bg-emerald-50' : skipped ? 'bg-slate-50' : 'bg-red-50'}`}>
@@ -126,9 +214,9 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
           </div>
           {correct ? <CheckCircle size={14} className="text-emerald-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-red-500'} />}
         </div>
-        <p className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0">
+        <div className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 text-left">
           <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
-        </p>
+        </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {studentAnswer?.timeSpentSeconds ? (
             <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
@@ -141,7 +229,7 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
 
       <div className="px-3 md:px-4 py-3 bg-white">
         {options.length > 0 && (
-          <div className="space-y-2 mb-3">
+          <div className="space-y-2 mb-3 text-left">
             {options.map((opt) => {
               const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
               const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
@@ -160,20 +248,22 @@ function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
           </div>
         )}
         {q.type === 'NUMERIC' && (
-          <div className="flex gap-4 text-sm mb-3">
+          <div className="flex gap-4 text-sm mb-3 text-left">
             <span className="text-slate-500">Your answer: <strong className={correct ? 'text-emerald-600' : 'text-red-500'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
             <span className="text-slate-500">Correct: <strong className="text-emerald-600">{q.correctAnswer.value}</strong></span>
           </div>
         )}
         {q.content.explanation && (
-          <button onClick={() => setShowExplanation(!showExplanation)}
-            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
-            {showExplanation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-            {showExplanation ? 'Hide' : 'Show'} Explanation
-          </button>
+          <div className="text-left">
+            <button onClick={() => setShowExplanation(!showExplanation)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+              {showExplanation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              {showExplanation ? 'Hide' : 'Show'} Explanation
+            </button>
+          </div>
         )}
         {showExplanation && q.content.explanation && (
-          <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+          <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-left">
             <RichContentRenderer content={q.content.explanation} variant="explanation" />
           </div>
         )}
@@ -218,8 +308,38 @@ export function TestReviewPage() {
   // Build answer lookup map
   const answersMap = new Map(attempt.answers.map((a) => [a.questionId, a]));
 
-  // Sort sections by orderIndex
-  const sections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+  // Sort sections by orderIndex and flatten passage questions
+  const rawSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+  const sections = rawSections.map((sa) => {
+    const flattenedQuestions: DbTestQuestion[] = [];
+    sa.section.questions.forEach((tq) => {
+      const q = tq.question;
+      const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+      if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+        q.childQuestions.forEach((cq) => {
+          flattenedQuestions.push({
+            id: cq.id,
+            questionId: cq.id,
+            orderIndex: tq.orderIndex,
+            question: {
+              ...cq,
+              parentQuestionText: q.content.text,
+            } as any,
+          });
+        });
+      } else {
+        flattenedQuestions.push(tq);
+      }
+    });
+
+    return {
+      ...sa,
+      section: {
+        ...sa.section,
+        questions: flattenedQuestions,
+      },
+    };
+  });
 
   // Compute section analytics
   const sectionStats = sections.map((sa) => {
