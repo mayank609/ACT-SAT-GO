@@ -511,7 +511,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                     <div className="text-xs font-semibold text-slate-600 mb-2">Internal Questions (Right)</div>
                     {(question.linkedQuestions && question.linkedQuestions.length > 0) ? (
                       <div className="space-y-3">
-                        {question.linkedQuestions.map((lq, i) => (
+                        {question.linkedQuestions.map((lq, _i) => (
                           <div key={lq.id} className="border rounded-md p-2">
                             <div className="text-sm text-slate-700 mb-2"><MathRenderer html={lq.text || 'Untitled question'} /></div>
                             {(lq.type === 'mcq_single' || lq.type === 'mcq_multi') && lq.options && (

@@ -10,7 +10,7 @@ import { api } from '../../lib/api';
 import { toast, Toaster } from 'react-hot-toast';
 
 type Question = Awaited<ReturnType<typeof api.getQuestions>>['questions'][0];
-type QType = 'mcq_single' | 'mcq_multi' | 'numeric';
+type QType = 'mcq_single' | 'mcq_multi' | 'numeric' | 'passage';
 type Diff = 'easy' | 'medium' | 'hard';
 
 const TYPE_LABELS: Record<string, string> = { MCQ: 'MCQ Single', MSQ: 'MCQ Multi', NUMERIC: 'Numeric' };
@@ -276,7 +276,7 @@ function AddQuestionModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
             <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Type</label>
             <select value={draft.type} onChange={(e) => {
               const t = e.target.value as QType;
-              update({ type: t, correctAnswer: t === 'numeric' ? 0 : t === 'mcq_multi' ? [] : t === 'passage' ? {} : 'a' });
+              update({ type: t, correctAnswer: t === 'numeric' ? 0 : t === 'mcq_multi' ? [] : 'a' });
             }} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="mcq_single">MCQ — Single Correct</option>
               <option value="mcq_multi">MCQ — Multiple Correct</option>

@@ -8,7 +8,7 @@ import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
-import type { QuestionState } from '../../types';
+import type { QuestionState, SectionAttempt } from '../../types';
 import type { TestAttempt } from '../../types';
 import { transformDbTest } from './TestInstructionsPage';
 
@@ -539,7 +539,7 @@ export function TestInterfacePage() {
       ? (prevState === 'marked_review' || prevState === 'answered_marked' ? 'answered_marked' : 'answered')
       : (prevState === 'marked_review' || prevState === 'answered_marked' ? 'marked_review' : 'not_answered');
 
-    updateQuestionState(currentSection.id, currentQuestion.id, newState, finalAns);
+    updateQuestionState(currentSection.id, currentQuestion.id, newState, finalAns as any);
 
     // Autosave to Redis
     if (!isPreview) {
@@ -568,7 +568,7 @@ export function TestInterfacePage() {
     if (!currentSection) return;
     const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '';
-    updateQuestionState(currentSection.id, currentQuestion.id, hasAnswer ? 'answered_marked' : 'marked_review', finalAns);
+    updateQuestionState(currentSection.id, currentQuestion.id, hasAnswer ? 'answered_marked' : 'marked_review', finalAns as any);
     if (!isPreview) {
       api.autosaveAnswer(attempt.id, {
         questionId: currentQuestion.id,
