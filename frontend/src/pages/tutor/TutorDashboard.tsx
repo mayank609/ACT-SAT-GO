@@ -73,104 +73,134 @@ export function TutorDashboard() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Tutor Dashboard</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            Welcome back, {user?.name?.split(' ')[0]} · {myStudents.length} students assigned
-          </p>
+    <div className="space-y-6">
+      {/* Sleek Hero Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 md:p-8 text-white shadow-md shadow-blue-500/10 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full translate-x-20 -translate-y-20 blur-2xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-32 h-32 bg-white/5 rounded-full translate-y-16 blur-xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-4">
+          <div>
+            <span className="bg-white/20 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1.5 w-fit mb-2">
+              <Activity size={12} className="animate-pulse" /> Live Instruction Panel
+            </span>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Tutor Command Center</h1>
+            <p className="text-blue-150 text-sm mt-1 max-w-lg">
+              Welcome back, {user?.name?.split(' ')[0]}. You have {myStudents.length} active students currently enrolled in practice sheets.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {activeTab === 'anticheating' ? (
+              <button 
+                onClick={fetchAttempts} 
+                disabled={loadingAttempts}
+                className="px-4 py-2.5 bg-white text-blue-700 font-bold text-xs rounded-xl shadow-md hover:bg-blue-50 hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-60"
+              >
+                <RefreshCw size={13} className={loadingAttempts ? 'animate-spin' : ''} />
+                Refresh Telemetry Feed
+              </button>
+            ) : (
+              <button 
+                onClick={() => navigate('/comparison')}
+                className="px-4 py-2.5 bg-white text-blue-700 font-bold text-xs rounded-xl shadow-md hover:bg-blue-50 hover:shadow-lg transition-all flex items-center gap-2"
+              >
+                <ArrowRightLeft size={13} /> Side-by-Side Comparison
+              </button>
+            )}
+          </div>
         </div>
-
-        {/* Refresh button visible in anti-cheating view */}
-        {activeTab === 'anticheating' && (
-          <button 
-            onClick={fetchAttempts} 
-            disabled={loadingAttempts}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 transition-colors disabled:opacity-60"
-          >
-            <RefreshCw size={13} className={loadingAttempts ? 'animate-spin' : ''} />
-            Sync Live Telemetry
-          </button>
-        )}
       </div>
 
       {/* Tabs Selector Navigation */}
-      <div className="flex border-b border-slate-100 gap-2">
+      <div className="flex border-b border-slate-200 gap-4 pb-px">
         <button 
           onClick={() => setActiveTab('overview')} 
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-all flex items-center gap-2 -mb-px ${
             activeTab === 'overview' 
-              ? 'border-blue-600 text-blue-600 font-bold' 
+              ? 'border-blue-650 text-blue-650' 
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Users size={16} />
-            Overview & Progress
-          </div>
+          <Users size={16} />
+          Overview & Progress
         </button>
         
         <button 
           onClick={() => setActiveTab('anticheating')} 
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition-all flex items-center gap-2 -mb-px ${
             activeTab === 'anticheating' 
-              ? 'border-red-500 text-red-600 font-bold' 
+              ? 'border-red-500 text-red-600' 
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Shield size={16} />
-            Live Anti-Cheating Monitor
-          </div>
+          <Shield size={16} />
+          Live Anti-Cheating Monitor
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+          </span>
         </button>
       </div>
 
       {activeTab === 'overview' ? (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            <StatCard title="My Students" value={myStudents.length} subtitle="enrolled" icon={<Users size={20} />} color="blue" />
-            <StatCard title="Avg. Score" value={avgScore > 0 ? avgScore.toFixed(1) : '—'} subtitle="composite" icon={<TrendingUp size={20} />} color="emerald" />
-            <StatCard title="Tests Taken" value={totalTests} subtitle="all students" icon={<Target size={20} />} color="purple" />
-            <StatCard title="Need Help" value={myStudents.filter(s => {
+          {/* Stat Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard title="Active Students" value={myStudents.length} subtitle="enrolled" icon={<Users size={20} />} color="blue" />
+            <StatCard title="Avg Class Score" value={avgScore > 0 ? avgScore.toFixed(1) : '—'} subtitle="composite" icon={<TrendingUp size={20} />} color="emerald" />
+            <StatCard title="Total Mock Exams" value={totalTests} subtitle="all students" icon={<Target size={20} />} color="purple" />
+            <StatCard title="At-Risk Alerts" value={myStudents.filter(s => {
               const pct = ((s.avgScore ?? 0) / ((s.targetScore as number | null) ?? 32)) * 100;
               return pct < 70;
             }).length} subtitle="below target" icon={<AlertTriangle size={20} />} color="amber" />
           </div>
 
+          {/* Scores vs Targets Bar Chart */}
           {myStudents.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-100 p-4 md:p-6">
-              <h3 className="font-semibold text-slate-900 mb-1">Scores vs Targets</h3>
-              <p className="text-sm text-slate-500 mb-4">Current average vs target score</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={studentCompareData} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 36]} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-                  <Legend wrapperStyle={{ fontSize: '12px' }} />
-                  <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Current" barSize={20} />
-                  <Bar dataKey="target" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Target" barSize={20} />
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 md:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-50">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">Class Scores vs Targets Comparison</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Average composite score vs defined target benchmark</p>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={studentCompareData} barGap={6} margin={{ left: -20, right: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 36]} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '11px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Current Score" barSize={16} />
+                  <Bar dataKey="target" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Target Goal" barSize={16} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
 
+          {/* My Students Roster Grid */}
           <div>
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <h3 className="font-semibold text-slate-900">My Students</h3>
-              <button onClick={() => navigate('/my-students')} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                View all <ChevronRight size={14} />
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-50">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm">Assigned Student Cohort</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Performance indices and target score proximity indicators</p>
+              </div>
+              <button 
+                onClick={() => navigate('/my-students')} 
+                className="text-xs text-blue-650 hover:text-blue-700 font-bold flex items-center gap-0.5"
+              >
+                View full roster <ChevronRight size={14} />
               </button>
             </div>
 
             {myStudents.length === 0 ? (
-              <div className="bg-white rounded-xl border border-slate-100 p-8 text-center">
-                <p className="text-slate-400 text-sm">No students assigned yet.</p>
-                <p className="text-slate-400 text-xs mt-1">Ask an admin to assign students to you.</p>
+              <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center py-16">
+                <Users size={32} className="text-slate-350 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium text-sm">No students assigned yet</p>
+                <p className="text-slate-400 text-xs mt-1">Ask an admin to link students to your profile in the assignments panel.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {myStudents.slice(0, 4).map((student) => {
                   const target = (student.targetScore as number | null) ?? 32;
                   const gap = target - (student.avgScore ?? 0);

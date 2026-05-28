@@ -25,6 +25,7 @@ import { TutorDashboard } from './pages/tutor/TutorDashboard';
 import { MyStudentsPage } from './pages/tutor/MyStudentsPage';
 import { StudentDetailPage } from './pages/tutor/StudentDetailPage';
 import { TutorAnalyticsPage } from './pages/tutor/TutorAnalyticsPage';
+import { StudentComparisonPage } from './pages/tutor/StudentComparisonPage';
 
 // Student pages
 import { StudentDashboard } from './pages/student/StudentDashboard';
@@ -100,6 +101,9 @@ const router = createBrowserRouter(
         <Route path="my-students" element={<MyStudentsPage />} />
         <Route path="student/:id" element={<StudentDetailPage />} />
         <Route path="analytics" element={<AnalyticsRouter />} />
+
+        {/* Shared / Tutor / Admin */}
+        <Route path="comparison" element={<StudentComparisonPage />} />
 
         {/* Student */}
         <Route path="my-tests" element={<MyTestsPage />} />

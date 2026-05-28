@@ -284,7 +284,6 @@ export function TestReviewPage() {
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'skipped'>('all');
 
   useEffect(() => {
     if (!attemptId) { setError('No attempt ID'); setLoading(false); return; }
@@ -486,30 +485,20 @@ export function TestReviewPage() {
             </div>
           )}
 
-<<<<<<< HEAD
           {/* Question Status Filter */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold mr-1">
               <Filter size={13} className="text-slate-400" />
               Filter:
             </div>
-            {[
-              { key: 'all' as const, label: 'All Questions', color: 'blue' },
-              { key: 'correct' as const, label: 'Correct', color: 'emerald' },
-              { key: 'incorrect' as const, label: 'Incorrect', color: 'red' },
-              { key: 'skipped' as const, label: 'Skipped', color: 'slate' },
-            ].map((f) => {
+            {([
+              { key: 'all',       label: 'All Questions', color: 'blue',    count: filterCounts.all },
+              { key: 'correct',   label: 'Correct',       color: 'emerald', count: filterCounts.correct },
+              { key: 'incorrect', label: 'Wrong',         color: 'red',     count: filterCounts.incorrect },
+              { key: 'skipped',   label: 'Skipped',       color: 'slate',   count: filterCounts.skipped },
+              { key: 'marked',    label: 'Marked',        color: 'purple',  count: filterCounts.marked },
+            ] as const).map((f) => {
               const isActive = questionFilter === f.key;
-              const count = f.key === 'all'
-                ? activeSecData?.section.questions.length ?? 0
-                : (activeSecData?.section.questions.filter((tq) => {
-                    const ans = answersMap.get(tq.questionId);
-                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
-                    const isSkipped = !ans?.answerGiven;
-                    if (f.key === 'correct') return isCorrect;
-                    if (f.key === 'incorrect') return !isCorrect && !isSkipped;
-                    return isSkipped; // skipped
-                  }).length ?? 0);
               return (
                 <button
                   key={f.key}
@@ -519,85 +508,43 @@ export function TestReviewPage() {
                       ? f.color === 'blue' ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                         : f.color === 'emerald' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                         : f.color === 'red' ? 'bg-red-500 text-white border-red-500 shadow-sm'
-                        : 'bg-slate-600 text-white border-slate-600 shadow-sm'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        : f.color === 'slate' ? 'bg-slate-600 text-white border-slate-600 shadow-sm'
+                        : 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                      : f.color === 'blue' ? 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        : f.color === 'emerald' ? 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50/50'
+                        : f.color === 'red' ? 'bg-white text-red-600 border-red-200 hover:bg-red-50/50'
+                        : f.color === 'slate' ? 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                        : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-50/50'
                   }`}
                 >
                   {f.label}
                   <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                     isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                  }`}>{count}</span>
+                  }`}>{f.count}</span>
                 </button>
               );
             })}
-=======
-          {/* Filter bar */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {([
-              { key: 'all',       label: 'All',     count: filterCounts.all,       active: 'bg-slate-800 text-white', inactive: 'bg-slate-100 text-slate-600 hover:bg-slate-200' },
-              { key: 'correct',   label: 'Correct', count: filterCounts.correct,   active: 'bg-emerald-600 text-white', inactive: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
-              { key: 'incorrect', label: 'Wrong',   count: filterCounts.incorrect, active: 'bg-red-500 text-white',     inactive: 'bg-red-50 text-red-600 hover:bg-red-100' },
-              { key: 'skipped',   label: 'Skipped', count: filterCounts.skipped,   active: 'bg-slate-500 text-white',   inactive: 'bg-slate-100 text-slate-500 hover:bg-slate-200' },
-              { key: 'marked',    label: 'Marked',  count: filterCounts.marked,    active: 'bg-purple-600 text-white',  inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-            ] as const).map(({ key, label, count, active, inactive }) => (
-              <button key={key} onClick={() => setQuestionFilter(key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${questionFilter === key ? active : inactive}`}>
-                {label}
-                <span className={`text-xs font-bold ${questionFilter === key ? 'opacity-80' : 'opacity-60'}`}>{count}</span>
-              </button>
-            ))}
->>>>>>> aaa0c101aff959896b73a70c1e5ac44b5f771277
           </div>
 
           {/* Questions */}
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-<<<<<<< HEAD
-            {activeSecData?.section.questions
-              .map((tq, idx) => ({ tq, idx, answer: answersMap.get(tq.questionId) }))
-              .filter(({ tq, answer }) => {
-                if (questionFilter === 'all') return true;
-                const isCorrect = answer?.answerGiven ? answersMatch(answer.answerGiven, tq.question.correctAnswer) : false;
-                const isSkipped = !answer?.answerGiven;
-                if (questionFilter === 'correct') return isCorrect;
-                if (questionFilter === 'incorrect') return !isCorrect && !isSkipped;
-                return isSkipped; // skipped
-              })
-              .map(({ tq, idx, answer }) => (
-                <QuestionReviewItem
-                  key={tq.id}
-                  tq={tq}
-                  index={idx}
-                  studentAnswer={answer}
-                />
-              ))}
-            {activeSecData?.section.questions.length ? (
-              activeSecData.section.questions
-                .filter((tq) => {
-                  if (questionFilter === 'all') return true;
-                  const ans = answersMap.get(tq.questionId);
-                  const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
-                  const isSkipped = !ans?.answerGiven;
-                  if (questionFilter === 'correct') return isCorrect;
-                  if (questionFilter === 'incorrect') return !isCorrect && !isSkipped;
-                  return isSkipped;
-                }).length === 0 && (
-                  <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
-                    No {questionFilter} questions in this section.
-                  </div>
-                )
-            ) : null}
-=======
             {filteredQuestions.length === 0 ? (
-              <div className="text-center py-10 text-slate-400 text-sm">No questions match this filter.</div>
-            ) : filteredQuestions.map((tq, idx) => (
-              <QuestionReviewItem
-                key={tq.id}
-                tq={tq}
-                index={idx}
-                studentAnswer={answersMap.get(tq.questionId)}
-              />
-            ))}
->>>>>>> aaa0c101aff959896b73a70c1e5ac44b5f771277
+              <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                No {questionFilter === 'all' ? '' : questionFilter} questions match this filter in this section.
+              </div>
+            ) : (
+              filteredQuestions.map((tq) => {
+                const originalIndex = activeSecData?.section.questions.findIndex((q) => q.questionId === tq.questionId) ?? 0;
+                return (
+                  <QuestionReviewItem
+                    key={tq.id}
+                    tq={tq}
+                    index={originalIndex}
+                    studentAnswer={answersMap.get(tq.questionId)}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
       </div>
