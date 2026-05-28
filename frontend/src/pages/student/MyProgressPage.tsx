@@ -42,6 +42,7 @@ export function MyProgressPage() {
   const [loading, setLoading] = useState(true);
   const [sectionFilter, setSectionFilter] = useState('All');
   const [paceFilter, setPaceFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
@@ -215,7 +216,8 @@ export function MyProgressPage() {
             (paceFilter === 'Stuck' && q.timeSpentSeconds >= 90) ||
             (paceFilter === 'Rushed' && q.timeSpentSeconds < 20 && q.status !== 'skipped') ||
             (paceFilter === 'Optimal' && q.timeSpentSeconds >= 20 && q.timeSpentSeconds < 90);
-          return matchSection && matchPace;
+          const matchStatus = statusFilter === 'All' || q.status === statusFilter.toLowerCase();
+          return matchSection && matchPace && matchStatus;
         });
 
         // Scatter dot custom renderer (crashes Recharts in some builds if standard <Cell> is used inside <Scatter>)
@@ -270,6 +272,17 @@ export function MyProgressPage() {
                     <option value="Optimal">Optimal (20s - 90s)</option>
                     <option value="Stuck">Stuck (≥ 90s)</option>
                     <option value="Rushed">Rushed (&lt; 20s)</option>
+                  </select>
+                  
+                  <select 
+                    value={statusFilter} 
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="text-xs font-semibold px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+                  >
+                    <option value="All">All Results</option>
+                    <option value="Correct">✓ Correct Only</option>
+                    <option value="Incorrect">✗ Incorrect Only</option>
+                    <option value="Skipped">○ Skipped Only</option>
                   </select>
                 </div>
               </div>

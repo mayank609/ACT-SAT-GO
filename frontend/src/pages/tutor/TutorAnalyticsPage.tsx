@@ -78,6 +78,7 @@ export function TutorAnalyticsPage() {
   const [students, setStudents] = useState<DbUser[]>([]);
   const [analyticsMap, setAnalyticsMap] = useState<Record<string, AnalyticsData>>({});
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Correct' | 'Incorrect' | 'Skipped'>('All');
 
   useEffect(() => {
     if (!dbId) return;
@@ -150,13 +151,16 @@ export function TutorAnalyticsPage() {
   // Pacing scatter — only meaningful for specific student
   const pacingData = useMemo(() => {
     if (!currentAnalytics) return [];
-    return currentAnalytics.questionPacingStats.map((q) => ({
+    const mapped = currentAnalytics.questionPacingStats.map((q) => ({
       qNum: q.questionIndex,
       timeSpent: q.timeSpentSeconds,
       topic: q.topicName,
       correct: q.status === 'correct',
+      status: q.status,
     }));
-  }, [currentAnalytics]);
+    if (statusFilter === 'All') return mapped;
+    return mapped.filter(q => q.status === statusFilter.toLowerCase());
+  }, [currentAnalytics, statusFilter]);
 
   const pacingMetrics = useMemo(() => {
     if (pacingData.length === 0) return { avgTimePerQuestion: 0, stuckCount: 0, rushedCount: 0, timeEfficiencyScore: 0, stuckQuestions: [] };
@@ -228,9 +232,23 @@ export function TutorAnalyticsPage() {
                   Pacing deviation, stuck-question detection, and solving efficiency metrics for {selectedStudent === 'all' ? 'class cohort' : currentStudentProfile?.name}
                 </p>
               </div>
-              <Badge variant="info" className="bg-blue-50 text-blue-700 border-blue-100 font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
-                <Gauge size={10} /> PACING ENGINE
-              </Badge>
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedStudent !== 'all' && currentAnalytics && currentAnalytics.questionPacingStats && currentAnalytics.questionPacingStats.length > 0 && (
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+                  >
+                    <option value="All">All Results</option>
+                    <option value="Correct">✓ Correct Only</option>
+                    <option value="Incorrect">✗ Incorrect Only</option>
+                    <option value="Skipped">○ Skipped Only</option>
+                  </select>
+                )}
+                <Badge variant="info" className="bg-blue-50 text-blue-700 border-blue-100 font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
+                  <Gauge size={10} /> PACING ENGINE
+                </Badge>
+              </div>
             </div>
 
             {selectedStudent === 'all' ? (

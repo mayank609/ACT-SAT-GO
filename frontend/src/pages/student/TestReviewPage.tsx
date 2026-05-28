@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, Filter } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -283,6 +283,7 @@ export function TestReviewPage() {
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'skipped'>('all');
 
   useEffect(() => {
     if (!attemptId) { setError('No attempt ID'); setLoading(false); return; }
@@ -465,16 +466,87 @@ export function TestReviewPage() {
             </div>
           )}
 
+          {/* Question Status Filter */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold mr-1">
+              <Filter size={13} className="text-slate-400" />
+              Filter:
+            </div>
+            {[
+              { key: 'all' as const, label: 'All Questions', color: 'blue' },
+              { key: 'correct' as const, label: 'Correct', color: 'emerald' },
+              { key: 'incorrect' as const, label: 'Incorrect', color: 'red' },
+              { key: 'skipped' as const, label: 'Skipped', color: 'slate' },
+            ].map((f) => {
+              const isActive = questionFilter === f.key;
+              const count = f.key === 'all'
+                ? activeSecData?.section.questions.length ?? 0
+                : (activeSecData?.section.questions.filter((tq) => {
+                    const ans = answersMap.get(tq.questionId);
+                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                    const isSkipped = !ans?.answerGiven;
+                    if (f.key === 'correct') return isCorrect;
+                    if (f.key === 'incorrect') return !isCorrect && !isSkipped;
+                    return isSkipped; // skipped
+                  }).length ?? 0);
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setQuestionFilter(f.key)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                    isActive
+                      ? f.color === 'blue' ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : f.color === 'emerald' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : f.color === 'red' ? 'bg-red-500 text-white border-red-500 shadow-sm'
+                        : 'bg-slate-600 text-white border-slate-600 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {f.label}
+                  <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Questions */}
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-            {activeSecData?.section.questions.map((tq, idx) => (
-              <QuestionReviewItem
-                key={tq.id}
-                tq={tq}
-                index={idx}
-                studentAnswer={answersMap.get(tq.questionId)}
-              />
-            ))}
+            {activeSecData?.section.questions
+              .map((tq, idx) => ({ tq, idx, answer: answersMap.get(tq.questionId) }))
+              .filter(({ tq, answer }) => {
+                if (questionFilter === 'all') return true;
+                const isCorrect = answer?.answerGiven ? answersMatch(answer.answerGiven, tq.question.correctAnswer) : false;
+                const isSkipped = !answer?.answerGiven;
+                if (questionFilter === 'correct') return isCorrect;
+                if (questionFilter === 'incorrect') return !isCorrect && !isSkipped;
+                return isSkipped; // skipped
+              })
+              .map(({ tq, idx, answer }) => (
+                <QuestionReviewItem
+                  key={tq.id}
+                  tq={tq}
+                  index={idx}
+                  studentAnswer={answer}
+                />
+              ))}
+            {activeSecData?.section.questions.length ? (
+              activeSecData.section.questions
+                .filter((tq) => {
+                  if (questionFilter === 'all') return true;
+                  const ans = answersMap.get(tq.questionId);
+                  const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                  const isSkipped = !ans?.answerGiven;
+                  if (questionFilter === 'correct') return isCorrect;
+                  if (questionFilter === 'incorrect') return !isCorrect && !isSkipped;
+                  return isSkipped;
+                }).length === 0 && (
+                  <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+                    No {questionFilter} questions in this section.
+                  </div>
+                )
+            ) : null}
           </div>
         </div>
       </div>
