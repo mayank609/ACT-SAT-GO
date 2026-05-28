@@ -280,6 +280,7 @@ export function TestReviewPage() {
   const { user } = useAuthStore();
   const isTutorOrAdmin = user?.role === 'tutor' || user?.role === 'admin' || user?.role === 'super_admin';
   const [activeSection, setActiveSection] = useState(0);
+  const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'skipped' | 'marked'>('all');
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -361,6 +362,25 @@ export function TestReviewPage() {
 
   const activeSecData = sections[activeSection];
   const activeSectionStats = sectionStats[activeSection];
+
+  const filterCounts = { all: 0, correct: 0, incorrect: 0, skipped: 0, marked: 0 };
+  activeSecData?.section.questions.forEach((tq) => {
+    const ans = answersMap.get(tq.questionId);
+    filterCounts.all++;
+    if (ans?.isFlagged) filterCounts.marked++;
+    if (!ans?.answerGiven) filterCounts.skipped++;
+    else if (answersMatch(ans.answerGiven, tq.question.correctAnswer)) filterCounts.correct++;
+    else filterCounts.incorrect++;
+  });
+
+  const filteredQuestions = activeSecData?.section.questions.filter((tq) => {
+    const ans = answersMap.get(tq.questionId);
+    if (questionFilter === 'correct') return !!ans?.answerGiven && answersMatch(ans.answerGiven, tq.question.correctAnswer);
+    if (questionFilter === 'incorrect') return !!ans?.answerGiven && !answersMatch(ans.answerGiven, tq.question.correctAnswer);
+    if (questionFilter === 'skipped') return !ans?.answerGiven;
+    if (questionFilter === 'marked') return ans?.isFlagged === true;
+    return true;
+  }) ?? [];
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -465,9 +485,28 @@ export function TestReviewPage() {
             </div>
           )}
 
+          {/* Filter bar */}
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {([
+              { key: 'all',       label: 'All',     count: filterCounts.all,       active: 'bg-slate-800 text-white', inactive: 'bg-slate-100 text-slate-600 hover:bg-slate-200' },
+              { key: 'correct',   label: 'Correct', count: filterCounts.correct,   active: 'bg-emerald-600 text-white', inactive: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
+              { key: 'incorrect', label: 'Wrong',   count: filterCounts.incorrect, active: 'bg-red-500 text-white',     inactive: 'bg-red-50 text-red-600 hover:bg-red-100' },
+              { key: 'skipped',   label: 'Skipped', count: filterCounts.skipped,   active: 'bg-slate-500 text-white',   inactive: 'bg-slate-100 text-slate-500 hover:bg-slate-200' },
+              { key: 'marked',    label: 'Marked',  count: filterCounts.marked,    active: 'bg-purple-600 text-white',  inactive: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+            ] as const).map(({ key, label, count, active, inactive }) => (
+              <button key={key} onClick={() => setQuestionFilter(key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${questionFilter === key ? active : inactive}`}>
+                {label}
+                <span className={`text-xs font-bold ${questionFilter === key ? 'opacity-80' : 'opacity-60'}`}>{count}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Questions */}
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-            {activeSecData?.section.questions.map((tq, idx) => (
+            {filteredQuestions.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 text-sm">No questions match this filter.</div>
+            ) : filteredQuestions.map((tq, idx) => (
               <QuestionReviewItem
                 key={tq.id}
                 tq={tq}
