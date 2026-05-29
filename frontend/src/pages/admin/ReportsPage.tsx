@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, ChevronDown, ChevronUp, CheckCircle, XCircle, Minus, TrendingUp, Clock, Users, BarChart2, ExternalLink } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, CheckCircle, XCircle, Minus, TrendingUp, Clock, Users, BarChart2, ExternalLink, FileSearch } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,15 @@ type Analytics = {
   avgScore: number;
 };
 
+type StudentAttempt = {
+  id: string;
+  status: string;
+  totalScore: number | null;
+  startedAt: string;
+  completedAt: string | null;
+  test: { id: string; title: string; sections: Array<{ _count: { questions: number } }> };
+};
+
 type Filter = 'all' | 'attempted' | 'not_attempted';
 type Sort = 'name' | 'score' | 'attempts' | 'accuracy';
 
@@ -27,6 +36,7 @@ export function ReportsPage() {
   const [sort, setSort] = useState<Sort>('name');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [analyticsCache, setAnalyticsCache] = useState<Record<string, Analytics>>({});
+  const [attemptsCache, setAttemptsCache] = useState<Record<string, StudentAttempt[]>>({});
   const [analyticsLoading, setAnalyticsLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,11 +47,15 @@ export function ReportsPage() {
   }, []);
 
   const loadAnalytics = async (studentId: string) => {
-    if (analyticsCache[studentId]) return;
+    if (analyticsCache[studentId] && attemptsCache[studentId]) return;
     setAnalyticsLoading(studentId);
     try {
-      const data = await api.getStudentAnalytics(studentId);
-      setAnalyticsCache((prev) => ({ ...prev, [studentId]: data as Analytics }));
+      const [analyticsData, attemptsData] = await Promise.all([
+        analyticsCache[studentId] ? null : api.getStudentAnalytics(studentId),
+        attemptsCache[studentId] ? null : api.getStudentAttempts(studentId),
+      ]);
+      if (analyticsData) setAnalyticsCache((prev) => ({ ...prev, [studentId]: analyticsData as Analytics }));
+      if (attemptsData) setAttemptsCache((prev) => ({ ...prev, [studentId]: (attemptsData.attempts as StudentAttempt[]).filter(a => a.status === 'SUBMITTED') }));
     } catch { /* silent */ }
     finally { setAnalyticsLoading(null); }
   };
@@ -239,6 +253,41 @@ export function ReportsPage() {
                       <p className="text-sm text-gray-400 text-center py-4">No analytics data available.</p>
                     ) : (
                       <div className="space-y-5">
+                        {/* ── Attempts list ──────────────────────────────── */}
+                        {attemptsCache[student.id] && attemptsCache[student.id].length > 0 && (
+                          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                              <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Test Attempts</h4>
+                              <span className="text-xs text-gray-400">{attemptsCache[student.id].length} submitted</span>
+                            </div>
+                            <div className="divide-y divide-gray-50">
+                              {attemptsCache[student.id].map((attempt) => {
+                                const totalQ = attempt.test.sections.reduce((a, s) => a + s._count.questions, 0);
+                                return (
+                                  <div key={attempt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 truncate">{attempt.test.title}</p>
+                                      <p className="text-xs text-gray-400 mt-0.5">
+                                        {attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : new Date(attempt.startedAt).toLocaleDateString()}
+                                        {' · '}{totalQ} questions
+                                      </p>
+                                    </div>
+                                    {attempt.totalScore !== null && (
+                                      <span className="flex-shrink-0 text-sm font-bold text-[#1b3d6e]">{attempt.totalScore} pts</span>
+                                    )}
+                                    <button
+                                      onClick={() => navigate(`/test-review/${attempt.id}`)}
+                                      className="flex-shrink-0 flex items-center gap-1.5 text-xs font-medium text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                      <FileSearch size={12} /> View Questions
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Top stats */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           {[

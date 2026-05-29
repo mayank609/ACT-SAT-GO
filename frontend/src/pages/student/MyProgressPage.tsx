@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Target, Clock, CheckCircle, XCircle, Minus, AlertCircle, Zap } from 'lucide-react';
+import { TrendingUp, Target, Clock, CheckCircle, XCircle, Minus, AlertCircle, Zap, FileSearch } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -40,13 +40,14 @@ export function MyProgressPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<string>('all');
+  const [attempts, setAttempts] = useState<Array<{ id: string; status: string; totalScore: number | null; startedAt: string; completedAt: string | null; test: { title: string; sections: Array<{ _count: { questions: number } }> } }>>([]);
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
-    api.getStudentAnalytics(dbId)
-      .then((r) => setAnalytics(r))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.getStudentAnalytics(dbId).then((r) => setAnalytics(r)).catch(() => {}),
+      api.getStudentAttempts(dbId).then((r) => setAttempts((r.attempts as any[]).filter(a => a.status === 'SUBMITTED'))).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, [dbId]);
 
   if (loading) {
@@ -278,6 +279,46 @@ export function MyProgressPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── TEST ATTEMPTS ──────────────────────────────────────────────── */}
+      {attempts.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">Your Test Attempts</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Click "Review Questions" to see every question — correct, wrong, and skipped</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {attempts.map((attempt) => {
+              const totalQ = attempt.test.sections.reduce((a, s) => a + s._count.questions, 0);
+              return (
+                <div key={attempt.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{attempt.test.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {attempt.completedAt
+                        ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : new Date(attempt.startedAt).toLocaleDateString()}
+                      {' · '}{totalQ} questions
+                    </p>
+                  </div>
+                  {attempt.totalScore !== null && (
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-sm font-bold text-[#1b3d6e]">{attempt.totalScore}</p>
+                      <p className="text-[10px] text-gray-400">score</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => navigate(`/test-review/${attempt.id}`)}
+                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors"
+                  >
+                    <FileSearch size={13} /> Review Questions
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
