@@ -81,26 +81,50 @@ const stateColors: Record<QuestionState, string> = {
   answered_marked:'bg-[#1b3d6e] text-white border-2 border-amber-400',
 };
 
-// ─── Bluebook-style option ────────────────────────────────────────────────────
+// ─── Bluebook-style option with elimination ───────────────────────────────────
 
 function BluebookOption({
-  label, text, isSelected, onClick,
-}: { label: string; text: string; isSelected: boolean; onClick: () => void }) {
+  label, text, isSelected, isEliminated, onClick, onEliminate,
+}: {
+  label: string; text: string; isSelected: boolean; isEliminated: boolean;
+  onClick: () => void; onEliminate: (e: React.MouseEvent) => void;
+}) {
   return (
     <div
-      onClick={onClick}
-      className={`flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer transition-all select-none
-        ${isSelected
-          ? 'border-[#1b3d6e] bg-blue-50'
-          : 'border-gray-200 hover:border-gray-400 bg-white'}`}
+      onClick={isEliminated ? undefined : onClick}
+      className={`group flex items-start gap-3 p-3.5 rounded-lg border-2 transition-all select-none
+        ${isEliminated
+          ? 'border-gray-200 bg-gray-50 cursor-default'
+          : isSelected
+            ? 'border-[#1b3d6e] bg-[#e8f0fe] cursor-pointer'
+            : 'border-gray-200 hover:border-[#1b3d6e]/50 hover:bg-gray-50 bg-white cursor-pointer'}`}
     >
-      <div className={`flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center text-sm font-bold mt-0.5 transition-all
-        ${isSelected
-          ? 'bg-[#1b3d6e] border-[#1b3d6e] text-white'
-          : 'bg-white border-gray-400 text-gray-600'}`}>
-        {label}
+      {/* Letter circle */}
+      <div className="relative flex-shrink-0 mt-0.5">
+        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all
+          ${isEliminated
+            ? 'border-gray-300 bg-white'
+            : isSelected
+              ? 'bg-[#1b3d6e] border-[#1b3d6e] text-white'
+              : 'bg-white border-gray-400 text-gray-600 group-hover:border-[#1b3d6e]/60'}`}>
+          <span className={isEliminated ? 'line-through text-gray-400 decoration-gray-400' : ''}>{label}</span>
+        </div>
+        {/* Eliminate / restore button */}
+        {!isSelected && (
+          <button
+            onClick={onEliminate}
+            title={isEliminated ? 'Restore option' : 'Eliminate option'}
+            className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center transition-all border
+              ${isEliminated
+                ? 'bg-gray-400 border-gray-400 text-white opacity-100'
+                : 'bg-white border-gray-300 text-gray-500 opacity-0 group-hover:opacity-100'}`}
+          >
+            {isEliminated ? '↺' : '✕'}
+          </button>
+        )}
       </div>
-      <div className="flex-1 text-gray-800 text-[15px] leading-relaxed pt-0.5">
+      <div className={`flex-1 text-[15px] leading-relaxed pt-1 transition-all
+        ${isEliminated ? 'line-through text-gray-400 decoration-gray-400' : 'text-gray-900'}`}>
         <RichContentRenderer content={text} variant="option" />
       </div>
     </div>
@@ -116,6 +140,7 @@ export function TestInterfacePage() {
   const { user } = useAuthStore();
 
   const [selectedAnswer, setSelectedAnswer] = useState<string | string[] | number | Record<string, any> | null>(null);
+  const [eliminatedOptions, setEliminatedOptions] = useState<Set<string>>(new Set());
   const [numericInput, setNumericInput] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
@@ -562,6 +587,7 @@ export function TestInterfacePage() {
       setSelectedAnswer(null);
       setNumericInput('');
     }
+    setEliminatedOptions(new Set()); // reset eliminations on question change
   }, [currentQuestion?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Loading & Error views for resume ────────────────────────────────────────
@@ -677,12 +703,14 @@ export function TestInterfacePage() {
           const isSelected = type === 'mcq_multi'
             ? Array.isArray(answer) && answer.includes(opt.id)
             : answer === opt.id;
+          const isEliminated = eliminatedOptions.has(opt.id);
           return (
             <BluebookOption
               key={opt.id}
               label={opt.id.toUpperCase()}
               text={opt.text}
               isSelected={isSelected}
+              isEliminated={isEliminated}
               onClick={() => {
                 if (type === 'mcq_multi') {
                   const curr = Array.isArray(answer) ? answer as string[] : [];
@@ -690,6 +718,14 @@ export function TestInterfacePage() {
                 } else {
                   setSelectedAnswer(isSelected ? null : opt.id);
                 }
+              }}
+              onEliminate={(e) => {
+                e.stopPropagation();
+                setEliminatedOptions((prev) => {
+                  const next = new Set(prev);
+                  next.has(opt.id) ? next.delete(opt.id) : next.add(opt.id);
+                  return next;
+                });
               }}
             />
           );
