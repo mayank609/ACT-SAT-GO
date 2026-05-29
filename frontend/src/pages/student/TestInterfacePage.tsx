@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useParams, useBlocker } from 'react-router-dom';
-import { Bookmark, ChevronLeft, ChevronRight, Send, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Bookmark, ChevronLeft, ChevronRight, Send, AlertTriangle, X, Loader2, Calculator, BookOpen } from 'lucide-react';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
@@ -120,6 +120,11 @@ export function TestInterfacePage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showReference, setShowReference] = useState(false);
+  const [calcPos, setCalcPos] = useState(() => ({ x: Math.max(0, window.innerWidth - 460), y: 80 }));
+  const calcDragging = useRef(false);
+  const calcDragOffset = useRef({ x: 0, y: 0 });
   const [restoring, setRestoring] = useState(Boolean(searchParams.get('attemptId')));
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
@@ -536,6 +541,18 @@ export function TestInterfacePage() {
     };
   }, [attempt?.id, isPreview]);
 
+  // Calculator drag
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!calcDragging.current) return;
+      setCalcPos({ x: e.clientX - calcDragOffset.current.x, y: e.clientY - calcDragOffset.current.y });
+    };
+    const onUp = () => { calcDragging.current = false; };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+  }, []);
+
   useEffect(() => {
     questionTimerRef.current = setInterval(() => {}, 1000);
     return () => { if (questionTimerRef.current) clearInterval(questionTimerRef.current); };
@@ -712,8 +729,21 @@ export function TestInterfacePage() {
           <p className="text-sm font-semibold text-gray-900 mt-0.5 leading-none">{currentSection.name}</p>
         </div>
 
-        {/* Right: timer + palette */}
-        <div className="flex items-center gap-3">
+        {/* Right: tools + timer + palette */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowReference(true)}
+            className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${showReference ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+          >
+            <BookOpen size={14} /> Reference
+          </button>
+          <button
+            onClick={() => setShowCalculator((v) => !v)}
+            className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${showCalculator ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+          >
+            <Calculator size={14} /> Calculator
+          </button>
+          <div className="w-px h-5 bg-gray-200 mx-1" />
           <span className={`text-base font-mono font-semibold tabular-nums ${isLowTime ? 'text-red-600' : 'text-gray-900'}`}>
             {formatTime(timeLeft)}
           </span>
@@ -845,6 +875,144 @@ export function TestInterfacePage() {
           )}
         </div>
       </div>
+
+      {/* ── DESMOS CALCULATOR ────────────────────────────────────────────────── */}
+      {showCalculator && (
+        <div
+          className="fixed z-40 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col"
+          style={{ left: calcPos.x, top: calcPos.y, width: 440, height: 520 }}
+        >
+          {/* Drag handle */}
+          <div
+            className="flex items-center justify-between px-3 py-2 bg-[#1b3d6e] text-white cursor-move select-none flex-shrink-0"
+            onMouseDown={(e) => {
+              calcDragging.current = true;
+              calcDragOffset.current = { x: e.clientX - calcPos.x, y: e.clientY - calcPos.y };
+            }}
+          >
+            <span className="text-xs font-semibold flex items-center gap-1.5"><Calculator size={13} /> Calculator</span>
+            <button onClick={() => setShowCalculator(false)} className="p-0.5 rounded hover:bg-white/20 transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+          <iframe
+            src="https://www.desmos.com/scientific"
+            title="Desmos Scientific Calculator"
+            className="flex-1 w-full border-0"
+            sandbox="allow-scripts allow-same-origin"
+          />
+        </div>
+      )}
+
+      {/* ── REFERENCE SHEET ──────────────────────────────────────────────────── */}
+      {showReference && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowReference(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+              <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2"><BookOpen size={16} /> Math Reference Sheet</h2>
+              <button onClick={() => setShowReference(false)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500"><X size={18} /></button>
+            </div>
+            <div className="overflow-y-auto p-6 space-y-6">
+              {/* Area & Perimeter */}
+              <section>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Area & Perimeter</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { shape: 'Circle', formulas: ['A = πr²', 'C = 2πr'] },
+                    { shape: 'Triangle', formulas: ['A = ½bh'] },
+                    { shape: 'Rectangle', formulas: ['A = lw', 'P = 2(l + w)'] },
+                    { shape: 'Parallelogram', formulas: ['A = bh'] },
+                    { shape: 'Trapezoid', formulas: ['A = ½(b₁ + b₂)h'] },
+                  ].map(({ shape, formulas }) => (
+                    <div key={shape} className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{shape}</p>
+                      {formulas.map((f) => <p key={f} className="text-sm font-mono text-gray-800">{f}</p>)}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Volume */}
+              <section>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Volume</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { shape: 'Rectangular Prism', formulas: ['V = lwh'] },
+                    { shape: 'Cylinder', formulas: ['V = πr²h'] },
+                    { shape: 'Sphere', formulas: ['V = (4/3)πr³'] },
+                    { shape: 'Cone', formulas: ['V = (1/3)πr²h'] },
+                    { shape: 'Pyramid', formulas: ['V = (1/3)lwh'] },
+                  ].map(({ shape, formulas }) => (
+                    <div key={shape} className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{shape}</p>
+                      {formulas.map((f) => <p key={f} className="text-sm font-mono text-gray-800">{f}</p>)}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Pythagorean & Special Triangles */}
+              <section>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Right Triangles</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Pythagorean Theorem</p>
+                    <p className="text-sm font-mono text-gray-800">a² + b² = c²</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                    <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide mb-1.5">30° – 60° – 90°</p>
+                    <p className="text-sm font-mono text-gray-800">x : x√3 : 2x</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                    <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide mb-1.5">45° – 45° – 90°</p>
+                    <p className="text-sm font-mono text-gray-800">x : x : x√2</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Key constants */}
+              <section>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Key Facts</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    'A circle has 360°',
+                    'A circle has 2π radians',
+                    'Triangle angles sum to 180°',
+                    'Straight angle = 180°',
+                    'π ≈ 3.14159',
+                    '√2 ≈ 1.414  √3 ≈ 1.732',
+                  ].map((fact) => (
+                    <div key={fact} className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                      <p className="text-sm text-gray-700 font-medium">{fact}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Algebra */}
+              <section>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Algebra</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { name: 'Quadratic Formula', formula: 'x = (−b ± √(b²−4ac)) / 2a' },
+                    { name: 'Slope', formula: 'm = (y₂ − y₁) / (x₂ − x₁)' },
+                    { name: 'Slope-Intercept', formula: 'y = mx + b' },
+                    { name: 'Point-Slope', formula: 'y − y₁ = m(x − x₁)' },
+                    { name: 'Distance', formula: 'd = √((x₂−x₁)² + (y₂−y₁)²)' },
+                    { name: 'Midpoint', formula: 'M = ((x₁+x₂)/2 , (y₁+y₂)/2)' },
+                  ].map(({ name, formula }) => (
+                    <div key={name} className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{name}</p>
+                      <p className="text-xs font-mono text-gray-800 leading-relaxed">{formula}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── QUESTION PALETTE MODAL ───────────────────────────────────────────── */}
       {showPalette && (
