@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('GET /api/users:', error)
+    if (process.env.NODE_ENV === 'development') {
+      return NextResponse.json({ error: 'Failed to fetch users', message: (error as any)?.message, stack: (error as any)?.stack }, { status: 500 })
+    }
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
   }
 }

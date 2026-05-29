@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     for (const studentId of studentIds) {
       try {
-        await prisma.testAssignment.create({
+        const ta = await prisma.testAssignment.create({
           data: {
             testId,
             studentId,
@@ -92,6 +92,16 @@ export async function POST(request: NextRequest) {
             isActive: true,
           },
         })
+        // Persist notification in DB as well for durability
+        try {
+          await prisma.notification.create({ data: {
+            userId: studentId,
+            type: 'TEST_ASSIGNED',
+            title: 'New Test Assigned',
+            body: `"${testTitle}" has been assigned to you.${dueAt ? ` Due: ${new Date(dueAt).toLocaleDateString()}` : ''}`,
+            read: false,
+          } })
+        } catch (e) { console.error('Failed to create DB notification', e) }
         created.push(studentId)
 
         // Send notification to the student

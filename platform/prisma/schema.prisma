@@ -38,6 +38,17 @@ enum AttemptStatus {
   EVALUATED
 }
 
+enum NotificationType {
+  TEST_ASSIGNED
+  TEST_DEADLINE
+  TEST_START_REMINDER
+  TEST_RESUME_REMINDER
+  TEST_SUBMITTED
+  REPORT_PUBLISHED
+  TUTOR_ANNOUNCEMENT
+  SYSTEM_ANNOUNCEMENT
+}
+
 model User {
   id          String   @id @default(uuid())
   name        String?
@@ -215,4 +226,18 @@ model CheatingLog {
   createdAt DateTime @default(now())
 
   attempt TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  data      Json?
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

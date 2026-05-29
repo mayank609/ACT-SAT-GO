@@ -123,14 +123,22 @@ export async function PATCH(
 
   const scalarData: { status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; title?: string; description?: string; category?: string; subCategory?: string } = {}
   if (body.title !== undefined) scalarData.title = body.title
-          sections: {
-            orderBy: { orderIndex: 'asc' },
-            include: { _count: { select: { questions: true } } },
-          },
-          _count: { select: { attempts: true } },
-        },
-      })
-      return NextResponse.json({ test })
+  if (body.description !== undefined) scalarData.description = body.description
+  if (body.category !== undefined) scalarData.category = body.category
+  if (body.subCategory !== undefined) scalarData.subCategory = body.subCategory
+  if (body.status !== undefined && typeof body.status === 'string') {
+    const mapped = STATUS_MAP[body.status.toLowerCase()]
+    if (mapped) scalarData.status = mapped
+  }
+
+  try {
+    // If no sections provided, only update scalar fields
+    if (!body.sections || body.sections.length === 0) {
+      if (Object.keys(scalarData).length === 0) {
+        return NextResponse.json({ error: 'No changes provided' }, { status: 400 })
+      }
+      const updated = await prisma.test.update({ where: { id: testId }, data: scalarData })
+      return NextResponse.json({ test: updated })
     }
 
     // ── Full sections + questions replacement ─────────────────────────────────
@@ -209,26 +217,6 @@ export async function PATCH(
           })
         }
       }
-
-      return tx.test.findUnique({
-        where: { id: testId },
-        include: {
-          sections: {
-            orderBy: { orderIndex: 'asc' },
-            include: { _count: { select: { questions: true } } },
-          },
-          _count: { select: { attempts: true } },
-        },
-      })
-    }, { timeout: 30000 })
-
-    return NextResponse.json({ test })
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    console.error('PATCH /api/tests/[testId]:', error)
-    return NextResponse.json({ error: msg }, { status: 500 })
-  }
-}
 
       return tx.test.findUnique({
         where: { id: testId },

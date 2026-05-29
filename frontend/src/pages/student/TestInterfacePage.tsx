@@ -107,11 +107,12 @@ export function TestInterfacePage() {
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      !allowNavigationAway && currentLocation.pathname !== nextLocation.pathname
+      !allowNavigationAwayRef.current && currentLocation.pathname !== nextLocation.pathname
   );
 
   useEffect(() => {
-    if (blocker.state === 'blocked') {
+    if (blocker.state === 'blocked' && !exitWarningShownRef.current) {
+      exitWarningShownRef.current = true;
       setShowExitWarningModal(true);
     }
   }, [blocker.state]);
@@ -312,6 +313,7 @@ export function TestInterfacePage() {
       // Submit last section (also triggers score calculation in backend)
       await api.submitSection(attempt.id, currentSection.id).catch(() => {});
     }
+    allowNavigationAwayRef.current = true;
     clearAttempt();
     navigate(isPreview ? '/tests' : `/test-review/${attempt.id}`);
   };
@@ -337,22 +339,44 @@ export function TestInterfacePage() {
       doFinalSubmit();
     }
   };
+  // Refs for tracking mutable states in event listeners without re-binding
+  const attemptRef = useRef(attempt);
+  useEffect(() => {
+    attemptRef.current = attempt;
+  }, [attempt]);
+
+  const allowNavigationAwayRef = useRef(allowNavigationAway);
+  useEffect(() => {
+    allowNavigationAwayRef.current = allowNavigationAway;
+  }, [allowNavigationAway]);
+
+  // Gate ref to prevent the exit warning modal from being triggered twice
+  const exitWarningShownRef = useRef(false);
 
   // ── Side effects ─────────────────────────────────────────────────────────────
 
   // Fullscreen — enter once when attempt starts, exit only on unmount
   useEffect(() => {
-    if (!attempt) return;
-    document.documentElement.requestFullscreen?.().then(() => setIsFullscreenBlocked(false)).catch(() => setIsFullscreenBlocked(true));
+    if (!attempt?.id) return;
+    
+    // Only request fullscreen if not already in fullscreen
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().then(() => setIsFullscreenBlocked(false)).catch(() => setIsFullscreenBlocked(true));
+    } else {
+      setIsFullscreenBlocked(false);
+    }
+
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
         setIsFullscreenBlocked(true);
-        if (!isPreview) {
-          api.logCheatingEvent(attempt.id, 'FULLSCREEN_EXIT', {
+        const currentAttempt = attemptRef.current;
+        if (currentAttempt && currentAttempt.id !== 'preview') {
+          api.logCheatingEvent(currentAttempt.id, 'FULLSCREEN_EXIT', {
             timestamp: new Date().toISOString(),
           }).catch(() => {});
         }
-        if (!allowNavigationAway) {
+        if (!allowNavigationAwayRef.current && !exitWarningShownRef.current) {
+          exitWarningShownRef.current = true;
           setShowExitWarningModal(true);
         }
       } else {
@@ -364,7 +388,7 @@ export function TestInterfacePage() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     };
-  }, [attempt, isPreview, allowNavigationAway]);
+  }, [attempt?.id, isPreview]);
 
   useEffect(() => {
     if (!attempt || !currentSection || isPreview) return;
@@ -394,35 +418,40 @@ export function TestInterfacePage() {
     const handleVisibility = () => {
       if (document.hidden) {
         recordTabSwitch();
-        if (attempt && !isPreview) {
-          api.logCheatingEvent(attempt.id, 'TAB_SWITCH', {
-            count: (attempt.tabSwitchCount ?? 0) + 1,
+        const currentAttempt = attemptRef.current;
+        if (currentAttempt && currentAttempt.id !== 'preview') {
+          api.logCheatingEvent(currentAttempt.id, 'TAB_SWITCH', {
+            count: (currentAttempt.tabSwitchCount ?? 0) + 1,
             timestamp: new Date().toISOString(),
           }).catch(() => {});
         }
         setTabSwitchWarning(true);
         setTimeout(() => setTabSwitchWarning(false), 3000);
-        if (!allowNavigationAway) {
+        if (!allowNavigationAwayRef.current && !exitWarningShownRef.current) {
+          exitWarningShownRef.current = true;
           setShowExitWarningModal(true);
         }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [recordTabSwitch, attempt, isPreview, allowNavigationAway]);
+  }, [recordTabSwitch, isPreview]);
 
   // Inactivity Tracking
   useEffect(() => {
-    if (!attempt || isPreview) return;
+    if (!attempt?.id || isPreview) return;
     let inactivityTimeout: ReturnType<typeof setTimeout>;
 
     const resetInactivityTimer = () => {
       clearTimeout(inactivityTimeout);
       inactivityTimeout = setTimeout(() => {
-        api.logCheatingEvent(attempt.id, 'INACTIVITY', {
-          timestamp: new Date().toISOString(),
-          durationSeconds: 60,
-        }).catch(() => {});
+        const currentAttempt = attemptRef.current;
+        if (currentAttempt && currentAttempt.id !== 'preview') {
+          api.logCheatingEvent(currentAttempt.id, 'INACTIVITY', {
+            timestamp: new Date().toISOString(),
+            durationSeconds: 60,
+          }).catch(() => {});
+        }
       }, 60000);
     };
 
@@ -434,32 +463,41 @@ export function TestInterfacePage() {
       clearTimeout(inactivityTimeout);
       events.forEach(ev => window.removeEventListener(ev, resetInactivityTimer));
     };
-  }, [attempt, isPreview]);
+  }, [attempt?.id, isPreview]);
 
   // Copy/Paste and Right-Click Tracking
   useEffect(() => {
-    if (!attempt || isPreview) return;
+    if (!attempt?.id || isPreview) return;
 
     const handleCopy = () => {
-      api.logCheatingEvent(attempt.id, 'SUSPICIOUS_INPUT', {
-        type: 'copy',
-        timestamp: new Date().toISOString(),
-      }).catch(() => {});
+      const currentAttempt = attemptRef.current;
+      if (currentAttempt && currentAttempt.id !== 'preview') {
+        api.logCheatingEvent(currentAttempt.id, 'SUSPICIOUS_INPUT', {
+          type: 'copy',
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
+      }
     };
 
     const handlePaste = () => {
-      api.logCheatingEvent(attempt.id, 'SUSPICIOUS_INPUT', {
-        type: 'paste',
-        timestamp: new Date().toISOString(),
-      }).catch(() => {});
+      const currentAttempt = attemptRef.current;
+      if (currentAttempt && currentAttempt.id !== 'preview') {
+        api.logCheatingEvent(currentAttempt.id, 'SUSPICIOUS_INPUT', {
+          type: 'paste',
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
+      }
     };
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      api.logCheatingEvent(attempt.id, 'SUSPICIOUS_INPUT', {
-        type: 'right_click',
-        timestamp: new Date().toISOString(),
-      }).catch(() => {});
+      const currentAttempt = attemptRef.current;
+      if (currentAttempt && currentAttempt.id !== 'preview') {
+        api.logCheatingEvent(currentAttempt.id, 'SUSPICIOUS_INPUT', {
+          type: 'right_click',
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
+      }
     };
 
     document.addEventListener('copy', handleCopy);
@@ -471,7 +509,7 @@ export function TestInterfacePage() {
       document.removeEventListener('paste', handlePaste);
       document.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [attempt, isPreview]);
+  }, [attempt?.id, isPreview]);
 
   useEffect(() => {
     questionTimerRef.current = setInterval(() => {}, 1000);
@@ -596,7 +634,7 @@ export function TestInterfacePage() {
   ).length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-100">
+    <div className="flex flex-col min-h-screen bg-slate-100 md:pr-52">
       {tabSwitchWarning && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-sm font-medium whitespace-nowrap">
           <AlertTriangle size={15} /> Tab switch detected! Logged.
@@ -605,7 +643,7 @@ export function TestInterfacePage() {
 
       {/* Header */}
       <header className="bg-slate-800 text-white px-3 md:px-4 py-2.5 md:py-3">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+        <div className="max-w-[95vw] mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <div className="w-7 h-7 md:w-8 md:h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-xs md:text-sm flex-shrink-0">A</div>
             <div className="hidden sm:block min-w-0">
@@ -632,7 +670,7 @@ export function TestInterfacePage() {
 
       {/* Section tabs */}
       <div className="bg-white border-b border-slate-200 px-3 md:px-4">
-        <div className="max-w-6xl mx-auto flex gap-1 overflow-x-auto py-2 scrollbar-hide">
+        <div className="max-w-[95vw] mx-auto flex gap-1 overflow-x-auto py-2 scrollbar-hide">
           {test.sections.map((sec, idx) => (
             <div key={sec.id} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all ${
               idx === currentSectionIdx ? 'bg-blue-600 text-white' :
@@ -643,26 +681,28 @@ export function TestInterfacePage() {
             </div>
           ))}
         </div>
-        <div className="max-w-6xl mx-auto pb-2">
+        <div className="max-w-[95vw] mx-auto pb-2">
           <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all ${isLowTime ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex max-w-6xl mx-auto w-full gap-3 md:gap-4 p-3 md:p-4 min-h-0">
+      <div className="flex-1 flex flex-col max-w-[95vw] mx-auto w-full gap-3 md:gap-4 p-3 md:p-4 min-h-0">
         {currentQuestion.parentQuestionText ? (
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0">
+          <div className="flex-1 flex flex-col lg:flex-row gap-4 min-w-0">
             {/* Passage Panel (Left) */}
-            <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-4 md:p-6 flex flex-col h-[calc(100vh-280px)] lg:h-auto overflow-y-auto min-w-0 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 border-b border-slate-100 pb-2">Reading Passage</h3>
-              <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed overflow-y-auto flex-1 text-left">
-                <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
+            <aside className="lg:w-[60%] w-full bg-white rounded-xl md:rounded-2xl border border-slate-200 p-3 md:p-4 flex flex-col min-w-0 shadow-sm" aria-label="Passage">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 border-b border-slate-100 pb-2">Reading Passage</h3>
+              <div className="overflow-y-auto flex-1 text-left" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+                <div className="prose prose-slate max-w-none text-slate-800 leading-relaxed text-sm md:text-base">
+                  <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
+                </div>
               </div>
-            </div>
+            </aside>
 
             {/* Question Panel (Right) */}
-            <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-4 md:p-6 flex flex-col h-[calc(100vh-280px)] lg:h-auto overflow-y-auto min-w-0 shadow-sm">
+            <main className="lg:w-[40%] w-full bg-white rounded-xl md:rounded-2xl border border-slate-200 p-4 md:p-5 flex flex-col min-w-0 shadow-sm" aria-label="Question">
               <div className="flex flex-wrap items-start justify-between gap-2 mb-4 flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-slate-500">Q {currentQIdx + 1}</span>
@@ -684,13 +724,13 @@ export function TestInterfacePage() {
                 </div>
               </div>
 
-              <div className="text-sm md:text-base text-slate-900 leading-relaxed mb-5 md:mb-6 flex-shrink-0 text-left font-medium">
+              <div className="text-base md:text-lg text-slate-900 leading-relaxed mb-4 md:mb-5 flex-shrink-0 text-left font-semibold">
                 <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
               </div>
 
               {/* MCQ options */}
               {(currentQuestion.type === 'mcq_single' || currentQuestion.type === 'mcq_multi') && currentQuestion.options && (
-                <div className="space-y-2 flex-shrink-0 text-left">
+                <div className="space-y-3 flex-shrink-0 text-left">
                   {currentQuestion.options.map((opt) => {
                     const isSelected = currentQuestion.type === 'mcq_multi'
                       ? Array.isArray(selectedAnswer) && selectedAnswer.includes(opt.id)
@@ -724,7 +764,7 @@ export function TestInterfacePage() {
                     className="w-40 md:w-48 px-4 py-3 border-2 border-slate-200 rounded-xl text-lg focus:outline-none focus:border-blue-500 transition-all" />
                 </div>
               )}
-            </div>
+            </main>
           </div>
         ) : (
           /* Question area (Standard Layout) */
@@ -796,7 +836,7 @@ export function TestInterfacePage() {
         )}
 
         {/* Action buttons — always rendered below question area */}
-        <div className="max-w-6xl mx-auto w-full px-3 md:px-4 pb-3 md:pb-4">
+        <div className="max-w-[95vw] mx-auto w-full px-3 md:px-4 pb-3 md:pb-4">
           <div className="bg-white rounded-xl md:rounded-2xl border border-slate-200 p-3 md:p-4">
             <div className="flex flex-wrap items-center gap-2 justify-between">
               <div className="flex flex-wrap gap-1.5 md:gap-2">
@@ -834,10 +874,10 @@ export function TestInterfacePage() {
       </div>
 
       {/* Desktop palette — fixed right sidebar */}
-      <div className="hidden md:block fixed right-4 top-1/4 w-52 z-10">
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-lg">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">{currentSection.name}</h3>
-          <div className="grid grid-cols-2 gap-1 mb-3 text-xs">
+      <div className="hidden md:block fixed right-4 top-1/4 w-44 z-10">
+        <div className="bg-white rounded-2xl border border-slate-200 p-3 shadow-lg">
+          <h3 className="text-sm font-semibold text-slate-700 mb-2 truncate">{currentSection.name}</h3>
+          <div className="grid grid-cols-2 gap-1 mb-2 text-xs">
             {[
               { color: 'bg-slate-200', label: 'Not Visited' },
               { color: 'bg-red-500', label: 'Not Answered' },
@@ -850,13 +890,13 @@ export function TestInterfacePage() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-5 gap-1 max-h-64 overflow-y-auto">
+          <div className="grid grid-cols-4 gap-1 max-h-64 overflow-y-auto">
             {currentSection.questions.map((q, idx) => {
               const state = getQuestionState(currentSection.id, q.id);
               const isActive = idx === currentQIdx;
               return (
                 <button key={q.id} onClick={() => navigateToQuestion(currentSectionIdx, idx)}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${stateColors[state]} ${isActive ? 'ring-2 ring-offset-1 ring-slate-500 scale-110' : ''}`}>
+                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${stateColors[state]} ${isActive ? 'ring-2 ring-offset-1 ring-slate-500 scale-105' : ''}`}>
                   {idx + 1}
                 </button>
               );
@@ -947,7 +987,7 @@ export function TestInterfacePage() {
       </Modal>
 
       {/* Fullscreen blocker overlay */}
-      {isFullscreenBlocked && (
+      {isFullscreenBlocked && !showExitWarningModal && (
         <div className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center p-4">
           <div className="bg-white p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-2xl">
             <AlertTriangle size={48} className="text-amber-500 mx-auto" />
@@ -977,8 +1017,15 @@ export function TestInterfacePage() {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="danger" size="sm" onClick={() => {
+              // Set ref immediately so useBlocker and event handlers see it synchronously
+              allowNavigationAwayRef.current = true;
               setAllowNavigationAway(true);
+              setShowExitWarningModal(false);
               clearAttempt();
+              // Exit fullscreen first if active
+              if (document.fullscreenElement) {
+                document.exitFullscreen?.().catch(() => {});
+              }
               if (blocker.state === 'blocked') {
                 blocker.proceed();
               } else {
@@ -988,7 +1035,9 @@ export function TestInterfacePage() {
               Exit Anyway
             </Button>
             <Button variant="primary" size="sm" onClick={() => {
+              exitWarningShownRef.current = false;
               setShowExitWarningModal(false);
+              setIsFullscreenBlocked(false);
               document.documentElement.requestFullscreen?.().catch(() => {});
               if (blocker.state === 'blocked') {
                 blocker.reset();
