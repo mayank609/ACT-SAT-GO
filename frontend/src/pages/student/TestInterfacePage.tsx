@@ -385,32 +385,23 @@ export function TestInterfacePage() {
 
   // ── Side effects ─────────────────────────────────────────────────────────────
 
-  // Fullscreen — enter once when attempt starts, exit only on unmount
+  // Fullscreen — request on start, log exits, never block the test UI
   useEffect(() => {
     if (!attempt?.id) return;
-    
-    // Only request fullscreen if not already in fullscreen
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().then(() => setIsFullscreenBlocked(false)).catch(() => setIsFullscreenBlocked(true));
-    } else {
-      setIsFullscreenBlocked(false);
-    }
+    // Best-effort fullscreen — failure is silent, test always continues
+    document.documentElement.requestFullscreen?.()
+      .then(() => setIsFullscreenBlocked(false))
+      .catch(() => setIsFullscreenBlocked(false)); // don't block even if denied
 
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        setIsFullscreenBlocked(true);
+        setIsFullscreenBlocked(false); // never block the test
         const currentAttempt = attemptRef.current;
         if (currentAttempt && currentAttempt.id !== 'preview') {
           api.logCheatingEvent(currentAttempt.id, 'FULLSCREEN_EXIT', {
             timestamp: new Date().toISOString(),
           }).catch(() => {});
         }
-        if (!allowNavigationAwayRef.current && !exitWarningShownRef.current) {
-          exitWarningShownRef.current = true;
-          setShowExitWarningModal(true);
-        }
-      } else {
-        setIsFullscreenBlocked(false);
       }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -418,7 +409,7 @@ export function TestInterfacePage() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     };
-  }, [attempt?.id, isPreview]);
+  }, [attempt?.id]);
 
   useEffect(() => {
     if (!attempt || !currentSection || isPreview) return;
@@ -1107,25 +1098,23 @@ export function TestInterfacePage() {
         </div>
       </Modal>
 
-      {/* ── FULLSCREEN BLOCKER ────────────────────────────────────────────────── */}
-      {isFullscreenBlocked && !showExitWarningModal && (
-        <div className="fixed inset-0 z-[100] bg-gray-900/95 flex flex-col items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-2xl">
-            <AlertTriangle size={44} className="text-amber-500 mx-auto" />
-            <h2 className="text-xl font-bold text-gray-900">Fullscreen Required</h2>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              This exam must be taken in fullscreen mode. Exiting fullscreen is logged as a security event.
-            </p>
-            <button
-              className="w-full mt-2 py-3 bg-[#1b3d6e] text-white rounded-lg font-semibold text-sm hover:bg-[#15305a] transition-colors"
-              onClick={() => {
-                document.documentElement.requestFullscreen?.().catch(() => {});
-                setIsFullscreenBlocked(false);
-              }}
-            >
-              Enter Fullscreen & Continue
-            </button>
-          </div>
+      {/* Fullscreen nudge — small non-blocking banner, test always continues */}
+      {isFullscreenBlocked && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-full shadow-md flex items-center gap-2.5 text-sm font-medium whitespace-nowrap">
+          <AlertTriangle size={14} />
+          Not in fullscreen — this has been logged
+          <button
+            onClick={() => {
+              document.documentElement.requestFullscreen?.().catch(() => {});
+              setIsFullscreenBlocked(false);
+            }}
+            className="ml-1 underline text-amber-700 hover:text-amber-900"
+          >
+            Re-enter
+          </button>
+          <button onClick={() => setIsFullscreenBlocked(false)} className="ml-1 text-amber-500 hover:text-amber-700">
+            <X size={13} />
+          </button>
         </div>
       )}
 
@@ -1143,8 +1132,6 @@ export function TestInterfacePage() {
             <Button variant="secondary" size="sm" onClick={() => {
               exitWarningShownRef.current = false;
               setShowExitWarningModal(false);
-              setIsFullscreenBlocked(false);
-              document.documentElement.requestFullscreen?.().catch(() => {});
               if (blocker.state === 'blocked') blocker.reset();
             }}>
               Continue Test
