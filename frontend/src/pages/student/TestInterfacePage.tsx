@@ -388,20 +388,24 @@ export function TestInterfacePage() {
   // Fullscreen — request on start, log exits, never block the test UI
   useEffect(() => {
     if (!attempt?.id) return;
-    // Best-effort fullscreen — failure is silent, test always continues
+    // Best-effort fullscreen — only works if browser allows it (user gesture needed).
+    // On success: hide banner. On failure: show banner but NEVER block the test.
     document.documentElement.requestFullscreen?.()
       .then(() => setIsFullscreenBlocked(false))
-      .catch(() => setIsFullscreenBlocked(false)); // don't block even if denied
+      .catch(() => setIsFullscreenBlocked(true)); // show soft banner, test still runs
 
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        setIsFullscreenBlocked(false); // never block the test
+        setIsFullscreenBlocked(true); // show soft banner
         const currentAttempt = attemptRef.current;
         if (currentAttempt && currentAttempt.id !== 'preview') {
           api.logCheatingEvent(currentAttempt.id, 'FULLSCREEN_EXIT', {
             timestamp: new Date().toISOString(),
           }).catch(() => {});
         }
+        // No exit warning modal — fullscreen status never interrupts the test
+      } else {
+        setIsFullscreenBlocked(false);
       }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
