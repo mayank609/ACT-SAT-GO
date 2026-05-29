@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, TrendingUp, Target, Award, Clock, ArrowLeft, ArrowRightLeft, UserCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Users, Clock, ArrowRightLeft } from 'lucide-react';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Badge } from '../../components/common/Badge';
-import { Card } from '../../components/common/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 
 interface StudentAnalytics {
@@ -148,7 +147,6 @@ export function StudentComparisonPage() {
 
   // Colors for multiple students
   const studentColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
-  const studentFades = ['rgba(59, 130, 246, 0.2)', 'rgba(16, 185, 129, 0.2)', 'rgba(245, 158, 11, 0.2)', 'rgba(139, 92, 246, 0.2)'];
 
   if (loading) {
     return (

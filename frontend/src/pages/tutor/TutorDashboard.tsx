@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, TrendingUp, AlertTriangle, ChevronRight, Target, Shield, Eye, RefreshCw, AlertCircle, Clock, Activity } from 'lucide-react';
+import { Users, TrendingUp, AlertTriangle, ChevronRight, Target, Shield, Eye, RefreshCw, AlertCircle, Clock, Activity, ArrowRightLeft } from 'lucide-react';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { api, type DbUser } from '../../lib/api';
