@@ -64,8 +64,9 @@ model User {
   testAssignments TestAssignment[]
 
   // Tutor assignments: a user can be a tutor for many, or a student under many tutors
-  students TutorAssignment[] @relation("TutorToStudent")
-  tutors   TutorAssignment[] @relation("StudentToTutor")
+  students      TutorAssignment[] @relation("TutorToStudent")
+  tutors        TutorAssignment[] @relation("StudentToTutor")
+  notifications Notification[]
 }
 
 model TutorAssignment {
