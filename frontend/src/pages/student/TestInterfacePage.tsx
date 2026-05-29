@@ -752,9 +752,9 @@ export function TestInterfacePage() {
       </header>
 
       {/* Thin section + progress strip */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-5 py-2 flex items-center gap-4">
+      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-5 py-2 flex items-center gap-4 overflow-x-auto">
         {test.sections.map((sec, idx) => (
-          <div key={sec.id} className={`flex items-center gap-1.5 text-xs font-medium ${
+          <div key={sec.id} className={`flex-shrink-0 flex items-center gap-1.5 text-xs font-medium ${
             idx === currentSectionIdx ? 'text-[#1b3d6e]' :
             idx < currentSectionIdx ? 'text-emerald-600' : 'text-gray-400'
           }`}>
