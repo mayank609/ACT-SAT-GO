@@ -211,9 +211,12 @@ export function TestInstructionsPage() {
         await api.startSection(attemptId, test.sections[0].id);
       }
 
-      // 3. Build local attempt state (keyed by section/question UUIDs from DB)
+      // 3. Flatten passage questions so fresh-start and resume use the same structure
+      const flatTest = flattenTest(test);
+
+      // 4. Build local attempt state keyed by flattened section/question UUIDs
       const sections: Record<string, SectionAttempt> = {};
-      test.sections.forEach((sec) => {
+      flatTest.sections.forEach((sec) => {
         const questions: SectionAttempt['questions'] = {};
         sec.questions.forEach((q) => {
           questions[q.id] = { questionId: q.id, state: 'not_visited', timeSpent: 0 };
@@ -228,7 +231,7 @@ export function TestInstructionsPage() {
       });
 
       const attempt: TestAttempt = {
-        id: attemptId,          // DB UUID — used for all API calls
+        id: attemptId,
         testId,
         studentId: dbId,
         status: 'in_progress',
@@ -240,7 +243,7 @@ export function TestInstructionsPage() {
         isFullScreen: false,
       };
 
-      startAttempt(attempt, test);
+      startAttempt(attempt, flatTest);
       navigate(`/test/${testId}${isPreview ? '?preview=true' : ''}`);
     } catch (e) {
       setError(`Failed to start: ${(e as Error).message}`);

@@ -54,8 +54,9 @@ export async function GET(
 
       let statusLabel: 'Not Started' | 'In Progress' | 'Completed' | 'Expired' = 'Not Started'
       if (isExpired) statusLabel = 'Expired'
+      else if (submittedAttempt) statusLabel = 'Completed'      // submitted always wins over stale in-progress
       else if (inProgressAttempt) statusLabel = 'In Progress'
-      else if (submittedAttempt || remainingAttempts === 0) statusLabel = 'Completed'
+      else if (remainingAttempts === 0) statusLabel = 'Completed'
 
       const completionStatus = submittedAttempt ? 'Submitted' : inProgressAttempt ? 'In Progress' : 'Pending'
 
