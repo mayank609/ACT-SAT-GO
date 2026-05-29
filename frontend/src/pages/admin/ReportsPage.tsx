@@ -1,272 +1,347 @@
 import { useState, useEffect } from 'react';
-import { Download, BarChart3, TrendingUp, Users, FileText, BookOpen } from 'lucide-react';
-import { Button } from '../../components/common/Button';
-import { Card, StatCard } from '../../components/common/Card';
-import { Badge } from '../../components/common/Badge';
+import { Search, ChevronDown, ChevronUp, CheckCircle, XCircle, Minus, TrendingUp, Clock, Users, BarChart2, ExternalLink } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
-import { exportToCsv } from '../../utils/exportCsv';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Legend,
-} from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
-type Analytics = Awaited<ReturnType<typeof api.getStudentAnalytics>>;
+type Analytics = {
+  trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>;
+  sectionStats: Array<{ sectionId: string; sectionName: string; totalQuestions: number; correct: number; incorrect: number; skipped: number; accuracy: number; timeAllocated: number; timeUsed: number }>;
+  questionPacingStats?: Array<{ questionIndex: number; sectionName: string; timeSpentSeconds: number; status: 'correct' | 'incorrect' | 'skipped'; difficulty: string; topicName: string }>;
+  overallAccuracy: number;
+  totalAttempts: number;
+  latestScore: number;
+  avgScore: number;
+};
+
+type Filter = 'all' | 'attempted' | 'not_attempted';
+type Sort = 'name' | 'score' | 'attempts' | 'accuracy';
 
 export function ReportsPage() {
+  const navigate = useNavigate();
   const [students, setStudents] = useState<DbUser[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState('');
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [loadingStudents, setLoadingStudents] = useState(true);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [sort, setSort] = useState<Sort>('name');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [analyticsCache, setAnalyticsCache] = useState<Record<string, Analytics>>({});
+  const [analyticsLoading, setAnalyticsLoading] = useState<string | null>(null);
 
   useEffect(() => {
     api.getUsersByRole('STUDENT')
-      .then((r) => {
-        setStudents(r.users);
-        if (r.users.length > 0) setSelectedStudentId(r.users[0].id);
-      })
+      .then((r) => setStudents(r.users ?? []))
       .catch(() => {})
-      .finally(() => setLoadingStudents(false));
+      .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (!selectedStudentId) return;
-    setLoadingAnalytics(true);
-    setAnalytics(null);
-    api.getStudentAnalytics(selectedStudentId)
-      .then((r) => setAnalytics(r))
-      .catch(() => setAnalytics(null))
-      .finally(() => setLoadingAnalytics(false));
-  }, [selectedStudentId]);
-
-  const selectedStudent = students.find((s) => s.id === selectedStudentId);
-
-  const sectionChartData = analytics?.sectionStats.map((s) => ({
-    name: s.sectionName.length > 12 ? s.sectionName.slice(0, 12) + '…' : s.sectionName,
-    accuracy: Math.round(s.accuracy),
-    timeUsed: Math.round(s.timeUsed / 60),
-    timeAlloc: Math.round(s.timeAllocated / 60),
-  })) ?? [];
-
-  const trendData = analytics?.trend.map((t) => ({
-    date: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    score: t.score ?? 0,
-    title: t.testTitle,
-  })) ?? [];
-
-  const handleExportAnalytics = () => {
-    if (!analytics || !selectedStudent) return;
-    const rows = analytics.sectionStats.map((s) => ({
-      Student: selectedStudent.name,
-      Section: s.sectionName,
-      'Correct': s.correct,
-      'Total': s.totalQuestions,
-      'Accuracy (%)': s.accuracy.toFixed(1),
-      'Time Used (min)': Math.round(s.timeUsed / 60),
-      'Time Allocated (min)': Math.round(s.timeAllocated / 60),
-    }));
-    exportToCsv(rows, `analytics_${selectedStudent.name.replace(/\s/g, '_')}.csv`);
-  };
-
-  const handleExportStudents = async () => {
+  const loadAnalytics = async (studentId: string) => {
+    if (analyticsCache[studentId]) return;
+    setAnalyticsLoading(studentId);
     try {
-      const r = await api.getUsersByRole('STUDENT');
-      const rows = r.users.map((s) => ({
-        Name: s.name,
-        Email: s.email,
-        Grade: s.grade ?? '',
-        'Avg Score': s.avgScore ?? '',
-        'Target Score': s.targetScore ?? '',
-        'Tests Attempted': s.testsAttempted ?? 0,
-        'Last Active': s.lastActive ?? '',
-        Tutor: s.tutorName ?? '',
-      }));
-      exportToCsv(rows, 'students_summary.csv');
-    } catch {}
+      const data = await api.getStudentAnalytics(studentId);
+      setAnalyticsCache((prev) => ({ ...prev, [studentId]: data as Analytics }));
+    } catch { /* silent */ }
+    finally { setAnalyticsLoading(null); }
   };
+
+  const toggleExpand = (id: string) => {
+    if (expandedId === id) { setExpandedId(null); return; }
+    setExpandedId(id);
+    loadAnalytics(id);
+  };
+
+  // Aggregate stats
+  const attempted = students.filter((s) => (s.testsAttempted ?? 0) > 0);
+  const notAttempted = students.filter((s) => (s.testsAttempted ?? 0) === 0);
+  const avgAccuracy = attempted.length > 0
+    ? Math.round(attempted.reduce((a, s) => a + (s.avgScore ?? 0), 0) / attempted.length)
+    : 0;
+
+  // Filter + sort
+  const filtered = students
+    .filter((s) => {
+      if (filter === 'attempted' && (s.testsAttempted ?? 0) === 0) return false;
+      if (filter === 'not_attempted' && (s.testsAttempted ?? 0) > 0) return false;
+      const q = search.toLowerCase();
+      return !q || (s.name ?? '').toLowerCase().includes(q) || (s.email ?? '').toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sort === 'score') return (b.avgScore ?? 0) - (a.avgScore ?? 0);
+      if (sort === 'attempts') return (b.testsAttempted ?? 0) - (a.testsAttempted ?? 0);
+      if (sort === 'accuracy') return (b.avgScore ?? 0) - (a.avgScore ?? 0);
+      return (a.name ?? '').localeCompare(b.name ?? '');
+    });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-5 h-5 border-2 border-[#1b3d6e] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Analytics & Reports</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Detailed performance analysis and insights</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={handleExportStudents}>Students CSV</Button>
-          <Button size="sm" icon={<Download size={14} />} onClick={handleExportAnalytics} disabled={!analytics}>Export CSV</Button>
-        </div>
+    <div className="space-y-5 max-w-5xl">
+      {/* Title */}
+      <div>
+        <h1 className="text-xl font-semibold text-gray-900">Analytics</h1>
+        <p className="text-gray-500 text-sm mt-0.5">Performance overview for all students</p>
       </div>
 
-      {/* Student selector */}
-      <Card padding="sm">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Student</label>
-            {loadingStudents ? (
-              <div className="px-3 py-2 text-sm text-slate-400 border border-slate-200 rounded-lg w-48">Loading…</div>
-            ) : (
-              <select value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)}
-                className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-52">
-                {students.length === 0 && <option value="">No students found</option>}
-                {students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            )}
-          </div>
-          {selectedStudent && (
-            <div className="flex items-center gap-3 py-1">
-              {selectedStudent.grade && <span className="text-xs text-slate-500">Grade {selectedStudent.grade}</span>}
-              {selectedStudent.targetScore && <span className="text-xs text-slate-500">Target: {selectedStudent.targetScore}</span>}
-              {selectedStudent.tutorName && <span className="text-xs text-slate-500">Tutor: {selectedStudent.tutorName}</span>}
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Students', value: students.length, icon: <Users size={15} />, color: 'text-[#1b3d6e] bg-blue-50' },
+          { label: 'Attempted', value: attempted.length, icon: <CheckCircle size={15} />, color: 'text-emerald-700 bg-emerald-50' },
+          { label: 'Not Attempted', value: notAttempted.length, icon: <Minus size={15} />, color: 'text-gray-600 bg-gray-100' },
+          { label: 'Avg Score', value: avgAccuracy || '—', icon: <TrendingUp size={15} />, color: 'text-purple-700 bg-purple-50' },
+        ].map((s) => (
+          <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-4">
+            <div className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md mb-2 ${s.color}`}>
+              {s.icon} {s.label}
             </div>
-          )}
-        </div>
-      </Card>
-
-      {/* No attempts */}
-      {!loadingAnalytics && analytics && analytics.totalAttempts === 0 && (
-        <div className="text-center py-12 bg-white border border-slate-100 rounded-xl text-slate-400">
-          <BookOpen size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm font-medium">No submitted attempts</p>
-          <p className="text-xs mt-1">{selectedStudent?.name} hasn't completed any tests yet</p>
-        </div>
-      )}
-
-      {/* Stats */}
-      {analytics && analytics.totalAttempts > 0 && (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            <StatCard title="Latest Score" value={analytics.latestScore ?? '—'} subtitle="most recent attempt" icon={<BarChart3 size={20} />} color="blue" />
-            <StatCard title="Avg Score" value={analytics.avgScore ?? '—'} subtitle="all attempts" icon={<TrendingUp size={20} />} color="emerald" trend={{ value: 0, positive: true }} />
-            <StatCard title="Accuracy" value={`${analytics.overallAccuracy}%`} subtitle="latest attempt" icon={<FileText size={20} />} color="purple" />
-            <StatCard title="Total Attempts" value={analytics.totalAttempts} subtitle="submitted" icon={<Users size={20} />} color="amber" />
+            <p className="text-2xl font-bold text-gray-900">{s.value}</p>
           </div>
+        ))}
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            {/* Section performance */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
-              <h3 className="font-semibold text-slate-900 mb-1">Section Performance</h3>
-              <p className="text-sm text-slate-500 mb-4">Accuracy % and time used per section (latest attempt)</p>
-              {sectionChartData.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-8">No section data available</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={sectionChartData} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Bar dataKey="accuracy" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Accuracy %" barSize={22} />
-                    <Bar dataKey="timeUsed" fill="#10b981" radius={[4, 4, 0, 0]} name="Time Used (min)" barSize={22} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Search */}
+        <div className="relative flex-1 min-w-48">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or email…"
+            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1b3d6e] bg-white"
+          />
+        </div>
 
-            {/* Score trend */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-slate-900">Score Trend</h3>
-                  <p className="text-sm text-slate-500">Progress across all attempts</p>
+        {/* Status filter */}
+        <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
+          {([['all', 'All'], ['attempted', 'Attempted'], ['not_attempted', 'Not Attempted']] as [Filter, string][]).map(([key, label]) => (
+            <button key={key} onClick={() => setFilter(key)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${filter === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort */}
+        <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}
+          className="text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#1b3d6e] text-gray-700">
+          <option value="name">Sort: Name</option>
+          <option value="score">Sort: Score</option>
+          <option value="attempts">Sort: Tests Taken</option>
+        </select>
+      </div>
+
+      {/* Count */}
+      <p className="text-xs text-gray-400">{filtered.length} student{filtered.length !== 1 ? 's' : ''}</p>
+
+      {/* Student table */}
+      {filtered.length === 0 ? (
+        <div className="bg-white border border-gray-100 rounded-xl py-16 text-center">
+          <BarChart2 size={28} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm">No students match the current filter</p>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {filtered.map((student) => {
+            const hasAttempted = (student.testsAttempted ?? 0) > 0;
+            const isExpanded = expandedId === student.id;
+            const analytics = analyticsCache[student.id] ?? null;
+            const isLoadingAnalytics = analyticsLoading === student.id;
+
+            // Compute totals from analytics if loaded
+            const totalCorrect = analytics?.sectionStats.reduce((a, s) => a + s.correct, 0) ?? null;
+            const totalWrong = analytics?.sectionStats.reduce((a, s) => a + s.incorrect, 0) ?? null;
+            const totalSkipped = analytics?.sectionStats.reduce((a, s) => a + s.skipped, 0) ?? null;
+
+            return (
+              <div key={student.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                {/* Row */}
+                <div
+                  className="flex items-center gap-4 px-4 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => toggleExpand(student.id)}
+                >
+                  {/* Avatar */}
+                  <div className="w-8 h-8 rounded-full bg-[#1b3d6e]/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-[#1b3d6e]">
+                      {(student.name ?? 'S').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Name + email */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{student.name ?? '—'}</p>
+                    <p className="text-xs text-gray-400 truncate">{student.email}</p>
+                  </div>
+
+                  {/* Status badge */}
+                  <span className={`flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${
+                    hasAttempted ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {hasAttempted ? `${student.testsAttempted} test${(student.testsAttempted ?? 0) !== 1 ? 's' : ''}` : 'Not attempted'}
+                  </span>
+
+                  {/* Score */}
+                  {hasAttempted && (
+                    <div className="flex-shrink-0 text-right hidden sm:block">
+                      <p className="text-sm font-bold text-[#1b3d6e]">{student.avgScore ?? '—'}</p>
+                      <p className="text-[10px] text-gray-400">avg score</p>
+                    </div>
+                  )}
+
+                  {/* Correct / Wrong / Skip — only if analytics loaded */}
+                  {hasAttempted && totalCorrect !== null && (
+                    <div className="flex-shrink-0 flex items-center gap-3 text-xs hidden md:flex">
+                      <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                        <CheckCircle size={12} /> {totalCorrect}
+                      </span>
+                      <span className="flex items-center gap-1 text-red-500 font-medium">
+                        <XCircle size={12} /> {totalWrong}
+                      </span>
+                      <span className="flex items-center gap-1 text-gray-400 font-medium">
+                        <Minus size={12} /> {totalSkipped}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* View profile link */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(`/students/${student.id}`); }}
+                    className="flex-shrink-0 p-1.5 text-gray-400 hover:text-[#1b3d6e] hover:bg-blue-50 rounded-md transition-colors"
+                    title="View student profile"
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+
+                  {/* Expand icon */}
+                  <div className="flex-shrink-0 text-gray-400">
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
                 </div>
-                <Badge variant="info">Raw Score</Badge>
-              </div>
-              {trendData.length < 2 ? (
-                <p className="text-sm text-slate-400 text-center py-8">Need at least 2 attempts to show trend</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                      formatter={(val, _, props) => [val, props.payload?.title ?? 'Score']}
-                    />
-                    <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2.5} dot={{ fill: '#3b82f6', r: 4 }} name="Score" />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
 
-          {/* Section breakdown table */}
-          <div className="bg-white rounded-xl border border-slate-200">
-            <div className="px-4 md:px-6 py-4 border-b border-slate-100">
-              <h3 className="font-semibold text-slate-900">Section Breakdown</h3>
-              <p className="text-sm text-slate-500">Performance details per section (latest attempt)</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[500px]">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100">
-                    {['Section', 'Correct / Total', 'Accuracy', 'Time Used', 'Time Allocated', 'Status'].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {analytics.sectionStats.map((s) => (
-                    <tr key={s.sectionId} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{s.sectionName}</td>
-                      <td className="px-4 py-3 text-slate-700">{s.correct} / {s.totalQuestions}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
-                            <div className={`h-full rounded-full ${s.accuracy >= 80 ? 'bg-emerald-500' : s.accuracy >= 60 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${s.accuracy}%` }} />
-                          </div>
-                          <span className="font-medium text-slate-700">{Math.round(s.accuracy)}%</span>
+                {/* Expanded analytics */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 bg-gray-50 px-5 py-5">
+                    {!hasAttempted ? (
+                      <p className="text-sm text-gray-400 text-center py-4">This student hasn't attempted any tests yet.</p>
+                    ) : isLoadingAnalytics ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="w-5 h-5 border-2 border-[#1b3d6e] border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : !analytics ? (
+                      <p className="text-sm text-gray-400 text-center py-4">No analytics data available.</p>
+                    ) : (
+                      <div className="space-y-5">
+                        {/* Top stats */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {[
+                            { label: 'Latest Score', value: analytics.latestScore || '—', color: 'text-[#1b3d6e]' },
+                            { label: 'Avg Score', value: analytics.avgScore || '—', color: 'text-emerald-700' },
+                            { label: 'Accuracy', value: `${analytics.overallAccuracy}%`, color: 'text-purple-700' },
+                            { label: 'Tests Done', value: analytics.totalAttempts, color: 'text-amber-700' },
+                          ].map((s) => (
+                            <div key={s.label} className="bg-white border border-gray-100 rounded-lg p-3 text-center">
+                              <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">{s.label}</p>
+                            </div>
+                          ))}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500">{Math.round(s.timeUsed / 60)} min</td>
-                      <td className="px-4 py-3 text-slate-500">{Math.round(s.timeAllocated / 60)} min</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={s.accuracy >= 80 ? 'success' : s.accuracy >= 60 ? 'warning' : 'danger'} size="sm">
-                          {s.accuracy >= 80 ? 'Strong' : s.accuracy >= 60 ? 'Average' : 'Weak'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
 
-      {loadingAnalytics && (
-        <div className="text-center py-12 text-slate-400">
-          <BarChart3 size={32} className="mx-auto mb-2 opacity-30 animate-pulse" />
-          <p className="text-sm">Loading analytics…</p>
-        </div>
-      )}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                          {/* Section breakdown */}
+                          {analytics.sectionStats.length > 0 && (
+                            <div className="bg-white border border-gray-100 rounded-xl p-4">
+                              <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Section Breakdown</h4>
+                              <div className="space-y-3">
+                                {analytics.sectionStats.map((sec) => (
+                                  <div key={sec.sectionId}>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-xs font-medium text-gray-700">{sec.sectionName}</span>
+                                      <div className="flex items-center gap-2 text-[11px]">
+                                        <span className="text-emerald-600 font-medium flex items-center gap-0.5"><CheckCircle size={10} /> {sec.correct}</span>
+                                        <span className="text-red-500 font-medium flex items-center gap-0.5"><XCircle size={10} /> {sec.incorrect}</span>
+                                        <span className="text-gray-400 flex items-center gap-0.5"><Minus size={10} /> {sec.skipped}</span>
+                                        <span className={`font-bold ml-1 ${sec.accuracy >= 80 ? 'text-emerald-600' : sec.accuracy >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
+                                          {sec.accuracy.toFixed(0)}%
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${sec.accuracy >= 80 ? 'bg-emerald-500' : sec.accuracy >= 60 ? 'bg-amber-400' : 'bg-red-400'}`}
+                                        style={{ width: `${sec.accuracy}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
-      {/* Security & Integrity Logs */}
-      {analytics?.cheatingLogs && analytics.cheatingLogs.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-100">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
-            <h3 className="font-semibold text-slate-900 text-sm">Security & Integrity Logs</h3>
-          </div>
-          <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
-            {analytics.cheatingLogs.map((log) => (
-              <div key={log.id} className="flex flex-col gap-1 px-5 py-3 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-red-600 font-medium">{log.eventType}</p>
-                  <p className="text-xs text-slate-400">{new Date(log.createdAt).toLocaleString()}</p>
-                </div>
-                <p className="text-xs text-slate-600">Test: {log.testTitle}</p>
-                {log.metadata && (
-                  <pre className="mt-1 text-[10px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 overflow-x-auto">
-                    {JSON.stringify(log.metadata, null, 2)}
-                  </pre>
+                          {/* Score trend */}
+                          {analytics.trend.length > 1 && (
+                            <div className="bg-white border border-gray-100 rounded-xl p-4">
+                              <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Score Trend</h4>
+                              <ResponsiveContainer width="100%" height={130}>
+                                <LineChart data={analytics.trend} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                                  <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                  <YAxis domain={[0, 36]} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '11px' }}
+                                    formatter={(v, _n, p) => [v, p.payload?.testTitle ?? 'Score']} />
+                                  <Line type="monotone" dataKey="score" stroke="#1b3d6e" strokeWidth={2}
+                                    dot={{ fill: '#1b3d6e', r: 3, stroke: '#fff', strokeWidth: 1.5 }} />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Question-level summary */}
+                        {analytics.questionPacingStats && analytics.questionPacingStats.length > 0 && (() => {
+                          const qs = analytics.questionPacingStats!;
+                          const correct = qs.filter(q => q.status === 'correct').length;
+                          const wrong = qs.filter(q => q.status === 'incorrect').length;
+                          const skipped = qs.filter(q => q.status === 'skipped').length;
+                          const stuck = qs.filter(q => q.timeSpentSeconds >= 90).length;
+                          const rushed = qs.filter(q => q.timeSpentSeconds < 20 && q.status !== 'skipped').length;
+                          return (
+                            <div className="bg-white border border-gray-100 rounded-xl p-4">
+                              <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                                Question Summary — {qs.length} questions
+                              </h4>
+                              <div className="flex flex-wrap gap-3">
+                                {[
+                                  { label: 'Correct', value: correct, bg: 'bg-emerald-50', text: 'text-emerald-700', icon: <CheckCircle size={13} /> },
+                                  { label: 'Wrong', value: wrong, bg: 'bg-red-50', text: 'text-red-600', icon: <XCircle size={13} /> },
+                                  { label: 'Skipped', value: skipped, bg: 'bg-gray-100', text: 'text-gray-600', icon: <Minus size={13} /> },
+                                  { label: 'Stuck (≥90s)', value: stuck, bg: 'bg-orange-50', text: 'text-orange-600', icon: <Clock size={13} /> },
+                                  { label: 'Rushed (<20s)', value: rushed, bg: 'bg-amber-50', text: 'text-amber-700', icon: <Clock size={13} /> },
+                                ].map((item) => (
+                                  <div key={item.label} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${item.bg}`}>
+                                    <span className={item.text}>{item.icon}</span>
+                                    <span className={`text-sm font-bold ${item.text}`}>{item.value}</span>
+                                    <span className="text-xs text-gray-500">{item.label}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       )}
     </div>
