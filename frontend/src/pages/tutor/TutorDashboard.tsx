@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, TrendingUp, AlertTriangle, ChevronRight, Target, Shield, Eye, RefreshCw, AlertCircle, Clock, Activity, ArrowRightLeft } from 'lucide-react';
+import { Users, TrendingUp, AlertTriangle, ChevronRight, Target, Shield, Eye, RefreshCw, AlertCircle, Clock, Activity, ArrowLeftRight } from 'lucide-react';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { api, type DbUser } from '../../lib/api';
@@ -104,7 +104,7 @@ export function TutorDashboard() {
                 onClick={() => navigate('/comparison')}
                 className="px-4 py-2.5 bg-white text-blue-700 font-bold text-xs rounded-xl shadow-md hover:bg-blue-50 hover:shadow-lg transition-all flex items-center gap-2"
               >
-                <ArrowRightLeft size={13} /> Side-by-Side Comparison
+                <ArrowLeftRight size={13} /> Side-by-Side Comparison
               </button>
             )}
           </div>

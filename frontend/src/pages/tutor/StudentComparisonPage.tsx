@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, Clock, ArrowRightLeft } from 'lucide-react';
+import { Users, Clock, ArrowLeftRight } from 'lucide-react';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Badge } from '../../components/common/Badge';
@@ -165,7 +165,7 @@ export function StudentComparisonPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <ArrowRightLeft className="text-blue-600" size={24} />
+            <ArrowLeftRight className="text-blue-600" size={24} />
             Side-by-Side Student Comparison
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">

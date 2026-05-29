@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FileText, BarChart3, Settings,
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
   Activity, UserCheck, Database, BookCheck, LifeBuoy, History, ChevronDown,
-  ArrowRightLeft
+  ArrowLeftRight
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';
@@ -70,7 +70,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Question Bank', path: '/question-bank', icon: <Database size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Assignments', path: '/assignments', icon: <BookCheck size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Analytics', path: '/analytics', icon: <BarChart3 size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
-  { label: 'Student Comparison', path: '/comparison', icon: <ArrowRightLeft size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
+  { label: 'Student Comparison', path: '/comparison', icon: <ArrowLeftRight size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Live Monitoring', path: '/monitoring', icon: <Activity size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Reports', path: '/reports', icon: <FileText size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
