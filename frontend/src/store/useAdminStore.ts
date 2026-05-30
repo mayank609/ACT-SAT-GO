@@ -7,6 +7,8 @@ export interface ApiTest {
   description?: string
   status: string // 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' (DB uppercase)
   createdAt: string
+  category?: string
+  subCategory?: string
   sections: Array<{
     id: string
     name: string
