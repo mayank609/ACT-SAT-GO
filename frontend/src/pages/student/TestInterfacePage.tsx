@@ -794,7 +794,7 @@ export function TestInterfacePage() {
           <p className="text-sm font-semibold text-gray-900 mt-0.5 leading-none">{currentSection.name}</p>
         </div>
 
-        {/* Right: tools + timer + palette */}
+        {/* Right: tools + palette */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowReference(true)}
@@ -809,9 +809,6 @@ export function TestInterfacePage() {
             <Calculator size={14} /> Calculator
           </button>
           <div className="w-px h-5 bg-gray-200 mx-1" />
-          <span className={`text-base font-mono font-semibold tabular-nums ${isLowTime ? 'text-red-600' : 'text-gray-900'}`}>
-            {formatTime(timeLeft)}
-          </span>
           <button
             onClick={() => setShowPalette(true)}
             className="text-sm font-medium text-gray-700 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 px-3 py-1.5 rounded-md transition-colors"
@@ -849,10 +846,21 @@ export function TestInterfacePage() {
           /* Passage layout */
           <div className="flex h-full min-h-full divide-x divide-gray-200">
             {/* Left: Passage */}
-            <div className="w-1/2 overflow-y-auto p-8 bg-white">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Reading Passage</p>
-              <div className="prose prose-gray max-w-none text-gray-800 text-[15px] leading-relaxed">
-                <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
+            <div className="w-1/2 flex flex-col bg-white h-full">
+              {/* Scrollable passage content */}
+              <div className="flex-1 overflow-y-auto p-8">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Reading Passage</p>
+                <div className="prose prose-gray max-w-none text-gray-800 text-[15px] leading-relaxed">
+                  <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
+                </div>
+              </div>
+              
+              {/* Pinned timer bar at the bottom of the passage pane */}
+              <div className="flex-shrink-0 px-8 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between select-none">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Time Remaining</span>
+                <span className={`text-sm font-mono font-bold tabular-nums px-2 py-0.5 rounded ${isLowTime ? 'text-red-600 bg-red-50' : 'text-[#1b3d6e] bg-[#e8f0fe]'}`}>
+                  {formatTime(timeLeft)}
+                </span>
               </div>
             </div>
             {/* Right: Question */}
@@ -895,6 +903,14 @@ export function TestInterfacePage() {
                   className="w-40 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-mono focus:outline-none focus:border-[#1b3d6e] transition-colors bg-white" />
               </div>
             )}
+            
+            {/* Timer below the standard question */}
+            <div className="mt-10 pt-4 border-t border-gray-100 flex items-center justify-between select-none">
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Time Remaining</span>
+              <span className={`text-sm font-mono font-bold tabular-nums px-2 py-0.5 rounded ${isLowTime ? 'text-red-600 bg-red-50' : 'text-[#1b3d6e] bg-[#e8f0fe]'}`}>
+                {formatTime(timeLeft)}
+              </span>
+            </div>
           </div>
         )}
       </div>
