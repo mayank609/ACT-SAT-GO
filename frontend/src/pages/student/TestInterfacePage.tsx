@@ -341,16 +341,19 @@ export function TestInterfacePage() {
 
   const doSectionTransition = async (fromSectionId: string, toSectionIdx: number) => {
     if (!attempt || !test) return;
+    // Set timer to full section time immediately — prevents cascade if the sync
+    // effect fires before startSection writes its Redis key
+    const fullTime = (test.sections[toSectionIdx]?.timeLimit ?? 45) * 60;
+    resetTimerRef.current(fullTime);
     try {
       if (!isPreview) {
         await api.submitSection(attempt.id, fromSectionId);
         const result = await api.startSection(attempt.id, test.sections[toSectionIdx].id) as { endTime: number };
+        // Refine with exact server endTime
         resetTimerRef.current(Math.max(10, Math.floor((result.endTime - Date.now()) / 1000)));
-      } else {
-        resetTimerRef.current((test.sections[toSectionIdx]?.timeLimit ?? 45) * 60);
       }
     } catch {
-      resetTimerRef.current((test.sections[toSectionIdx]?.timeLimit ?? 45) * 60);
+      // Keep the full-time fallback already set above
     }
   };
 
@@ -444,12 +447,18 @@ export function TestInterfacePage() {
     if (!attempt || !currentSection || isPreview) return;
     const sync = () => {
       api.getSectionTimer(attempt.id, currentSection.id)
-        .then((r) => resetTimerRef.current(r.remainingSeconds))
+        .then((r) => {
+          // Never reset to 0 from sync — a 0 would cascade section advances
+          // if startSection hasn't completed yet on the server
+          if (r.remainingSeconds > 5) resetTimerRef.current(r.remainingSeconds);
+        })
         .catch(() => {});
     };
-    sync();
+    // Delay first sync by 4s so startSection has time to write the Redis timer
+    // before we read it — otherwise we get 0 and auto-skip sections
+    const initial = setTimeout(sync, 4000);
     const interval = setInterval(sync, 15000);
-    return () => clearInterval(interval);
+    return () => { clearTimeout(initial); clearInterval(interval); };
   }, [attempt?.id, currentSection?.id, isPreview]);
 
   useEffect(() => {
