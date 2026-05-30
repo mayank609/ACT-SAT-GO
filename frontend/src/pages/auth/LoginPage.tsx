@@ -29,27 +29,25 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Demo quick-access users loaded from the real DB
-  const [demoUsers, setDemoUsers] = useState<DbUser[]>([]);
+  const [staffUsers, setStaffUsers] = useState<DbUser[]>([]);
+  const [studentUsers, setStudentUsers] = useState<DbUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
 
   useEffect(() => {
-    // Load a handful of real users for quick-demo buttons (super_admin, admin, tutors, students)
     Promise.all([
       api.getUsersByRole('SUPER_ADMIN'),
       api.getUsersByRole('ADMIN'),
       api.getUsersByRole('TUTOR'),
       api.getUsersByRole('STUDENT'),
     ]).then(([superAdmins, admins, tutors, students]) => {
-      const picks: DbUser[] = [
+      setStaffUsers([
         ...(superAdmins.users ?? []).slice(0, 1),
         ...(admins.users ?? []).slice(0, 1),
-        ...(tutors.users ?? []).slice(0, 1),
-        ...(students.users ?? []).slice(0, 1),
-      ];
-      setDemoUsers(picks);
-    }).catch(() => {
-      // silently ignore — demo buttons just won't show
-    });
+        ...(tutors.users ?? []).slice(0, 2),
+      ]);
+      setStudentUsers(students.users ?? []); // show ALL students
+    }).catch(() => {})
+    .finally(() => setUsersLoading(false));
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -204,37 +202,61 @@ export function LoginPage() {
             </Button>
           </form>
 
-          {/* Quick demo access */}
-          <div className="mt-6">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-xs text-slate-400 font-medium flex items-center gap-1 whitespace-nowrap">
-                <ShieldCheck size={12} /> Quick demo access
-              </span>
-              <div className="flex-1 h-px bg-slate-200" />
+          {/* Quick access */}
+          <div className="mt-6 space-y-4">
+            {/* Students */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex-1 h-px bg-slate-100" />
+                <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wide whitespace-nowrap">Students</span>
+                <div className="flex-1 h-px bg-slate-100" />
+              </div>
+              {usersLoading ? (
+                <div className="flex justify-center py-3"><Loader2 size={15} className="animate-spin text-slate-400" /></div>
+              ) : studentUsers.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-2">No students added yet</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {studentUsers.map((u) => (
+                    <button key={u.id} onClick={() => handleDemoLogin(u)}
+                      className="flex items-center gap-2.5 w-full px-3 py-2.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition-colors text-left">
+                      <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {(u.name ?? 'S').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{u.name}</p>
+                        <p className="text-[11px] text-slate-500 truncate">{u.email}</p>
+                      </div>
+                      <span className="ml-auto text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded flex-shrink-0">LOGIN</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {demoUsers.length === 0 ? (
-              <div className="flex justify-center py-3">
-                <Loader2 size={16} className="animate-spin text-slate-400" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {demoUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => handleDemoLogin(u)}
-                    className={`${roleColor(u.role)} text-white text-xs font-medium py-2 px-3 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 truncate`}
-                  >
-                    <span className="w-2 h-2 bg-white/50 rounded-full flex-shrink-0" />
-                    <span className="truncate">{roleLabel(u)}</span>
-                  </button>
-                ))}
+            {/* Staff */}
+            {staffUsers.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 h-px bg-slate-100" />
+                  <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wide whitespace-nowrap flex items-center gap-1">
+                    <ShieldCheck size={10} /> Staff
+                  </span>
+                  <div className="flex-1 h-px bg-slate-100" />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {staffUsers.map((u) => (
+                    <button key={u.id} onClick={() => handleDemoLogin(u)}
+                      className={`${roleColor(u.role)} text-white text-xs font-medium py-2 px-3 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 truncate`}>
+                      <span className="w-2 h-2 bg-white/40 rounded-full flex-shrink-0" />
+                      <span className="truncate">{roleLabel(u)}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-            <p className="text-xs text-slate-400 mt-2 text-center">
-              Use any password with your email to sign in
-            </p>
+
+            <p className="text-[11px] text-slate-400 text-center">Any password works — no real auth yet</p>
           </div>
         </div>
       </div>
