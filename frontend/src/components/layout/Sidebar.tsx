@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, BarChart3, Settings,
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
-  Activity, UserCheck, Database, BookCheck, LifeBuoy, History, ChevronDown,
+  Activity, UserCheck, Database, BookCheck, LifeBuoy, ChevronDown,
   ArrowLeftRight
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -23,40 +23,11 @@ interface NavItem {
   subItems?: NavSubItem[];
 }
 
-// Student-focused navigation (clean and minimal)
+// Student-focused navigation (clean and minimal — diagnostic test flow)
 const studentNavItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['student'] },
-  {
-    label: 'Tests',
-    path: '/my-tests',
-    icon: <ClipboardList size={18} />,
-    roles: ['student'],
-    subItems: [
-      { label: 'Mock', path: '/my-tests?category=Mock' },
-      {
-        label: 'Sectional',
-        path: '/my-tests?category=Sectional',
-        subItems: [
-          { label: 'English', path: '/my-tests?category=Sectional&subCategory=English' },
-          { label: 'Maths', path: '/my-tests?category=Sectional&subCategory=Maths' },
-        ],
-      },
-      { label: 'Micro', path: '/my-tests?category=Micro' },
-      {
-        label: 'Practice Sheet',
-        path: '/my-tests?category=Practice Sheet',
-        subItems: [
-          { label: 'Reading', path: '/my-tests?category=Practice Sheet&subCategory=Reading' },
-          { label: 'Writing', path: '/my-tests?category=Practice Sheet&subCategory=Writing' },
-          { label: 'Math', path: '/my-tests?category=Practice Sheet&subCategory=Math' },
-        ],
-      },
-      { label: 'Diagnostic', path: '/my-tests?category=Diagnostic' },
-    ],
-  },
-  { label: 'Analytics', path: '/my-progress', icon: <BarChart3 size={18} />, roles: ['student'] },
-  { label: 'Review Attempts', path: '/review-attempts', icon: <History size={18} />, roles: ['student'] },
-  { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['student'] },
+  { label: 'My Tests', path: '/my-tests', icon: <ClipboardList size={18} />, roles: ['student'] },
+  { label: 'My Progress', path: '/my-progress', icon: <BarChart3 size={18} />, roles: ['student'] },
   { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['student'] },
 ];
 

@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BookOpen, Clock, Play, RotateCcw, Target, ChevronRight, Loader2 } from 'lucide-react';
-import { Button } from '../../components/common/Button';
-import { Badge } from '../../components/common/Badge';
+import { useNavigate } from 'react-router-dom';
+import { Play, FileSearch, CheckCircle, Clock, Target, Loader2, BookOpen } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -11,159 +9,156 @@ interface ApiTest {
   testId: string;
   title: string;
   description?: string;
-  category?: string;
-  subCategory?: string;
-  dueDate?: string;
-  availableFrom?: string;
-  availableUntil?: string;
   status: 'Not Started' | 'In Progress' | 'Completed' | 'Expired';
-  completionStatus: string;
   remainingAttempts: number;
   maxAttempts: number;
   inProgressAttemptId?: string | null;
   submittedAttemptId?: string | null;
+  dueDate?: string;
   sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }>;
 }
 
 export function MyTestsPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { dbId } = useAuthStore();
-
   const [tests, setTests] = useState<ApiTest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const categoryFilter = searchParams.get('category');
-  const subCategoryFilter = searchParams.get('subCategory');
-
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        if (dbId) {
-          const testsData = await api.getAssignedTests(dbId);
-          setTests(testsData.assignedTests as ApiTest[]);
-        } else {
-          setTests([]);
-        }
-      } catch {
-        // fallback: keep empty lists
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    if (!dbId) { setLoading(false); return; }
+    api.getAssignedTests(dbId)
+      .then(r => setTests((r.assignedTests ?? []) as ApiTest[]))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [dbId]);
-
-  const filteredTests = tests.filter(t => {
-    if (categoryFilter && t.category !== categoryFilter) return false;
-    if (subCategoryFilter && t.subCategory !== subCategoryFilter) return false;
-    return true;
-  });
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-40">
-        <Loader2 size={20} className="text-blue-500 animate-spin" />
+        <Loader2 size={20} className="text-[#1b3d6e] animate-spin" />
       </div>
     );
   }
 
+  const pending = tests.filter(t => t.status === 'Not Started' || t.status === 'In Progress');
+  const completed = tests.filter(t => t.status === 'Completed');
+  const expired = tests.filter(t => t.status === 'Expired');
+
   return (
-    <div className="space-y-5">
+    <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">My Tests {categoryFilter ? `- ${categoryFilter}` : ''} {subCategoryFilter ? `(${subCategoryFilter})` : ''}</h1>
-        <p className="text-slate-400 text-sm mt-0.5">{filteredTests.length} test{filteredTests.length !== 1 ? 's' : ''} available</p>
+        <h1 className="text-xl font-semibold text-gray-900">My Tests</h1>
+        <p className="text-gray-500 text-sm mt-0.5">{tests.length} test{tests.length !== 1 ? 's' : ''} assigned</p>
       </div>
 
-      {filteredTests.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-xl border border-slate-100">
-          <BookOpen size={32} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500 text-sm">No tests available yet</p>
+      {tests.length === 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl py-16 text-center">
+          <BookOpen size={28} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">No tests assigned yet</p>
         </div>
       )}
 
-      <div className="space-y-2">
-        {filteredTests.map((test) => {
-          const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
-          const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
-
-          return (
-            <div key={test.assignmentId} className="bg-white border border-slate-100 rounded-xl p-4">
-              <div className="flex items-start gap-4">
-                <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <BookOpen size={15} className="text-blue-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium text-slate-900 text-sm truncate">{test.title}</p>
-                      {test.description && <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{test.description}</p>}
-                    </div>
-                    <Badge variant={test.status === 'Completed' ? 'success' : test.status === 'In Progress' ? 'warning' : test.status === 'Expired' ? 'danger' : 'default'} size="sm" className="flex-shrink-0">
-                      {test.status}
-                    </Badge>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-slate-400 mt-2 flex-wrap">
-                    <span className="flex items-center gap-1"><Target size={10} /> {totalQ} questions</span>
-                    <span className="flex items-center gap-1"><Clock size={10} /> {totalTime} min</span>
-                    <span>{test.sections.length} sections</span>
-                    {test.dueDate && <span>Due: {new Date(test.dueDate).toLocaleDateString()}</span>}
-                    <span className={`font-medium ${test.remainingAttempts === 0 ? 'text-red-400' : 'text-blue-500'}`}>
-                      {test.remainingAttempts}/{test.maxAttempts} attempts left
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {test.sections.map((sec) => (
-                      <span key={sec.id} className="text-xs bg-slate-50 text-slate-500 px-2 py-0.5 rounded-md">{sec.name}</span>
-                    ))}
-                  </div>
-
-                  {test.status === 'Completed' && test.submittedAttemptId && (
-                    <div className={`flex items-center justify-between mt-3 p-3 rounded-lg ${test.remainingAttempts > 0 ? 'bg-blue-50 border border-blue-100' : 'bg-emerald-50 border border-emerald-100'}`}>
-                      <p className={`text-xs font-medium ${test.remainingAttempts > 0 ? 'text-blue-700' : 'text-emerald-700'}`}>
-                        {test.remainingAttempts > 0
-                          ? `${test.remainingAttempts} attempt${test.remainingAttempts !== 1 ? 's' : ''} remaining — you can retake this test`
-                          : 'All attempts used — test complete'}
+      {/* Pending */}
+      {pending.length > 0 && (
+        <div>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">To Complete</h2>
+          <div className="space-y-2">
+            {pending.map((test) => {
+              const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
+              const totalMin = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
+              const isInProgress = test.status === 'In Progress';
+              return (
+                <div key={test.assignmentId} className="bg-white border-2 border-[#1b3d6e]/20 rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${isInProgress ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#1b3d6e]'}`}>
+                          {isInProgress ? 'In Progress' : 'Not Started'}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-gray-900">{test.title}</h3>
+                      {test.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{test.description}</p>}
+                      <p className="text-xs text-gray-500 mt-1.5">
+                        {test.sections.length} section{test.sections.length !== 1 ? 's' : ''} · {totalQ} questions · {totalMin} min
                       </p>
-                      <button onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 flex-shrink-0 ml-3">
-                        Review last <ChevronRight size={11} />
-                      </button>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {test.sections.map(s => (
+                          <span key={s.id} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{s.name}</span>
+                        ))}
+                      </div>
+                      {test.dueDate && (
+                        <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                          <Clock size={10} /> Due: {new Date(test.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      )}
                     </div>
-                  )}
-
-                  <div className="flex gap-2 mt-3">
-                    {test.status === 'Completed' ? (
-                      <>
-                        <Button variant="secondary" size="sm" onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)}>
-                          Review Attempt
-                        </Button>
-                        {test.remainingAttempts > 0 && (
-                          <Button size="sm" icon={<RotateCcw size={12} />}
-                            onClick={() => navigate(`/test-instructions/${test.testId}`)}>
-                            Retake Test
-                          </Button>
-                        )}
-                      </>
-                    ) : test.status === 'Expired' ? (
-                      <Button variant="ghost" size="sm" disabled>Expired</Button>
-                    ) : (
-                      <Button size="sm" icon={test.status === 'In Progress' ? <RotateCcw size={12} /> : <Play size={12} />}
-                        onClick={() => test.status === 'In Progress' && test.inProgressAttemptId
-                          ? navigate(`/test/${test.testId}?attemptId=${test.inProgressAttemptId}`)
-                          : navigate(`/test-instructions/${test.testId}`)}>
-                        {test.status === 'In Progress' ? 'Resume Test' : 'Start Test'}
-                      </Button>
-                    )}
+                    <button
+                      onClick={() => isInProgress && test.inProgressAttemptId
+                        ? navigate(`/test/${test.testId}?attemptId=${test.inProgressAttemptId}`)
+                        : navigate(`/test-instructions/${test.testId}`)
+                      }
+                      className="flex-shrink-0 flex items-center gap-2 bg-[#1b3d6e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#15305a] transition-colors"
+                    >
+                      <Play size={13} />
+                      {isInProgress ? 'Continue' : 'Start Test'}
+                    </button>
                   </div>
                 </div>
-              </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Completed */}
+      {completed.length > 0 && (
+        <div>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Completed</h2>
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="divide-y divide-gray-50">
+              {completed.map((test) => {
+                const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
+                return (
+                  <div key={test.assignmentId} className="flex items-center gap-4 px-4 py-3.5">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle size={14} className="text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{test.title}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {test.sections.length} sections · {totalQ} questions
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => test.submittedAttemptId && navigate(`/test-review/${test.submittedAttemptId}`)}
+                      disabled={!test.submittedAttemptId}
+                      className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors disabled:opacity-40"
+                    >
+                      <FileSearch size={13} /> View Analysis
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expired */}
+      {expired.length > 0 && (
+        <div>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Expired</h2>
+          <div className="space-y-1.5">
+            {expired.map((test) => (
+              <div key={test.assignmentId} className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 opacity-60">
+                <Target size={14} className="text-gray-400 flex-shrink-0" />
+                <p className="text-sm text-gray-500 flex-1 truncate">{test.title}</p>
+                <span className="text-xs text-gray-400 font-medium">Expired</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
