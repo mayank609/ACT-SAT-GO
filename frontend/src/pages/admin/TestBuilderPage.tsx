@@ -1601,6 +1601,7 @@ export function TestBuilderPage() {
     publishStatus: 'draft' as TestStatus,
     category: '',
     subCategory: '',
+    assignmentType: '', // for Practice Sheet: Homework | Classwork | Overall
   });
 
   const activeSection = sections[activeSectionIdx];
@@ -1638,11 +1639,17 @@ export function TestBuilderPage() {
       const test = data.test as any;
       setTestTitle(test.title ?? '');
       setTestDesc(test.description ?? '');
+      // Decode assignmentType from subCategory (e.g. 'Math-Homework' → subject='Math', assignmentType='Homework')
+      const rawSub = test.subCategory ?? '';
+      const subParts = rawSub.split('-');
+      const decodedSub = subParts[0] ?? '';
+      const decodedAssignment = subParts[1] ?? '';
       setTestSettings((prev) => ({
         ...prev,
         publishStatus: (test.status?.toLowerCase() ?? 'draft') as TestStatus,
         category: test.category ?? '',
-        subCategory: test.subCategory ?? '',
+        subCategory: decodedSub,
+        assignmentType: decodedAssignment,
       }));
 
       const TYPE_MAP: Record<string, QuestionType> = { MCQ: 'mcq_single', MSQ: 'mcq_multi', NUMERIC: 'numeric', PASSAGE: 'passage' };
@@ -1780,7 +1787,9 @@ export function TestBuilderPage() {
           sections: sanitizedSections,
           status: testSettings.publishStatus,
           category: testSettings.category || undefined,
-          subCategory: testSettings.subCategory || undefined,
+          subCategory: testSettings.category === 'Practice Sheet' && testSettings.subCategory
+            ? (testSettings.assignmentType ? `${testSettings.subCategory}-${testSettings.assignmentType}` : testSettings.subCategory)
+            : testSettings.subCategory || undefined,
         });
       } else {
         await api.createTest({
@@ -1789,7 +1798,9 @@ export function TestBuilderPage() {
           sections: sanitizedSections,
           status: testSettings.publishStatus,
           category: testSettings.category || undefined,
-          subCategory: testSettings.subCategory || undefined,
+          subCategory: testSettings.category === 'Practice Sheet' && testSettings.subCategory
+            ? (testSettings.assignmentType ? `${testSettings.subCategory}-${testSettings.assignmentType}` : testSettings.subCategory)
+            : testSettings.subCategory || undefined,
           createdById: dbId ?? user?.id ?? '',
           allowBackNavigation: testSettings.allowBackNavigation,
           showResults: testSettings.showResults,
@@ -2168,47 +2179,73 @@ export function TestBuilderPage() {
               <option value="archived">Archived</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
-              <select
-                value={testSettings.category}
-                onChange={(e) => setTestSettings((prev) => ({ ...prev, category: e.target.value, subCategory: '' }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">None</option>
-                <option value="Mock">Mock</option>
-                <option value="Sectional">Sectional</option>
-                <option value="Micro">Micro</option>
-                <option value="Practice Sheet">Practice Sheet</option>
-                <option value="Diagnostic">Diagnostic</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Sub-Category</label>
-              <select
-                value={testSettings.subCategory}
-                onChange={(e) => setTestSettings((prev) => ({ ...prev, subCategory: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!testSettings.category}
-              >
-                <option value="">None</option>
-                {testSettings.category === 'Sectional' && (
-                  <>
-                    <option value="English">English</option>
-                    <option value="Maths">Maths</option>
-                  </>
-                )}
-                {testSettings.category === 'Practice Sheet' && (
-                  <>
-                    <option value="Reading">Reading</option>
-                    <option value="Writing">Writing</option>
-                    <option value="Math">Math</option>
-                  </>
-                )}
-              </select>
+          {/* ── Test Type ── */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Test Type</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { key: 'Mock',           label: 'Mock Test',       desc: 'Full composite — mixed subjects',          color: 'border-blue-400 bg-blue-50 text-blue-800' },
+                { key: 'Sectional',      label: 'Sectional',       desc: 'Subject-wise section test',                color: 'border-emerald-400 bg-emerald-50 text-emerald-800' },
+                { key: 'Practice Sheet', label: 'Practice Sheet',  desc: 'No sections — topic drills & homework',    color: 'border-purple-400 bg-purple-50 text-purple-800' },
+                { key: 'Diagnostic',     label: 'Diagnostic',      desc: 'Admission diagnostic test',                color: 'border-amber-400 bg-amber-50 text-amber-800' },
+              ] as const).map((t) => (
+                <button key={t.key} type="button"
+                  onClick={() => setTestSettings((prev) => ({ ...prev, category: t.key, subCategory: '', assignmentType: '' }))}
+                  className={`text-left p-3 rounded-lg border-2 transition-all ${testSettings.category === t.key ? t.color + ' border-2' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                >
+                  <p className="text-sm font-semibold">{t.label}</p>
+                  <p className={`text-[11px] mt-0.5 ${testSettings.category === t.key ? '' : 'text-slate-400'}`}>{t.desc}</p>
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* ── Subject (Sectional) ── */}
+          {testSettings.category === 'Sectional' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
+              <div className="flex flex-wrap gap-2">
+                {['English', 'Math', 'Reading', 'Science'].map((s) => (
+                  <button key={s} type="button"
+                    onClick={() => setTestSettings((prev) => ({ ...prev, subCategory: s }))}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.subCategory === s ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-200 text-slate-600 hover:border-emerald-400'}`}
+                  >{s}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Subject + Assignment Type (Practice Sheet) ── */}
+          {testSettings.category === 'Practice Sheet' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
+                <div className="flex gap-2">
+                  {['Math', 'Reading', 'Writing'].map((s) => (
+                    <button key={s} type="button"
+                      onClick={() => setTestSettings((prev) => ({ ...prev, subCategory: s }))}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.subCategory === s ? 'bg-purple-600 border-purple-600 text-white' : 'border-slate-200 text-slate-600 hover:border-purple-400'}`}
+                    >{s}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Assign As</label>
+                <div className="flex gap-2">
+                  {[
+                    { key: 'Homework',  label: 'Homework',  emoji: '📚' },
+                    { key: 'Classwork', label: 'Classwork', emoji: '🏫' },
+                    { key: 'Overall',   label: 'Overall',   emoji: '📊' },
+                  ].map((a) => (
+                    <button key={a.key} type="button"
+                      onClick={() => setTestSettings((prev) => ({ ...prev, assignmentType: a.key }))}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.assignmentType === a.key ? 'bg-slate-800 border-slate-800 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-400'}`}
+                    >{a.emoji} {a.label}</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowSettings(false)}>Apply</Button>
           </div>
