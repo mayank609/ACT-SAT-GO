@@ -146,10 +146,20 @@ export function TestInterfacePage() {
   const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [calcMode, setCalcMode] = useState<'graphing' | 'scientific'>('graphing');
+  const [calcSize, setCalcSize] = useState({ width: 800, height: 550 });
   const [showReference, setShowReference] = useState(false);
-  const [calcPos, setCalcPos] = useState(() => ({ x: Math.max(0, window.innerWidth - 460), y: 80 }));
+  const [calcPos, setCalcPos] = useState(() => {
+    const width = 800;
+    const x = Math.max(20, window.innerWidth - width - 40);
+    const y = 80;
+    return { x, y };
+  });
+  const [isInteractingWithCalc, setIsInteractingWithCalc] = useState(false);
   const calcDragging = useRef(false);
   const calcDragOffset = useRef({ x: 0, y: 0 });
+  const calcResizing = useRef(false);
+  const calcResizeStart = useRef({ x: 0, y: 0, width: 800, height: 550 });
   const [restoring, setRestoring] = useState(Boolean(searchParams.get('attemptId')));
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
@@ -570,16 +580,31 @@ export function TestInterfacePage() {
     };
   }, [attempt?.id, isPreview]);
 
-  // Calculator drag
+  // Calculator drag & resize
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      if (!calcDragging.current) return;
-      setCalcPos({ x: e.clientX - calcDragOffset.current.x, y: e.clientY - calcDragOffset.current.y });
+      if (calcDragging.current) {
+        setCalcPos({ x: e.clientX - calcDragOffset.current.x, y: e.clientY - calcDragOffset.current.y });
+      } else if (calcResizing.current) {
+        const deltaX = e.clientX - calcResizeStart.current.x;
+        const deltaY = e.clientY - calcResizeStart.current.y;
+        setCalcSize({
+          width: Math.max(360, Math.min(1200, calcResizeStart.current.width + deltaX)),
+          height: Math.max(360, Math.min(800, calcResizeStart.current.height + deltaY)),
+        });
+      }
     };
-    const onUp = () => { calcDragging.current = false; };
+    const onUp = () => {
+      calcDragging.current = false;
+      calcResizing.current = false;
+      setIsInteractingWithCalc(false);
+    };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
   }, []);
 
   useEffect(() => {
@@ -919,28 +944,125 @@ export function TestInterfacePage() {
       {/* ── DESMOS CALCULATOR ────────────────────────────────────────────────── */}
       {showCalculator && (
         <div
-          className="fixed z-40 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col"
-          style={{ left: calcPos.x, top: calcPos.y, width: 440, height: 520 }}
+          className="fixed z-40 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col transition-all duration-100 ease-out"
+          style={{
+            left: calcPos.x,
+            top: calcPos.y,
+            width: Math.min(calcSize.width, window.innerWidth - 20),
+            height: Math.min(calcSize.height, window.innerHeight - 100),
+          }}
         >
-          {/* Drag handle */}
+          {/* Header & Drag handle */}
           <div
-            className="flex items-center justify-between px-3 py-2 bg-[#1b3d6e] text-white cursor-move select-none flex-shrink-0"
+            className="flex items-center justify-between px-4 py-2.5 bg-[#1b3d6e] text-white cursor-move select-none flex-shrink-0"
             onMouseDown={(e) => {
+              // Only initiate drag if user isn't clicking the tabs or close button
+              const target = e.target as HTMLElement;
+              if (target.closest('button')) return;
+              
               calcDragging.current = true;
               calcDragOffset.current = { x: e.clientX - calcPos.x, y: e.clientY - calcPos.y };
+              setIsInteractingWithCalc(true);
             }}
           >
-            <span className="text-xs font-semibold flex items-center gap-1.5"><Calculator size={13} /> Calculator</span>
-            <button onClick={() => setShowCalculator(false)} className="p-0.5 rounded hover:bg-white/20 transition-colors">
-              <X size={14} />
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-semibold flex items-center gap-1.5">
+                <Calculator size={14} /> Calculator
+              </span>
+              
+              {/* Tab Selector */}
+              <div className="flex items-center bg-[#132d53] p-0.5 rounded-md text-[10px]">
+                <button
+                  onClick={() => {
+                    setCalcMode('graphing');
+                    setCalcSize({ width: 800, height: 550 });
+                    setCalcPos((prev) => {
+                      const nextX = Math.min(prev.x, window.innerWidth - 820);
+                      const nextY = Math.min(prev.y, window.innerHeight - 570);
+                      return { x: Math.max(10, nextX), y: Math.max(10, nextY) };
+                    });
+                  }}
+                  className={`px-2.5 py-0.5 font-medium rounded-sm cursor-pointer transition-all ${
+                    calcMode === 'graphing'
+                      ? 'bg-[#1b3d6e] text-white shadow-sm font-semibold'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Graphing
+                </button>
+                <button
+                  onClick={() => {
+                    setCalcMode('scientific');
+                    setCalcSize({ width: 450, height: 520 });
+                    setCalcPos((prev) => {
+                      const nextX = Math.min(prev.x, window.innerWidth - 470);
+                      const nextY = Math.min(prev.y, window.innerHeight - 540);
+                      return { x: Math.max(10, nextX), y: Math.max(10, nextY) };
+                    });
+                  }}
+                  className={`px-2.5 py-0.5 font-medium rounded-sm cursor-pointer transition-all ${
+                    calcMode === 'scientific'
+                      ? 'bg-[#1b3d6e] text-white shadow-sm font-semibold'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Scientific
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowCalculator(false)}
+              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X size={15} />
             </button>
           </div>
+
+          {/* Calculator iframe */}
           <iframe
-            src="https://www.desmos.com/scientific"
-            title="Desmos Scientific Calculator"
-            className="flex-1 w-full border-0"
+            src={
+              calcMode === 'graphing'
+                ? 'https://www.desmos.com/testing/cb-digital-sat/graphing'
+                : 'https://www.desmos.com/scientific'
+            }
+            title={calcMode === 'graphing' ? 'Desmos Graphing Calculator' : 'Desmos Scientific Calculator'}
+            className="flex-1 w-full border-0 bg-white"
+            style={{ pointerEvents: isInteractingWithCalc ? 'none' : 'auto' }}
             sandbox="allow-scripts allow-same-origin"
           />
+
+          {/* Resize handle in bottom right corner */}
+          <div
+            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-end justify-end p-0.5 z-50 select-none"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              calcResizing.current = true;
+              calcResizeStart.current = {
+                x: e.clientX,
+                y: e.clientY,
+                width: calcSize.width,
+                height: calcSize.height,
+              };
+              setIsInteractingWithCalc(true);
+            }}
+          >
+            {/* Minimalist dot-pattern resize handle indicator */}
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              className="text-gray-400 fill-current opacity-70 hover:opacity-100 transition-opacity"
+            >
+              <circle cx="8" cy="8" r="1" />
+              <circle cx="8" cy="5" r="1" />
+              <circle cx="5" cy="8" r="1" />
+              <circle cx="8" cy="2" r="1" />
+              <circle cx="5" cy="5" r="1" />
+              <circle cx="2" cy="8" r="1" />
+            </svg>
+          </div>
         </div>
       )}
 
