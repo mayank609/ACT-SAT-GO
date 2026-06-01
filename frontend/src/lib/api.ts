@@ -167,7 +167,7 @@ export const api = {
     }),
 
   // Analytics
-  getStudentAnalytics: (studentId: string) =>
+  getStudentAnalytics: (studentId: string, attemptId?: string) =>
     request<{
       trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>
       sectionStats: Array<{
@@ -201,7 +201,7 @@ export const api = {
         metadata: any
         createdAt: string
       }>
-    }>(`/api/analytics/student/${studentId}`),
+    }>(`/api/analytics/student/${studentId}${attemptId ? '?attemptId=' + attemptId : ''}`),
 
   // Questions (Question Bank)
   getQuestions: (params?: { type?: string; difficulty?: string; search?: string; subject?: string }) => {

@@ -22,27 +22,38 @@ export async function GET(
   { params }: { params: Promise<{ studentId: string }> }
 ) {
   const { studentId } = await params
+  const { searchParams } = new URL(_request.url)
+  const attemptId = searchParams.get('attemptId')
 
   try {
     const attempts = await prisma.testAttempt.findMany({
       where: { studentId, status: 'SUBMITTED' },
       include: {
-        test: { select: { id: true, title: true } },
+        test: {
+          include: {
+            sections: {
+              orderBy: { orderIndex: 'asc' },
+              include: {
+                questions: {
+                  orderBy: { orderIndex: 'asc' },
+                  include: {
+                    question: {
+                      include: {
+                        topic: { select: { name: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         sectionAttempts: {
           include: {
             section: { select: { id: true, name: true, durationMinutes: true } },
           },
         },
-        answers: {
-          include: {
-            question: {
-              include: {
-                testQuestions: true,
-                topic: { select: { name: true } },
-              },
-            },
-          },
-        },
+        answers: true,
       },
       orderBy: { completedAt: 'asc' },
     })
@@ -54,7 +65,7 @@ export async function GET(
       attemptId: a.id,
     }))
 
-    // Compute section stats for the most recent attempt
+    // Compute section stats for the selected attempt
     let sectionStats: {
       sectionId: string
       sectionName: string
@@ -76,57 +87,69 @@ export async function GET(
       topicName: string
     }[] = []
 
-    if (attempts.length > 0) {
-      const latest = attempts[attempts.length - 1]
-      let totalIndex = 1
-      for (const sa of latest.sectionAttempts) {
-        const sectionAnswers = latest.answers.filter((ans) => {
-          const tq = ans.question.testQuestions.find((t) => t.testId === latest.testId)
-          return tq?.sectionId === sa.sectionId
-        })
-        
-        sectionAnswers.sort((a, b) => {
-          const tqA = a.question.testQuestions.find((t) => t.testId === latest.testId)
-          const tqB = b.question.testQuestions.find((t) => t.testId === latest.testId)
-          return (tqA?.orderIndex ?? 0) - (tqB?.orderIndex ?? 0)
-        })
+    let latest = attempts[attempts.length - 1]
+    if (attemptId && attempts.length > 0) {
+      const found = attempts.find((a) => a.id === attemptId)
+      if (found) {
+        latest = found
+      }
+    }
 
+    if (latest) {
+      const answerMap = new Map(latest.answers.map((ans) => [ans.questionId, ans]))
+
+      for (const section of latest.test.sections) {
         let correct = 0, incorrect = 0, skipped = 0
-        for (const ans of sectionAnswers) {
+        let timeUsed = 0
+        let questionIndex = 1
+
+        for (const tq of section.questions) {
+          const q = tq.question
+          const ans = answerMap.get(q.id)
+          
           let status: 'correct' | 'incorrect' | 'skipped' = 'skipped'
-          if (ans.answerGiven === null) { 
-            skipped++ 
-          } else {
-            const isCorrect = isAnswerCorrect(ans.answerGiven, ans.question.correctAnswer)
-            if (isCorrect) {
-              correct++
-              status = 'correct'
+          let timeSpentSeconds = 0
+
+          if (ans) {
+            timeSpentSeconds = ans.timeSpentSeconds || 0
+            timeUsed += timeSpentSeconds
+            if (ans.answerGiven !== null && ans.answerGiven !== undefined) {
+              const isCorrect = isAnswerCorrect(ans.answerGiven, q.correctAnswer)
+              if (isCorrect) {
+                correct++
+                status = 'correct'
+              } else {
+                incorrect++
+                status = 'incorrect'
+              }
             } else {
-              incorrect++
-              status = 'incorrect'
+              skipped++
             }
+          } else {
+            skipped++
           }
 
           questionPacingStats.push({
-            questionIndex: totalIndex++,
-            sectionName: sa.section.name,
-            timeSpentSeconds: ans.timeSpentSeconds || 0,
+            questionIndex: questionIndex++,
+            sectionName: section.name,
+            timeSpentSeconds,
             status,
-            difficulty: ans.question.difficultyLevel.toLowerCase(),
-            topicName: (ans.question as any).topic?.name ?? 'General Skill'
+            difficulty: q.difficultyLevel.toLowerCase(),
+            topicName: q.topic?.name ?? 'General Skill'
           })
         }
-        const totalQuestions = sectionAnswers.length
+
+        const totalQuestions = section.questions.length
         sectionStats.push({
-          sectionId: sa.section.name, // using section name as UI friendly id
-          sectionName: sa.section.name,
+          sectionId: section.name, // using section name as UI friendly id
+          sectionName: section.name,
           totalQuestions,
           correct,
           incorrect,
           skipped,
           accuracy: totalQuestions > 0 ? Math.round((correct / totalQuestions) * 100) : 0,
-          timeAllocated: sa.section.durationMinutes * 60,
-          timeUsed: sectionAnswers.reduce((a, ans) => a + ans.timeSpentSeconds, 0),
+          timeAllocated: section.durationMinutes * 60,
+          timeUsed,
         })
       }
     }
@@ -135,7 +158,7 @@ export async function GET(
       ? Math.round(sectionStats.reduce((a, s) => a + s.accuracy, 0) / sectionStats.length)
       : 0
 
-    const totalScore = attempts.length > 0 ? (attempts[attempts.length - 1].totalScore ?? 0) : 0
+    const totalScore = latest ? (latest.totalScore ?? 0) : 0
     const avgScore = attempts.length > 0
       ? Math.round(attempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / attempts.length * 10) / 10
       : 0
@@ -143,8 +166,12 @@ export async function GET(
     const cheatingLogsData = await prisma.cheatingLog.findMany({
       where: { attempt: { studentId } },
       include: { attempt: { include: { test: { select: { title: true } } } } },
+      order: { createdAt: 'desc' }
+    } as any).catch(() => prisma.cheatingLog.findMany({
+      where: { attempt: { studentId } },
+      include: { attempt: { include: { test: { select: { title: true } } } } },
       orderBy: { createdAt: 'desc' }
-    })
+    }))
 
     const cheatingLogs = cheatingLogsData.map(log => ({
       id: log.id,

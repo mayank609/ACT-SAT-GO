@@ -250,6 +250,8 @@ export function TutorAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Correct' | 'Incorrect' | 'Skipped'>('All');
   const [sectionFilter, setSectionFilter] = useState('All');
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string>('');
+  const [studentAttempts, setStudentAttempts] = useState<any[]>([]);
 
   // Auto-select first section when analytics data changes
   useEffect(() => {
@@ -265,7 +267,7 @@ export function TutorAnalyticsPage() {
     return ['All', ...Array.from(new Set(currentAnalytics.questionPacingStats.map(q => q.sectionName)))];
   }, [currentAnalytics]);
 
-
+  // Load students on mount
   useEffect(() => {
     if (!dbId) return;
     api.getTutorAssignments({ tutorId: dbId })
@@ -286,6 +288,41 @@ export function TutorAnalyticsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [dbId]);
+
+  // Load attempts for selected student
+  useEffect(() => {
+    if (selectedStudent === 'all') {
+      setStudentAttempts([]);
+      setSelectedAttemptId('');
+      return;
+    }
+    api.getStudentAttempts(selectedStudent)
+      .then((r) => {
+        const submitted = ((r.attempts as any[]) ?? []).filter(a => a.status === 'SUBMITTED');
+        setStudentAttempts(submitted);
+        if (submitted.length > 0) {
+          setSelectedAttemptId(submitted[0].id);
+        } else {
+          setSelectedAttemptId('');
+        }
+      })
+      .catch(() => {});
+  }, [selectedStudent]);
+
+  // Load specific analytics for selected student & attempt
+  useEffect(() => {
+    if (selectedStudent === 'all') return;
+    if (studentAttempts.length > 0 && !selectedAttemptId) return;
+
+    api.getStudentAnalytics(selectedStudent, selectedAttemptId || undefined)
+      .then((data) => {
+        setAnalyticsMap((prev) => ({
+          ...prev,
+          [selectedStudent]: data as AnalyticsData,
+        }));
+      })
+      .catch(() => {});
+  }, [selectedStudent, selectedAttemptId]);
 
   const currentAnalytics = selectedStudent !== 'all' ? analyticsMap[selectedStudent] : null;
   const currentStudentProfile = students.find((s) => s.id === selectedStudent);
@@ -434,13 +471,23 @@ export function TutorAnalyticsPage() {
               : `Performance breakdown for ${currentStudentProfile?.name}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-slate-500 font-semibold hidden md:inline">Focus Student:</span>
           <select value={selectedStudent} onChange={(e) => setSelectedStudent(e.target.value)}
             className="px-3 py-2 text-sm border border-slate-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="all">All Students (Aggregate)</option>
             {students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+          {selectedStudent !== 'all' && studentAttempts.length > 0 && (
+            <select value={selectedAttemptId} onChange={(e) => setSelectedAttemptId(e.target.value)}
+              className="px-3 py-2 text-sm border border-slate-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {studentAttempts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.test.title} — {a.completedAt ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 

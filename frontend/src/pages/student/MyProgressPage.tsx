@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, Target, Clock, CheckCircle, XCircle, Minus, AlertCircle, Zap, FileSearch } from 'lucide-react';
+import { TrendingUp, Target, Clock, CheckCircle, XCircle, Minus, AlertCircle, Zap, FileSearch, ChevronDown } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -239,6 +239,8 @@ export function MyProgressPage() {
   const [activeSection, setActiveSection] = useState<string>('all');
   const [attempts, setAttempts] = useState<Array<{ id: string; status: string; totalScore: number | null; startedAt: string; completedAt: string | null; test: { title: string; sections: Array<{ _count: { questions: number } }> } }>>([]);
 
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string>('');
+
   // Auto-select first section when analytics data changes
   useEffect(() => {
     if (analytics && analytics.questionPacingStats && analytics.questionPacingStats.length > 0) {
@@ -280,13 +282,39 @@ export function MyProgressPage() {
     return generateTopicAnalysis(pacing);
   }, [pacing]);
 
+  // Load attempts when student changes
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
-    Promise.all([
-      api.getStudentAnalytics(dbId).then((r) => setAnalytics(r)).catch(() => {}),
-      api.getStudentAttempts(dbId).then((r) => setAttempts((r.attempts as any[]).filter(a => a.status === 'SUBMITTED'))).catch(() => {}),
-    ]).finally(() => setLoading(false));
+    setLoading(true);
+    api.getStudentAttempts(dbId)
+      .then((r) => {
+        const submitted = ((r.attempts as any[]) ?? []).filter(a => a.status === 'SUBMITTED');
+        setAttempts(submitted);
+        if (submitted.length > 0) {
+          setSelectedAttemptId(submitted[0].id);
+        } else {
+          setSelectedAttemptId('');
+          // If no attempts, fetch default analytics (which will be empty/defaults)
+          api.getStudentAnalytics(dbId)
+            .then(analyticsRes => setAnalytics(analyticsRes as Analytics))
+            .catch(() => {})
+            .finally(() => setLoading(false));
+        }
+      })
+      .catch(() => setLoading(false));
   }, [dbId]);
+
+  // Load analytics when attempt changes
+  useEffect(() => {
+    if (!dbId) return;
+    if (attempts.length > 0 && !selectedAttemptId) return;
+
+    setLoading(true);
+    api.getStudentAnalytics(dbId, selectedAttemptId || undefined)
+      .then((r) => setAnalytics(r))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [dbId, selectedAttemptId]);
 
   if (loading) {
     return (
@@ -328,9 +356,27 @@ export function MyProgressPage() {
     <div className="space-y-6 max-w-4xl">
 
       {/* Page title */}
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">My Progress</h1>
-        <p className="text-gray-500 text-sm mt-0.5">{analytics.totalAttempts} test{analytics.totalAttempts !== 1 ? 's' : ''} completed</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">My Progress</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{analytics.totalAttempts} test{analytics.totalAttempts !== 1 ? 's' : ''} completed</p>
+        </div>
+        {attempts.length > 0 && (
+          <div className="relative self-start sm:self-center">
+            <select
+              value={selectedAttemptId}
+              onChange={e => setSelectedAttemptId(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#1b3d6e] text-gray-700 font-medium min-w-[200px]"
+            >
+              {attempts.map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.test.title} — {a.completedAt ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+        )}
       </div>
 
       {/* ── SCORE SUMMARY ──────────────────────────────────────────────── */}

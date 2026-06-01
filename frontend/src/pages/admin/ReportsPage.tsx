@@ -279,22 +279,47 @@ export function ReportsPage() {
       .finally(() => setStudentsLoading(false));
   }, []);
 
-  // Load attempts + analytics when student changes
+  // Load attempts when student changes
+  useEffect(() => {
+    if (!selectedStudentId) {
+      setAttempts([]);
+      setSelectedAttemptId('');
+      setAnalytics(null);
+      return;
+    }
+    setLoading(true);
+    api.getStudentAttempts(selectedStudentId)
+      .then((attemptsRes) => {
+        const submitted = ((attemptsRes.attempts ?? []) as Attempt[]).filter(a => a.status === 'SUBMITTED');
+        setAttempts(submitted);
+        if (submitted.length > 0) {
+          setSelectedAttemptId(submitted[0].id);
+        } else {
+          setSelectedAttemptId('');
+          // If no attempts, fetch default analytics (which will be empty/defaults)
+          api.getStudentAnalytics(selectedStudentId)
+            .then(analyticsRes => setAnalytics(analyticsRes as Analytics))
+            .catch(() => {})
+            .finally(() => setLoading(false));
+        }
+      })
+      .catch(() => setLoading(false));
+  }, [selectedStudentId]);
+
+  // Load analytics when student or attempt changes
   useEffect(() => {
     if (!selectedStudentId) return;
+    // If there are attempts but selectedAttemptId is not set yet, wait for it
+    if (attempts.length > 0 && !selectedAttemptId) return;
+    
     setLoading(true);
-    setAttempts([]); setSelectedAttemptId(''); setAnalytics(null);
-    Promise.all([
-      api.getStudentAttempts(selectedStudentId),
-      api.getStudentAnalytics(selectedStudentId),
-    ]).then(([attemptsRes, analyticsRes]) => {
-      const submitted = ((attemptsRes.attempts ?? []) as Attempt[]).filter(a => a.status === 'SUBMITTED');
-      setAttempts(submitted);
-      if (submitted.length > 0) setSelectedAttemptId(submitted[0].id);
-      setAnalytics(analyticsRes as Analytics);
-    }).catch(() => {})
-    .finally(() => setLoading(false));
-  }, [selectedStudentId]);
+    api.getStudentAnalytics(selectedStudentId, selectedAttemptId || undefined)
+      .then((analyticsRes) => {
+        setAnalytics(analyticsRes as Analytics);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [selectedStudentId, selectedAttemptId]);
 
   const student = students.find(s => s.id === selectedStudentId);
   const attempt = attempts.find(a => a.id === selectedAttemptId);
