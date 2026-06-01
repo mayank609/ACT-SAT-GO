@@ -244,14 +244,31 @@ function generatePacingTimeline(
 
 export function TutorAnalyticsPage() {
   const { dbId } = useAuthStore();
-  const [selectedStudent, setSelectedStudent] = useState<string>('all');
+  const [selectedStudent, setSelectedStudent] = useState<string>(() => sessionStorage.getItem('tutor_analytics_student') || 'all');
   const [students, setStudents] = useState<DbUser[]>([]);
   const [analyticsMap, setAnalyticsMap] = useState<Record<string, AnalyticsData>>({});
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Correct' | 'Incorrect' | 'Skipped'>('All');
   const [sectionFilter, setSectionFilter] = useState('All');
-  const [selectedAttemptId, setSelectedAttemptId] = useState<string>('');
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string>(() => sessionStorage.getItem('tutor_analytics_attemptId') || '');
   const [studentAttempts, setStudentAttempts] = useState<any[]>([]);
+
+  // Sync selection to sessionStorage
+  useEffect(() => {
+    if (selectedStudent) {
+      sessionStorage.setItem('tutor_analytics_student', selectedStudent);
+    } else {
+      sessionStorage.removeItem('tutor_analytics_student');
+    }
+  }, [selectedStudent]);
+
+  useEffect(() => {
+    if (selectedAttemptId) {
+      sessionStorage.setItem('tutor_analytics_attemptId', selectedAttemptId);
+    } else {
+      sessionStorage.removeItem('tutor_analytics_attemptId');
+    }
+  }, [selectedAttemptId]);
 
   // Auto-select first section when analytics data changes
   useEffect(() => {
@@ -301,7 +318,13 @@ export function TutorAnalyticsPage() {
         const submitted = ((r.attempts as any[]) ?? []).filter(a => a.status === 'SUBMITTED');
         setStudentAttempts(submitted);
         if (submitted.length > 0) {
-          setSelectedAttemptId(submitted[0].id);
+          const storedAttemptId = sessionStorage.getItem('tutor_analytics_attemptId');
+          const hasStored = submitted.some(a => a.id === storedAttemptId);
+          if (hasStored && storedAttemptId) {
+            setSelectedAttemptId(storedAttemptId);
+          } else {
+            setSelectedAttemptId(submitted[0].id);
+          }
         } else {
           setSelectedAttemptId('');
         }

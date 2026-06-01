@@ -262,14 +262,31 @@ export function ReportsPage() {
   const navigate = useNavigate();
 
   const [students, setStudents] = useState<DbUser[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState(() => sessionStorage.getItem('admin_reports_studentId') || '');
   const [attempts, setAttempts] = useState<Attempt[]>([]);
-  const [selectedAttemptId, setSelectedAttemptId] = useState('');
+  const [selectedAttemptId, setSelectedAttemptId] = useState(() => sessionStorage.getItem('admin_reports_attemptId') || '');
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(false);
   const [studentsLoading, setStudentsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'topics' | 'questions' | 'trend'>('topics');
   const [sectionFilter, setSectionFilter] = useState('All');
+
+  // Sync selection to sessionStorage
+  useEffect(() => {
+    if (selectedStudentId) {
+      sessionStorage.setItem('admin_reports_studentId', selectedStudentId);
+    } else {
+      sessionStorage.removeItem('admin_reports_studentId');
+    }
+  }, [selectedStudentId]);
+
+  useEffect(() => {
+    if (selectedAttemptId) {
+      sessionStorage.setItem('admin_reports_attemptId', selectedAttemptId);
+    } else {
+      sessionStorage.removeItem('admin_reports_attemptId');
+    }
+  }, [selectedAttemptId]);
 
   // Load students
   useEffect(() => {
@@ -293,7 +310,13 @@ export function ReportsPage() {
         const submitted = ((attemptsRes.attempts ?? []) as Attempt[]).filter(a => a.status === 'SUBMITTED');
         setAttempts(submitted);
         if (submitted.length > 0) {
-          setSelectedAttemptId(submitted[0].id);
+          const storedAttemptId = sessionStorage.getItem('admin_reports_attemptId');
+          const hasStored = submitted.some(a => a.id === storedAttemptId);
+          if (hasStored && storedAttemptId) {
+            setSelectedAttemptId(storedAttemptId);
+          } else {
+            setSelectedAttemptId(submitted[0].id);
+          }
         } else {
           setSelectedAttemptId('');
           // If no attempts, fetch default analytics (which will be empty/defaults)

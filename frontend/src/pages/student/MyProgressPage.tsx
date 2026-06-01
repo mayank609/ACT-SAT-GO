@@ -239,7 +239,16 @@ export function MyProgressPage() {
   const [activeSection, setActiveSection] = useState<string>('all');
   const [attempts, setAttempts] = useState<Array<{ id: string; status: string; totalScore: number | null; startedAt: string; completedAt: string | null; test: { title: string; sections: Array<{ _count: { questions: number } }> } }>>([]);
 
-  const [selectedAttemptId, setSelectedAttemptId] = useState<string>('');
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string>(() => sessionStorage.getItem('student_progress_attemptId') || '');
+
+  // Sync selection to sessionStorage
+  useEffect(() => {
+    if (selectedAttemptId) {
+      sessionStorage.setItem('student_progress_attemptId', selectedAttemptId);
+    } else {
+      sessionStorage.removeItem('student_progress_attemptId');
+    }
+  }, [selectedAttemptId]);
 
   // Auto-select first section when analytics data changes
   useEffect(() => {
@@ -291,7 +300,13 @@ export function MyProgressPage() {
         const submitted = ((r.attempts as any[]) ?? []).filter(a => a.status === 'SUBMITTED');
         setAttempts(submitted);
         if (submitted.length > 0) {
-          setSelectedAttemptId(submitted[0].id);
+          const storedAttemptId = sessionStorage.getItem('student_progress_attemptId');
+          const hasStored = submitted.some(a => a.id === storedAttemptId);
+          if (hasStored && storedAttemptId) {
+            setSelectedAttemptId(storedAttemptId);
+          } else {
+            setSelectedAttemptId(submitted[0].id);
+          }
         } else {
           setSelectedAttemptId('');
           // If no attempts, fetch default analytics (which will be empty/defaults)
