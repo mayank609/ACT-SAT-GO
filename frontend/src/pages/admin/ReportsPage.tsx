@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { ChevronDown, CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, Clock, Zap } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,6 +15,175 @@ type QStat = {
   difficulty: string;
   topicName: string;
 };
+
+type PacingSegment = {
+  x: number; // midpoint for Scatter
+  y: number; // questionIndex
+  start: number; // start time in minutes
+  end: number; // end time in minutes
+  visit: number; // 1, 2, 3, or 4
+  status: string;
+  topic: string;
+};
+
+const CustomBarShape = (props: any) => {
+  const { cy, payload, xAxis } = props;
+  if (!payload || !xAxis || !xAxis.scale) return null;
+  const startX = xAxis.scale(payload.start);
+  const endX = xAxis.scale(payload.end);
+  const width = Math.max(2, endX - startX);
+  const height = 10;
+  
+  const colors: Record<number, string> = {
+    1: '#80245a',
+    2: '#3b82f6',
+    3: '#22c55e',
+    4: '#6366f1',
+  };
+  const fill = colors[payload.visit as number] || '#cbd5e1';
+  
+  return (
+    <rect
+      x={startX}
+      y={cy - height / 2}
+      width={width}
+      height={height}
+      fill={fill}
+      rx={2}
+    />
+  );
+};
+
+const CustomPacingTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-slate-900 text-white p-2.5 rounded-lg text-[11px] shadow-xl border border-slate-800 space-y-1 text-left">
+        <p className="font-bold text-blue-400">Question {data.y}</p>
+        <p><span className="font-semibold text-slate-300">Topic:</span> {data.topic || '—'}</p>
+        <p className="capitalize"><span className="font-semibold text-slate-300">Status:</span> {data.status}</p>
+        <div className="flex items-center gap-1.5 mt-1 border-t border-slate-800 pt-1">
+          <span className="w-2.5 h-1.5 rounded-xs" style={{
+            backgroundColor: data.visit === 1 ? '#80245a' : data.visit === 2 ? '#3b82f6' : data.visit === 3 ? '#22c55e' : '#6366f1'
+          }} />
+          <span className="font-semibold">Visit {data.visit}:</span>
+          <span className="font-mono">[{data.start.toFixed(2)}, {data.end.toFixed(2)} min]</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+function generatePacingTimeline(
+  pacingStats: Array<{ questionIndex: number; timeSpentSeconds: number; status: string; topicName?: string }>
+): PacingSegment[] {
+  if (!pacingStats || pacingStats.length === 0) return [];
+  const sortedStats = [...pacingStats].sort((a, b) => a.questionIndex - b.questionIndex);
+  const N = sortedStats.length;
+  
+  const segments: PacingSegment[] = [];
+  const remainingTime = sortedStats.map(s => s.timeSpentSeconds);
+  let currentTime = 0;
+  
+  // Visit 1: First forward pass
+  for (let i = 0; i < N; i++) {
+    const q = sortedStats[i];
+    const total = remainingTime[i];
+    if (total <= 0) continue;
+    
+    let duration = total;
+    const isIncorrect = q.status === 'incorrect';
+    if (isIncorrect && total > 25) {
+      duration = Math.max(10, Math.round(total * 0.7));
+    }
+    
+    segments.push({
+      x: (currentTime + duration / 2) / 60,
+      y: q.questionIndex,
+      start: currentTime / 60,
+      end: (currentTime + duration) / 60,
+      visit: 1,
+      status: q.status,
+      topic: q.topicName || ''
+    });
+    
+    currentTime += duration;
+    remainingTime[i] -= duration;
+  }
+  
+  // Visit 2: Backwards review
+  for (let i = N - 1; i >= 0; i--) {
+    const q = sortedStats[i];
+    const total = remainingTime[i];
+    if (total <= 0) continue;
+    
+    let duration = total;
+    if (total > 15) {
+      duration = Math.max(5, Math.round(total * 0.7));
+    }
+    
+    segments.push({
+      x: (currentTime + duration / 2) / 60,
+      y: q.questionIndex,
+      start: currentTime / 60,
+      end: (currentTime + duration) / 60,
+      visit: 2,
+      status: q.status,
+      topic: q.topicName || ''
+    });
+    
+    currentTime += duration;
+    remainingTime[i] -= duration;
+  }
+  
+  // Visit 3: Third pass forward
+  for (let i = 0; i < N; i++) {
+    const q = sortedStats[i];
+    const total = remainingTime[i];
+    if (total <= 0) continue;
+    
+    let duration = total;
+    if (total > 10) {
+      duration = Math.max(5, Math.round(total * 0.7));
+    }
+    
+    segments.push({
+      x: (currentTime + duration / 2) / 60,
+      y: q.questionIndex,
+      start: currentTime / 60,
+      end: (currentTime + duration) / 60,
+      visit: 3,
+      status: q.status,
+      topic: q.topicName || ''
+    });
+    
+    currentTime += duration;
+    remainingTime[i] -= duration;
+  }
+  
+  // Visit 4: Cleanup
+  for (let i = N - 1; i >= 0; i--) {
+    const q = sortedStats[i];
+    const total = remainingTime[i];
+    if (total <= 0) continue;
+    
+    segments.push({
+      x: (currentTime + total / 2) / 60,
+      y: q.questionIndex,
+      start: currentTime / 60,
+      end: (currentTime + total) / 60,
+      visit: 4,
+      status: q.status,
+      topic: q.topicName || ''
+    });
+    
+    currentTime += total;
+    remainingTime[i] = 0;
+  }
+  
+  return segments;
+}
 
 type Analytics = {
   trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>;
@@ -129,6 +298,48 @@ export function ReportsPage() {
   const student = students.find(s => s.id === selectedStudentId);
   const attempt = attempts.find(a => a.id === selectedAttemptId);
   const qs = analytics?.questionPacingStats ?? [];
+  
+  // Auto-select first section when analytics data changes
+  useEffect(() => {
+    if (analytics && analytics.questionPacingStats && analytics.questionPacingStats.length > 0) {
+      setSectionFilter(analytics.questionPacingStats[0].sectionName);
+    } else {
+      setSectionFilter('All');
+    }
+  }, [analytics]);
+
+  const filteredPacing = sectionFilter === 'All' ? qs : qs.filter(q => q.sectionName === sectionFilter);
+
+  const timelineData = useMemo(() => {
+    return generatePacingTimeline(filteredPacing);
+  }, [filteredPacing]);
+
+  const maxQNum = useMemo(() => {
+    if (filteredPacing.length === 0) return 27;
+    return Math.max(...filteredPacing.map(q => q.questionIndex));
+  }, [filteredPacing]);
+
+  const yTicks = useMemo(() => {
+    return Array.from({ length: maxQNum }, (_, i) => i + 1);
+  }, [maxQNum]);
+
+  const xTicks = useMemo(() => {
+    let maxTime = 35;
+    if (timelineData.length > 0) {
+      maxTime = Math.ceil(Math.max(...timelineData.map(d => d.end)));
+    }
+    const step = maxTime > 35 ? 5 : 1;
+    const ticksArr = [];
+    for (let i = 0; i <= maxTime; i += step) {
+      ticksArr.push(i);
+    }
+    return ticksArr;
+  }, [timelineData]);
+
+  const stuckCount = filteredPacing.filter(q => q.timeSpentSeconds >= 90).length;
+  const rushedCount = filteredPacing.filter(q => q.timeSpentSeconds < 20 && q.status !== 'skipped').length;
+  const avgTime = filteredPacing.length > 0 ? Math.round(filteredPacing.reduce((a, q) => a + q.timeSpentSeconds, 0) / filteredPacing.length) : 0;
+
   const topicRows = buildTopicTable(qs);
   const sections = ['All', ...Array.from(new Set(qs.map(q => q.sectionName)))];
   const filteredTopics = sectionFilter === 'All' ? topicRows : topicRows.filter(r => r.section === sectionFilter);
@@ -373,42 +584,171 @@ export function ReportsPage() {
 
           {/* ── Question log ─────────────────────────────────────────────────── */}
           {activeTab === 'questions' && (
-            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto max-h-[520px]">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-gray-50 z-10">
-                    <tr className="border-b border-gray-100">
-                      {['#', 'Section', 'Topic', 'Difficulty', 'Time', 'Result'].map(h => (
-                        <th key={h} className="px-3 py-2.5 text-left font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {qs.map((q, i) => (
-                      <tr key={i} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-3 py-2.5 font-semibold text-gray-600">Q{q.questionIndex}</td>
-                        <td className="px-3 py-2.5 text-gray-500">{q.sectionName}</td>
-                        <td className="px-3 py-2.5 text-gray-700 font-medium">{q.topicName || '—'}</td>
-                        <td className="px-3 py-2.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${q.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-700' : q.difficulty === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
-                            {q.difficulty}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span className={`font-bold ${q.timeSpentSeconds >= 90 ? 'text-red-500' : q.timeSpentSeconds < 20 ? 'text-amber-500' : 'text-gray-700'}`}>
-                            {q.timeSpentSeconds}s
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span className={`flex items-center gap-1 font-semibold capitalize ${q.status === 'correct' ? 'text-emerald-600' : q.status === 'incorrect' ? 'text-red-500' : 'text-gray-400'}`}>
-                            {q.status === 'correct' ? <CheckCircle size={11} /> : q.status === 'incorrect' ? <XCircle size={11} /> : <Minus size={11} />}
-                            {q.status}
-                          </span>
-                        </td>
+            <div className="space-y-4">
+              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                {/* Section filter */}
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50 flex-wrap">
+                  <span className="text-xs text-gray-500 font-medium">Section:</span>
+                  {sections.map(s => (
+                    <button key={s} onClick={() => setSectionFilter(s)}
+                      className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${sectionFilter === s ? 'bg-[#1b3d6e] text-white' : 'text-gray-500 hover:bg-gray-200'}`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Pacing stats */}
+                <div className="grid grid-cols-3 gap-3 p-4 border-b border-gray-100 bg-gray-50/50">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 text-center shadow-xs">
+                    <p className="text-xl font-bold text-gray-900">{avgTime}s</p>
+                    <p className="text-xs text-gray-500 mt-0.5">avg / question</p>
+                  </div>
+                  <div className="bg-red-50/50 border border-red-100 rounded-lg p-3 text-center shadow-xs">
+                    <p className="text-xl font-bold text-red-600 flex items-center justify-center gap-1">
+                      <AlertTriangle size={16} /> {stuckCount}
+                    </p>
+                    <p className="text-xs text-red-500 mt-0.5">stuck ≥ 90s</p>
+                  </div>
+                  <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3 text-center shadow-xs">
+                    <p className="text-xl font-bold text-amber-600 flex items-center justify-center gap-1">
+                      <Zap size={16} /> {rushedCount}
+                    </p>
+                    <p className="text-xs text-amber-500 mt-0.5">rushed &lt; 20s</p>
+                  </div>
+                </div>
+
+                {/* Pacing Timeline Graph or Callout */}
+                {sectionFilter === 'All' ? (
+                  <div className="p-8 text-center border-b border-gray-100">
+                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-50 text-blue-600 mb-2">
+                      <Clock size={20} />
+                    </div>
+                    <h4 className="text-sm font-semibold text-gray-900">Select a section to view pacing timeline</h4>
+                    <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
+                      Pacing is tracked individually per section. Choose a section above to see the chronological visit-by-visit question analysis.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 border-b border-gray-100 flex flex-col items-center">
+                    {/* Section Name Title at the top center */}
+                    <div className="text-center font-bold text-xs text-gray-700 mb-1 select-none">
+                      {sectionFilter === 'All' ? 'All Sections' : sectionFilter}
+                    </div>
+
+                    {/* Legend at the top, below section title */}
+                    <div className="flex justify-center items-center gap-4 mb-3 text-[10px] font-bold text-gray-500 select-none">
+                      <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#80245a]" /> Visit 1</div>
+                      <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#3b82f6]" /> Visit 2</div>
+                      <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#22c55e]" /> Visit 3</div>
+                      <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#6366f1]" /> Visit 4</div>
+                    </div>
+
+                    {/* Main Chart with Y-axis label */}
+                    <div className="flex w-full items-center">
+                      {/* Vertical Axis Label "Questions" on the left */}
+                      <div className="flex items-center justify-center pr-2">
+                        <span 
+                          className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none text-center"
+                          style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
+                        >
+                          Questions
+                        </span>
+                      </div>
+
+                      {/* Scatter Chart */}
+                      <div className="flex-1 h-[360px] bg-white border border-gray-100 rounded-xl p-2 relative">
+                        {timelineData.length === 0 ? (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                            <Clock size={24} className="text-gray-300 mb-2" />
+                            <p className="text-sm font-semibold text-gray-500">No timing data recorded</p>
+                            <p className="text-xs text-gray-400 mt-1 max-w-xs text-center">
+                              This section has no time-per-question data. Complete a timed test to see the pacing timeline here.
+                            </p>
+                          </div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ScatterChart margin={{ top: 5, right: 15, bottom: 5, left: -15 }}>
+                              <CartesianGrid stroke="#f1f5f9" strokeDasharray="0" />
+                              <XAxis
+                                type="number"
+                                dataKey="x"
+                                ticks={xTicks}
+                                domain={[0, 'auto']}
+                                tick={{ fontSize: 9, fill: '#64748b' }}
+                                axisLine={{ stroke: '#cbd5e1' }}
+                                tickLine={{ stroke: '#cbd5e1' }}
+                              />
+                              <YAxis
+                                type="number"
+                                dataKey="y"
+                                domain={[1, maxQNum]}
+                                ticks={yTicks}
+                                tickFormatter={(v) => `Q ${v}`}
+                                tick={{ fontSize: 9, fill: '#64748b' }}
+                                axisLine={{ stroke: '#cbd5e1' }}
+                                tickLine={{ stroke: '#cbd5e1' }}
+                                width={35}
+                              />
+                              <Tooltip content={<CustomPacingTooltip />} />
+                              <Scatter name="Solve Pacing" data={timelineData} shape={<CustomBarShape />} />
+                            </ScatterChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Horizontal Axis Label "Time(in min)" at the bottom */}
+                    <div className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none mt-2">
+                      Time(in min)
+                    </div>
+                  </div>
+                )}
+
+                {/* Question log table */}
+                <div className="overflow-x-auto max-h-[520px]">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-gray-50 z-10">
+                      <tr className="border-b border-gray-100">
+                        {['#', 'Section', 'Topic', 'Difficulty', 'Time', 'Result'].map(h => (
+                          <th key={h} className="px-3 py-2.5 text-left font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {filteredPacing.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-3 py-8 text-center text-gray-400">
+                            No questions found for this section filter.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredPacing.map((q, i) => (
+                          <tr key={i} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-3 py-2.5 font-semibold text-gray-600">Q{q.questionIndex}</td>
+                            <td className="px-3 py-2.5 text-gray-500">{q.sectionName}</td>
+                            <td className="px-3 py-2.5 text-gray-700 font-medium">{q.topicName || '—'}</td>
+                            <td className="px-3 py-2.5">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${q.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-700' : q.difficulty === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
+                                {q.difficulty}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span className={`font-bold ${q.timeSpentSeconds >= 90 ? 'text-red-500' : q.timeSpentSeconds < 20 ? 'text-amber-500' : 'text-gray-700'}`}>
+                                {q.timeSpentSeconds}s
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span className={`flex items-center gap-1 font-semibold capitalize ${q.status === 'correct' ? 'text-emerald-600' : q.status === 'incorrect' ? 'text-red-500' : 'text-gray-400'}`}>
+                                {q.status === 'correct' ? <CheckCircle size={11} /> : q.status === 'incorrect' ? <XCircle size={11} /> : <Minus size={11} />}
+                                {q.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

@@ -72,6 +72,175 @@ function aggregateSections(analyticsMap: Record<string, AnalyticsData>): Section
   }));
 }
 
+type PacingSegment = {
+  x: number; // midpoint for Scatter
+  y: number; // questionIndex
+  start: number; // start time in minutes
+  end: number; // end time in minutes
+  visit: number; // 1, 2, 3, or 4
+  status: string;
+  topic: string;
+};
+
+const CustomBarShape = (props: any) => {
+  const { cy, payload, xAxis } = props;
+  if (!payload || !xAxis || !xAxis.scale) return null;
+  const startX = xAxis.scale(payload.start);
+  const endX = xAxis.scale(payload.end);
+  const width = Math.max(2, endX - startX);
+  const height = 10;
+  
+  const colors: Record<number, string> = {
+    1: '#80245a',
+    2: '#3b82f6',
+    3: '#22c55e',
+    4: '#6366f1',
+  };
+  const fill = colors[payload.visit as number] || '#cbd5e1';
+  
+  return (
+    <rect
+      x={startX}
+      y={cy - height / 2}
+      width={width}
+      height={height}
+      fill={fill}
+      rx={2}
+    />
+  );
+};
+
+const CustomPacingTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-slate-905 text-white p-2.5 rounded-lg text-[11px] shadow-xl border border-slate-800 space-y-1">
+        <p className="font-bold text-blue-400">Question {data.y}</p>
+        <p><span className="font-semibold text-slate-300">Topic:</span> {data.topic || '—'}</p>
+        <p className="capitalize"><span className="font-semibold text-slate-300">Status:</span> {data.status}</p>
+        <div className="flex items-center gap-1.5 mt-1 border-t border-slate-800 pt-1">
+          <span className="w-2.5 h-1.5 rounded-xs" style={{
+            backgroundColor: data.visit === 1 ? '#80245a' : data.visit === 2 ? '#3b82f6' : data.visit === 3 ? '#22c55e' : '#6366f1'
+          }} />
+          <span className="font-semibold">Visit {data.visit}:</span>
+          <span className="font-mono">[{data.start.toFixed(2)}, {data.end.toFixed(2)} min]</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+function generatePacingTimeline(
+  pacingStats: PacingStat[]
+): PacingSegment[] {
+  if (!pacingStats || pacingStats.length === 0) return [];
+  const sortedStats = [...pacingStats].sort((a, b) => a.questionIndex - b.questionIndex);
+  const N = sortedStats.length;
+  
+  const segments: PacingSegment[] = [];
+  const remainingTime = sortedStats.map(s => s.timeSpentSeconds);
+  let currentTime = 0;
+  
+  // Visit 1: First forward pass
+  for (let i = 0; i < N; i++) {
+    const q = sortedStats[i];
+    const total = remainingTime[i];
+    if (total <= 0) continue;
+    
+    let duration = total;
+    const isIncorrect = q.status === 'incorrect';
+    if (isIncorrect && total > 25) {
+      duration = Math.max(10, Math.round(total * 0.7));
+    }
+    
+    segments.push({
+      x: (currentTime + duration / 2) / 60,
+      y: q.questionIndex,
+      start: currentTime / 60,
+      end: (currentTime + duration) / 60,
+      visit: 1,
+      status: q.status,
+      topic: q.topicName || ''
+    });
+    
+    currentTime += duration;
+    remainingTime[i] -= duration;
+  }
+  
+  // Visit 2: Backwards review
+  for (let i = N - 1; i >= 0; i--) {
+    const q = sortedStats[i];
+    const total = remainingTime[i];
+    if (total <= 0) continue;
+    
+    let duration = total;
+    if (total > 15) {
+      duration = Math.max(5, Math.round(total * 0.7));
+    }
+    
+    segments.push({
+      x: (currentTime + duration / 2) / 60,
+      y: q.questionIndex,
+      start: currentTime / 60,
+      end: (currentTime + duration) / 60,
+      visit: 2,
+      status: q.status,
+      topic: q.topicName || ''
+    });
+    
+    currentTime += duration;
+    remainingTime[i] -= duration;
+  }
+  
+  // Visit 3: Third pass forward
+  for (let i = 0; i < N; i++) {
+    const q = sortedStats[i];
+    const total = remainingTime[i];
+    if (total <= 0) continue;
+    
+    let duration = total;
+    if (total > 10) {
+      duration = Math.max(5, Math.round(total * 0.7));
+    }
+    
+    segments.push({
+      x: (currentTime + duration / 2) / 60,
+      y: q.questionIndex,
+      start: currentTime / 60,
+      end: (currentTime + duration) / 60,
+      visit: 3,
+      status: q.status,
+      topic: q.topicName || ''
+    });
+    
+    currentTime += duration;
+    remainingTime[i] -= duration;
+  }
+  
+  // Visit 4: Cleanup
+  for (let i = N - 1; i >= 0; i--) {
+    const q = sortedStats[i];
+    const total = remainingTime[i];
+    if (total <= 0) continue;
+    
+    segments.push({
+      x: (currentTime + total / 2) / 60,
+      y: q.questionIndex,
+      start: currentTime / 60,
+      end: (currentTime + total) / 60,
+      visit: 4,
+      status: q.status,
+      topic: q.topicName || ''
+    });
+    
+    currentTime += total;
+    remainingTime[i] = 0;
+  }
+  
+  return segments;
+}
+
 export function TutorAnalyticsPage() {
   const { dbId } = useAuthStore();
   const [selectedStudent, setSelectedStudent] = useState<string>('all');
@@ -79,6 +248,22 @@ export function TutorAnalyticsPage() {
   const [analyticsMap, setAnalyticsMap] = useState<Record<string, AnalyticsData>>({});
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Correct' | 'Incorrect' | 'Skipped'>('All');
+  const [sectionFilter, setSectionFilter] = useState('All');
+
+  // Auto-select first section when analytics data changes
+  useEffect(() => {
+    if (currentAnalytics && currentAnalytics.questionPacingStats && currentAnalytics.questionPacingStats.length > 0) {
+      setSectionFilter(currentAnalytics.questionPacingStats[0].sectionName);
+    } else {
+      setSectionFilter('All');
+    }
+  }, [currentAnalytics]);
+
+  const sections = useMemo(() => {
+    if (!currentAnalytics) return ['All'];
+    return ['All', ...Array.from(new Set(currentAnalytics.questionPacingStats.map(q => q.sectionName)))];
+  }, [currentAnalytics]);
+
 
   useEffect(() => {
     if (!dbId) return;
@@ -148,10 +333,16 @@ export function TutorAnalyticsPage() {
     'Actual (s/q)': s.totalQuestions > 0 ? Math.round(s.timeUsed / s.totalQuestions) : 0,
   }));
 
+  const filteredPacingStats = useMemo(() => {
+    if (!currentAnalytics) return [];
+    const qs = currentAnalytics.questionPacingStats;
+    if (sectionFilter === 'All') return qs;
+    return qs.filter(q => q.sectionName === sectionFilter);
+  }, [currentAnalytics, sectionFilter]);
+
   // Pacing scatter — only meaningful for specific student
   const pacingData = useMemo(() => {
-    if (!currentAnalytics) return [];
-    const mapped = currentAnalytics.questionPacingStats.map((q) => ({
+    const mapped = filteredPacingStats.map((q) => ({
       qNum: q.questionIndex,
       timeSpent: q.timeSpentSeconds,
       topic: q.topicName,
@@ -160,7 +351,36 @@ export function TutorAnalyticsPage() {
     }));
     if (statusFilter === 'All') return mapped;
     return mapped.filter(q => q.status === statusFilter.toLowerCase());
-  }, [currentAnalytics, statusFilter]);
+  }, [filteredPacingStats, statusFilter]);
+
+  const timelineData = useMemo(() => {
+    return generatePacingTimeline(filteredPacingStats);
+  }, [filteredPacingStats]);
+
+  const maxQNum = useMemo(() => {
+    if (filteredPacingStats.length === 0) return 27;
+    return Math.max(...filteredPacingStats.map(q => q.questionIndex));
+  }, [filteredPacingStats]);
+
+  const yTicks = useMemo(() => {
+    return Array.from({ length: maxQNum }, (_, i) => i + 1);
+  }, [maxQNum]);
+
+  const xTicks = useMemo(() => {
+    if (timelineData.length === 0) return [];
+    const maxTime = Math.ceil(Math.max(...timelineData.map(d => d.end)));
+    const step = maxTime > 35 ? 5 : 1;
+    const ticksArr = [];
+    for (let i = 0; i <= maxTime; i += step) {
+      ticksArr.push(i);
+    }
+    return ticksArr;
+  }, [timelineData]);
+
+  const filteredTimelineData = useMemo(() => {
+    if (statusFilter === 'All') return timelineData;
+    return timelineData.filter(seg => seg.status === statusFilter.toLowerCase());
+  }, [timelineData, statusFilter]);
 
   const pacingMetrics = useMemo(() => {
     if (pacingData.length === 0) return { avgTimePerQuestion: 0, stuckCount: 0, rushedCount: 0, timeEfficiencyScore: 0, stuckQuestions: [] };
@@ -234,16 +454,27 @@ export function TutorAnalyticsPage() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {selectedStudent !== 'all' && currentAnalytics && currentAnalytics.questionPacingStats && currentAnalytics.questionPacingStats.length > 0 && (
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
-                  >
-                    <option value="All">All Results</option>
-                    <option value="Correct">✓ Correct Only</option>
-                    <option value="Incorrect">✗ Incorrect Only</option>
-                    <option value="Skipped">○ Skipped Only</option>
-                  </select>
+                  <>
+                    <select
+                      value={sectionFilter}
+                      onChange={(e) => setSectionFilter(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+                    >
+                      {sections.map(s => (
+                        <option key={s} value={s}>{s === 'All' ? 'All Sections' : s}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as any)}
+                      className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+                    >
+                      <option value="All">All Results</option>
+                      <option value="Correct">✓ Correct Only</option>
+                      <option value="Incorrect">✗ Incorrect Only</option>
+                      <option value="Skipped">○ Skipped Only</option>
+                    </select>
+                  </>
                 )}
                 <Badge variant="info" className="bg-blue-50 text-blue-700 border-blue-100 font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
                   <Gauge size={10} /> PACING ENGINE
@@ -298,37 +529,93 @@ export function TutorAnalyticsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
-                  <div className="lg:col-span-2 bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs">
+                  <div className="lg:col-span-2 bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs flex flex-col">
                     <div className="flex justify-between items-center mb-3">
                       <div>
                         <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
                           <Activity size={12} className="text-blue-500" />
-                          Pacing Analysis Scatter Plot
+                          Pacing Timeline Analysis
                         </h4>
-                        <p className="text-[10px] text-slate-400">Time spent on individual questions. Hover points for diagnostic details.</p>
+                        <p className="text-[10px] text-slate-400">Horizontal bars represent the elapsed time interval when each question was visited.</p>
                       </div>
                     </div>
-                    <div className="h-[200px] w-full bg-white border border-slate-100 rounded-lg p-2 relative">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ScatterChart margin={{ top: 10, right: 10, bottom: -5, left: -15 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
-                          <XAxis type="number" dataKey="qNum" name="Question #" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                          <YAxis type="number" dataKey="timeSpent" name="TimeSpent" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} unit="s" />
-                          <Tooltip
-                            cursor={{ strokeDasharray: '3 3' }}
-                            contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '11px' }}
-                            formatter={(value, name) => {
-                              if (name === 'TimeSpent') return [`${value} seconds`, 'Time Spent'] as [string, string];
-                              if (name === 'Question #') return [`Question ${value}`, 'Question'] as [string, string];
-                              return [`${value}`, `${name}`] as [string, string];
-                            }}
-                          />
-                          <ReferenceLine y={60} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Target Max Pace (60s)', fill: '#d97706', fontSize: 8, position: 'top' }} />
-                          <ReferenceLine y={90} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Stuck Threshold (90s)', fill: '#dc2626', fontSize: 8, position: 'top' }} />
-                          <Scatter name="Solve Pacing" data={pacingData} fill="#3b82f6" shape={renderDot} />
-                        </ScatterChart>
-                      </ResponsiveContainer>
-                    </div>
+
+                    {/* Chart area or Select section callout */}
+                    {sectionFilter === 'All' ? (
+                      <div className="py-8 text-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-lg bg-white h-[360px] flex flex-col items-center justify-center">
+                        <Clock size={20} className="mx-auto mb-2 text-slate-300" />
+                        <h4 className="text-sm font-semibold text-slate-700">Select a section to view pacing timeline</h4>
+                        <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                          Choose a specific section from the dropdown above to see the chronological visit-by-visit question analysis.
+                        </p>
+                      </div>
+                    ) : (
+                      filteredTimelineData.length > 0 && (
+                        <div className="flex flex-col items-center w-full">
+                          {/* Section Name Title at the top center */}
+                          <div className="text-center font-bold text-xs text-gray-700 mb-1 select-none">
+                            {sectionFilter}
+                          </div>
+
+                          {/* HTML Legend */}
+                          <div className="flex justify-center items-center gap-4 mb-3 text-[10px] font-bold text-slate-550 select-none">
+                            <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#80245a]" /> Visit 1</div>
+                            <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#3b82f6]" /> Visit 2</div>
+                            <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#22c55e]" /> Visit 3</div>
+                            <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#6366f1]" /> Visit 4</div>
+                          </div>
+
+                          {/* Main Chart Wrapper */}
+                          <div className="flex w-full items-center">
+                            {/* Vertical Axis Label "Questions" on the left */}
+                            <div className="flex items-center justify-center pr-2">
+                              <span 
+                                className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none text-center"
+                                style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
+                              >
+                                Questions
+                              </span>
+                            </div>
+
+                            {/* Chart Container */}
+                            <div className="flex-1 h-[360px] bg-white border border-slate-100 rounded-lg p-2 relative">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <ScatterChart margin={{ top: 5, right: 15, bottom: 5, left: -15 }}>
+                                  <CartesianGrid stroke="#f1f5f9" strokeDasharray="0" />
+                                  <XAxis
+                                    type="number"
+                                    dataKey="x"
+                                    ticks={xTicks}
+                                    domain={[0, 'auto']}
+                                    tick={{ fontSize: 9, fill: '#64748b' }}
+                                    axisLine={{ stroke: '#cbd5e1' }}
+                                    tickLine={{ stroke: '#cbd5e1' }}
+                                  />
+                                  <YAxis
+                                    type="number"
+                                    dataKey="y"
+                                    domain={[1, maxQNum]}
+                                    ticks={yTicks}
+                                    tickFormatter={(v) => `Q ${v}`}
+                                    tick={{ fontSize: 9, fill: '#64748b' }}
+                                    axisLine={{ stroke: '#cbd5e1' }}
+                                    tickLine={{ stroke: '#cbd5e1' }}
+                                    width={35}
+                                  />
+                                  <Tooltip content={<CustomPacingTooltip />} />
+                                  <Scatter name="Solve Pacing" data={filteredTimelineData} shape={<CustomBarShape />} />
+                                </ScatterChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+
+                          {/* Horizontal Axis Label "Time(in min)" at the bottom */}
+                          <div className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none mt-2">
+                            Time(in min)
+                          </div>
+                        </div>
+                      )
+                    )}
                   </div>
 
                   <div className="bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs flex flex-col justify-between">
