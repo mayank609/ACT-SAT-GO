@@ -284,6 +284,7 @@ export function TestReviewPage() {
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
 
   useEffect(() => {
     if (!attemptId) { setError('No attempt ID'); setLoading(false); return; }
@@ -292,6 +293,57 @@ export function TestReviewPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [attemptId]);
+
+  useEffect(() => {
+    if (!attempt) return;
+    
+    // Sort and retrieve active section data
+    const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+    const activeSecData = sortedSections[activeSection];
+    if (!activeSecData) return;
+
+    // Flatten passage questions if needed
+    const flattenedQuestions: DbTestQuestion[] = [];
+    activeSecData.section.questions.forEach((tq) => {
+      const q = tq.question;
+      const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+      if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+        q.childQuestions.forEach((cq) => {
+          flattenedQuestions.push({
+            id: cq.id,
+            questionId: cq.id,
+            orderIndex: tq.orderIndex,
+            question: {
+              ...cq,
+              parentQuestionText: q.content.text,
+            } as any,
+          });
+        });
+      } else {
+        flattenedQuestions.push(tq);
+      }
+    });
+
+    const answersMap = new Map(attempt.answers.map((a) => [a.questionId, a]));
+
+    const filtered = flattenedQuestions.filter((tq) => {
+      const ans = answersMap.get(tq.questionId);
+      if (questionFilter === 'correct') return !!ans?.answerGiven && answersMatch(ans.answerGiven, tq.question.correctAnswer);
+      if (questionFilter === 'incorrect') return !!ans?.answerGiven && !answersMatch(ans.answerGiven, tq.question.correctAnswer);
+      if (questionFilter === 'skipped') return !ans?.answerGiven;
+      if (questionFilter === 'marked') return ans?.isFlagged === true;
+      return true;
+    });
+
+    if (filtered.length > 0) {
+      const exists = filtered.some((q) => q.questionId === selectedQuestionId);
+      if (!exists) {
+        setSelectedQuestionId(filtered[0].questionId);
+      }
+    } else {
+      setSelectedQuestionId('');
+    }
+  }, [activeSection, questionFilter, attempt, selectedQuestionId]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-60">
@@ -382,6 +434,12 @@ export function TestReviewPage() {
     return true;
   }) ?? [];
 
+  const filteredIds = new Set(filteredQuestions.map((q) => q.questionId));
+  const selectedTq = activeSecData?.section.questions.find((q) => q.questionId === selectedQuestionId);
+  const currentFilteredIndex = filteredQuestions.findIndex((q) => q.questionId === selectedQuestionId);
+  const prevQuestion = currentFilteredIndex > 0 ? filteredQuestions[currentFilteredIndex - 1] : null;
+  const nextQuestion = currentFilteredIndex >= 0 && currentFilteredIndex < filteredQuestions.length - 1 ? filteredQuestions[currentFilteredIndex + 1] : null;
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
@@ -468,83 +526,152 @@ export function TestReviewPage() {
         </div>
 
         <div className="p-4 md:p-6">
-          {/* Section stats */}
-          {activeSectionStats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 mb-5">
-              {[
-                { label: 'Correct', value: activeSectionStats.correct, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                { label: 'Wrong', value: activeSectionStats.incorrect, color: 'text-red-600', bg: 'bg-red-50' },
-                { label: 'Skipped', value: activeSectionStats.skipped, color: 'text-slate-600', bg: 'bg-slate-50' },
-                { label: 'Accuracy', value: `${activeSectionStats.accuracy}%`, color: 'text-blue-600', bg: 'bg-blue-50' },
-              ].map((s) => (
-                <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center`}>
-                  <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Panel: Stats, Filters, and Navigator Grid */}
+            <div className="lg:col-span-4 space-y-6">
+              {/* Compact Section Stats */}
+              {activeSectionStats && (
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: 'Correct', value: activeSectionStats.correct, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                    { label: 'Wrong', value: activeSectionStats.incorrect, color: 'text-red-600', bg: 'bg-red-50' },
+                    { label: 'Skipped', value: activeSectionStats.skipped, color: 'text-slate-600', bg: 'bg-slate-50' },
+                    { label: 'Accuracy', value: `${activeSectionStats.accuracy}%`, color: 'text-blue-600', bg: 'bg-blue-50' },
+                  ].map((s) => (
+                    <div key={s.label} className={`${s.bg} rounded-xl p-2.5 text-center border border-slate-100/50 shadow-sm`}>
+                      <p className={`text-base font-bold ${s.color}`}>{s.value}</p>
+                      <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mt-0.5">{s.label}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {/* Question Status Filter */}
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold mr-1">
-              <Filter size={13} className="text-slate-400" />
-              Filter:
-            </div>
-            {([
-              { key: 'all',       label: 'All Questions', color: 'blue',    count: filterCounts.all },
-              { key: 'correct',   label: 'Correct',       color: 'emerald', count: filterCounts.correct },
-              { key: 'incorrect', label: 'Wrong',         color: 'red',     count: filterCounts.incorrect },
-              { key: 'skipped',   label: 'Skipped',       color: 'slate',   count: filterCounts.skipped },
-              { key: 'marked',    label: 'Marked',        color: 'purple',  count: filterCounts.marked },
-            ] as const).map((f) => {
-              const isActive = questionFilter === f.key;
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setQuestionFilter(f.key)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                    isActive
-                      ? f.color === 'blue' ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                        : f.color === 'emerald' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                        : f.color === 'red' ? 'bg-red-500 text-white border-red-500 shadow-sm'
-                        : f.color === 'slate' ? 'bg-slate-600 text-white border-slate-600 shadow-sm'
-                        : 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                      : f.color === 'blue' ? 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        : f.color === 'emerald' ? 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50/50'
-                        : f.color === 'red' ? 'bg-white text-red-600 border-red-200 hover:bg-red-50/50'
-                        : f.color === 'slate' ? 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                        : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-50/50'
-                  }`}
-                >
-                  {f.label}
-                  <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                  }`}>{f.count}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Questions */}
-          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-            {filteredQuestions.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                No {questionFilter === 'all' ? '' : questionFilter} questions match this filter in this section.
+              {/* Status Filter Stack */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                  <Filter size={12} className="text-slate-400" />
+                  Filter By Status
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
+                  {([
+                    { key: 'all',       label: 'All Questions', color: 'blue',    count: filterCounts.all },
+                    { key: 'correct',   label: 'Correct',       color: 'emerald', count: filterCounts.correct },
+                    { key: 'incorrect', label: 'Wrong',         color: 'red',     count: filterCounts.incorrect },
+                    { key: 'skipped',   label: 'Skipped',       color: 'slate',   count: filterCounts.skipped },
+                    { key: 'marked',    label: 'Marked',        color: 'purple',  count: filterCounts.marked },
+                  ] as const).map((f) => {
+                    const isActive = questionFilter === f.key;
+                    return (
+                      <button
+                        key={f.key}
+                        onClick={() => setQuestionFilter(f.key)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border text-left transition-all ${
+                          isActive
+                            ? f.color === 'blue' ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                              : f.color === 'emerald' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                              : f.color === 'red' ? 'bg-red-500 text-white border-red-500 shadow-sm'
+                              : f.color === 'slate' ? 'bg-slate-600 text-white border-slate-600 shadow-sm'
+                              : 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                            : f.color === 'blue' ? 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              : f.color === 'emerald' ? 'bg-emerald-50/30 text-emerald-800 border-emerald-100 hover:bg-emerald-50/60'
+                              : f.color === 'red' ? 'bg-red-50/30 text-red-800 border-red-100 hover:bg-red-50/60'
+                              : f.color === 'slate' ? 'bg-slate-50/50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                              : 'bg-purple-50/30 text-purple-800 border-purple-100 hover:bg-purple-50/60'
+                        }`}
+                      >
+                        <span>{f.label}</span>
+                        <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}>{f.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            ) : (
-              filteredQuestions.map((tq) => {
-                const originalIndex = activeSecData?.section.questions.findIndex((q) => q.questionId === tq.questionId) ?? 0;
-                return (
+
+              {/* Question Navigator Matrix */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                  <span>Question Navigator</span>
+                  <span className="text-slate-400 normal-case font-normal">{filteredQuestions.length} of {activeSecData?.section.questions.length} visible</span>
+                </div>
+                <div className="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-5 xl:grid-cols-6 gap-1.5">
+                  {activeSecData?.section.questions.map((tq, idx) => {
+                    const ans = answersMap.get(tq.questionId);
+                    const isCorrect = ans?.answerGiven && answersMatch(ans.answerGiven, tq.question.correctAnswer);
+                    const isWrong = ans?.answerGiven && !answersMatch(ans.answerGiven, tq.question.correctAnswer);
+                    const isFlagged = ans?.isFlagged;
+                    const isSelected = selectedQuestionId === tq.questionId;
+                    const matchesFilter = filteredIds.has(tq.questionId);
+
+                    return (
+                      <button
+                        key={tq.id}
+                        onClick={() => setSelectedQuestionId(tq.questionId)}
+                        className={`relative h-10 w-full rounded-lg text-sm font-semibold flex items-center justify-center border transition-all ${
+                          isSelected
+                            ? 'ring-2 ring-offset-1 ring-blue-600 border-blue-600 scale-105 z-10 font-bold'
+                            : ''
+                        } ${
+                          isCorrect
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100/80'
+                            : isWrong
+                            ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100/80'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100/80'
+                        } ${!matchesFilter ? 'opacity-30 grayscale-[30%] hover:opacity-80' : ''}`}
+                      >
+                        {idx + 1}
+                        {isFlagged && (
+                          <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Panel: Selected Question Review details */}
+            <div className="lg:col-span-8 space-y-4">
+              {selectedTq ? (
+                <>
                   <QuestionReviewItem
-                    key={tq.id}
-                    tq={tq}
-                    index={originalIndex}
-                    studentAnswer={answersMap.get(tq.questionId)}
+                    key={selectedTq.id}
+                    tq={selectedTq}
+                    index={activeSecData?.section.questions.findIndex((q) => q.questionId === selectedTq.questionId) ?? 0}
+                    studentAnswer={answersMap.get(selectedTq.questionId)}
                   />
-                );
-              })
-            )}
+
+                  {/* Navigator Footer */}
+                  <div className="flex justify-between items-center bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm">
+                    <button
+                      onClick={() => prevQuestion && setSelectedQuestionId(prevQuestion.questionId)}
+                      disabled={!prevQuestion}
+                      className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white transition-all flex items-center gap-1.5"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="text-xs text-slate-500 font-medium">
+                      {filteredQuestions.length > 0 ? `${currentFilteredIndex + 1} of ${filteredQuestions.length} filtered` : '0 of 0'}
+                    </span>
+                    <button
+                      onClick={() => nextQuestion && setSelectedQuestionId(nextQuestion.questionId)}
+                      disabled={!nextQuestion}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 transition-all flex items-center gap-1.5"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                  No questions match the current filter.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
