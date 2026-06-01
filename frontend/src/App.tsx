@@ -35,6 +35,7 @@ import { TestReviewPage } from './pages/student/TestReviewPage';
 import { MyTestsPage } from './pages/student/MyTestsPage';
 import { MyProgressPage } from './pages/student/MyProgressPage';
 import { ReviewAttemptsPage } from './pages/student/ReviewAttemptsPage';
+import { MistakesPage } from './pages/student/MistakesPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -110,6 +111,7 @@ const router = createBrowserRouter(
         <Route path="my-progress" element={<MyProgressPage />} />
         <Route path="review-attempts" element={<ReviewAttemptsPage />} />
         <Route path="test-review/:attemptId" element={<TestReviewPage />} />
+        <Route path="mistakes" element={<MistakesPage />} />
 
         {/* Shared */}
         <Route path="settings" element={<SettingsPage />} />

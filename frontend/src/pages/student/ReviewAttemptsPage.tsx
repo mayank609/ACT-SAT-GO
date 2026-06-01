@@ -139,6 +139,34 @@ export function ReviewAttemptsPage() {
           </div>
         ))}
       </div>
+
+      {/* Review mistakes section */}
+      {attempts.length > 0 && (
+        <div className="bg-gradient-to-r from-red-50 to-amber-50 border border-red-100 rounded-xl p-4 hover:border-red-200 transition-colors cursor-pointer mt-6"
+          onClick={() => navigate('/mistakes')}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle size={18} className="text-red-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Consolidate Your Mistakes</p>
+                <p className="text-xs text-gray-600 mt-0.5">View all wrong and unattempted questions from your tests in one place</p>
+              </div>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate('/mistakes');
+              }}
+              className="flex-shrink-0 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+            >
+              View All
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
