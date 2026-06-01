@@ -3,6 +3,7 @@ import { TrendingUp, Target, Clock, CheckCircle, XCircle, Minus, AlertCircle, Za
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
+import { TopicAnalysisTable } from '../../components/dashboard/TopicAnalysisTable';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter,
@@ -204,6 +205,32 @@ function generatePacingTimeline(
   return segments;
 }
 
+function generateTopicAnalysis(pacingStats: Array<{ topicName?: string; status: string }>) {
+  const topicMap: Record<string, { total: number; correct: number }> = {};
+  
+  pacingStats.forEach((q) => {
+    const topic = q.topicName || 'Uncategorized';
+    if (!topicMap[topic]) {
+      topicMap[topic] = { total: 0, correct: 0 };
+    }
+    topicMap[topic].total++;
+    if (q.status === 'correct') {
+      topicMap[topic].correct++;
+    }
+  });
+
+  return Object.entries(topicMap)
+    .map(([topic, data], idx) => ({
+      sno: idx + 1,
+      topic,
+      totalQuestions: data.total,
+      correctQuestions: data.correct,
+      accuracy: data.total > 0 ? (data.correct / data.total) * 100 : 0,
+      avgMistakes: data.total > 0 ? (data.total - data.correct) / data.total : 0,
+    }))
+    .sort((a, b) => b.accuracy - a.accuracy);
+}
+
 export function MyProgressPage() {
   const { dbId } = useAuthStore();
   const navigate = useNavigate();
@@ -247,6 +274,11 @@ export function MyProgressPage() {
     }
     return ticksArr;
   }, [timelineData]);
+
+  // Topic analysis - must be called before early returns
+  const topicAnalysis = useMemo(() => {
+    return generateTopicAnalysis(pacing);
+  }, [pacing]);
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
@@ -611,6 +643,14 @@ export function MyProgressPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Topic-wise Analysis */}
+      {topicAnalysis.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">Topic-Wise Performance</h2>
+          <TopicAnalysisTable data={topicAnalysis} loading={loading} />
         </div>
       )}
     </div>

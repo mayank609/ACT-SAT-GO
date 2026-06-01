@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
+import { TopicAnalysisTable } from '../../components/dashboard/TopicAnalysisTable';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
@@ -313,6 +314,23 @@ export function TutorAnalyticsPage() {
 
   const strongTopics = topicPerformance.filter((t) => t.accuracy >= 75);
   const weakTopics = topicPerformance.filter((t) => t.accuracy < 65);
+
+  // Aggregate topic stats for table
+  const allPacingStats = useMemo(() => {
+    const allPacing = Object.values(analyticsMap).flatMap((a) => a.questionPacingStats);
+    const map: Record<string, { count: number; correct: number; topicName: string }> = {};
+    allPacing.forEach((q) => {
+      const topic = q.topicName || 'Uncategorized';
+      if (!map[topic]) {
+        map[topic] = { count: 0, correct: 0, topicName: topic };
+      }
+      map[topic].count++;
+      if (q.status === 'correct') {
+        map[topic].correct++;
+      }
+    });
+    return Object.values(map).sort((a, b) => (b.correct / b.count) - (a.correct / a.count));
+  }, [analyticsMap]);
 
   // Section stats for heatmap
   const activeSectionStats: SectionStat[] = useMemo(() => {
@@ -843,6 +861,21 @@ export function TutorAnalyticsPage() {
             </div>
           </Card>
         </>
+      )}
+
+      {/* Topic-wise Analysis for aggregated data */}
+      {allPacingStats.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">Topic-Wise Performance</h2>
+          <TopicAnalysisTable data={allPacingStats.map((stat, idx) => ({
+            sno: idx + 1,
+            topic: stat.topicName || 'Uncategorized',
+            totalQuestions: stat.count,
+            correctQuestions: stat.correct,
+            accuracy: stat.count > 0 ? (stat.correct / stat.count) * 100 : 0,
+            avgMistakes: stat.count > 0 ? (stat.count - stat.correct) / stat.count : 0,
+          }))} loading={loading} />
+        </div>
       )}
     </div>
   );

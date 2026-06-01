@@ -3,6 +3,7 @@ import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, Clock, Zap } from 'lucide-react';
+import { TopicAnalysisTable } from '../../components/dashboard/TopicAnalysisTable';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -339,6 +340,30 @@ export function ReportsPage() {
   const stuckCount = filteredPacing.filter(q => q.timeSpentSeconds >= 90).length;
   const rushedCount = filteredPacing.filter(q => q.timeSpentSeconds < 20 && q.status !== 'skipped').length;
   const avgTime = filteredPacing.length > 0 ? Math.round(filteredPacing.reduce((a, q) => a + q.timeSpentSeconds, 0) / filteredPacing.length) : 0;
+
+  const topicAnalysisData = useMemo(() => {
+    const map: Record<string, { total: number; correct: number }> = {};
+    qs.forEach((q) => {
+      const topic = q.topicName || 'Uncategorized';
+      if (!map[topic]) {
+        map[topic] = { total: 0, correct: 0 };
+      }
+      map[topic].total++;
+      if (q.status === 'correct') {
+        map[topic].correct++;
+      }
+    });
+    return Object.entries(map)
+      .map(([topic, data], idx) => ({
+        sno: idx + 1,
+        topic,
+        totalQuestions: data.total,
+        correctQuestions: data.correct,
+        accuracy: data.total > 0 ? (data.correct / data.total) * 100 : 0,
+        avgMistakes: data.total > 0 ? (data.total - data.correct) / data.total : 0,
+      }))
+      .sort((a, b) => b.accuracy - a.accuracy);
+  }, [qs]);
 
   const topicRows = buildTopicTable(qs);
   const sections = ['All', ...Array.from(new Set(qs.map(q => q.sectionName)))];
@@ -788,6 +813,14 @@ export function ReportsPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Topic-wise Analysis */}
+      {topicAnalysisData.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">Topic-Wise Performance</h2>
+          <TopicAnalysisTable data={topicAnalysisData} loading={false} />
+        </div>
       )}
     </div>
   );
