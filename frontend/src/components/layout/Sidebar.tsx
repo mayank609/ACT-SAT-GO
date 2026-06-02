@@ -40,11 +40,17 @@ const adminNavItems: NavItem[] = [
   { label: 'Tutors', path: '/tutors', icon: <UserCheck size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Test Builder', path: '/tests', icon: <ClipboardList size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Question Bank', path: '/question-bank', icon: <Database size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Assignments', path: '/assignments', icon: <BookCheck size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
-  { label: 'Analytics', path: '/analytics', icon: <BarChart3 size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
-  { label: 'Student Comparison', path: '/comparison', icon: <ArrowLeftRight size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
+  {
+    label: 'Analytics',
+    path: '/analytics',
+    icon: <BarChart3 size={18} />,
+    roles: ['super_admin', 'admin', 'tutor'],
+    subItems: [
+      { label: 'Performance', path: '/analytics' },
+      { label: 'Student Comparison', path: '/comparison' },
+    ],
+  },
   { label: 'Live Monitoring', path: '/monitoring', icon: <Activity size={18} />, roles: ['super_admin', 'admin'] },
-  { label: 'Reports', path: '/reports', icon: <FileText size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
 ];

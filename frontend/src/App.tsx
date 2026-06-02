@@ -12,12 +12,11 @@ import { TestBuilderPage } from './pages/admin/TestBuilderPage';
 import { StudentManagementPage } from './pages/admin/StudentManagementPage';
 import { AdminStudentProfilePage } from './pages/admin/AdminStudentProfilePage';
 import { TutorManagementPage } from './pages/admin/TutorManagementPage';
-import { ReportsPage } from './pages/admin/ReportsPage';
 import { TestsPage } from './pages/admin/TestsPage';
 import { MonitoringPage } from './pages/admin/MonitoringPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { QuestionBankPage } from './pages/admin/QuestionBankPage';
-import { AssignmentsPage } from './pages/admin/AssignmentsPage';
+import { ReportsPage } from './pages/admin/ReportsPage';
 import { SupportPage } from './pages/admin/SupportPage';
 
 // Tutor pages
@@ -87,12 +86,10 @@ const router = createBrowserRouter(
         <Route path="students" element={<StudentManagementPage />} />
         <Route path="students/:id" element={<AdminStudentProfilePage />} />
         <Route path="tutors" element={<TutorManagementPage />} />
-        <Route path="reports" element={<ReportsPage />} />
         <Route path="monitoring" element={<MonitoringPage />} />
 
         {/* Admin new pages */}
         <Route path="question-bank" element={<QuestionBankPage />} />
-        <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="support" element={<SupportPage />} />
 
         {/* Super Admin only */}
