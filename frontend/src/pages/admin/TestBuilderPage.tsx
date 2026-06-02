@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon, Database, Search, X } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon, Database, Search, X, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -1754,6 +1754,7 @@ export function TestBuilderPage() {
 
   const totalQ = sections.reduce((a, s) => a + s.questions.length, 0);
   const totalTime = sections.reduce((a, s) => a + s.timeLimit, 0);
+  const hasUntimedSection = sections.some(s => s.timeLimit === 0);
   const totalMarks = sections.reduce((a, s) => a + s.questions.reduce((b, q) => b + (q.marks ?? 1), 0), 0);
 
   const handleSave = async () => {
@@ -1901,7 +1902,7 @@ export function TestBuilderPage() {
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { label: 'Questions', value: totalQ, color: 'text-blue-700', bg: 'bg-blue-50' },
-                    { label: 'Minutes', value: `${totalTime}m`, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+                    { label: 'Minutes', value: hasUntimedSection ? (totalTime > 0 ? `${totalTime}m+` : '∞') : `${totalTime}m`, color: 'text-emerald-700', bg: 'bg-emerald-50' },
                     { label: 'Sections', value: sections.length, color: 'text-purple-700', bg: 'bg-purple-50' },
                     { label: 'Total Marks', value: totalMarks, color: 'text-amber-700', bg: 'bg-amber-50' },
                   ].map((s) => (
@@ -1933,7 +1934,7 @@ export function TestBuilderPage() {
                         activeSectionIdx === idx ? 'bg-blue-600 text-white font-medium' : 'text-slate-600 hover:bg-slate-100'
                       }`}>
                       <p className="truncate text-xs leading-snug">{sec.name}</p>
-                      <p className={`text-xs mt-0.5 ${activeSectionIdx === idx ? 'text-blue-200' : 'text-slate-400'}`}>{sec.questions.length}q · {sec.timeLimit}m</p>
+                      <p className={`text-xs mt-0.5 ${activeSectionIdx === idx ? 'text-blue-200' : 'text-slate-400'}`}>{sec.questions.length}q · {sec.timeLimit === 0 ? 'Untimed' : `${sec.timeLimit}m`}</p>
                     </button>
                     {sections.length > 1 && (
                       <button onClick={() => deleteSection(idx)} className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:text-red-600 rounded transition-all flex-shrink-0">
@@ -1959,9 +1960,26 @@ export function TestBuilderPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Time (min)</label>
-                      <input type="number" value={activeSection.timeLimit} onChange={(e) => updateSection(activeSectionIdx, { timeLimit: parseInt(e.target.value) || 0 })}
-                        min={1} max={180}
-                        className="w-24 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <div className="flex items-center gap-2">
+                        <input type="number" value={activeSection.timeLimit || ''} onChange={(e) => updateSection(activeSectionIdx, { timeLimit: parseInt(e.target.value) || 0 })}
+                          min={1} max={180}
+                          disabled={activeSection.timeLimit === 0}
+                          placeholder="∞"
+                          className={`w-24 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${activeSection.timeLimit === 0 ? 'border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed' : 'border-slate-200'}`} />
+                        <button
+                          type="button"
+                          onClick={() => updateSection(activeSectionIdx, { timeLimit: activeSection.timeLimit === 0 ? 45 : 0 })}
+                          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition-all ${
+                            activeSection.timeLimit === 0
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                              : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                          }`}
+                          title={activeSection.timeLimit === 0 ? 'Click to add a time limit' : 'Click to remove time limit'}
+                        >
+                          <Clock size={13} />
+                          {activeSection.timeLimit === 0 ? 'Untimed ✓' : 'No Limit'}
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs text-slate-500 pb-2">{activeSection.questions.length} questions</p>
                   </div>
