@@ -1,10 +1,10 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, FileText, BarChart3, Settings,
+  LayoutDashboard, BarChart3, Settings,
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
-  Activity, UserCheck, Database, BookCheck, LifeBuoy, ChevronDown,
-  ArrowLeftRight, AlertCircle
+  Activity, UserCheck, Database, LifeBuoy, ChevronDown,
+  AlertCircle
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';

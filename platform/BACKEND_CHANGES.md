@@ -529,6 +529,54 @@ function transformCorrectAnswer(answer: string | string[] | number | null | unde
 
 ---
 
+### Change #015 — Include question `topic` (with parent) in GET /api/attempts/[attemptId] [DONE]
+
+> Applied by Mayank/Claude directly in `src/app/api/attempts/[attemptId]/route.ts` (both question include blocks now include `topic: { include: { parent: true } }`, and `childQuestions` includes topic). No schema change required.
+
+
+**Type:** CODE
+**Requested by:** Mayank
+**Why:** The new Bluebook-style results page (`frontend/src/pages/student/TestReviewPage.tsx`) adds a **"Knowledge and Skills"** domain breakdown (8 SAT content domains) and a **"Domain"** column in the Questions Overview table. The frontend derives each question's domain from `question.topic.parent.name` (falling back to `topic.name`, then `subject`). Right now the attempt GET endpoint includes the question but **not** its `topic` relation, so every question's domain is unknown — the Knowledge & Skills bars render empty and the Domain column falls back to the section name. Including the topic relation makes both populate correctly.
+
+**File to edit:** `src/app/api/attempts/[attemptId]/route.ts`
+
+**What to do:** In the `prisma.testAttempt.findUnique` include tree, add `topic: { include: { parent: true } }` to the `question` include in **both** places it appears (under `test.sections.questions.question` and under `sectionAttempts.section.questions.question`), and also include `topic` on `childQuestions` (passage sub-questions carry their own topic). Each `question` include block currently looks like:
+
+```typescript
+question: {
+  include: {
+    childQuestions: { orderBy: { createdAt: 'asc' } },
+    parentQuestion: true,
+  },
+},
+```
+
+Change **both** occurrences to:
+
+```typescript
+question: {
+  include: {
+    childQuestions: {
+      orderBy: { createdAt: 'asc' },
+      include: { topic: { include: { parent: true } } },
+    },
+    parentQuestion: true,
+    topic: { include: { parent: true } },
+  },
+},
+```
+
+No schema change is needed — `Question.topic` and `Topic.parent` relations already exist. (`subject` and `difficultyLevel` are scalar fields and are already returned.)
+
+> Note for the domain mapping to light up Knowledge & Skills, the seeded Topics should be named to match (or contain) the 8 SAT domains — e.g. parent topics "Information and Ideas", "Craft and Structure", "Expression of Ideas", "Standard English Conventions", "Algebra", "Advanced Math", "Problem-Solving and Data Analysis", "Geometry and Trigonometry" — with question-level topics as their subtopics. The frontend matches case-insensitively and tolerates partial matches.
+
+**Test it by:**
+1. Open a submitted attempt's review page as a student.
+2. Confirm the GET `/api/attempts/[attemptId]` response now has `topic` on each question.
+3. The "Knowledge and Skills" bars fill per domain and the "Domain" column shows the domain name (not the section name).
+
+---
+
 ## Template for New Changes
 
 ```

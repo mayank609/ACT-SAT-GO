@@ -3,7 +3,6 @@ import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
-import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { useAdminStore, type ApiTest } from '../../store/useAdminStore';
 import { api, type DbUser } from '../../lib/api';
@@ -274,164 +273,133 @@ export function TestsPage() {
         ))}
       </div>
 
-      {/* Test cards */}
+      {/* Test rows — loading skeleton */}
       {loading && tests.length === 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 animate-pulse">
-              <div className="flex gap-3 mb-4"><div className="w-10 h-10 bg-slate-100 rounded-xl" /><div className="flex-1 space-y-2"><div className="h-3 bg-slate-100 rounded w-3/4" /><div className="h-2 bg-slate-100 rounded w-1/2" /></div></div>
-              <div className="h-4 bg-slate-100 rounded w-2/3 mb-2" />
-              <div className="h-3 bg-slate-100 rounded w-full mb-4" />
-              <div className="flex gap-2">{[1,2,3].map((j) => <div key={j} className="h-5 bg-slate-100 rounded-full w-16" />)}</div>
+            <div key={i} className="bg-white rounded-xl border border-slate-100 px-4 py-3 flex items-center gap-4 animate-pulse">
+              <div className="w-10 h-10 bg-slate-100 rounded-xl flex-shrink-0" />
+              <div className="flex-1 space-y-2"><div className="h-3 bg-slate-100 rounded w-1/3" /><div className="h-2 bg-slate-100 rounded w-1/2" /></div>
+              <div className="h-5 bg-slate-100 rounded-full w-16" />
             </div>
           ))}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="space-y-2">
         {filtered.map((test) => {
           const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
           const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
           const attemptsCount = test._count?.attempts ?? 0;
           const statusLower = test.status.toLowerCase();
 
+          const cat = test.category;
+          const subParts = test.subCategory?.split('-') ?? [];
+          const subject = subParts[0];
+          const assignType = subParts[1];
+          const typeColors: Record<string, string> = {
+            'Mock':           'bg-blue-100 text-blue-800',
+            'Sectional':      'bg-emerald-100 text-emerald-800',
+            'Practice Sheet': 'bg-purple-100 text-purple-800',
+            'Diagnostic':     'bg-amber-100 text-amber-800',
+          };
+
           return (
-            <Card key={test.id} hoverable padding="none">
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <FileText size={18} className="text-blue-600" />
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Badge variant={statusLower === 'published' ? 'success' : statusLower === 'draft' ? 'warning' : 'default'}>
-                      {statusLower}
-                    </Badge>
-                    <div className="relative">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === test.id ? null : test.id); }}
-                        className="p-1 text-slate-400 hover:text-slate-600 rounded"
-                      >
-                        <MoreVertical size={14} />
-                      </button>
-                      {menuOpen === test.id && (
-                        <div className="absolute right-0 top-6 z-20 w-44 bg-white rounded-xl border border-slate-200 shadow-lg py-1" onClick={(e) => e.stopPropagation()}>
-                          {statusLower !== 'published' && (
-                            <button onClick={() => handleStatusChange(test, 'published')}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-emerald-50">
-                              <BookOpen size={13} /> Publish
-                            </button>
-                          )}
-                          {statusLower !== 'draft' && (
-                            <button onClick={() => handleStatusChange(test, 'draft')}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                              <Edit size={13} /> Move to Draft
-                            </button>
-                          )}
-                          {statusLower !== 'archived' && (
-                            <button onClick={() => handleStatusChange(test, 'archived')}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                              <Archive size={13} /> Archive
-                            </button>
-                          )}
-                          <div className="border-t border-slate-100 my-1" />
-                          <button onClick={() => { setDeleteModal(test); setMenuOpen(null); }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50">
-                            <Trash2 size={13} /> Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+            <div key={test.id} className="bg-white border border-slate-100 rounded-xl px-4 py-3 flex items-center gap-4 hover:border-slate-200 hover:shadow-sm transition-all">
+              {/* Icon */}
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <FileText size={18} className="text-blue-600" />
+              </div>
+
+              {/* Title + meta */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-slate-900 text-sm leading-tight truncate">{test.title}</h3>
+                  {cat && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeColors[cat] ?? 'bg-slate-100 text-slate-600'}`}>{cat}</span>}
+                  {subject && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{subject}</span>}
+                  {assignType && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{assignType}</span>}
                 </div>
-
-                <h3 className="font-semibold text-slate-900 text-base mb-1.5 leading-tight">{test.title}</h3>
-                {(() => {
-                  const cat = test.category;
-                  const sub = test.subCategory;
-                  if (!cat) return null;
-                  // Decode Practice Sheet subCategory (e.g. 'Math-Homework')
-                  const subParts = sub?.split('-') ?? [];
-                  const subject = subParts[0];
-                  const assignType = subParts[1];
-                  const typeColors: Record<string, string> = {
-                    'Mock':           'bg-blue-100 text-blue-800',
-                    'Sectional':      'bg-emerald-100 text-emerald-800',
-                    'Practice Sheet': 'bg-purple-100 text-purple-800',
-                    'Diagnostic':     'bg-amber-100 text-amber-800',
-                  };
-                  return (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${typeColors[cat] ?? 'bg-slate-100 text-slate-600'}`}>{cat}</span>
-                      {subject && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{subject}</span>}
-                      {assignType && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{assignType}</span>}
-                    </div>
-                  );
-                })()}
-                {test.description && <p className="text-sm text-slate-500 mb-3 line-clamp-2">{test.description}</p>}
-
-                <div className="flex items-center gap-3 text-xs text-slate-500 mb-4">
+                <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
                   <span className="flex items-center gap-1"><FileText size={11} /> {totalQ} questions</span>
                   <span className="flex items-center gap-1"><Clock size={11} /> {totalTime} min</span>
                   <span className="flex items-center gap-1"><Users size={11} /> {attemptsCount} attempts</span>
-                </div>
-
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {test.sections.map((sec) => (
-                    <span key={sec.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                      {sec.name}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                  {/* Assign button — only for published tests */}
-                  {statusLower === 'published' && (
-                    <Button variant="primary" size="sm" icon={<UserPlus size={13} />}
-                      className="flex-1 justify-center"
-                      onClick={() => setAssignModal(test)}>
-                      Assign
-                    </Button>
-                  )}
-
-                  {statusLower === 'draft' ? (
-                    <Button variant="ghost" size="sm" icon={<Edit size={13} />}
-                      className={statusLower === 'draft' ? 'flex-1 justify-center' : ''}
-                      onClick={() => navigate(`/test-builder?testId=${test.id}`)}>
-                      Edit
-                    </Button>
-                  ) : (
-                    <button onClick={() => navigate(`/test-builder?testId=${test.id}`)}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Edit size={14} />
-                    </button>
-                  )}
-
-                  <button onClick={() => navigate(`/test-instructions/${test.id}?preview=true`)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Preview Test"
-                  >
-                    <Eye size={14} />
-                  </button>
-                  <button onClick={() => setDeleteModal(test)}
-                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 size={14} />
-                  </button>
+                  <span className="hidden sm:inline text-slate-400">· {test.sections.length} section{test.sections.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
-            </Card>
+
+              {/* Status */}
+              <Badge variant={statusLower === 'published' ? 'success' : statusLower === 'draft' ? 'warning' : 'default'}>
+                {statusLower}
+              </Badge>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {statusLower === 'published' && (
+                  <Button variant="primary" size="sm" icon={<UserPlus size={13} />} onClick={() => setAssignModal(test)}>
+                    Assign
+                  </Button>
+                )}
+                <button onClick={() => navigate(`/test-builder?testId=${test.id}`)}
+                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                  <Edit size={15} />
+                </button>
+                <button onClick={() => navigate(`/test-instructions/${test.id}?preview=true`)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Preview Test">
+                  <Eye size={15} />
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === test.id ? null : test.id); }}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <MoreVertical size={15} />
+                  </button>
+                  {menuOpen === test.id && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
+                      <div className="absolute right-0 top-8 z-20 w-44 bg-white rounded-xl border border-slate-200 shadow-lg py-1" onClick={(e) => e.stopPropagation()}>
+                        {statusLower !== 'published' && (
+                          <button onClick={() => handleStatusChange(test, 'published')}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-emerald-50">
+                            <BookOpen size={13} /> Publish
+                          </button>
+                        )}
+                        {statusLower !== 'draft' && (
+                          <button onClick={() => handleStatusChange(test, 'draft')}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                            <Edit size={13} /> Move to Draft
+                          </button>
+                        )}
+                        {statusLower !== 'archived' && (
+                          <button onClick={() => handleStatusChange(test, 'archived')}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                            <Archive size={13} /> Archive
+                          </button>
+                        )}
+                        <div className="border-t border-slate-100 my-1" />
+                        <button onClick={() => { setDeleteModal(test); setMenuOpen(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50">
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
           );
         })}
 
         <Link to="/test-builder">
-          <Card padding="none" className="border-dashed hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer h-full min-h-[200px]">
-            <div className="p-5 flex flex-col items-center justify-center h-full text-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
-                <Plus size={24} className="text-blue-500" />
-              </div>
-              <p className="font-medium text-slate-700 text-sm">Create New Test</p>
-              <p className="text-xs text-slate-400 mt-1">Build from scratch or use a template</p>
+          <div className="border border-dashed border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <Plus size={20} className="text-blue-500" />
             </div>
-          </Card>
+            <div>
+              <p className="font-medium text-slate-700 text-sm">Create New Test</p>
+              <p className="text-xs text-slate-400">Build from scratch or use a template</p>
+            </div>
+          </div>
         </Link>
       </div>
 

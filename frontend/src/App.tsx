@@ -31,6 +31,7 @@ import { StudentDashboard } from './pages/student/StudentDashboard';
 import { TestInstructionsPage } from './pages/student/TestInstructionsPage';
 import { TestInterfacePage } from './pages/student/TestInterfacePage';
 import { TestReviewPage } from './pages/student/TestReviewPage';
+import { SectionReviewPage } from './pages/student/SectionReviewPage';
 import { MyTestsPage } from './pages/student/MyTestsPage';
 import { MyProgressPage } from './pages/student/MyProgressPage';
 import { ReviewAttemptsPage } from './pages/student/ReviewAttemptsPage';
@@ -108,6 +109,7 @@ const router = createBrowserRouter(
         <Route path="my-progress" element={<MyProgressPage />} />
         <Route path="review-attempts" element={<ReviewAttemptsPage />} />
         <Route path="test-review/:attemptId" element={<TestReviewPage />} />
+        <Route path="test-review/:attemptId/section/:sectionIdx" element={<SectionReviewPage />} />
         <Route path="mistakes" element={<MistakesPage />} />
 
         {/* Shared */}

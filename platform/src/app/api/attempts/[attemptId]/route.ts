@@ -25,8 +25,10 @@ export async function GET(
                       include: {
                         childQuestions: {
                           orderBy: { createdAt: 'asc' },
+                          include: { topic: { include: { parent: true } } },
                         },
                         parentQuestion: true,
+                        topic: { include: { parent: true } },
                       },
                     },
                   },
@@ -46,8 +48,10 @@ export async function GET(
                       include: {
                         childQuestions: {
                           orderBy: { createdAt: 'asc' },
+                          include: { topic: { include: { parent: true } } },
                         },
                         parentQuestion: true,
+                        topic: { include: { parent: true } },
                       },
                     },
                   },

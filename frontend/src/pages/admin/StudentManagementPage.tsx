@@ -63,6 +63,8 @@ export function StudentManagementPage() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsView, setAnalyticsView] = useState<'table' | 'chart'>('table');
   const [analyticsSubject, setAnalyticsSubject] = useState('');
+  const [analyticsAttempts, setAnalyticsAttempts] = useState<Array<{ id: string; status: string; totalScore: number | null; completedAt: string | null; startedAt: string; test: { title: string } }>>([]);
+  const [analyticsAttemptId, setAnalyticsAttemptId] = useState('');
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const reload = () => {
@@ -74,14 +76,27 @@ export function StudentManagementPage() {
   };
   useEffect(() => { reload(); }, []);
 
+  // Load the selected student's list of completed tests
+  useEffect(() => {
+    if (!analyticsStudentId) { setAnalyticsAttempts([]); setAnalyticsAttemptId(''); return; }
+    api.getStudentAttempts(analyticsStudentId)
+      .then((r) => {
+        const submitted = ((r.attempts as any[]) ?? []).filter((a) => a.status === 'SUBMITTED');
+        setAnalyticsAttempts(submitted);
+        setAnalyticsAttemptId(submitted[0]?.id ?? '');
+      })
+      .catch(() => { setAnalyticsAttempts([]); setAnalyticsAttemptId(''); });
+  }, [analyticsStudentId]);
+
+  // Load analytics for the selected student + test
   useEffect(() => {
     if (!analyticsStudentId) { setAnalyticsData(null); return; }
     setAnalyticsLoading(true);
-    api.getStudentAnalytics(analyticsStudentId)
+    api.getStudentAnalytics(analyticsStudentId, analyticsAttemptId || undefined)
       .then((r) => setAnalyticsData(r as AnalyticsData))
       .catch(() => {})
       .finally(() => setAnalyticsLoading(false));
-  }, [analyticsStudentId]);
+  }, [analyticsStudentId, analyticsAttemptId]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleFileDrop = (file: File) => {
@@ -483,6 +498,46 @@ export function StudentManagementPage() {
         {/* Analytics content */}
         {analyticsStudentId && (
           <>
+            {/* Test list — click a test to view its analytics */}
+            {analyticsAttempts.length > 0 ? (
+              <Card padding="none">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800">Tests</h3>
+                  <span className="text-xs text-slate-400">Click a test to view its analytics</span>
+                </div>
+                <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                  {analyticsAttempts.map((a, idx) => {
+                    const isActive = a.id === analyticsAttemptId;
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => { setAnalyticsAttemptId(a.id); setAnalyticsSubject(''); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-50/70' : 'hover:bg-slate-50'}`}
+                      >
+                        <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                          {idx + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-slate-800'}`}>{a.test.title}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {a.completedAt
+                              ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              : new Date(a.startedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <span className={`text-base font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{a.totalScore ?? '—'}</span>
+                          <span className="block text-[10px] text-slate-400 uppercase tracking-wide leading-none">score</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
+            ) : !analyticsLoading && (
+              <Card padding="md"><div className="py-6 text-center text-slate-400 text-sm">This student hasn't completed any tests yet.</div></Card>
+            )}
+
             {/* Stat Cards */}
             <div className="grid grid-cols-3 gap-4">
               <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-sm">

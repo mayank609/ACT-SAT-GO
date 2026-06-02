@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, Filter } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, Info } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -7,9 +7,6 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
 
@@ -26,10 +23,12 @@ interface DbQuestion {
   options: Record<string, string> | null
   correctAnswer: DbAnswer
   difficultyLevel: string
+  subject?: string | null
+  topic?: { name: string; parent?: { name: string } | null } | null
   childQuestions?: DbQuestion[]
 }
 
-interface DbTestQuestion {
+export interface DbTestQuestion {
   id: string
   questionId: string
   orderIndex: number
@@ -58,7 +57,7 @@ interface DbAttemptAnswer {
   isFlagged: boolean
 }
 
-interface DbAttempt {
+export interface DbAttempt {
   id: string
   testId: string
   status: string
@@ -103,13 +102,83 @@ function dbOptionsToDisplay(options: Record<string, string> | null): Array<{ id:
 
 // ─── Question review item ─────────────────────────────────────────────────────
 
+// ─── Knowledge & Skills: SAT content domains (static blueprint) ────────────────
+
+const KS_DOMAINS: Record<string, { name: string; pct: number; range: string }[]> = {
+  'Reading and Writing': [
+    { name: 'Information and Ideas', pct: 26, range: '12 - 14' },
+    { name: 'Craft and Structure', pct: 28, range: '13 - 15' },
+    { name: 'Expression of Ideas', pct: 20, range: '8 - 12' },
+    { name: 'Standard English Conventions', pct: 26, range: '11 - 15' },
+  ],
+  'Math': [
+    { name: 'Algebra', pct: 35, range: '13 - 15' },
+    { name: 'Advanced Math', pct: 35, range: '13 - 15' },
+    { name: 'Problem-Solving and Data Analysis', pct: 15, range: '5 - 7' },
+    { name: 'Geometry and Trigonometry', pct: 15, range: '5 - 7' },
+  ],
+}
+const ALL_DOMAIN_NAMES = Object.values(KS_DOMAINS).flat().map((d) => d.name)
+
+// Keywords that map an arbitrary topic name onto one of the 8 SAT domains.
+// Covers both proper domain names and the demo/seed topic taxonomy.
+const DOMAIN_SYNONYMS: Record<string, string[]> = {
+  'Information and Ideas': ['information and ideas', 'information', 'main idea', 'central idea', 'inference', 'evidence', 'command of evidence'],
+  'Craft and Structure': ['craft and structure', 'craft', 'structure', 'vocabulary', 'words in context', 'text structure', 'cross-text'],
+  'Expression of Ideas': ['expression of ideas', 'expression', 'rhetoric', 'rhetorical', 'transitions', 'synthesis'],
+  'Standard English Conventions': ['standard english conventions', 'conventions', 'grammar', 'usage', 'punctuation', 'sentence structure', 'english'],
+  'Algebra': ['algebra', 'linear'],
+  'Advanced Math': ['advanced math', 'advanced', 'nonlinear', 'quadratic', 'function', 'exponential'],
+  'Problem-Solving and Data Analysis': ['problem-solving and data analysis', 'problem solving', 'data analysis', 'data interpretation', 'statistics', 'ratio', 'rates', 'percent', 'probability', 'proportion'],
+  'Geometry and Trigonometry': ['geometry and trigonometry', 'geometry', 'trigonometry', 'trig'],
+}
+
+function domainCandidates(q: DbQuestion): string[] {
+  return [q.topic?.name, q.topic?.parent?.name, q.subject].filter(Boolean) as string[]
+}
+
+function rawDomainLabel(q: DbQuestion): string | null {
+  return q.topic?.name ?? q.topic?.parent?.name ?? q.subject ?? null
+}
+
+function matchCanonicalDomain(q: DbQuestion): string | null {
+  const cands = domainCandidates(q).map((c) => c.trim().toLowerCase())
+  if (!cands.length) return null
+  for (const [domain, syns] of Object.entries(DOMAIN_SYNONYMS)) {
+    for (const c of cands) {
+      if (syns.some((s) => c === s || c.includes(s) || s.includes(c))) return domain
+    }
+  }
+  return null
+}
+
+function diffLabel(d: string | undefined): string {
+  if (!d) return '—'
+  const m: Record<string, string> = { EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard' }
+  return m[d.toUpperCase()] ?? d[0].toUpperCase() + d.slice(1).toLowerCase()
+}
+
+function modeDiff(diff: Record<string, number>): string {
+  const entries = Object.entries(diff)
+  if (!entries.length) return '—'
+  entries.sort((a, b) => b[1] - a[1])
+  return diffLabel(entries[0][0])
+}
+
+function formatAnswerKeys(ans: DbAnswer): string {
+  if (ans.value !== undefined) return String(ans.value)
+  if (ans.keys) return ans.keys.map((k) => k.toUpperCase()).join(', ')
+  if (ans.key) return ans.key.toUpperCase()
+  return '—'
+}
+
 interface ReviewItemProps {
   tq: DbTestQuestion
   index: number
   studentAnswer: DbAttemptAnswer | undefined
 }
 
-function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
+export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps) {
   const [showExplanation, setShowExplanation] = useState(false)
   const q = tq.question
   const correct = answersMatch(studentAnswer?.answerGiven ?? null, q.correctAnswer)
@@ -279,8 +348,9 @@ export function TestReviewPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isTutorOrAdmin = user?.role === 'tutor' || user?.role === 'admin' || user?.role === 'super_admin';
-  const [activeSection, setActiveSection] = useState(0);
-  const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'skipped' | 'marked'>('all');
+  const [showCorrect, setShowCorrect] = useState(false);
+  const [pageSize, setPageSize] = useState<'10' | '30' | 'all'>('10');
+  const [sort, setSort] = useState<{ key: 'number' | 'section' | 'status' | 'domain'; dir: 'asc' | 'desc' }>({ key: 'number', dir: 'asc' });
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -360,27 +430,69 @@ export function TestReviewPage() {
   const overallAccuracy = totalQ > 0 ? Math.round(totalCorrect / totalQ * 100) : 0;
   const rawScore = attempt.totalScore ?? totalCorrect;
 
-  const activeSecData = sections[activeSection];
-  const activeSectionStats = sectionStats[activeSection];
+  // Flatten every question across sections into Questions-Overview rows
+  const reviewRows = sections.flatMap((sa, secIdx) =>
+    sa.section.questions.map((tq) => {
+      const ans = answersMap.get(tq.questionId);
+      const status: 'correct' | 'incorrect' | 'omitted' =
+        !ans?.answerGiven ? 'omitted'
+          : answersMatch(ans.answerGiven, tq.question.correctAnswer) ? 'correct' : 'incorrect';
+      const canonical = matchCanonicalDomain(tq.question);
+      const raw = rawDomainLabel(tq.question);
+      return {
+        tq, ans,
+        sectionIdx: secIdx,
+        sectionName: sa.section.name,
+        status,
+        canonicalDomain: canonical,
+        displayDomain: canonical ?? raw ?? sa.section.name,
+        correctText: formatAnswerKeys(tq.question.correctAnswer),
+        difficulty: tq.question.difficultyLevel,
+      };
+    })
+  ).map((r, i) => ({ ...r, number: i + 1 }));
 
-  const filterCounts = { all: 0, correct: 0, incorrect: 0, skipped: 0, marked: 0 };
-  activeSecData?.section.questions.forEach((tq) => {
-    const ans = answersMap.get(tq.questionId);
-    filterCounts.all++;
-    if (ans?.isFlagged) filterCounts.marked++;
-    if (!ans?.answerGiven) filterCounts.skipped++;
-    else if (answersMatch(ans.answerGiven, tq.question.correctAnswer)) filterCounts.correct++;
-    else filterCounts.incorrect++;
+  const totalCount = reviewRows.length;
+  const correctCount = reviewRows.filter((r) => r.status === 'correct').length;
+  const incorrectCount = totalCount - correctCount;
+
+  // Per-domain performance for Knowledge & Skills
+  const domainStats: Record<string, { correct: number; total: number; diff: Record<string, number> }> = {};
+  ALL_DOMAIN_NAMES.forEach((n) => { domainStats[n] = { correct: 0, total: 0, diff: {} }; });
+  reviewRows.forEach((r) => {
+    if (r.canonicalDomain && domainStats[r.canonicalDomain]) {
+      const d = domainStats[r.canonicalDomain];
+      d.total++;
+      if (r.status === 'correct') d.correct++;
+      d.diff[r.difficulty] = (d.diff[r.difficulty] ?? 0) + 1;
+    }
   });
 
-  const filteredQuestions = activeSecData?.section.questions.filter((tq) => {
-    const ans = answersMap.get(tq.questionId);
-    if (questionFilter === 'correct') return !!ans?.answerGiven && answersMatch(ans.answerGiven, tq.question.correctAnswer);
-    if (questionFilter === 'incorrect') return !!ans?.answerGiven && !answersMatch(ans.answerGiven, tq.question.correctAnswer);
-    if (questionFilter === 'skipped') return !ans?.answerGiven;
-    if (questionFilter === 'marked') return ans?.isFlagged === true;
-    return true;
-  }) ?? [];
+  // Sort + paginate table rows
+  const dir = sort.dir === 'asc' ? 1 : -1;
+  const sortedRows = [...reviewRows].sort((a, b) => {
+    let av: string | number, bv: string | number;
+    switch (sort.key) {
+      case 'section': av = a.sectionName; bv = b.sectionName; break;
+      case 'status':  av = a.status; bv = b.status; break;
+      case 'domain':  av = a.displayDomain; bv = b.displayDomain; break;
+      default:        av = a.number; bv = b.number;
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return a.number - b.number;
+  });
+  const visibleRows = pageSize === 'all' ? sortedRows : sortedRows.slice(0, Number(pageSize));
+
+  const toggleSort = (key: typeof sort.key) =>
+    setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+
+  const statusStyle: Record<string, string> = {
+    correct: 'text-emerald-600', incorrect: 'text-red-600', omitted: 'text-red-500',
+  };
+  const statusLabel: Record<string, string> = {
+    correct: 'Correct', incorrect: 'Incorrect', omitted: 'Omitted',
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -434,121 +546,126 @@ export function TestReviewPage() {
         </div>
       </div>
 
-      {/* Section bar chart */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
-        <h3 className="font-semibold text-slate-900 mb-4">Section Breakdown</h3>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={sectionStats} barGap={4}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
-            <Legend wrapperStyle={{ fontSize: '12px' }} />
-            <Bar dataKey="correct" fill="#10b981" radius={[4, 4, 0, 0]} name="Correct" barSize={20} />
-            <Bar dataKey="incorrect" fill="#ef4444" radius={[4, 4, 0, 0]} name="Wrong" barSize={20} />
-            <Bar dataKey="skipped" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Skipped" barSize={20} />
-          </BarChart>
-        </ResponsiveContainer>
+      {/* ── KNOWLEDGE AND SKILLS ─────────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 md:p-7">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-2xl font-bold text-slate-900">Knowledge and Skills</h2>
+          <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold"><Info size={15} /> New!</span>
+        </div>
+        <p className="text-slate-500 text-sm mb-7">View your performance across the 8 content domains measured on the SAT.</p>
+
+        {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
+          <div key={group} className="mb-7 last:mb-0">
+            <h3 className="text-lg font-bold text-slate-900 mb-5">{group}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-7">
+              {KS_DOMAINS[group].map((d) => {
+                const stat = domainStats[d.name];
+                const segs = stat.total > 0 ? stat.total : 8;
+                return (
+                  <div key={d.name}>
+                    <p className="font-bold text-slate-900">{d.name}</p>
+                    <p className="text-sm text-slate-500 mb-2.5">({d.pct}% of test section, {d.range} questions)</p>
+                    <div className="flex gap-1 mb-2">
+                      {Array.from({ length: segs }).map((_, i) => (
+                        <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
+                      ))}
+                    </div>
+                    <p className="text-sm text-slate-600">
+                      Difficulty level:{' '}
+                      <span className="text-blue-600 font-semibold border-b border-dotted border-blue-400">{modeDiff(stat.diff)}</span>
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Section tabs + question review */}
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="border-b border-slate-200 flex overflow-x-auto">
-          {sections.map((sa, idx) => (
-            <button key={sa.sectionId} onClick={() => setActiveSection(idx)}
-              className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-all ${
-                activeSection === idx ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}>
-              {sa.section.name}
-              <span className={`ml-1.5 text-xs ${activeSection === idx ? 'text-blue-400' : 'text-slate-400'}`}>
-                {sectionStats[idx]?.correct}/{sectionStats[idx]?.total}
-              </span>
-            </button>
+      {/* ── QUESTIONS OVERVIEW ───────────────────────────────────────────────── */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">Questions Overview</h2>
+        <p className="text-slate-500 text-sm mb-5">Review your results for each question from this practice test.</p>
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          {[
+            { label: 'Total Questions', value: totalCount },
+            { label: 'Correct Answers', value: correctCount },
+            { label: 'Incorrect Answers', value: incorrectCount },
+          ].map((s) => (
+            <div key={s.label} className="bg-blue-50 rounded-2xl py-6 text-center">
+              <p className="text-4xl font-bold text-slate-900">{s.value}</p>
+              <p className="text-slate-700 font-semibold mt-1">{s.label}</p>
+            </div>
           ))}
         </div>
 
-        <div className="p-4 md:p-6 space-y-5">
-          {/* Compact Section Stats */}
-          {activeSectionStats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                { label: 'Correct', value: activeSectionStats.correct, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                { label: 'Wrong', value: activeSectionStats.incorrect, color: 'text-red-600', bg: 'bg-red-50' },
-                { label: 'Skipped', value: activeSectionStats.skipped, color: 'text-slate-600', bg: 'bg-slate-50' },
-                { label: 'Accuracy', value: `${activeSectionStats.accuracy}%`, color: 'text-blue-600', bg: 'bg-blue-50' },
-              ].map((s) => (
-                <div key={s.label} className={`${s.bg} rounded-xl p-2.5 text-center border border-slate-100/50 shadow-sm`}>
-                  <p className={`text-base font-bold ${s.color}`}>{s.value}</p>
-                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mt-0.5">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Status filter — horizontal bar */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold uppercase tracking-wider mr-1">
-              <Filter size={12} className="text-slate-400" />
-              Filter
-            </div>
-            {([
-              { key: 'all',       label: 'All',      color: 'blue',    count: filterCounts.all },
-              { key: 'correct',   label: 'Correct',  color: 'emerald', count: filterCounts.correct },
-              { key: 'incorrect', label: 'Wrong',    color: 'red',     count: filterCounts.incorrect },
-              { key: 'skipped',   label: 'Skipped',  color: 'slate',   count: filterCounts.skipped },
-              { key: 'marked',    label: 'Marked',   color: 'purple',  count: filterCounts.marked },
-            ] as const).map((f) => {
-              const isActive = questionFilter === f.key;
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setQuestionFilter(f.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    isActive
-                      ? f.color === 'blue' ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                        : f.color === 'emerald' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                        : f.color === 'red' ? 'bg-red-500 text-white border-red-500 shadow-sm'
-                        : f.color === 'slate' ? 'bg-slate-600 text-white border-slate-600 shadow-sm'
-                        : 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>{f.label}</span>
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                  }`}>{f.count}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Full-width scrollable question list */}
-          <div>
-            <div className="text-xs text-slate-400 font-medium mb-2">
-              Showing {filteredQuestions.length} of {activeSecData?.section.questions.length ?? 0} questions
-            </div>
-            {filteredQuestions.length > 0 ? (
-              <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1 -mr-1">
-                {filteredQuestions.map((tq) => {
-                  const realIndex = activeSecData?.section.questions.findIndex((q) => q.questionId === tq.questionId) ?? 0;
-                  return (
-                    <QuestionReviewItem
-                      key={tq.id}
-                      tq={tq}
-                      index={realIndex}
-                      studentAnswer={answersMap.get(tq.questionId)}
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                No questions match the current filter.
-              </div>
-            )}
+        {/* Toggle + page size */}
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+          <button onClick={() => setShowCorrect((v) => !v)} className="flex items-center gap-2 select-none">
+            <span className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${showCorrect ? 'bg-blue-600 justify-end' : 'bg-slate-300 justify-start'}`}>
+              <span className="w-4 h-4 rounded-full bg-white shadow" />
+            </span>
+            <span className="text-sm font-medium text-slate-700">Show Correct Answers</span>
+          </button>
+          <div className="text-sm text-slate-500 flex items-center gap-2">
+            View:
+            {(['10', '30', 'all'] as const).map((p) => (
+              <button key={p} onClick={() => setPageSize(p)}
+                className={pageSize === p ? 'font-bold text-slate-900' : 'text-blue-600 hover:underline'}>
+                {p === 'all' ? 'All' : p}
+              </button>
+            ))}
           </div>
         </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-700 text-white">
+              <tr>
+                {([
+                  { key: 'number', label: 'Question', sortable: true },
+                  { key: 'section', label: 'Section', sortable: true },
+                  { key: null, label: 'Correct Answer', sortable: false },
+                  { key: 'status', label: 'Your Answer', sortable: true },
+                  { key: null, label: 'Actions', sortable: false },
+                  { key: 'domain', label: 'Domain', sortable: true },
+                ] as const).map((col) => (
+                  <th key={col.label} className="px-4 py-3 text-left font-semibold whitespace-nowrap">
+                    {col.sortable ? (
+                      <button onClick={() => toggleSort(col.key as typeof sort.key)} className="inline-flex items-center gap-1">
+                        {col.label}
+                        <span className="text-white/60">{sort.key === col.key ? (sort.dir === 'asc' ? '▲' : '▼') : '⬍'}</span>
+                      </button>
+                    ) : col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((r, i) => (
+                <tr key={r.tq.id} className={`border-t border-slate-100 ${i % 2 ? 'bg-slate-50/40' : 'bg-white'}`}>
+                  <td className="px-4 py-3 text-slate-700">{r.number}</td>
+                  <td className="px-4 py-3 text-slate-700">{r.sectionName}</td>
+                  <td className="px-4 py-3 bg-slate-50/70 font-medium text-slate-700">{showCorrect ? r.correctText : ''}</td>
+                  <td className={`px-4 py-3 font-medium ${statusStyle[r.status]}`}>{statusLabel[r.status]}</td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => navigate(`/test-review/${attempt.id}/section/${r.sectionIdx}?q=${r.tq.questionId}`)}
+                      className="text-blue-600 hover:underline font-medium">Review</button>
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">{r.displayDomain}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {pageSize !== 'all' && totalCount > Number(pageSize) && (
+          <p className="text-xs text-slate-400 mt-2">Showing {visibleRows.length} of {totalCount} questions — use the View options above to see more.</p>
+        )}
       </div>
+
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-end">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useParams, useBlocker } from 'react-router-dom';
-import { Bookmark, ChevronLeft, ChevronRight, Send, AlertTriangle, X, Loader2, Calculator, BookOpen } from 'lucide-react';
+import { Bookmark, ChevronUp, ChevronDown, Send, AlertTriangle, X, Loader2, Calculator, BookOpen, PencilLine, MoreVertical } from 'lucide-react';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
@@ -90,46 +90,69 @@ function BluebookOption({
   onClick: () => void; onEliminate: (e: React.MouseEvent) => void;
 }) {
   return (
-    <div
-      onClick={isEliminated ? undefined : onClick}
-      className={`group flex items-start gap-3 p-3.5 rounded-lg border-2 transition-all select-none
-        ${isEliminated
-          ? 'border-gray-200 bg-gray-50 cursor-default'
-          : isSelected
-            ? 'border-[#1b3d6e] bg-[#e8f0fe] cursor-pointer'
-            : 'border-gray-200 hover:border-[#1b3d6e]/50 hover:bg-gray-50 bg-white cursor-pointer'}`}
-    >
-      {/* Letter circle */}
-      <div className="relative flex-shrink-0 mt-0.5">
-        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all
+    <div className="flex items-stretch gap-2">
+      {/* Option body */}
+      <div
+        onClick={isEliminated ? undefined : onClick}
+        className={`group flex-1 flex items-start gap-3 px-4 py-3 rounded-xl border transition-all select-none
           ${isEliminated
-            ? 'border-gray-300 bg-white'
+            ? 'border-gray-200 bg-white cursor-default'
+            : isSelected
+              ? 'border-[#1b3d6e] border-2 bg-white cursor-pointer'
+              : 'border-gray-300 hover:border-gray-400 bg-white cursor-pointer'}`}
+      >
+        {/* Letter circle */}
+        <div className={`flex-shrink-0 mt-0.5 w-7 h-7 rounded-full border flex items-center justify-center text-sm font-bold transition-all
+          ${isEliminated
+            ? 'border-gray-300 bg-white text-gray-400'
             : isSelected
               ? 'bg-[#1b3d6e] border-[#1b3d6e] text-white'
-              : 'bg-white border-gray-400 text-gray-600 group-hover:border-[#1b3d6e]/60'}`}>
-          <span className={isEliminated ? 'line-through text-gray-400 decoration-gray-400' : ''}>{label}</span>
+              : 'bg-white border-gray-500 text-gray-700'}`}>
+          <span className={isEliminated ? 'line-through decoration-gray-400' : ''}>{label}</span>
         </div>
-        {/* Eliminate / restore button */}
-        {!isSelected && (
+        <div className={`flex-1 text-[15px] leading-relaxed pt-0.5 transition-all
+          ${isEliminated ? 'line-through text-gray-400 decoration-gray-400' : 'text-gray-900'}`}>
+          <RichContentRenderer content={text} variant="option" />
+        </div>
+      </div>
+
+      {/* Far-right cross-out / undo control (Bluebook style) */}
+      <div className="flex-shrink-0 flex items-center">
+        {isEliminated ? (
           <button
             onClick={onEliminate}
-            title={isEliminated ? 'Restore option' : 'Eliminate option'}
-            className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center transition-all border
-              ${isEliminated
-                ? 'bg-gray-400 border-gray-400 text-white opacity-100'
-                : 'bg-white border-gray-300 text-gray-500 opacity-0 group-hover:opacity-100'}`}
+            title="Undo"
+            className="text-xs font-semibold text-[#1b3d6e] underline px-1.5"
           >
-            {isEliminated ? '↺' : '✕'}
+            Undo
+          </button>
+        ) : (
+          <button
+            onClick={onEliminate}
+            title="Cross out this answer"
+            className="relative inline-flex items-center justify-center w-6 h-6 rounded-full border border-gray-500 text-gray-600 text-[11px] font-bold hover:bg-gray-50 transition-colors"
+          >
+            {label}
+            <span className="absolute left-0.5 right-0.5 top-1/2 -translate-y-1/2 h-[1.5px] bg-gray-600" />
           </button>
         )}
-      </div>
-      <div className={`flex-1 text-[15px] leading-relaxed pt-1 transition-all
-        ${isEliminated ? 'line-through text-gray-400 decoration-gray-400' : 'text-gray-900'}`}>
-        <RichContentRenderer content={text} variant="option" />
       </div>
     </div>
   );
 }
+
+// Deterministic confetti pieces for the "You're All Finished!" screen
+const CONFETTI = Array.from({ length: 70 }, (_, i) => {
+  const colors = ['#f6c945', '#ec4899', '#22d3ee', '#a78bfa', '#f87171', '#ffffff', '#34d399'];
+  return {
+    left: (i * 37) % 100,
+    top: (i * 53) % 100,
+    color: colors[i % colors.length],
+    size: 5 + (i % 4) * 2,
+    rot: (i * 47) % 360,
+    round: i % 3 === 0,
+  };
+});
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -143,6 +166,12 @@ export function TestInterfacePage() {
   const [eliminatedOptions, setEliminatedOptions] = useState<Set<string>>(new Set());
   const [numericInput, setNumericInput] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const [finished, setFinished] = useState(false);
+  const [finishedAttemptId, setFinishedAttemptId] = useState<string | null>(null);
+  const [timerHidden, setTimerHidden] = useState(false);
+  const [showDirections, setShowDirections] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -351,6 +380,11 @@ export function TestInterfacePage() {
 
   const doSectionTransition = async (fromSectionId: string, toSectionIdx: number) => {
     if (!attempt || !test) return;
+    // Show the "This Module Is Over" interstitial while we save the finished
+    // module and start the next one. Keep it up for a brief minimum so the
+    // message is readable even when the network round-trip is instant.
+    setTransitioning(true);
+    const minDisplay = new Promise<void>((res) => setTimeout(res, 2500));
     // Set timer to full section time immediately — prevents cascade if the sync
     // effect fires before startSection writes its Redis key
     const fullTime = (test.sections[toSectionIdx]?.timeLimit ?? 45) * 60;
@@ -365,25 +399,45 @@ export function TestInterfacePage() {
     } catch {
       // Keep the full-time fallback already set above
     }
+    await minDisplay;
+    setTransitioning(false);
   };
 
   const doFinalSubmit = async () => {
     if (!attempt || !currentSection || !currentQuestion) return;
     const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
-    if (!isPreview) {
-      // Autosave last question's answer
-      api.autosaveAnswer(attempt.id, {
-        questionId: currentQuestion.id,
-        answerGiven: toDbAnswer(currentQuestion.type, finalAns),
-        timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
-        isFlagged: false,
-      }).catch(() => {});
-      // Submit last section (also triggers score calculation in backend)
-      await api.submitSection(attempt.id, currentSection.id).catch(() => {});
+
+    // Preview mode never persists or shows the celebration — just exit.
+    if (isPreview) {
+      allowNavigationAwayRef.current = true;
+      clearAttempt();
+      navigate('/tests');
+      return;
     }
+
+    // Autosave last question's answer
+    api.autosaveAnswer(attempt.id, {
+      questionId: currentQuestion.id,
+      answerGiven: toDbAnswer(currentQuestion.type, finalAns),
+      timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+      isFlagged: false,
+    }).catch(() => {});
+    // Submit last section (also triggers score calculation in backend)
+    await api.submitSection(attempt.id, currentSection.id).catch(() => {});
+
+    // Allow leaving the page (disarm the navigation blocker) and show the
+    // "You're All Finished!" celebration. We keep the attempt id so the
+    // "View Your Score" button can route to the review page.
     allowNavigationAwayRef.current = true;
+    setFinishedAttemptId(attempt.id);
+    setFinished(true);
+  };
+
+  const goToScore = () => {
+    allowNavigationAwayRef.current = true;
+    const id = finishedAttemptId;
     clearAttempt();
-    navigate(isPreview ? '/tests' : `/test-review/${attempt.id}`);
+    navigate(id ? `/test-review/${id}` : '/tests');
   };
 
   const autosaveAttemptState = useCallback(() => {
@@ -664,6 +718,75 @@ export function TestInterfacePage() {
     );
   }
 
+  // Final celebration — shown after the whole test is submitted.
+  if (finished) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-[#1e2150] overflow-hidden flex flex-col items-center justify-center px-6">
+        {/* Confetti */}
+        {CONFETTI.map((c, i) => (
+          <span
+            key={i}
+            className="absolute"
+            style={{
+              left: `${c.left}%`,
+              top: `${c.top}%`,
+              width: c.size,
+              height: c.size,
+              backgroundColor: c.color,
+              borderRadius: c.round ? '9999px' : '1px',
+              transform: `rotate(${c.rot}deg)`,
+              opacity: 0.85,
+            }}
+          />
+        ))}
+
+        <h1 className="relative text-3xl sm:text-4xl font-bold text-white mb-10 text-center">You're All Finished!</h1>
+
+        <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full px-8 py-10 flex flex-col sm:flex-row items-center gap-8">
+          {/* Laptop + smiley illustration */}
+          <div className="flex-shrink-0 flex items-center justify-center w-44 h-44 rounded-full bg-blue-50/70">
+            <svg viewBox="0 0 120 100" className="w-32 h-28">
+              <rect x="20" y="10" width="80" height="55" rx="4" fill="#fff" stroke="#cbd5e1" strokeWidth="3" />
+              <path d="M10 82 L110 82 L100 65 L20 65 Z" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="3" strokeLinejoin="round" />
+              <circle cx="60" cy="37" r="16" fill="#dbeafe" stroke="#3b82f6" strokeWidth="3" />
+              <circle cx="54" cy="33" r="2.2" fill="#3b82f6" />
+              <circle cx="66" cy="33" r="2.2" fill="#3b82f6" />
+              <path d="M52 42 Q60 50 68 42" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          </div>
+
+          <div className="hidden sm:block w-px self-stretch bg-gray-200" />
+
+          <p className="text-center sm:text-left text-gray-700 text-lg leading-relaxed">
+            Congratulations on completing your test! Your answers have been submitted.
+            Click below to see how you did.
+          </p>
+        </div>
+
+        <button
+          onClick={goToScore}
+          className="relative mt-10 bg-yellow-400 hover:bg-yellow-300 text-[#1e2150] font-bold text-lg px-10 py-3.5 rounded-full shadow-lg transition-colors"
+        >
+          View Your Score
+        </button>
+      </div>
+    );
+  }
+
+  // Between-module interstitial — shown right after a module is submitted,
+  // while the next module is being prepared on the server.
+  if (transitioning) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center text-center px-6">
+        <h1 className="text-3xl font-semibold text-[#3b5bdb] mb-10">This Module Is Over</h1>
+        <p className="text-lg text-gray-700">All your work has been saved.</p>
+        <p className="text-lg text-gray-700 mt-3">You'll move on automatically in just a moment.</p>
+        <p className="text-lg text-gray-700 mt-3">Do not refresh this page or quit the app.</p>
+        <div className="mt-14 w-10 h-10 border-[3px] border-[#3b5bdb] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!test || !attempt || !currentSection || !currentQuestion) return null;
 
   const totalQInSection = currentSection.questions.length;
@@ -710,14 +833,22 @@ export function TestInterfacePage() {
   const markForReview = () => {
     if (!currentSection) return;
     const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
-    const hasAnswer = finalAns !== null && finalAns !== '';
-    updateQuestionState(currentSection.id, currentQuestion.id, hasAnswer ? 'answered_marked' : 'marked_review', finalAns as any);
+    const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
+    // Bluebook behaviour: toggle the review flag on the current question and
+    // stay where you are (no auto-advance).
+    const currState = getQuestionState(currentSection.id, currentQuestion.id);
+    const currentlyMarked = currState === 'marked_review' || currState === 'answered_marked';
+    const nowMarked = !currentlyMarked;
+    const newState: QuestionState = nowMarked
+      ? (hasAnswer ? 'answered_marked' : 'marked_review')
+      : (hasAnswer ? 'answered' : 'not_answered');
+    updateQuestionState(currentSection.id, currentQuestion.id, newState, finalAns as any);
     if (!isPreview) {
       api.autosaveAnswer(attempt.id, {
         questionId: currentQuestion.id,
         answerGiven: toDbAnswer(currentQuestion.type, finalAns),
         timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
-        isFlagged: true,
+        isFlagged: nowMarked,
         attemptState: {
           currentSectionIndex: currentSectionIdx,
           currentQuestionIndex: currentQIdx,
@@ -725,13 +856,26 @@ export function TestInterfacePage() {
         },
       }).catch(() => {});
     }
-    if (!isLastQuestion) navigateToQuestion(currentSectionIdx, currentQIdx + 1);
   };
 
-  const pct = Math.round(((sectionTimeSeconds - timeLeft) / sectionTimeSeconds) * 100);
   const isLowTime = timeLeft < 300;
   const currentQState = getQuestionState(currentSection.id, currentQuestion.id);
   const isMarked = currentQState === 'marked_review' || currentQState === 'answered_marked';
+  const isMath = /math/i.test(currentSection.name);
+
+  // Bluebook-style question header (number badge + Mark for Review + annotate)
+  const questionHeaderBar = (
+    <div className="flex items-center justify-between border-b-2 border-dashed border-gray-300 pb-2.5 mb-5">
+      <div className="flex items-center gap-3">
+        <span className="w-7 h-7 bg-gray-900 text-white text-sm font-bold flex items-center justify-center rounded">{currentQIdx + 1}</span>
+        <button onClick={markForReview} className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900">
+          <Bookmark size={15} className={isMarked ? 'text-[#1b3d6e]' : ''} fill={isMarked ? '#1b3d6e' : 'none'} />
+          Mark for Review
+        </button>
+      </div>
+      <span title="Annotate" className="w-7 h-7 flex items-center justify-center rounded bg-[#1b3d6e] text-white text-[9px] font-bold tracking-tight">ABC</span>
+    </div>
+  );
 
   const answeredCount = Object.values(currentSectionAttempt?.questions ?? {}).filter(
     (q) => q.state === 'answered' || q.state === 'answered_marked'
@@ -786,70 +930,73 @@ export function TestInterfacePage() {
         </div>
       )}
 
-      {/* ── TOP BAR ──────────────────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 bg-white border-b border-gray-200 px-5 h-14 flex items-center justify-between z-10">
-        {/* Exit */}
-        <button
-          onClick={() => setShowExitWarningModal(true)}
-          className="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
-        >
-          Exit
-        </button>
-
-        {/* Center: test + section */}
-        <div className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none select-none">
-          <p className="text-[11px] text-gray-400 leading-none tracking-wide">{test.title}</p>
-          <p className="text-sm font-semibold text-gray-900 mt-0.5 leading-none">{currentSection.name}</p>
+      {/* ── TOP BAR (Bluebook) ───────────────────────────────────────────────── */}
+      <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-gray-200 px-5 h-16 flex items-center justify-between z-20">
+        {/* Left: module title + directions */}
+        <div className="flex flex-col justify-center min-w-0">
+          <p className="text-[15px] font-bold text-gray-900 leading-tight truncate">{currentSection.name}</p>
+          <button
+            onClick={() => setShowDirections(true)}
+            className="flex items-center gap-1 text-[13px] text-gray-700 hover:text-gray-900 w-fit"
+          >
+            Directions <ChevronDown size={13} />
+          </button>
         </div>
 
-        {/* Right: tools + palette */}
-        <div className="flex items-center gap-2">
+        {/* Center: timer */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center select-none">
+          {!timerHidden && (
+            <span className={`text-xl font-bold tabular-nums leading-none ${isLowTime ? 'text-red-600' : 'text-gray-900'}`}>
+              {formatTime(timeLeft)}
+            </span>
+          )}
           <button
-            onClick={() => setShowReference(true)}
-            className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${showReference ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            onClick={() => setTimerHidden((v) => !v)}
+            className={`text-[12px] font-medium text-gray-600 border border-gray-300 rounded-full px-3 py-0.5 hover:bg-gray-100 transition-colors ${timerHidden ? '' : 'mt-1.5'}`}
           >
-            <BookOpen size={14} /> Reference
+            {timerHidden ? 'Show' : 'Hide'}
           </button>
-          <button
-            onClick={() => setShowCalculator((v) => !v)}
-            className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${showCalculator ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-          >
-            <Calculator size={14} /> Calculator
+        </div>
+
+        {/* Right: tools */}
+        <div className="flex items-center gap-5">
+          {isMath && (
+            <>
+              <button onClick={() => setShowReference(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
+                <BookOpen size={18} /> Reference
+              </button>
+              <button onClick={() => setShowCalculator((v) => !v)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
+                <Calculator size={18} /> Calculator
+              </button>
+            </>
+          )}
+          <button className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]" title="Highlights & Notes">
+            <PencilLine size={18} /> Highlights & Notes
           </button>
-          <div className="w-px h-5 bg-gray-200 mx-1" />
-          <button
-            onClick={() => setShowPalette(true)}
-            className="text-sm font-medium text-gray-700 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 px-3 py-1.5 rounded-md transition-colors"
-          >
-            Question {currentQIdx + 1} of {totalQInSection}
-          </button>
+          <div className="relative">
+            <button onClick={() => setShowMore((v) => !v)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
+              <MoreVertical size={18} /> More
+            </button>
+            {showMore && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setShowMore(false)} />
+                <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-30">
+                  <button onClick={() => { setShowMore(false); setShowDirections(true); }} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Directions</button>
+                  <button onClick={() => { setShowMore(false); setShowExitWarningModal(true); }} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">Exit Exam</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* Thin section + progress strip */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-5 py-2 flex items-center gap-4 overflow-x-auto">
-        {test.sections.map((sec, idx) => (
-          <div key={sec.id} className={`flex-shrink-0 flex items-center gap-1.5 text-xs font-medium ${
-            idx === currentSectionIdx ? 'text-[#1b3d6e]' :
-            idx < currentSectionIdx ? 'text-emerald-600' : 'text-gray-400'
-          }`}>
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              idx === currentSectionIdx ? 'bg-[#1b3d6e]' :
-              idx < currentSectionIdx ? 'bg-emerald-500' : 'border border-gray-300 bg-white'
-            }`} />
-            {sec.name}
-          </div>
-        ))}
-        <div className="flex-1 h-0.5 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-1000 ${isLowTime ? 'bg-red-500' : 'bg-[#1b3d6e]'}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+      {/* Practice-test banner */}
+      <div className="flex-shrink-0 bg-[#1e2150] text-white text-center text-[12px] font-semibold tracking-wide py-1.5 z-10">
+        THIS IS A PRACTICE TEST
       </div>
 
       {/* ── CONTENT ──────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto bg-[#f7f8fa]">
+      <div className="flex-1 overflow-y-auto bg-white">
         {currentQuestion.parentQuestionText ? (
           /* Passage layout */
           <div className="flex h-full min-h-full divide-x divide-gray-200">
@@ -862,20 +1009,10 @@ export function TestInterfacePage() {
                   <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
                 </div>
               </div>
-              
-              {/* Pinned timer bar at the bottom of the passage pane */}
-              <div className="flex-shrink-0 px-8 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between select-none">
-                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Time Remaining</span>
-                <span className={`text-sm font-mono font-bold tabular-nums px-2 py-0.5 rounded ${isLowTime ? 'text-red-600 bg-red-50' : 'text-[#1b3d6e] bg-[#e8f0fe]'}`}>
-                  {formatTime(timeLeft)}
-                </span>
-              </div>
             </div>
             {/* Right: Question */}
-            <div className="w-1/2 overflow-y-auto p-8 bg-[#f7f8fa]">
-              <p className="text-xs text-gray-500 mb-5 font-medium">
-                Question {currentQIdx + 1} of {totalQInSection}
-              </p>
+            <div className="w-1/2 overflow-y-auto p-8 bg-white">
+              {questionHeaderBar}
               <div className="text-[15px] text-gray-900 leading-relaxed mb-6">
                 <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
               </div>
@@ -894,10 +1031,7 @@ export function TestInterfacePage() {
         ) : (
           /* Standard layout */
           <div className="max-w-3xl mx-auto px-6 py-10">
-            <p className="text-xs text-gray-500 mb-6 font-medium">
-              Question {currentQIdx + 1} of {totalQInSection}
-              {currentQuestion.topic && <span className="ml-3 text-gray-400">· {currentQuestion.topic}</span>}
-            </p>
+            {questionHeaderBar}
             <div className="text-[16px] text-gray-900 leading-relaxed mb-8 font-normal">
               <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
             </div>
@@ -911,55 +1045,46 @@ export function TestInterfacePage() {
                   className="w-40 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-mono focus:outline-none focus:border-[#1b3d6e] transition-colors bg-white" />
               </div>
             )}
-            
-            {/* Timer below the standard question */}
-            <div className="mt-10 pt-4 border-t border-gray-100 flex items-center justify-between select-none">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Time Remaining</span>
-              <span className={`text-sm font-mono font-bold tabular-nums px-2 py-0.5 rounded ${isLowTime ? 'text-red-600 bg-red-50' : 'text-[#1b3d6e] bg-[#e8f0fe]'}`}>
-                {formatTime(timeLeft)}
-              </span>
-            </div>
           </div>
         )}
       </div>
 
-      {/* ── BOTTOM TOOLBAR ───────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-5 h-14 flex items-center justify-between z-10">
-        {/* Mark for Review */}
+      {/* ── BOTTOM BAR (Bluebook) ────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 bg-[#fcfcfd] border-t border-gray-200 px-5 h-16 flex items-center justify-between z-20">
+        {/* Left: student name */}
+        <p className="text-base font-bold text-gray-900 truncate max-w-[28%]">{user?.name ?? 'Student'}</p>
+
+        {/* Center: question navigator pill */}
         <button
-          onClick={markForReview}
-          className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-            isMarked
-              ? 'text-amber-600 bg-amber-50 border border-amber-200'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
+          onClick={() => setShowPalette(true)}
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
         >
-          <Bookmark size={15} fill={isMarked ? 'currentColor' : 'none'} />
-          Mark for Review
+          Question {currentQIdx + 1} of {totalQInSection}
+          <ChevronUp size={15} />
         </button>
 
-        {/* Navigation */}
+        {/* Right: back / next / submit */}
         <div className="flex items-center gap-2">
           <button
             disabled={currentQIdx === 0}
             onClick={() => saveAndNavigate(currentQIdx - 1)}
-            className="flex items-center gap-1 px-5 py-2 text-sm font-medium border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-5 py-2.5 text-sm font-semibold text-[#1b3d6e] rounded-full hover:bg-blue-50 disabled:opacity-0 disabled:pointer-events-none transition-colors"
           >
-            <ChevronLeft size={15} /> Back
+            Back
           </button>
           {isLastQuestion && isLastSection ? (
             <button
               onClick={() => setShowSubmitModal(true)}
-              className="flex items-center gap-1.5 px-5 py-2 text-sm font-semibold bg-[#1b3d6e] text-white rounded-md hover:bg-[#15305a] transition-colors"
+              className="flex items-center gap-1.5 px-7 py-2.5 text-sm font-semibold bg-[#1b3d6e] text-white rounded-full hover:bg-[#15305a] transition-colors"
             >
               <Send size={13} /> Submit
             </button>
           ) : (
             <button
               onClick={() => isLastQuestion ? saveAndNavigate(0, currentSectionIdx + 1) : saveAndNavigate(currentQIdx + 1)}
-              className="flex items-center gap-1 px-5 py-2 text-sm font-semibold bg-[#1b3d6e] text-white rounded-md hover:bg-[#15305a] transition-colors"
+              className="px-9 py-2.5 text-sm font-semibold bg-[#1b3d6e] text-white rounded-full hover:bg-[#15305a] transition-colors"
             >
-              Next <ChevronRight size={15} />
+              Next
             </button>
           )}
         </div>
@@ -1261,6 +1386,27 @@ export function TestInterfacePage() {
           </div>
         </div>
       )}
+
+      {/* ── DIRECTIONS MODAL ─────────────────────────────────────────────────── */}
+      <Modal isOpen={showDirections} onClose={() => setShowDirections(false)} title="Directions" size="md">
+        <div className="text-sm text-gray-700 leading-relaxed space-y-3">
+          {isMath ? (
+            <>
+              <p>The questions in this section address a number of important math skills.</p>
+              <p>Use of a calculator is permitted for all questions. A reference sheet, calculator, and these directions can be accessed throughout the test.</p>
+              <p>Unless otherwise indicated: all variables and expressions represent real numbers, figures are drawn to scale, all figures lie in a plane, and the domain of a given function is the set of all real numbers for which the function is defined.</p>
+              <p>For multiple-choice questions, solve each problem and choose the correct answer from the choices provided. For student-produced response questions, solve each problem and enter your answer.</p>
+            </>
+          ) : (
+            <>
+              <p>The questions in this section address a number of important reading and writing skills.</p>
+              <p>Each question includes one or more passages, which may include a table or graph. Read each passage and question carefully, then choose the best answer to the question based on the passage(s).</p>
+              <p>All questions in this section are multiple-choice with four answer choices. Each question has a single best answer.</p>
+            </>
+          )}
+          <p className="text-gray-500">You can cross out answers you think are wrong using the cross-out tool to the right of each choice, and mark a question for review to return to it later.</p>
+        </div>
+      </Modal>
 
       {/* ── SUBMIT MODAL ─────────────────────────────────────────────────────── */}
       <Modal isOpen={showSubmitModal} onClose={() => setShowSubmitModal(false)} title="Submit Test" size="sm"
