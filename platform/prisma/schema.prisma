@@ -187,8 +187,6 @@ model TestAssignment {
 
   test             Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
   student          User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([testId, studentId])
 }
 
 model SectionAttempt {

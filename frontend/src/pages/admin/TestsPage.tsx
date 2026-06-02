@@ -121,7 +121,7 @@ function AssignModal({ test, onClose }: AssignModalProps) {
             <p className="text-sm text-slate-400 text-center py-4">No students found</p>
           ) : (
             <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-lg divide-y divide-slate-50">
-              {filtered.filter((s) => !assigned.has(s.id)).map((s) => (
+              {filtered.map((s) => (
                 <label key={s.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
                   <input
                     type="checkbox"
@@ -133,10 +133,11 @@ function AssignModal({ test, onClose }: AssignModalProps) {
                     <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
                     <p className="text-xs text-slate-400 truncate">{s.email}</p>
                   </div>
+                  {assigned.has(s.id) && <span className="text-xs text-emerald-600 font-medium">Already assigned</span>}
                 </label>
               ))}
-              {filtered.filter((s) => !assigned.has(s.id)).length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-4">All matching students are already assigned</p>
+              {filtered.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">No students found</p>
               )}
             </div>
           )}
