@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, Filter, AlertCircle } from 'lucide-react';
-import { Button } from '../../components/common/Button';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, AlertCircle } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
@@ -281,7 +280,6 @@ export function MistakesPage() {
   const navigate = useNavigate();
   const { dbId } = useAuthStore();
 
-  const [attempts, setAttempts] = useState<DbAttempt[]>([]);
   const [mistakes, setMistakes] = useState<MistakeItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'wrong' | 'unattempted'>('all');
   const [loading, setLoading] = useState(true);
@@ -299,12 +297,10 @@ export function MistakesPage() {
         // Fetch full details for each attempt
         Promise.all(submitted.map(a => api.getAttempt(a.id).catch(() => null)))
           .then((fullAttempts) => {
-            setAttempts(submitted as DbAttempt[]);
-
             // Extract mistakes from all attempts
             const allMistakes: MistakeItem[] = [];
 
-            fullAttempts.forEach((fullData, idx) => {
+            fullAttempts.forEach((fullData) => {
               if (!fullData) return;
               const attempt = fullData.attempt as DbAttempt;
 
