@@ -108,6 +108,22 @@ function dbOptionsToDisplay(options: Record<string, string> | null): Array<{ id:
   return Object.entries(options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }))
 }
 
+function getSubject(item: MistakeItem): 'math' | 'english' | 'other' {
+  const subject = (item.question.subject || '').toLowerCase();
+  if (subject.includes('math')) return 'math';
+  if (subject.includes('english') || subject.includes('reading') || subject.includes('writing')) return 'english';
+
+  const secName = (item.sectionName || '').toLowerCase();
+  if (secName.includes('math') || secName.includes('calc')) return 'math';
+  if (secName.includes('english') || secName.includes('reading') || secName.includes('writing') || secName.includes('verbal') || secName.includes('grammar')) return 'english';
+
+  const testTitle = (item.testTitle || '').toLowerCase();
+  if (testTitle.includes('math')) return 'math';
+  if (testTitle.includes('english') || testTitle.includes('reading') || testTitle.includes('writing')) return 'english';
+
+  return 'other';
+}
+
 // ─── Question item component ────────────────────────────────────────────────
 
 interface MistakeItemComponentProps {
@@ -282,6 +298,7 @@ export function MistakesPage() {
 
   const [mistakes, setMistakes] = useState<MistakeItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'wrong' | 'unattempted'>('all');
+  const [subjectFilter, setSubjectFilter] = useState<'all' | 'math' | 'english'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -366,13 +383,21 @@ export function MistakesPage() {
       .finally(() => setLoading(false));
   }, [dbId]);
 
-  const filtered = mistakes.filter(m => {
+  // First, filter by subject
+  const mistakesForSubject = mistakes.filter(m => {
+    if (subjectFilter === 'all') return true;
+    return getSubject(m) === subjectFilter;
+  });
+
+  const totalCount = mistakesForSubject.length;
+  const wrongCount = mistakesForSubject.filter(m => m.status === 'wrong').length;
+  const unattemptedCount = mistakesForSubject.filter(m => m.status === 'unattempted').length;
+
+  // Then filter by mistake status (wrong vs unattempted)
+  const filtered = mistakesForSubject.filter(m => {
     if (filter === 'all') return true;
     return m.status === filter;
   });
-
-  const wrongCount = mistakes.filter(m => m.status === 'wrong').length;
-  const unattemptedCount = mistakes.filter(m => m.status === 'unattempted').length;
 
   if (loading) {
     return (
@@ -408,7 +433,7 @@ export function MistakesPage() {
       {mistakes.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total Mistakes', value: mistakes.length, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: 'Total Mistakes', value: totalCount, color: 'text-blue-600', bg: 'bg-blue-50' },
             { label: 'Wrong', value: wrongCount, color: 'text-red-600', bg: 'bg-red-50' },
             { label: 'Unattempted', value: unattemptedCount, color: 'text-slate-600', bg: 'bg-slate-50' },
           ].map((s) => (
@@ -428,25 +453,51 @@ export function MistakesPage() {
         </div>
       ) : (
         <>
-          {/* Filter buttons */}
-          <div className="flex gap-2">
-            {[
-              { value: 'all' as const, label: 'All Mistakes' },
-              { value: 'wrong' as const, label: 'Wrong Only' },
-              { value: 'unattempted' as const, label: 'Unattempted Only' },
-            ].map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filter === f.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+          {/* Filters Bar */}
+          <div className="flex flex-col sm:flex-row gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            {/* Status Filter */}
+            <div className="flex flex-wrap items-center gap-1.5 flex-1">
+              <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Status:</span>
+              {[
+                { value: 'all' as const, label: 'All Mistakes' },
+                { value: 'wrong' as const, label: 'Wrong Only' },
+                { value: 'unattempted' as const, label: 'Unattempted Only' },
+              ].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    filter === f.value
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Subject Filter */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Subject:</span>
+              {[
+                { value: 'all' as const, label: 'All Subjects' },
+                { value: 'math' as const, label: 'Maths' },
+                { value: 'english' as const, label: 'English' },
+              ].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setSubjectFilter(f.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    subjectFilter === f.value
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Questions list */}
