@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, AlertTriangle, Clock, Users, ArrowUpRight,
   CheckCircle2, Award,
-  Timer, Gauge, Activity, AlertCircle, AlertOctagon
+  Timer, AlertCircle, AlertOctagon
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
@@ -10,9 +10,9 @@ import { TopicAnalysisTable } from '../../components/dashboard/TopicAnalysisTabl
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend, ScatterChart, Scatter, ReferenceLine
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
+import { QuestionTimeChart } from '../../components/dashboard/QuestionTimeChart';
 
 type SectionStat = {
   sectionId: string; sectionName: string; totalQuestions: number;
@@ -73,175 +73,6 @@ function aggregateSections(analyticsMap: Record<string, AnalyticsData>): Section
   }));
 }
 
-type PacingSegment = {
-  x: number; // midpoint for Scatter
-  y: number; // questionIndex
-  start: number; // start time in minutes
-  end: number; // end time in minutes
-  visit: number; // 1, 2, 3, or 4
-  status: string;
-  topic: string;
-};
-
-const CustomBarShape = (props: any) => {
-  const { cy, payload, xAxis } = props;
-  if (!payload || !xAxis || !xAxis.scale) return null;
-  const startX = xAxis.scale(payload.start);
-  const endX = xAxis.scale(payload.end);
-  const width = Math.max(2, endX - startX);
-  const height = 10;
-  
-  const colors: Record<number, string> = {
-    1: '#80245a',
-    2: '#3b82f6',
-    3: '#22c55e',
-    4: '#6366f1',
-  };
-  const fill = colors[payload.visit as number] || '#cbd5e1';
-  
-  return (
-    <rect
-      x={startX}
-      y={cy - height / 2}
-      width={width}
-      height={height}
-      fill={fill}
-      rx={2}
-    />
-  );
-};
-
-const CustomPacingTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-slate-905 text-white p-2.5 rounded-lg text-[11px] shadow-xl border border-slate-800 space-y-1">
-        <p className="font-bold text-blue-400">Question {data.y}</p>
-        <p><span className="font-semibold text-slate-300">Topic:</span> {data.topic || '—'}</p>
-        <p className="capitalize"><span className="font-semibold text-slate-300">Status:</span> {data.status}</p>
-        <div className="flex items-center gap-1.5 mt-1 border-t border-slate-800 pt-1">
-          <span className="w-2.5 h-1.5 rounded-xs" style={{
-            backgroundColor: data.visit === 1 ? '#80245a' : data.visit === 2 ? '#3b82f6' : data.visit === 3 ? '#22c55e' : '#6366f1'
-          }} />
-          <span className="font-semibold">Visit {data.visit}:</span>
-          <span className="font-mono">[{data.start.toFixed(2)}, {data.end.toFixed(2)} min]</span>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
-
-function generatePacingTimeline(
-  pacingStats: PacingStat[]
-): PacingSegment[] {
-  if (!pacingStats || pacingStats.length === 0) return [];
-  const sortedStats = [...pacingStats].sort((a, b) => a.questionIndex - b.questionIndex);
-  const N = sortedStats.length;
-  
-  const segments: PacingSegment[] = [];
-  const remainingTime = sortedStats.map(s => s.timeSpentSeconds);
-  let currentTime = 0;
-  
-  // Visit 1: First forward pass
-  for (let i = 0; i < N; i++) {
-    const q = sortedStats[i];
-    const total = remainingTime[i];
-    if (total <= 0) continue;
-    
-    let duration = total;
-    const isIncorrect = q.status === 'incorrect';
-    if (isIncorrect && total > 25) {
-      duration = Math.max(10, Math.round(total * 0.7));
-    }
-    
-    segments.push({
-      x: (currentTime + duration / 2) / 60,
-      y: q.questionIndex,
-      start: currentTime / 60,
-      end: (currentTime + duration) / 60,
-      visit: 1,
-      status: q.status,
-      topic: q.topicName || ''
-    });
-    
-    currentTime += duration;
-    remainingTime[i] -= duration;
-  }
-  
-  // Visit 2: Backwards review
-  for (let i = N - 1; i >= 0; i--) {
-    const q = sortedStats[i];
-    const total = remainingTime[i];
-    if (total <= 0) continue;
-    
-    let duration = total;
-    if (total > 15) {
-      duration = Math.max(5, Math.round(total * 0.7));
-    }
-    
-    segments.push({
-      x: (currentTime + duration / 2) / 60,
-      y: q.questionIndex,
-      start: currentTime / 60,
-      end: (currentTime + duration) / 60,
-      visit: 2,
-      status: q.status,
-      topic: q.topicName || ''
-    });
-    
-    currentTime += duration;
-    remainingTime[i] -= duration;
-  }
-  
-  // Visit 3: Third pass forward
-  for (let i = 0; i < N; i++) {
-    const q = sortedStats[i];
-    const total = remainingTime[i];
-    if (total <= 0) continue;
-    
-    let duration = total;
-    if (total > 10) {
-      duration = Math.max(5, Math.round(total * 0.7));
-    }
-    
-    segments.push({
-      x: (currentTime + duration / 2) / 60,
-      y: q.questionIndex,
-      start: currentTime / 60,
-      end: (currentTime + duration) / 60,
-      visit: 3,
-      status: q.status,
-      topic: q.topicName || ''
-    });
-    
-    currentTime += duration;
-    remainingTime[i] -= duration;
-  }
-  
-  // Visit 4: Cleanup
-  for (let i = N - 1; i >= 0; i--) {
-    const q = sortedStats[i];
-    const total = remainingTime[i];
-    if (total <= 0) continue;
-    
-    segments.push({
-      x: (currentTime + total / 2) / 60,
-      y: q.questionIndex,
-      start: currentTime / 60,
-      end: (currentTime + total) / 60,
-      visit: 4,
-      status: q.status,
-      topic: q.topicName || ''
-    });
-    
-    currentTime += total;
-    remainingTime[i] = 0;
-  }
-  
-  return segments;
-}
-
 export function TutorAnalyticsPage() {
   const { dbId } = useAuthStore();
   const [selectedStudent, setSelectedStudent] = useState<string>(() => sessionStorage.getItem('tutor_analytics_student') || 'all');
@@ -252,6 +83,9 @@ export function TutorAnalyticsPage() {
   const [sectionFilter, setSectionFilter] = useState('All');
   const [selectedAttemptId, setSelectedAttemptId] = useState<string>(() => sessionStorage.getItem('tutor_analytics_attemptId') || '');
   const [studentAttempts, setStudentAttempts] = useState<any[]>([]);
+
+  const currentAnalytics = selectedStudent !== 'all' ? analyticsMap[selectedStudent] : null;
+  const currentStudentProfile = students.find((s) => s.id === selectedStudent);
 
   // Sync selection to sessionStorage
   useEffect(() => {
@@ -347,9 +181,6 @@ export function TutorAnalyticsPage() {
       .catch(() => {});
   }, [selectedStudent, selectedAttemptId]);
 
-  const currentAnalytics = selectedStudent !== 'all' ? analyticsMap[selectedStudent] : null;
-  const currentStudentProfile = students.find((s) => s.id === selectedStudent);
-
   // Aggregate metrics
   const avgScore = useMemo(() => {
     const withScore = students.filter((s) => s.avgScore != null);
@@ -431,52 +262,17 @@ export function TutorAnalyticsPage() {
     return mapped.filter(q => q.status === statusFilter.toLowerCase());
   }, [filteredPacingStats, statusFilter]);
 
-  const timelineData = useMemo(() => {
-    return generatePacingTimeline(filteredPacingStats);
-  }, [filteredPacingStats]);
+  // Stats fed to the honest per-question time chart (section + status filtered)
+  const chartStats = useMemo(() => {
+    if (statusFilter === 'All') return filteredPacingStats;
+    return filteredPacingStats.filter(q => q.status === statusFilter.toLowerCase());
+  }, [filteredPacingStats, statusFilter]);
 
-  const maxQNum = useMemo(() => {
-    if (filteredPacingStats.length === 0) return 27;
-    return Math.max(...filteredPacingStats.map(q => q.questionIndex));
-  }, [filteredPacingStats]);
-
-  const yTicks = useMemo(() => {
-    return Array.from({ length: maxQNum }, (_, i) => i + 1);
-  }, [maxQNum]);
-
-  const xTicks = useMemo(() => {
-    if (timelineData.length === 0) return [];
-    const maxTime = Math.ceil(Math.max(...timelineData.map(d => d.end)));
-    const step = maxTime > 35 ? 5 : 1;
-    const ticksArr = [];
-    for (let i = 0; i <= maxTime; i += step) {
-      ticksArr.push(i);
-    }
-    return ticksArr;
-  }, [timelineData]);
-
-  const filteredTimelineData = useMemo(() => {
-    if (statusFilter === 'All') return timelineData;
-    return timelineData.filter(seg => seg.status === statusFilter.toLowerCase());
-  }, [timelineData, statusFilter]);
-
-  const pacingMetrics = useMemo(() => {
-    if (pacingData.length === 0) return { avgTimePerQuestion: 0, stuckCount: 0, rushedCount: 0, timeEfficiencyScore: 0, stuckQuestions: [] };
-    const totalTime = pacingData.reduce((a, q) => a + q.timeSpent, 0);
-    const avgTimePerQuestion = Math.round(totalTime / pacingData.length);
-    const stuckQuestions = pacingData.filter((q) => q.timeSpent >= 90);
-    const rushedQuestions = pacingData.filter((q) => q.timeSpent < 20);
-    const pacingDeviation = pacingData.reduce((sum, q) => sum + Math.abs(q.timeSpent - 45), 0) / pacingData.length;
-    const timeEfficiencyScore = Math.max(40, Math.min(98, Math.round(100 - pacingDeviation * 0.7 - stuckQuestions.length * 3)));
-    return { avgTimePerQuestion, stuckCount: stuckQuestions.length, rushedCount: rushedQuestions.length, timeEfficiencyScore, stuckQuestions };
-  }, [pacingData]);
-
-  const renderDot = (props: { cx?: number; cy?: number; payload?: { timeSpent: number } }) => {
-    const { cx, cy, payload } = props;
-    if (cx === undefined || cy === undefined || !payload) return null;
-    const color = payload.timeSpent >= 90 ? '#ef4444' : payload.timeSpent < 20 ? '#f59e0b' : '#3b82f6';
-    return <circle cx={cx} cy={cy} r={5} fill={color} stroke="#ffffff" strokeWidth={1} />;
-  };
+  // Questions where the student got stuck — surfaced for tutor follow-up
+  const stuckQuestions = useMemo(
+    () => pacingData.filter((q) => q.timeSpent >= 90),
+    [pacingData]
+  );
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-slate-400 text-sm">Loading analytics...</div></div>;
@@ -534,10 +330,10 @@ export function TutorAnalyticsPage() {
               <div>
                 <h3 className="font-bold text-slate-850 text-sm flex items-center gap-2">
                   <Timer className="text-blue-500 w-5 h-5" />
-                  Time-Management & Pacing Diagnostics
+                  Time per Question
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  Pacing deviation, stuck-question detection, and solving efficiency metrics for {selectedStudent === 'all' ? 'class cohort' : currentStudentProfile?.name}
+                  Real time spent on each question for {selectedStudent === 'all' ? 'the class cohort' : currentStudentProfile?.name}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -564,9 +360,6 @@ export function TutorAnalyticsPage() {
                     </select>
                   </>
                 )}
-                <Badge variant="info" className="bg-blue-50 text-blue-700 border-blue-100 font-bold text-[9px] uppercase tracking-wider flex items-center gap-1">
-                  <Gauge size={10} /> PACING ENGINE
-                </Badge>
               </div>
             </div>
 
@@ -579,172 +372,49 @@ export function TutorAnalyticsPage() {
                 No completed tests yet for {currentStudentProfile?.name}.
               </div>
             ) : (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-                  <div className="bg-slate-50/50 p-3 border border-slate-100 rounded-xl text-center shadow-xs">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Pacing Efficiency</p>
-                    <p className="text-xl font-black text-blue-600 mt-1">{pacingMetrics.timeEfficiencyScore}%</p>
-                    <span className="text-[9px] text-slate-400 font-medium">Optimal solving pace</span>
-                  </div>
-                  <div className="bg-slate-50/50 p-3 border border-slate-100 rounded-xl text-center shadow-xs">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Avg Time/Question</p>
-                    <p className="text-xl font-black text-slate-850 mt-1">{pacingMetrics.avgTimePerQuestion}s</p>
-                    <span className="text-[9px] text-slate-400 font-medium">Target: 45-60s</span>
-                  </div>
-                  <div className="bg-red-50/20 p-3 border border-red-50 rounded-xl text-center shadow-xs">
-                    <p className="text-[9px] text-red-500 uppercase font-bold tracking-wider">Stuck Questions</p>
-                    <p className={`text-xl font-black mt-1 ${pacingMetrics.stuckCount > 0 ? 'text-red-600' : 'text-slate-650'}`}>
-                      {pacingMetrics.stuckCount} Qs
-                    </p>
-                    <span className="text-[9px] text-red-500/80 font-medium">Spent ≥90 seconds</span>
-                  </div>
-                  <div className="bg-amber-50/20 p-3 border border-amber-50 rounded-xl text-center shadow-xs">
-                    <p className="text-[9px] text-amber-600 uppercase font-bold tracking-wider">Rushed Solves</p>
-                    <p className={`text-xl font-black mt-1 ${pacingMetrics.rushedCount > 0 ? 'text-amber-600' : 'text-slate-650'}`}>
-                      {pacingMetrics.rushedCount} Qs
-                    </p>
-                    <span className="text-[9px] text-amber-500/80 font-medium">Solved &lt;20 seconds</span>
-                  </div>
-                  <div className="bg-slate-50/50 p-3 border border-slate-100 rounded-xl text-center shadow-xs col-span-2 md:col-span-1">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Pacing Profile</p>
-                    <Badge
-                      variant={pacingMetrics.timeEfficiencyScore >= 80 ? 'success' : pacingMetrics.timeEfficiencyScore >= 65 ? 'warning' : 'danger'}
-                      className="mt-2.5 text-[9px] font-extrabold uppercase px-2"
-                    >
-                      {pacingMetrics.timeEfficiencyScore >= 80 ? 'Optimal Pace' : pacingMetrics.timeEfficiencyScore >= 65 ? 'Inconsistent' : 'Severe Lag'}
-                    </Badge>
-                  </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
+                <div className="lg:col-span-2">
+                  <QuestionTimeChart stats={chartStats} />
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
-                  <div className="lg:col-span-2 bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs flex flex-col">
-                    <div className="flex justify-between items-center mb-3">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                          <Activity size={12} className="text-blue-500" />
-                          Pacing Timeline Analysis
-                        </h4>
-                        <p className="text-[10px] text-slate-400">Horizontal bars represent the elapsed time interval when each question was visited.</p>
-                      </div>
-                    </div>
-
-                    {/* Chart area or Select section callout */}
-                    {sectionFilter === 'All' ? (
-                      <div className="py-8 text-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-lg bg-white h-[360px] flex flex-col items-center justify-center">
-                        <Clock size={20} className="mx-auto mb-2 text-slate-300" />
-                        <h4 className="text-sm font-semibold text-slate-700">Select a section to view pacing timeline</h4>
-                        <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                          Choose a specific section from the dropdown above to see the chronological visit-by-visit question analysis.
-                        </p>
-                      </div>
-                    ) : (
-                      filteredTimelineData.length > 0 && (
-                        <div className="flex flex-col items-center w-full">
-                          {/* Section Name Title at the top center */}
-                          <div className="text-center font-bold text-xs text-gray-700 mb-1 select-none">
-                            {sectionFilter}
+                <div className="bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 mb-1">
+                      <AlertOctagon size={12} className="text-red-500" />
+                      Stuck Questions
+                    </h4>
+                    <p className="text-[10px] text-slate-400 mb-3">Questions where the student lost valuable test time (≥90s):</p>
+                    <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
+                      {stuckQuestions.map((q) => (
+                        <div key={q.qNum} className="p-2 bg-white border border-red-50 rounded-lg flex items-center justify-between shadow-xs">
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-slate-800 block">Q{q.qNum}: {q.topic}</span>
+                            <span className="text-[9px] text-slate-400 block uppercase font-bold">{q.correct ? 'Correct' : 'Incorrect'} Solution</span>
                           </div>
-
-                          {/* HTML Legend */}
-                          <div className="flex justify-center items-center gap-4 mb-3 text-[10px] font-bold text-slate-550 select-none">
-                            <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#80245a]" /> Visit 1</div>
-                            <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#3b82f6]" /> Visit 2</div>
-                            <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#22c55e]" /> Visit 3</div>
-                            <div className="flex items-center gap-1.5"><span className="w-3.5 h-2 rounded-sm bg-[#6366f1]" /> Visit 4</div>
-                          </div>
-
-                          {/* Main Chart Wrapper */}
-                          <div className="flex w-full items-center">
-                            {/* Vertical Axis Label "Questions" on the left */}
-                            <div className="flex items-center justify-center pr-2">
-                              <span 
-                                className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none text-center"
-                                style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
-                              >
-                                Questions
-                              </span>
-                            </div>
-
-                            {/* Chart Container */}
-                            <div className="flex-1 h-[360px] bg-white border border-slate-100 rounded-lg p-2 relative">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <ScatterChart margin={{ top: 5, right: 15, bottom: 5, left: -15 }}>
-                                  <CartesianGrid stroke="#f1f5f9" strokeDasharray="0" />
-                                  <XAxis
-                                    type="number"
-                                    dataKey="x"
-                                    ticks={xTicks}
-                                    domain={[0, 'auto']}
-                                    tick={{ fontSize: 9, fill: '#64748b' }}
-                                    axisLine={{ stroke: '#cbd5e1' }}
-                                    tickLine={{ stroke: '#cbd5e1' }}
-                                  />
-                                  <YAxis
-                                    type="number"
-                                    dataKey="y"
-                                    domain={[1, maxQNum]}
-                                    ticks={yTicks}
-                                    tickFormatter={(v) => `Q ${v}`}
-                                    tick={{ fontSize: 9, fill: '#64748b' }}
-                                    axisLine={{ stroke: '#cbd5e1' }}
-                                    tickLine={{ stroke: '#cbd5e1' }}
-                                    width={35}
-                                  />
-                                  <Tooltip content={<CustomPacingTooltip />} />
-                                  <Scatter name="Solve Pacing" data={filteredTimelineData} shape={<CustomBarShape />} />
-                                </ScatterChart>
-                              </ResponsiveContainer>
-                            </div>
-                          </div>
-
-                          {/* Horizontal Axis Label "Time(in min)" at the bottom */}
-                          <div className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none mt-2">
-                            Time(in min)
+                          <div className="text-right">
+                            <span className="text-xs font-extrabold text-red-600 block">{q.timeSpent}s</span>
+                            <Badge variant="danger" className="text-[7px] font-extrabold px-1 py-0 border-red-150">Got Stuck</Badge>
                           </div>
                         </div>
-                      )
-                    )}
-                  </div>
-
-                  <div className="bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 mb-1">
-                        <AlertOctagon size={12} className="text-red-500" />
-                        Pacing Anomalies
-                      </h4>
-                      <p className="text-[10px] text-slate-400 mb-3">Questions where student got stuck or lost valuable test time:</p>
-                      <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
-                        {pacingMetrics.stuckQuestions.map((q) => (
-                          <div key={q.qNum} className="p-2 bg-white border border-red-50 rounded-lg flex items-center justify-between shadow-xs">
-                            <div className="min-w-0">
-                              <span className="text-xs font-bold text-slate-800 block">Q{q.qNum}: {q.topic}</span>
-                              <span className="text-[9px] text-slate-400 block uppercase font-bold">{q.correct ? 'Correct' : 'Incorrect'} Solution</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-xs font-extrabold text-red-600 block">{q.timeSpent}s</span>
-                              <Badge variant="danger" className="text-[7px] font-extrabold px-1 py-0 border-red-150">Got Stuck</Badge>
-                            </div>
-                          </div>
-                        ))}
-                        {pacingMetrics.stuckQuestions.length === 0 && (
-                          <div className="py-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg bg-white">
-                            <CheckCircle2 size={16} className="text-emerald-500 mx-auto mb-2" />
-                            Pacing is optimal! No stuck solving patterns detected.
-                          </div>
-                        )}
-                      </div>
+                      ))}
+                      {stuckQuestions.length === 0 && (
+                        <div className="py-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg bg-white">
+                          <CheckCircle2 size={16} className="text-emerald-500 mx-auto mb-2" />
+                          Pacing is optimal! No stuck solving patterns detected.
+                        </div>
+                      )}
                     </div>
-                    {pacingMetrics.stuckQuestions.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-150 flex items-center gap-1.5 bg-blue-50/50 p-2 border border-blue-100 rounded-lg">
-                        <AlertCircle size={14} className="text-blue-500 flex-shrink-0" />
-                        <p className="text-[9.5px] text-blue-700 leading-tight">
-                          <strong>Tutor Action:</strong> Suggest targeted focus practice in <strong>{pacingMetrics.stuckQuestions[0]?.topic}</strong> to reduce question lag time.
-                        </p>
-                      </div>
-                    )}
                   </div>
+                  {stuckQuestions.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-150 flex items-center gap-1.5 bg-blue-50/50 p-2 border border-blue-100 rounded-lg">
+                      <AlertCircle size={14} className="text-blue-500 flex-shrink-0" />
+                      <p className="text-[9.5px] text-blue-700 leading-tight">
+                        <strong>Tutor Action:</strong> Suggest targeted focus practice in <strong>{stuckQuestions[0]?.topic}</strong> to reduce question lag time.
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </>
+              </div>
             )}
           </Card>
 

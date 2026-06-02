@@ -136,7 +136,7 @@ function BluebookOption({
 export function TestInterfacePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { currentAttempt, activeTest, startAttempt, updateQuestionState, navigateToQuestion, advanceSection, recordTabSwitch, clearAttempt } = useTestStore();
+  const { currentAttempt, activeTest, startAttempt, updateQuestionState, updateTimeSpent, navigateToQuestion, advanceSection, recordTabSwitch, clearAttempt } = useTestStore();
   const { user } = useAuthStore();
 
   const [selectedAnswer, setSelectedAnswer] = useState<string | string[] | number | Record<string, any> | null>(null);
@@ -607,10 +607,18 @@ export function TestInterfacePage() {
     };
   }, []);
 
+  // Accumulate time spent on the active question, one second at a time.
+  // Re-binds whenever the active question changes so the elapsed seconds are
+  // credited to the right question.
   useEffect(() => {
-    questionTimerRef.current = setInterval(() => {}, 1000);
+    const sectionId = currentSection?.id;
+    const questionId = currentQuestion?.id;
+    if (!sectionId || !questionId) return;
+    questionTimerRef.current = setInterval(() => {
+      updateTimeSpent(sectionId, questionId, 1);
+    }, 1000);
     return () => { if (questionTimerRef.current) clearInterval(questionTimerRef.current); };
-  }, [currentQIdx, currentSectionIdx]);
+  }, [currentQIdx, currentSectionIdx, currentSection?.id, currentQuestion?.id, updateTimeSpent]);
 
   useEffect(() => {
     if (currentQAttempt) {
@@ -934,7 +942,7 @@ export function TestInterfacePage() {
         <div className="flex items-center gap-2">
           <button
             disabled={currentQIdx === 0}
-            onClick={() => navigateToQuestion(currentSectionIdx, currentQIdx - 1)}
+            onClick={() => saveAndNavigate(currentQIdx - 1)}
             className="flex items-center gap-1 px-5 py-2 text-sm font-medium border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft size={15} /> Back
@@ -1228,7 +1236,7 @@ export function TestInterfacePage() {
                 return (
                   <button
                     key={q.id}
-                    onClick={() => { navigateToQuestion(currentSectionIdx, idx); setShowPalette(false); }}
+                    onClick={() => { saveAndNavigate(idx); setShowPalette(false); }}
                     className={`w-9 h-9 rounded-full text-xs font-semibold transition-all ${stateColors[state]} ${isActive ? 'ring-2 ring-offset-1 ring-[#1b3d6e] scale-110' : ''}`}
                   >
                     {idx + 1}
