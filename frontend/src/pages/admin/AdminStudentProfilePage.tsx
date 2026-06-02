@@ -9,6 +9,7 @@ import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
+import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { api, type DbUser } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
@@ -287,10 +288,16 @@ export function AdminStudentProfilePage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className={labelCls}>Grade</label>
-                    <select className={inputCls} value={editForm.grade} onChange={(e) => setEditForm(f => ({ ...f, grade: e.target.value }))}>
-                      <option value="">—</option>
-                      {['9', '10', '11', '12'].map(g => <option key={g} value={g}>Grade {g}</option>)}
-                    </select>
+                    <SearchableSelect
+                      options={[
+                        { id: '', label: '—', searchText: 'none' },
+                        ...['9', '10', '11', '12'].map(g => ({ id: g, label: `Grade ${g}`, searchText: g }))
+                      ]}
+                      value={editForm.grade}
+                      onChange={(value) => setEditForm(f => ({ ...f, grade: value }))}
+                      placeholder="Select grade"
+                      minWidth="min-w-[100px]"
+                    />
                   </div>
                   <div>
                     <label className={labelCls}>Target Score</label>
@@ -299,10 +306,16 @@ export function AdminStudentProfilePage() {
                 </div>
                 <div>
                   <label className={labelCls}>Assign Tutor</label>
-                  <select className={inputCls} value={editForm.tutorId} onChange={(e) => setEditForm(f => ({ ...f, tutorId: e.target.value }))}>
-                    <option value="">No tutor</option>
-                    {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                  <SearchableSelect
+                    options={[
+                      { id: '', label: 'No tutor', searchText: 'no' },
+                      ...tutors.map(t => ({ id: t.id, label: t.name, searchText: t.name }))
+                    ]}
+                    value={editForm.tutorId}
+                    onChange={(value) => setEditForm(f => ({ ...f, tutorId: value }))}
+                    placeholder="Select tutor"
+                    minWidth="min-w-[150px]"
+                  />
                 </div>
               </div>
             )}

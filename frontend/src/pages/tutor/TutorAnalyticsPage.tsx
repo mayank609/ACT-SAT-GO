@@ -7,6 +7,7 @@ import {
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
 import { TopicAnalysisTable } from '../../components/dashboard/TopicAnalysisTable';
+import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
@@ -292,20 +293,28 @@ export function TutorAnalyticsPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-slate-500 font-semibold hidden md:inline">Focus Student:</span>
-          <select value={selectedStudent} onChange={(e) => setSelectedStudent(e.target.value)}
-            className="px-3 py-2 text-sm border border-slate-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="all">All Students (Aggregate)</option>
-            {students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <SearchableSelect
+            options={[
+              { id: 'all', label: 'All Students (Aggregate)', searchText: 'all' },
+              ...students.map(s => ({ id: s.id, label: s.name, searchText: s.name }))
+            ]}
+            value={selectedStudent}
+            onChange={setSelectedStudent}
+            placeholder="Select student…"
+            minWidth="min-w-[200px]"
+          />
           {selectedStudent !== 'all' && studentAttempts.length > 0 && (
-            <select value={selectedAttemptId} onChange={(e) => setSelectedAttemptId(e.target.value)}
-              className="px-3 py-2 text-sm border border-slate-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              {studentAttempts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.test.title} — {a.completedAt ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={studentAttempts.map(a => ({
+                id: a.id,
+                label: `${a.test.title} — ${a.completedAt ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}`,
+                searchText: a.test.title,
+              }))}
+              value={selectedAttemptId}
+              onChange={setSelectedAttemptId}
+              placeholder="Select attempt…"
+              minWidth="min-w-[240px]"
+            />
           )}
         </div>
       </div>

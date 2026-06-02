@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
+import { SearchableSelect } from '../../components/common/SearchableSelect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,33 +201,30 @@ export function ReportsPage() {
         </div>
         <div className="flex flex-wrap gap-2 ml-auto">
           {/* Student picker */}
-          <div className="relative">
-            <select
-              value={selectedStudentId}
-              onChange={e => setSelectedStudentId(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#1b3d6e] text-gray-700 font-medium min-w-[180px]"
-            >
-              <option value="">Select student…</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.email})</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
+          <SearchableSelect
+            options={students.map(s => ({
+              id: s.id,
+              label: `${s.name} (${s.email})`,
+              searchText: s.name,
+            }))}
+            value={selectedStudentId}
+            onChange={setSelectedStudentId}
+            placeholder="Select student…"
+            minWidth="min-w-[220px]"
+          />
           {/* Attempt picker */}
           {attempts.length > 0 && (
-            <div className="relative">
-              <select
-                value={selectedAttemptId}
-                onChange={e => setSelectedAttemptId(e.target.value)}
-                className="appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[#1b3d6e] text-gray-700 min-w-[200px]"
-              >
-                {attempts.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.test.title} — {a.completedAt ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+            <SearchableSelect
+              options={attempts.map(a => ({
+                id: a.id,
+                label: `${a.test.title} — ${a.completedAt ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}`,
+                searchText: a.test.title,
+              }))}
+              value={selectedAttemptId}
+              onChange={setSelectedAttemptId}
+              placeholder="Select attempt…"
+              minWidth="min-w-[240px]"
+            />
           )}
           {selectedAttemptId && (
             <button

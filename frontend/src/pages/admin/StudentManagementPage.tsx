@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Info, BarChart2, LayoutList, ChevronDown, X } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Info, BarChart2, LayoutList, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
+import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { api, type DbUser } from '../../lib/api';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 
@@ -439,31 +440,26 @@ export function StudentManagementPage() {
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Selected Filters</span>
 
           {/* Student selector */}
-          <div className="relative">
-            <select
-              value={analyticsStudentId}
-              onChange={e => { setAnalyticsStudentId(e.target.value); setAnalyticsSubject(''); }}
-              className="appearance-none pl-3 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 font-medium"
-            >
-              <option value="">Select student</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
+          <SearchableSelect
+            options={students.map(s => ({ id: s.id, label: s.name, searchText: s.name }))}
+            value={analyticsStudentId}
+            onChange={e => { setAnalyticsStudentId(e); setAnalyticsSubject(''); }}
+            placeholder="Select student"
+            minWidth="min-w-[140px]"
+          />
 
           {/* Subject filter */}
           {analyticsData && analyticsSubjects.length > 0 && (
-            <div className="relative">
-              <select
-                value={analyticsSubject}
-                onChange={e => setAnalyticsSubject(e.target.value)}
-                className="appearance-none pl-3 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 font-medium"
-              >
-                <option value="">All Subjects</option>
-                {analyticsSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            </div>
+            <SearchableSelect
+              options={[
+                { id: '', label: 'All Subjects', searchText: 'all' },
+                ...analyticsSubjects.map(s => ({ id: s, label: s, searchText: s }))
+              ]}
+              value={analyticsSubject}
+              onChange={setAnalyticsSubject}
+              placeholder="Select subject"
+              minWidth="min-w-[140px]"
+            />
           )}
 
           {analyticsSubject && (

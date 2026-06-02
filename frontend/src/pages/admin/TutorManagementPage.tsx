@@ -5,6 +5,7 @@ import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { DataTable } from '../../components/common/DataTable';
+import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { api, type DbUser } from '../../lib/api';
 
 const SPECIALIZATIONS = ['Math', 'English', 'Reading', 'Science', 'Writing', 'ACT Prep', 'SAT Prep'];
@@ -331,16 +332,16 @@ export function TutorManagementPage() {
         {/* Specialization Filter Dropdown */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500 font-medium">Filter Specialization:</span>
-          <select 
+          <SearchableSelect
+            options={[
+              { id: 'All', label: 'All Specializations', searchText: 'all' },
+              ...SPECIALIZATIONS.map(s => ({ id: s, label: s, searchText: s }))
+            ]}
             value={selectedSpecialization}
-            onChange={(e) => setSelectedSpecialization(e.target.value)}
-            className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="All">All Specializations</option>
-            {SPECIALIZATIONS.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+            onChange={setSelectedSpecialization}
+            placeholder="Select specialization"
+            minWidth="min-w-[180px]"
+          />
         </div>
       </div>
 
