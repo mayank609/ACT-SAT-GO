@@ -67,14 +67,21 @@ export function MyTestsPage() {
               const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
               const totalMin = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
               const isInProgress = test.status === 'In Progress';
+              const usedAttempts = Math.max(test.maxAttempts - test.remainingAttempts, 0);
+              const isRetake = !isInProgress && usedAttempts > 0;
               return (
                 <div key={test.assignmentId} className="bg-white border-2 border-[#1b3d6e]/20 rounded-xl p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${isInProgress ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#1b3d6e]'}`}>
-                          {isInProgress ? 'In Progress' : 'Not Started'}
+                          {isInProgress ? 'In Progress' : isRetake ? 'Retake Available' : 'Not Started'}
                         </span>
+                        {test.maxAttempts > 1 && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                            {test.remainingAttempts} of {test.maxAttempts} attempts left
+                          </span>
+                        )}
                       </div>
                       <h3 className="font-semibold text-gray-900">{test.title}</h3>
                       {test.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{test.description}</p>}
@@ -91,6 +98,14 @@ export function MyTestsPage() {
                           <Clock size={10} /> Due: {new Date(test.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                       )}
+                      {isRetake && test.submittedAttemptId && (
+                        <button
+                          onClick={() => navigate(`/test-review/${test.submittedAttemptId}`)}
+                          className="text-xs text-blue-600 hover:underline mt-1.5 flex items-center gap-1"
+                        >
+                          <FileSearch size={11} /> Review last attempt
+                        </button>
+                      )}
                     </div>
                     <button
                       onClick={() => isInProgress && test.inProgressAttemptId
@@ -100,7 +115,7 @@ export function MyTestsPage() {
                       className="flex-shrink-0 flex items-center gap-2 bg-[#1b3d6e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#15305a] transition-colors"
                     >
                       <Play size={13} />
-                      {isInProgress ? 'Continue' : 'Start Test'}
+                      {isInProgress ? 'Continue' : isRetake ? 'Retake' : 'Start Test'}
                     </button>
                   </div>
                 </div>

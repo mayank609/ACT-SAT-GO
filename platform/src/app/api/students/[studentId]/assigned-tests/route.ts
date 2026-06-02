@@ -52,11 +52,13 @@ export async function GET(
       const isExpired = availableUntilMs !== null && now > availableUntilMs
       const isNotYetAvailable = availableFromMs !== null && now < availableFromMs
 
+      // A test stays available as long as attempts remain (supports multi-attempt
+      // assignments). It is only "Completed" once every assigned attempt is used.
       let statusLabel: 'Not Started' | 'In Progress' | 'Completed' | 'Expired' = 'Not Started'
       if (isExpired) statusLabel = 'Expired'
-      else if (submittedAttempt) statusLabel = 'Completed'      // submitted always wins over stale in-progress
       else if (inProgressAttempt) statusLabel = 'In Progress'
-      else if (remainingAttempts === 0) statusLabel = 'Completed'
+      else if (remainingAttempts > 0) statusLabel = 'Not Started'
+      else statusLabel = 'Completed'      // submitted all assigned attempts
 
       const completionStatus = submittedAttempt ? 'Submitted' : inProgressAttempt ? 'In Progress' : 'Pending'
 

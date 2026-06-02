@@ -529,6 +529,20 @@ function transformCorrectAnswer(answer: string | string[] | number | null | unde
 
 ---
 
+### Change #016 — Multi-attempt assignments: keep test available until all attempts used [DONE]
+
+**Type:** CODE
+**Requested by:** Mayank
+**Why:** Students assigned a test with `maxAttempts > 1` could only take it once. Bug was in `GET /api/students/[studentId]/assigned-tests` — the status was set to `Completed` as soon as **any** submitted attempt existed, ignoring `remainingAttempts`. So after one submission the test moved to the "Completed" bucket on the student side and offered only "Review", never "Start" again. (The POST `/api/attempts` guard was already correct: it allows a new attempt while `attemptsUsed < maxAttempts`.)
+
+**Fixed in:** `src/app/api/students/[studentId]/assigned-tests/route.ts` — status priority is now: `Expired` → `In Progress` (resume) → `Not Started` (when `remainingAttempts > 0`, i.e. retake available) → `Completed` (only when all assigned attempts are used). Applied directly.
+
+**Frontend (already done):** `MyTestsPage` shows "Retake Available", an "X of Y attempts left" pill, a "Review last attempt" link, and a "Retake" button for tests with attempts remaining.
+
+**Test it by:** Assign a test with maxAttempts = 3 to a student → student takes & submits once → the test still appears under "To Complete" with "2 of 3 attempts left" and a Retake button → starting again creates a fresh attempt (verified: POST /api/attempts returns a new attemptId until 3 are used, then 403 "No attempts remaining").
+
+---
+
 ### Change #015 — Include question `topic` (with parent) in GET /api/attempts/[attemptId] [DONE]
 
 > Applied by Mayank/Claude directly in `src/app/api/attempts/[attemptId]/route.ts` (both question include blocks now include `topic: { include: { parent: true } }`, and `childQuestions` includes topic). No schema change required.
