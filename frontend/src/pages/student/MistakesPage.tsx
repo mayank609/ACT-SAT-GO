@@ -22,6 +22,7 @@ interface DbQuestion {
   options: Record<string, string> | null
   correctAnswer: DbAnswer
   difficultyLevel: string
+  subject?: string
   childQuestions?: DbQuestion[]
 }
 
@@ -299,6 +300,9 @@ export function MistakesPage() {
   const [mistakes, setMistakes] = useState<MistakeItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'wrong' | 'unattempted'>('all');
   const [subjectFilter, setSubjectFilter] = useState<'all' | 'math' | 'english'>('all');
+  const [testScope, setTestScope] = useState<'all' | 'latest' | 'last2' | 'custom'>('all');
+  const [selectedAttemptIds, setSelectedAttemptIds] = useState<string[]>([]);
+  const [submittedAttempts, setSubmittedAttempts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -310,6 +314,7 @@ export function MistakesPage() {
         if (!Array.isArray(rawAttempts)) return;
 
         const submitted = (rawAttempts as any[]).filter(a => a?.status === 'SUBMITTED');
+        setSubmittedAttempts(submitted);
         
         // Fetch full details for each attempt
         Promise.all(submitted.map(a => api.getAttempt(a.id).catch(() => null)))
@@ -383,8 +388,24 @@ export function MistakesPage() {
       .finally(() => setLoading(false));
   }, [dbId]);
 
-  // First, filter by subject
-  const mistakesForSubject = mistakes.filter(m => {
+  // 1. Filter by test scope
+  const mistakesForScope = mistakes.filter(m => {
+    if (testScope === 'all') return true;
+    if (testScope === 'latest') {
+      return m.attemptId === submittedAttempts[0]?.id;
+    }
+    if (testScope === 'last2') {
+      const activeIds = submittedAttempts.slice(0, 2).map(a => a.id);
+      return activeIds.includes(m.attemptId);
+    }
+    if (testScope === 'custom') {
+      return selectedAttemptIds.includes(m.attemptId);
+    }
+    return true;
+  });
+
+  // 2. Filter by subject
+  const mistakesForSubject = mistakesForScope.filter(m => {
     if (subjectFilter === 'all') return true;
     return getSubject(m) === subjectFilter;
   });
@@ -393,7 +414,7 @@ export function MistakesPage() {
   const wrongCount = mistakesForSubject.filter(m => m.status === 'wrong').length;
   const unattemptedCount = mistakesForSubject.filter(m => m.status === 'unattempted').length;
 
-  // Then filter by mistake status (wrong vs unattempted)
+  // 3. Finally, filter by mistake status (wrong vs unattempted)
   const filtered = mistakesForSubject.filter(m => {
     if (filter === 'all') return true;
     return m.status === filter;
@@ -454,20 +475,72 @@ export function MistakesPage() {
       ) : (
         <>
           {/* Filters Bar */}
-          <div className="flex flex-col sm:flex-row gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-            {/* Status Filter */}
-            <div className="flex flex-wrap items-center gap-1.5 flex-1">
-              <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Status:</span>
+          <div className="flex flex-col gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="flex flex-col md:flex-row gap-3 md:items-center">
+              {/* Status Filter */}
+              <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Status:</span>
+                {[
+                  { value: 'all' as const, label: 'All Mistakes' },
+                  { value: 'wrong' as const, label: 'Wrong Only' },
+                  { value: 'unattempted' as const, label: 'Unattempted Only' },
+                ].map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setFilter(f.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      filter === f.value
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Subject Filter */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Subject:</span>
+                {[
+                  { value: 'all' as const, label: 'All Subjects' },
+                  { value: 'math' as const, label: 'Maths' },
+                  { value: 'english' as const, label: 'English' },
+                ].map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setSubjectFilter(f.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      subjectFilter === f.value
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Test Scope Filter */}
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200/60 pt-3">
+              <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Tests:</span>
               {[
-                { value: 'all' as const, label: 'All Mistakes' },
-                { value: 'wrong' as const, label: 'Wrong Only' },
-                { value: 'unattempted' as const, label: 'Unattempted Only' },
+                { value: 'all' as const, label: 'All Tests' },
+                { value: 'latest' as const, label: 'Latest Test' },
+                { value: 'last2' as const, label: 'Last 2 Tests' },
+                { value: 'custom' as const, label: 'Custom Selection...' },
               ].map((f) => (
                 <button
                   key={f.value}
-                  onClick={() => setFilter(f.value)}
+                  onClick={() => {
+                    setTestScope(f.value);
+                    if (f.value === 'custom' && selectedAttemptIds.length === 0 && submittedAttempts.length > 0) {
+                      setSelectedAttemptIds([submittedAttempts[0].id]);
+                    }
+                  }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    filter === f.value
+                    testScope === f.value
                       ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
@@ -477,27 +550,47 @@ export function MistakesPage() {
               ))}
             </div>
 
-            {/* Subject Filter */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Subject:</span>
-              {[
-                { value: 'all' as const, label: 'All Subjects' },
-                { value: 'math' as const, label: 'Maths' },
-                { value: 'english' as const, label: 'English' },
-              ].map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setSubjectFilter(f.value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    subjectFilter === f.value
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            {/* Custom Picker Checkbox List */}
+            {testScope === 'custom' && submittedAttempts.length > 0 && (
+              <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2 max-h-40 overflow-y-auto animate-fade-in">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Tests to Include:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {submittedAttempts.map((attempt) => {
+                    const isChecked = selectedAttemptIds.includes(attempt.id);
+                    const formattedDate = attempt.completedAt
+                      ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : new Date(attempt.startedAt).toLocaleDateString();
+                    return (
+                      <label
+                        key={attempt.id}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer select-none transition-all ${
+                          isChecked
+                            ? 'bg-blue-50/50 border-blue-200 text-blue-700'
+                            : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedAttemptIds((prev) =>
+                              prev.includes(attempt.id)
+                                ? prev.filter((id) => id !== attempt.id)
+                                : [...prev, attempt.id]
+                            );
+                          }}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold truncate text-slate-800">{attempt.test?.title ?? 'Unknown Test'}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{formattedDate} · Score: {attempt.totalScore ?? '—'}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Questions list */}
