@@ -312,7 +312,6 @@ export function StudentManagementPage() {
                 <th colSpan={2} className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap border-l border-slate-200">
                   Baseline Scores
                 </th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Pending Classes</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Last Mock Test</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Last PRP</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Test Report</th>
@@ -323,14 +322,14 @@ export function StudentManagementPage() {
                 <th colSpan={4} />
                 <th className="px-3 py-1.5 text-center border-l border-slate-200">English</th>
                 <th className="px-3 py-1.5 text-center">Math</th>
-                <th colSpan={6} />
+                <th colSpan={5} />
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={12} className="py-12 text-center text-slate-400">Loading…</td></tr>
+                <tr><td colSpan={11} className="py-12 text-center text-slate-400">Loading…</td></tr>
               ) : filteredData.length === 0 ? (
-                <tr><td colSpan={12} className="py-12 text-center text-slate-400">No students found</td></tr>
+                <tr><td colSpan={11} className="py-12 text-center text-slate-400">No students found</td></tr>
               ) : filteredData.map((row, idx) => {
                 const stage = getStageBadge(row.grade);
                 const joinedDate = row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—';
@@ -368,9 +367,6 @@ export function StudentManagementPage() {
                     </td>
                     <td className="px-3 py-3 text-sm text-slate-700 text-center font-medium">
                       {row.avgScore ? Math.round(row.avgScore) : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <button onClick={() => navigate(`/students/${row.id}`)} className="text-xs text-blue-500 hover:text-blue-700 font-semibold">View</button>
                     </td>
                     <td className="px-3 py-3 text-xs text-slate-500 text-center whitespace-nowrap">{lastMock}</td>
                     <td className="px-3 py-3 text-center text-xs text-slate-400">—</td>
