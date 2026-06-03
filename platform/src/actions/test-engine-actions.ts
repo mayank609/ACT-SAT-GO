@@ -57,10 +57,12 @@ export async function submitSectionAttempt(attemptId: string, sectionId: string)
     const cachedAnswers = (await redis.hgetall(`answers:${attemptId}`)) as Record<string, unknown> | null
 
     if (cachedAnswers) {
+      console.log(`[Submit] Flushing ${Object.keys(cachedAnswers).length} answers for attempt ${attemptId}`)
       const upserts = Object.entries(cachedAnswers).map(([questionId, raw]) => {
         const data = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
           answerGiven: Prisma.InputJsonValue | null; timeSpentSeconds: number; isFlagged: boolean
         }
+        console.log(`[Submit]   Q${questionId}: ${data.timeSpentSeconds}s`)
         return prisma.attemptAnswer.upsert({
           where: { attemptId_questionId: { attemptId, questionId } },
           update: { answerGiven: data.answerGiven ?? Prisma.DbNull, timeSpentSeconds: data.timeSpentSeconds, isFlagged: data.isFlagged },

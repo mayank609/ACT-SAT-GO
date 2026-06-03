@@ -178,6 +178,8 @@ export function TestInterfacePage() {
   const [calcMode, setCalcMode] = useState<'graphing' | 'scientific'>('graphing');
   const [calcSize, setCalcSize] = useState({ width: 800, height: 550 });
   const [showReference, setShowReference] = useState(false);
+  const [showHighlightsNotes, setShowHighlightsNotes] = useState(false);
+  const [questionNotes, setQuestionNotes] = useState<Record<string, string>>({});
   const [calcPos, setCalcPos] = useState(() => {
     const width = 800;
     const x = Math.max(20, window.innerWidth - width - 40);
@@ -416,10 +418,12 @@ export function TestInterfacePage() {
     }
 
     // Autosave last question's answer
+    const finalTimeSpent = currentQAttempt?.timeSpent ?? 0
+    console.log(`[Test] Autosaving final Q${currentQuestion.id}: ${finalTimeSpent}s`)
     api.autosaveAnswer(attempt.id, {
       questionId: currentQuestion.id,
       answerGiven: toDbAnswer(currentQuestion.type, finalAns),
-      timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+      timeSpentSeconds: finalTimeSpent,
       isFlagged: false,
     }).catch(() => {});
     // Submit last section (also triggers score calculation in backend)
@@ -440,8 +444,25 @@ export function TestInterfacePage() {
     navigate(id ? `/test-review/${id}` : '/tests');
   };
 
+  const stripHtmlTags = (text: string): string => {
+    if (!text) return '';
+    // Remove HTML tags
+    return text
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   const autosaveAttemptState = useCallback(() => {
     if (!attempt || isPreview) return;
+    
+    // Main periodic save: just save the attempt state
     api.autosaveAnswer(attempt.id, {
       attemptState: {
         currentSectionIndex: attempt.currentSectionIndex,
@@ -449,7 +470,24 @@ export function TestInterfacePage() {
         sections: attempt.sections,
       },
     }).catch(() => {});
-  }, [attempt, isPreview]);
+
+    // IMPORTANT: Also explicitly save the current question's accumulated time
+    // This ensures time data is persisted even if user doesn't navigate
+    if (currentQuestion && currentSection && currentQAttempt) {
+      const timeSpent = currentQAttempt.timeSpent || 0
+      if (timeSpent > 0) {
+        console.log(`[AutosavePeriodic] Saving current Q: ${timeSpent}s`)
+        api.autosaveAnswer(attempt.id, {
+          questionId: currentQuestion.id,
+          answerGiven: toDbAnswer(currentQuestion.type,
+            currentQuestion.type === 'numeric' ? parseFloat(numericInput) || null : selectedAnswer
+          ),
+          timeSpentSeconds: timeSpent,
+          isFlagged: currentQAttempt.state === 'marked_review' || currentQAttempt.state === 'answered_marked',
+        }).catch(() => {});
+      }
+    }
+  }, [attempt, isPreview, currentQuestion, currentSection, currentQAttempt, selectedAnswer, numericInput]);
 
   // Update the timer-expire handler every render so it always has fresh state
   timerExpireHandlerRef.current = () => {
@@ -528,7 +566,38 @@ export function TestInterfacePage() {
   useEffect(() => {
     if (!attempt) return;
     const interval = setInterval(autosaveAttemptState, 8000);
-    const onBeforeUnload = () => autosaveAttemptState();
+    
+    // Also save all question times on page unload
+    const onBeforeUnload = () => {
+      // Emergency save of all questions with their time data
+      console.log('[Test] Page unloading - saving all question times')
+      for (const section of Object.values(attempt.sections)) {
+        for (const [qId, q] of Object.entries(section.questions)) {
+          if (q.timeSpent > 0) {
+            // Use navigator.sendBeacon for reliability (survives page unload)
+            try {
+              const payload = JSON.stringify({
+                attemptId: attempt.id,
+                questionId: qId,
+                timeSpentSeconds: q.timeSpent,
+                state: q.state,
+              })
+              navigator.sendBeacon('/api/attempts/beacon-time', payload)
+            } catch (e) {
+              // Fallback to regular API call
+              api.autosaveAnswer(attempt.id, {
+                questionId: qId,
+                answerGiven: null,
+                timeSpentSeconds: q.timeSpent,
+                isFlagged: false,
+              }).catch(() => {})
+            }
+          }
+        }
+      }
+      autosaveAttemptState()
+    };
+    
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => {
       clearInterval(interval);
@@ -809,10 +878,12 @@ export function TestInterfacePage() {
 
     // Autosave to Redis
     if (!isPreview) {
+      const timeForQ = currentQAttempt?.timeSpent ?? 0
+      console.log(`[Test] Autosaving Q${currentQuestion.id} (${newState}): ${timeForQ}s`)
       api.autosaveAnswer(attempt.id, {
         questionId: currentQuestion.id,
         answerGiven: toDbAnswer(currentQuestion.type, finalAns),
-        timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+        timeSpentSeconds: timeForQ,
         isFlagged: newState === 'marked_review' || newState === 'answered_marked',
         attemptState: {
           currentSectionIndex: nextSectionIdx ?? currentSectionIdx,
@@ -970,7 +1041,7 @@ export function TestInterfacePage() {
               </button>
             </>
           )}
-          <button className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]" title="Highlights & Notes">
+          <button onClick={() => setShowHighlightsNotes(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]" title="Highlights & Notes">
             <PencilLine size={18} /> Highlights & Notes
           </button>
           <div className="relative">
@@ -1320,6 +1391,63 @@ export function TestInterfacePage() {
                   ))}
                 </div>
               </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HIGHLIGHTS & NOTES ──────────────────────────────────────────────── */}
+      {showHighlightsNotes && currentQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowHighlightsNotes(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[80vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <PencilLine size={16} /> Highlights & Notes
+              </h2>
+              <button onClick={() => setShowHighlightsNotes(false)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Question Info */}
+            <div className="px-5 py-3 border-b border-gray-100 flex-shrink-0">
+              <p className="text-xs text-gray-500 font-medium">Question {currentQIdx + 1}</p>
+              <p className="text-sm text-gray-700 font-medium mt-1 line-clamp-2">{stripHtmlTags(currentQuestion.text || '')}</p>
+            </div>
+
+            {/* Notes Area */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="px-5 py-3 flex-1 flex flex-col min-h-0">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Your Notes</label>
+                <textarea
+                  value={questionNotes[currentQuestion.id] || ''}
+                  onChange={(e) => setQuestionNotes({
+                    ...questionNotes,
+                    [currentQuestion.id]: e.target.value,
+                  })}
+                  placeholder="Write any notes or observations about this question..."
+                  className="flex-1 w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1b3d6e] focus:border-transparent resize-none text-sm"
+                />
+              </div>
+
+              {/* Info Text */}
+              <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0">
+                <p className="text-xs text-gray-500">
+                  💡 Notes are saved locally and available for this attempt only.
+                </p>
+              </div>
+
+              {/* Close Button */}
+              <div className="px-5 pb-4 pt-2 border-t border-gray-100 flex-shrink-0">
+                <button
+                  onClick={() => setShowHighlightsNotes(false)}
+                  className="w-full px-4 py-2 bg-[#1b3d6e] text-white rounded-lg font-medium text-sm hover:bg-[#152d4d] transition-colors"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </div>

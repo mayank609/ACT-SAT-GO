@@ -24,10 +24,12 @@ export async function POST(
     }
 
     if (questionId) {
+      const timeToSave = timeSpentSeconds ?? 0
+      console.log(`[Autosave] Attempt ${attemptId}: Q${questionId} = ${timeToSave}s`)
       await redis.hset(`answers:${attemptId}`, {
         [questionId]: JSON.stringify({
           answerGiven,
-          timeSpentSeconds: timeSpentSeconds ?? 0,
+          timeSpentSeconds: timeToSave,
           isFlagged: isFlagged ?? false,
           updatedAt: Date.now(),
         }),

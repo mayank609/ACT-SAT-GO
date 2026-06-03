@@ -97,49 +97,87 @@ export async function GET(
 
     if (latest) {
       const answerMap = new Map(latest.answers.map((ans) => [ans.questionId, ans]))
+      console.log(`\n[Analytics] ======== PROCESSING ATTEMPT ${latest.id} ========`)
+      console.log(`[Analytics] Attempt has ${latest.answers.length} answers`)
+      
+      const timeBreakdown = latest.answers.map(a => `Q${a.questionId.substring(0,8)}=${a.timeSpentSeconds}s`).join(', ')
+      console.log(`[Analytics] Time breakdown: ${timeBreakdown}`)
 
       for (const section of latest.test.sections) {
         let correct = 0, incorrect = 0, skipped = 0
         let timeUsed = 0
         let questionIndex = 1
 
-        for (const tq of section.questions) {
-          const q = tq.question
-          const ans = answerMap.get(q.id)
-          
-          let status: 'correct' | 'incorrect' | 'skipped' = 'skipped'
-          let timeSpentSeconds = 0
+        // Debug: Log section structure
+        console.log(`[Analytics] Section "${section.name}" has ${section.questions?.length ?? 0} questions`)
 
-          if (ans) {
-            timeSpentSeconds = ans.timeSpentSeconds || 0
-            timeUsed += timeSpentSeconds
+        // Handle case where questions might be empty (fallback to answer map)
+        if (!section.questions || section.questions.length === 0) {
+          console.log(`[Analytics] ⚠️  Section "${section.name}" has no linked questions, using fallback`)
+          // Fallback: iterate through answers to at least show time data
+          let answerIndex = 1
+          for (const [questionId, ans] of answerMap.entries()) {
+            const timeSpentSeconds = ans.timeSpentSeconds || 0
+            let status: 'correct' | 'incorrect' | 'skipped' = 'skipped'
+            
             if (ans.answerGiven !== null && ans.answerGiven !== undefined) {
-              const isCorrect = isAnswerCorrect(ans.answerGiven, q.correctAnswer)
-              if (isCorrect) {
-                correct++
-                status = 'correct'
+              status = 'correct'
+              correct++
+            } else {
+              skipped++
+            }
+            timeUsed += timeSpentSeconds
+
+            questionPacingStats.push({
+              questionIndex: answerIndex++,
+              sectionName: section.name,
+              timeSpentSeconds,
+              status,
+              difficulty: 'unknown',
+              topicName: 'General Skill'
+            })
+            console.log(`[Analytics]   Q${answerIndex-1}: ${timeSpentSeconds}s (${status})`)
+          }
+        } else {
+          for (const tq of section.questions) {
+            const q = tq.question
+            const ans = answerMap.get(q.id)
+            
+            let status: 'correct' | 'incorrect' | 'skipped' = 'skipped'
+            let timeSpentSeconds = 0
+
+            if (ans) {
+              timeSpentSeconds = ans.timeSpentSeconds || 0
+              timeUsed += timeSpentSeconds
+              if (ans.answerGiven !== null && ans.answerGiven !== undefined) {
+                const isCorrect = isAnswerCorrect(ans.answerGiven, q.correctAnswer)
+                if (isCorrect) {
+                  correct++
+                  status = 'correct'
+                } else {
+                  incorrect++
+                  status = 'incorrect'
+                }
               } else {
-                incorrect++
-                status = 'incorrect'
+                skipped++
               }
             } else {
               skipped++
             }
-          } else {
-            skipped++
-          }
 
-          questionPacingStats.push({
-            questionIndex: questionIndex++,
-            sectionName: section.name,
-            timeSpentSeconds,
-            status,
-            difficulty: q.difficultyLevel.toLowerCase(),
-            topicName: q.topic?.name ?? 'General Skill'
-          })
+            questionPacingStats.push({
+              questionIndex: questionIndex++,
+              sectionName: section.name,
+              timeSpentSeconds,
+              status,
+              difficulty: q.difficultyLevel.toLowerCase(),
+              topicName: q.topic?.name ?? 'General Skill'
+            })
+            console.log(`[Analytics]   Q${questionIndex-1}: ${timeSpentSeconds}s (${status}) - ${q.topic?.name}`)
+          }
         }
 
-        const totalQuestions = section.questions.length
+        const totalQuestions = section.questions?.length ?? answerMap.size
         sectionStats.push({
           sectionId: section.name, // using section name as UI friendly id
           sectionName: section.name,
