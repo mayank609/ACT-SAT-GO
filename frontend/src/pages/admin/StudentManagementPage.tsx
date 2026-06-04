@@ -10,7 +10,7 @@ import { api, type DbUser } from '../../lib/api';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import toast from 'react-hot-toast';
 
-type AnalyticsTab = 'mistake' | 'strength' | 'parallel' | 'skill';
+type AnalyticsTab = 'mistake' | 'parallel' | 'skill';
 type MainViewTab = 'analysis' | 'test_analysis';
 
 // ── Test Analysis types ──────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ export function StudentManagementPage() {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
 
   // ── New state ─────────────────────────────────────────────────────────────
-  const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>('strength');
+  const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>('mistake');
   const [analyticsStudentId, setAnalyticsStudentId] = useState('');
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -532,8 +532,6 @@ export function StudentManagementPage() {
 
   const topicStats = analyticsTab === 'mistake'
     ? rawTopicStats.filter(t => t.accuracy < 70).sort((a, b) => a.accuracy - b.accuracy)
-    : analyticsTab === 'strength'
-    ? rawTopicStats.filter(t => t.accuracy >= 70).sort((a, b) => b.accuracy - a.accuracy)
     : analyticsTab === 'parallel'
     ? (analyticsData?.sectionStats ?? []).map(s => ({ topic: s.sectionName, total: s.totalQuestions, correct: s.correct, accuracy: s.accuracy }))
     : rawTopicStats.sort((a, b) => a.topic.localeCompare(b.topic));
@@ -995,7 +993,6 @@ export function StudentManagementPage() {
           <div className="flex flex-wrap gap-2">
             {([
               { key: 'mistake',  label: 'Mistake Analytics' },
-              { key: 'strength', label: 'Strength Analytics' },
               { key: 'parallel', label: 'Parallel Analysis' },
               { key: 'skill',    label: 'Skill Analysis' },
             ] as { key: AnalyticsTab; label: string }[]).map(t => (
@@ -1047,7 +1044,7 @@ export function StudentManagementPage() {
               <div className="py-8 text-center">
                 <BarChart2 size={32} className="mx-auto text-slate-300 mb-3" />
                 <p className="text-slate-500 text-sm font-medium">Select a student above to view their analytics</p>
-                <p className="text-slate-400 text-xs mt-1">Mistake, Strength, Parallel, and Skill analysis will appear here</p>
+                <p className="text-slate-400 text-xs mt-1">Mistake, Parallel, and Skill analysis will appear here</p>
               </div>
             </Card>
           )}
