@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Info, BarChart2, LayoutList, X } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Info, BarChart2, LayoutList, X, TrendingUp, Filter } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -11,6 +11,7 @@ import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 
 type TabKey = 'all' | 'active' | 'inactive';
 type AnalyticsTab = 'mistake' | 'strength' | 'parallel' | 'skill';
+type MainViewTab = 'management' | 'analysis';
 
 type AnalyticsData = {
   trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>;
@@ -33,6 +34,9 @@ function getStageBadge(grade: string | null | undefined) {
 
 export function StudentManagementPage() {
   const navigate = useNavigate();
+
+  // ── Main view state ───────────────────────────────────────────────────────
+  const [mainView, setMainView] = useState<MainViewTab>('management');
 
   // ── Existing state ────────────────────────────────────────────────────────
   const [students, setStudents] = useState<DbUser[]>([]);
@@ -66,6 +70,34 @@ export function StudentManagementPage() {
   const [analyticsAttempts, setAnalyticsAttempts] = useState<Array<{ id: string; status: string; totalScore: number | null; completedAt: string | null; startedAt: string; test: { title: string } }>>([]);
   const [analyticsAttemptId, setAnalyticsAttemptId] = useState('');
 
+  // ── Comprehensive Analysis state ──────────────────────────────────────────
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [studentAnalysisData, setStudentAnalysisData] = useState<Array<{
+    studentId: string;
+    studentName: string;
+    studentEmail: string;
+    targetDate: string | null;
+    diagnosticsEnglish: number | null;
+    diagnosticsMath: number | null;
+    mockTests: number;
+    sectionalTests: number;
+    hwCount: number;
+    cwCount: number;
+    practiceSheets: number;
+    totalAssessments: number;
+    lastTestName: string | null;
+    lastSubmittedAt: string | null;
+    scaledScoreTotal: number | null;
+    scaledScoreEnglish: number | null;
+    scaledScoreMath: number | null;
+    rawScoreTotal: number | null;
+    rawScoreEnglish: number | null;
+    rawScoreMath: number | null;
+    attempts: Array<{ id: string; testTitle: string; status: string; totalScore: number | null; startedAt: string; completedAt: string | null }>;
+  }>>([]);
+  const [analysisSearchTerm, setAnalysisSearchTerm] = useState('');
+  const [analysisSortBy, setAnalysisSortBy] = useState<'name' | 'diagnostics' | 'attempts'>('name');
+
   // ── Data fetching ─────────────────────────────────────────────────────────
   const reload = () => {
     setLoading(true);
@@ -97,6 +129,99 @@ export function StudentManagementPage() {
       .catch(() => {})
       .finally(() => setAnalyticsLoading(false));
   }, [analyticsStudentId, analyticsAttemptId]);
+
+  // Load comprehensive analysis data
+  const loadComprehensiveAnalysis = async () => {
+    setAnalysisLoading(true);
+    try {
+      const allStudentData: typeof studentAnalysisData = [];
+      
+      for (const student of students) {
+        try {
+          const attempts = (await api.getStudentAttempts(student.id)) as any;
+          const studentAttempts = attempts?.attempts?.filter((a: any) => a.status === 'SUBMITTED') || [];
+          
+          let diagnosticsEnglish = null;
+          let diagnosticsMath = null;
+          let lastTestName = null;
+          let lastSubmittedAt = null;
+          let scaledScoreTotal = null;
+          let scaledScoreEnglish = null;
+          let scaledScoreMath = null;
+          let rawScoreTotal = null;
+          let rawScoreEnglish = null;
+          let rawScoreMath = null;
+          
+          // Find diagnostics test and latest test
+          if (studentAttempts.length > 0) {
+            const sortedAttempts = [...studentAttempts].sort((a: any, b: any) => 
+              new Date(b.completedAt || b.startedAt).getTime() - new Date(a.completedAt || a.startedAt).getTime()
+            );
+            
+            const latestAttempt = sortedAttempts[0];
+            lastTestName = latestAttempt?.test?.title || null;
+            lastSubmittedAt = latestAttempt?.completedAt || latestAttempt?.startedAt || null;
+            scaledScoreTotal = latestAttempt?.totalScore || null;
+            rawScoreTotal = latestAttempt?.totalScore || null;
+            
+            // Look for diagnostics test
+            const diagnosticsAttempt = studentAttempts.find((a: any) => 
+              a.test?.title?.toLowerCase().includes('diagnostic')
+            );
+            if (diagnosticsAttempt) {
+              diagnosticsEnglish = diagnosticsAttempt.totalScore;
+              diagnosticsMath = diagnosticsAttempt.totalScore;
+            }
+          }
+          
+          // Count assessment types
+          const mockCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('mock')).length;
+          const sectionalCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('sectional')).length;
+          const hwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('homework') || a.test?.title?.toLowerCase().includes('hw')).length;
+          const cwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('classwork') || a.test?.title?.toLowerCase().includes('cw')).length;
+          const practiceCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('practice')).length;
+          const totalAssessments = mockCount + sectionalCount + hwCount + cwCount + practiceCount;
+          
+          allStudentData.push({
+            studentId: student.id,
+            studentName: student.name,
+            studentEmail: student.email,
+            targetDate: student.targetScore ? new Date().toISOString().split('T')[0] : null,
+            diagnosticsEnglish,
+            diagnosticsMath,
+            mockTests: mockCount,
+            sectionalTests: sectionalCount,
+            hwCount,
+            cwCount,
+            practiceSheets: practiceCount,
+            totalAssessments,
+            lastTestName,
+            lastSubmittedAt,
+            scaledScoreTotal,
+            scaledScoreEnglish,
+            scaledScoreMath,
+            rawScoreTotal,
+            rawScoreEnglish,
+            rawScoreMath,
+            attempts: studentAttempts.slice(0, 10),
+          });
+        } catch (err) {
+          console.error(`Error loading analysis for student ${student.id}:`, err);
+        }
+      }
+      
+      setStudentAnalysisData(allStudentData);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  // Load comprehensive analysis when switching to analysis view
+  useEffect(() => {
+    if (mainView === 'analysis' && studentAnalysisData.length === 0) {
+      loadComprehensiveAnalysis();
+    }
+  }, [mainView]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleFileDrop = (file: File) => {
@@ -246,6 +371,24 @@ export function StudentManagementPage() {
   return (
     <div className="space-y-5">
 
+      {/* ── View Switcher ── */}
+      <div className="flex gap-2 border-b border-slate-200 pb-0">
+        <button
+          onClick={() => setMainView('management')}
+          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${mainView === 'management' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Management
+        </button>
+        <button
+          onClick={() => setMainView('analysis')}
+          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px flex items-center gap-1.5 ${mainView === 'analysis' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <TrendingUp size={14} /> Comprehensive Analysis
+        </button>
+      </div>
+
+      {mainView === 'management' ? (
+        <>
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -284,7 +427,7 @@ export function StudentManagementPage() {
         {[
           { label: 'Total Students', value: students.length, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
           { label: 'With Tutors', value: students.filter(s => s.tutorId).length, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-          { label: 'Avg Score', value: students.filter(s => s.avgScore != null).length ? (students.reduce((a, s) => a + (s.avgScore ?? 0), 0) / students.filter(s => s.avgScore != null).length).toFixed(1) : '—', color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
+          { label: 'Avg Score', value: students.filter(s => s.avgScore != null).length ? (students.reduce((a, s) => a + (s.avgScore ?? 0), 0) / students.filter(s => s.avgScore != null).length).toFixed(1) : '—', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
           { label: 'Tests Done', value: students.reduce((a, s) => a + (s.testsAttempted || 0), 0), color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl border ${s.border} ${s.bg} px-4 py-3 flex items-center gap-3`}>
@@ -622,6 +765,134 @@ export function StudentManagementPage() {
           </>
         )}
       </div>
+
+        </>
+      ) : (
+        <>
+      {/* ── COMPREHENSIVE ANALYSIS VIEW ── */}
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Student Analysis Dashboard</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Detailed performance metrics for all students</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => loadComprehensiveAnalysis()}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <Filter size={14} /> Refresh Data
+            </button>
+          </div>
+        </div>
+
+        {/* Search Filter */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Search by name or email…"
+            value={analysisSearchTerm}
+            onChange={(e) => setAnalysisSearchTerm(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={analysisSortBy}
+            onChange={(e) => setAnalysisSortBy(e.target.value as any)}
+            className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="name">Sort by Name</option>
+            <option value="diagnostics">Sort by Diagnostics</option>
+            <option value="attempts">Sort by Attempts</option>
+          </select>
+        </div>
+
+        {/* Analysis Table */}
+        <Card padding="none">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
+                  <th className="px-4 py-3 text-left font-semibold text-blue-900 whitespace-nowrap">Name</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Target Date</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200">Diagnostic Score</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">English</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Math</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200">Total Assessment</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Test Report</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Performance</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Assign</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysisLoading ? (
+                  <tr><td colSpan={9} className="py-8 text-center text-slate-400">Loading...</td></tr>
+                ) : studentAnalysisData.length === 0 ? (
+                  <tr><td colSpan={9} className="py-8 text-center text-slate-400">No students found</td></tr>
+                ) : studentAnalysisData
+                    .filter((s) =>
+                      analysisSearchTerm
+                        ? s.studentName.toLowerCase().includes(analysisSearchTerm.toLowerCase()) ||
+                          s.studentEmail.toLowerCase().includes(analysisSearchTerm.toLowerCase())
+                        : true
+                    )
+                    .sort((a, b) => {
+                      if (analysisSortBy === 'name') return a.studentName.localeCompare(b.studentName);
+                      if (analysisSortBy === 'diagnostics') return (b.diagnosticsEnglish || 0) - (a.diagnosticsEnglish || 0);
+                      if (analysisSortBy === 'attempts') return b.attempts.length - a.attempts.length;
+                      return 0;
+                    })
+                    .map((row, idx) => (
+                      <tr key={row.studentId} className={`border-b border-slate-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                              {row.studentName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900 text-sm">{row.studentName}</p>
+                              <p className="text-xs text-slate-400 truncate">{row.studentEmail}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm text-slate-600 whitespace-nowrap">
+                          {row.targetDate ? new Date(row.targetDate).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center font-semibold text-blue-900 border-l border-blue-100" />
+                        <td className="px-4 py-3 text-center text-sm font-semibold text-blue-700">
+                          {row.diagnosticsEnglish ?? '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-semibold text-blue-700">
+                          {row.diagnosticsMath ?? '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm font-bold text-emerald-700 border-l border-blue-100">
+                          {row.totalAssessments ?? 0}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button onClick={() => navigate(`/students/${row.studentId}`)} className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                            View
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button onClick={() => navigate(`/students/${row.studentId}`)} className="px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
+                            View
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button onClick={() => setShowAddModal(true)} className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                            Assign
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+
+        </>
+      )}
 
       {/* ── Add / Edit Student Modal ── */}
       <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setAddError(''); setIsEditing(false); setEditingStudentId(null); }} title={isEditing ? 'Edit Student Details' : 'Add New Student'} size="md"
