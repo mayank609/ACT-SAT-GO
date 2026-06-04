@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -8,6 +8,7 @@ import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ScoreCalculator } from '../../components/calculator/ScoreCalculator';
+import { Modal } from '../../components/common/Modal';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
 
@@ -201,7 +202,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
       <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-emerald-200' : skipped ? 'border-slate-200' : 'border-red-200'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white">
           {/* Left Panel: Passage */}
-          <div className="p-4 bg-slate-50 text-left overflow-y-auto max-h-[400px]">
+          <div className="p-4 bg-slate-50 text-left">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2 border-b border-slate-200/60 pb-1 flex-shrink-0">Reading Passage</h4>
             <div className="prose prose-slate max-w-none text-slate-800 text-sm leading-relaxed">
               <RichContentRenderer content={parentQuestionText} variant="question" className="prose-sm" />
@@ -348,6 +349,304 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
   )
 }
 
+// ─── Display helpers for pacing and coaching ──────────────────────────────────
+
+function getSectionModuleLabel(name: string): string {
+  const isMath = /math/i.test(name);
+  const isRW = /reading|writing|rw/i.test(name);
+  if (!isMath && !isRW) return name;
+  const isModule2 = /2|two/i.test(name);
+  const moduleNum = isModule2 ? 2 : 1;
+  const sectionNum = isMath ? 2 : 1;
+  const subjectName = isMath ? 'Math' : 'Reading and Writing';
+  return `Section ${sectionNum}, Module ${moduleNum}: ${subjectName}`;
+}
+
+function formatSeconds(sec: number | undefined): string {
+  if (sec === undefined || sec === null) return '0 Seconds';
+  if (sec < 60) return `${sec} Seconds`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m} Minute${m > 1 ? 's' : ''}`;
+}
+
+function getAiCoachingTip(topic: string, difficulty: string, correct: boolean, timeSpent: number): string {
+  const diffStr = difficulty.toLowerCase();
+  const timeLimit = 75; // SAT recommended avg is ~75s for RW, ~84s for Math
+  const pacingStatus = timeSpent > timeLimit ? 'slow' : 'good';
+  
+  const tips: Record<string, string[]> = {
+    algebra: [
+      "Isolate variables first before performing operations. Substitution with simple values can help verify results.",
+      "Check linear equation signs and constants. A common pitfall is forgetting to distribute negative signs."
+    ],
+    advanced_math: [
+      "For quadratics, recall the quadratic formula and vertex form. Factoring quickly saves time.",
+      "Identify the relationships between graph translations and algebraic manipulations."
+    ],
+    geometry: [
+      "Always sketch the figure if not provided. Recall key trigonometric ratios (SOHCAHTOA) and theorem rules.",
+      "Watch for units conversions and reference angles in circle theorems."
+    ],
+    ideas: [
+      "Identify the central claim of the passage first. Avoid options that introduce outside details not in the text.",
+      "Rely only on direct evidence. If an option requires a multi-step assumption, it is likely incorrect."
+    ],
+    structure: [
+      "Examine how paragraphs connect and the function of sentences in context. Look for structural transition words.",
+      "Pay attention to tone and author perspective when analyzing cross-texts."
+    ],
+    conventions: [
+      "Focus on subject-verb agreement and punctuation rules (commas, semicolons, dashes). Look for independent clauses.",
+      "Ensure modifiers are placed adjacent to the nouns they describe to avoid dangling modifiers."
+    ]
+  };
+
+  let key = 'algebra';
+  const tLower = topic.toLowerCase();
+  if (tLower.includes('algebra')) key = 'algebra';
+  else if (tLower.includes('math') || tLower.includes('quadratic') || tLower.includes('function')) key = 'advanced_math';
+  else if (tLower.includes('geometry') || tLower.includes('trig')) key = 'geometry';
+  else if (tLower.includes('ideas') || tLower.includes('information') || tLower.includes('evidence')) key = 'ideas';
+  else if (tLower.includes('structure') || tLower.includes('craft') || tLower.includes('vocabulary')) key = 'structure';
+  else if (tLower.includes('conventions') || tLower.includes('grammar') || tLower.includes('punctuation') || tLower.includes('sentence')) key = 'conventions';
+
+  const defaultTips = tips[key] || tips['algebra'];
+  const tipText = defaultTips[correct ? 0 : 1] || defaultTips[0];
+  
+  const pacingText = pacingStatus === 'slow' 
+    ? `You spent ${timeSpent}s here, which is above the optimal pacing. Try to eliminate wrong choices faster.`
+    : `Great pacing! You spent ${timeSpent}s, leaving you buffer time for harder questions.`;
+    
+  return `[AI Recommendation] ${tipText} ${pacingText}`;
+}
+
+export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, attemptId }: {
+  tq: DbTestQuestion;
+  localIndex: number;
+  studentAnswer: DbAttemptAnswer | undefined;
+  attemptId: string;
+}) {
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [showAiTip, setShowAiTip] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(studentAnswer?.isFlagged ?? false);
+
+  const q = tq.question;
+  const correct = answersMatch(studentAnswer?.answerGiven ?? null, q.correctAnswer);
+  const skipped = !studentAnswer?.answerGiven;
+  const status: 'correct' | 'incorrect' | 'omitted' = skipped ? 'omitted' : correct ? 'correct' : 'incorrect';
+  
+  const options = dbOptionsToDisplay(q.options);
+  const userAnswerDisplay = dbAnswerToDisplay(studentAnswer?.answerGiven ?? null);
+  const correctAnswerDisplay = dbAnswerToDisplay(q.correctAnswer);
+  const parentQuestionText = (q as any).parentQuestionText;
+  
+  const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
+  const topicLabel = q.topic?.name ?? 'General Review';
+
+  const handleToggleBookmark = async () => {
+    const nextState = !isBookmarked;
+    setIsBookmarked(nextState);
+    try {
+      await api.autosaveAnswer(attemptId, {
+        questionId: q.id,
+        isFlagged: nextState,
+      });
+    } catch (err) {
+      console.error('Failed to toggle bookmark', err);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      {/* Top Metadata Row */}
+      <div className="bg-slate-50/70 px-6 py-4 flex flex-wrap items-center justify-between border-b border-slate-100 gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Question Local Index */}
+          <div className="w-8 h-8 rounded-lg bg-blue-800 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+            {localIndex}
+          </div>
+          {/* MCQ / Numeric Badge */}
+          <Badge variant="default" className="bg-slate-200 text-slate-700 hover:bg-slate-200 border-none font-semibold">
+            {q.type === 'MCQ' ? 'MCQ' : q.type === 'NUMERIC' ? 'Numeric' : q.type}
+          </Badge>
+          {/* Correct / Incorrect / Omitted Badge */}
+          <Badge variant={status === 'correct' ? 'success' : status === 'omitted' ? 'warning' : 'danger'} className="font-semibold">
+            {status === 'correct' ? 'Correct' : status === 'omitted' ? 'Omitted' : 'Incorrect'}
+          </Badge>
+          {/* Time spent */}
+          <Badge variant="outline" className="border-slate-300 text-slate-600 bg-white font-medium flex items-center gap-1">
+            <Clock size={12} />
+            {formatSeconds(studentAnswer?.timeSpentSeconds)}
+          </Badge>
+          {/* Difficulty badge */}
+          <Badge variant="outline" className="border-slate-300 text-slate-600 bg-white font-medium">
+            Difficulty Level - {q.difficultyLevel.toUpperCase() === 'EASY' ? '1' : q.difficultyLevel.toUpperCase() === 'MEDIUM' ? '2' : '3'}
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${skipped ? 'bg-amber-400' : 'bg-green-500'}`} />
+            {skipped ? 'Skipped' : 'Answered'}
+          </span>
+          <span className="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            Visited
+          </span>
+          <button 
+            onClick={handleToggleBookmark} 
+            className={`p-1.5 rounded-lg border transition-colors ${
+              isBookmarked 
+                ? 'border-blue-200 bg-blue-50 text-blue-600' 
+                : 'border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+            }`}
+            title={isBookmarked ? 'Bookmarked' : 'Bookmark Question'}
+          >
+            <Bookmark size={16} fill={isBookmarked ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+      </div>
+
+      {/* Card Content Area */}
+      <div className="p-6 space-y-6">
+        {/* Passage Container */}
+        {parentQuestionText && (
+          <div className="space-y-2 border-b border-slate-100/60 pb-4">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Passage</div>
+            <div className="prose prose-slate max-w-none text-slate-800 text-sm leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100">
+              <RichContentRenderer content={parentQuestionText} variant="question" className="prose-sm" />
+            </div>
+          </div>
+        )}
+
+        {/* Question Prompt */}
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Question</div>
+          <div className="text-slate-800 font-medium text-base">
+            <RichContentRenderer content={q.content.text || `Question ${localIndex}`} variant="question" className="prose-sm" />
+          </div>
+        </div>
+
+        {/* Options / Answer Input Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Options</span>
+            <button
+              onClick={() => setShowAnswer(!showAnswer)}
+              className="text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-md shadow-sm transition-colors"
+            >
+              {showAnswer ? 'Hide Answer' : 'Show Answer'}
+            </button>
+          </div>
+
+          {options.length > 0 ? (
+            <div className="space-y-2">
+              {options.map((opt) => {
+                const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                return (
+                  <OptionRenderer
+                    key={opt.id}
+                    label={opt.id.toUpperCase()}
+                    text={opt.text}
+                    isSelected={isUserAnswer}
+                    isCorrect={isCorrectOption}
+                    isIncorrect={isUserAnswer && !isCorrectOption}
+                    showFeedback={showAnswer}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            q.type === 'NUMERIC' && (
+              <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
+                <div className="text-sm">
+                  <span className="text-slate-500 font-medium">Your answer: </span>
+                  <span className={`font-bold ${showAnswer ? (correct ? 'text-green-600' : 'text-red-500') : 'text-slate-800'}`}>
+                    {studentAnswer?.answerGiven?.value ?? '—'}
+                  </span>
+                </div>
+                {showAnswer && (
+                  <div className="text-sm">
+                    <span className="text-slate-500 font-medium">Correct answer: </span>
+                    <span className="font-bold text-green-600">
+                      {q.correctAnswer.value}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Expandable Analysis Footer */}
+      <div className="border-t border-slate-100 bg-slate-50/50">
+        <div className="px-6 py-3 flex items-center justify-between">
+          <button 
+            onClick={() => setShowAnalysis(!showAnalysis)}
+            className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+          >
+            {showAnalysis ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            <span>Analysis</span>
+            {status === 'correct' ? (
+              <CheckCircle size={16} className="text-green-600" />
+            ) : status === 'incorrect' ? (
+              <AlertCircle size={16} className="text-red-600" />
+            ) : (
+              <AlertCircle size={16} className="text-amber-500" />
+            )}
+          </button>
+          
+          <button
+            onClick={() => {
+              setShowAnalysis(true);
+              setShowAiTip(!showAiTip);
+            }}
+            className="text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-md shadow-sm transition-colors"
+          >
+            Analyze
+          </button>
+        </div>
+
+        {showAnalysis && (
+          <div className="px-6 pb-6 pt-2 space-y-4 border-t border-slate-100/60 bg-white">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
+              <div>
+                <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider block">Domain</span>
+                <span className="text-slate-800 font-bold">{domainLabel}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider block">Topic</span>
+                <span className="text-slate-800 font-bold">{topicLabel}</span>
+              </div>
+            </div>
+
+            {showAiTip && (
+              <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100 text-sm text-blue-950 font-medium">
+                {getAiCoachingTip(topicLabel, q.difficultyLevel, correct, studentAnswer?.timeSpentSeconds ?? 0)}
+              </div>
+            )}
+
+            {q.content.explanation ? (
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Explanation</span>
+                <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 text-slate-800 text-sm leading-relaxed">
+                  <RichContentRenderer content={q.content.explanation} variant="explanation" />
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500 italic">No explanation available for this question.</div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function TestReviewPage() {
@@ -355,9 +654,10 @@ export function TestReviewPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isTutorOrAdmin = user?.role === 'tutor' || user?.role === 'admin' || user?.role === 'super_admin';
-  const [showCorrect, setShowCorrect] = useState(false);
-  const [pageSize, setPageSize] = useState<'10' | '30' | 'all'>('10');
-  const [sort, setSort] = useState<{ key: 'number' | 'section' | 'status' | 'domain'; dir: 'asc' | 'desc' }>({ key: 'number', dir: 'asc' });
+  const [activeSectionIdx, setActiveSectionIdx] = useState(0);
+  const [filterBy, setFilterBy] = useState<string>('all');
+  const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -517,31 +817,40 @@ export function TestReviewPage() {
     }
   });
 
-  // Sort + paginate table rows
-  const dir = sort.dir === 'asc' ? 1 : -1;
-  const sortedRows = [...reviewRows].sort((a, b) => {
-    let av: string | number, bv: string | number;
-    switch (sort.key) {
-      case 'section': av = a.sectionName; bv = b.sectionName; break;
-      case 'status':  av = a.status; bv = b.status; break;
-      case 'domain':  av = a.displayDomain; bv = b.displayDomain; break;
-      default:        av = a.number; bv = b.number;
-    }
-    if (av < bv) return -1 * dir;
-    if (av > bv) return 1 * dir;
-    return a.number - b.number;
+  // Precompute pacing stats per section for the View Time Analytics modal
+  const pacingStats = sections.map((sa) => {
+    let correctCount = 0, incorrectCount = 0, omittedCount = 0;
+    let correctTime = 0, incorrectTime = 0, omittedTime = 0, totalTime = 0;
+    
+    sa.section.questions.forEach((tq) => {
+      const ans = answersMap.get(tq.questionId);
+      const time = ans?.timeSpentSeconds ?? 0;
+      totalTime += time;
+      
+      if (!ans || !ans.answerGiven) {
+        omittedCount++;
+        omittedTime += time;
+      } else if (answersMatch(ans.answerGiven, tq.question.correctAnswer)) {
+        correctCount++;
+        correctTime += time;
+      } else {
+        incorrectCount++;
+        incorrectTime += time;
+      }
+    });
+    
+    const totalQ = sa.section.questions.length;
+    
+    return {
+      name: sa.section.name,
+      totalQuestions: totalQ,
+      totalTime,
+      avgTime: totalQ > 0 ? Math.round(totalTime / totalQ) : 0,
+      avgTimeCorrect: correctCount > 0 ? Math.round(correctTime / correctCount) : 0,
+      avgTimeIncorrect: incorrectCount > 0 ? Math.round(incorrectTime / incorrectCount) : 0,
+      avgTimeOmitted: omittedCount > 0 ? Math.round(omittedTime / omittedCount) : 0,
+    };
   });
-  const visibleRows = pageSize === 'all' ? sortedRows : sortedRows.slice(0, Number(pageSize));
-
-  const toggleSort = (key: typeof sort.key) =>
-    setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
-
-  const statusStyle: Record<string, string> = {
-    correct: 'text-emerald-600', incorrect: 'text-red-600', omitted: 'text-red-500',
-  };
-  const statusLabel: Record<string, string> = {
-    correct: 'Correct', incorrect: 'Incorrect', omitted: 'Omitted',
-  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -631,89 +940,208 @@ export function TestReviewPage() {
         ))}
       </div>
 
-      {/* ── QUESTIONS OVERVIEW ───────────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Questions Overview</h2>
-        <p className="text-slate-500 text-sm mb-5">Review your results for each question from this practice test.</p>
-
-        {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          {[
-            { label: 'Total Questions', value: totalCount },
-            { label: 'Correct Answers', value: correctCount },
-            { label: 'Incorrect Answers', value: incorrectCount },
-          ].map((s) => (
-            <div key={s.label} className="bg-blue-50 rounded-2xl py-6 text-center">
-              <p className="text-4xl font-bold text-slate-900">{s.value}</p>
-              <p className="text-slate-700 font-semibold mt-1">{s.label}</p>
-            </div>
-          ))}
+      {/* ── QUESTION WISE REPORT ───────────────────────────────────────────────── */}
+      <div className="space-y-6">
+        <div id="question-report-anchor">
+          <h2 className="text-2xl font-bold text-slate-900">Question wise report</h2>
         </div>
 
-        {/* Toggle + page size */}
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
-          <button onClick={() => setShowCorrect((v) => !v)} className="flex items-center gap-2 select-none">
-            <span className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${showCorrect ? 'bg-blue-600 justify-end' : 'bg-slate-300 justify-start'}`}>
-              <span className="w-4 h-4 rounded-full bg-white shadow" />
-            </span>
-            <span className="text-sm font-medium text-slate-700">Show Correct Answers</span>
-          </button>
-          <div className="text-sm text-slate-500 flex items-center gap-2">
-            View:
-            {(['10', '30', 'all'] as const).map((p) => (
-              <button key={p} onClick={() => setPageSize(p)}
-                className={pageSize === p ? 'font-bold text-slate-900' : 'text-blue-600 hover:underline'}>
-                {p === 'all' ? 'All' : p}
+        {/* Tabs & Filters bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-3 gap-4">
+          <div className="flex flex-wrap gap-2">
+            {sections.map((sa, idx) => (
+              <button
+                key={sa.id}
+                onClick={() => {
+                  setActiveSectionIdx(idx);
+                  setFilterBy('all');
+                  setCurrentQuestionIdx(0);
+                }}
+                className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                  activeSectionIdx === idx
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                }`}
+              >
+                {getSectionModuleLabel(sa.section.name)}
               </button>
             ))}
+            <button
+              onClick={() => setTimeAnalyticsOpen(true)}
+              className="px-4 py-2.5 rounded-lg text-xs font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <Clock size={12} />
+              View Time Analytics
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 self-end md:self-auto">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter By</span>
+            <select
+              value={filterBy}
+              onChange={(e) => { setFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            >
+              <option value="all">All</option>
+              <option value="correct">Correct</option>
+              <option value="incorrect">Incorrect</option>
+              <option value="omitted">Omitted</option>
+              <option value="flagged">Bookmarked</option>
+            </select>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-700 text-white">
-              <tr>
-                {([
-                  { key: 'number', label: 'Question', sortable: true },
-                  { key: 'section', label: 'Section', sortable: true },
-                  { key: null, label: 'Correct Answer', sortable: false },
-                  { key: 'status', label: 'Your Answer', sortable: true },
-                  { key: null, label: 'Actions', sortable: false },
-                  { key: 'domain', label: 'Domain', sortable: true },
-                ] as const).map((col) => (
-                  <th key={col.label} className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                    {col.sortable ? (
-                      <button onClick={() => toggleSort(col.key as typeof sort.key)} className="inline-flex items-center gap-1">
-                        {col.label}
-                        <span className="text-white/60">{sort.key === col.key ? (sort.dir === 'asc' ? '▲' : '▼') : '⬍'}</span>
-                      </button>
-                    ) : col.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((r, i) => (
-                <tr key={r.tq.id} className={`border-t border-slate-100 ${i % 2 ? 'bg-slate-50/40' : 'bg-white'}`}>
-                  <td className="px-4 py-3 text-slate-700">{r.number}</td>
-                  <td className="px-4 py-3 text-slate-700">{r.sectionName}</td>
-                  <td className="px-4 py-3 bg-slate-50/70 font-medium text-slate-700">{showCorrect ? r.correctText : ''}</td>
-                  <td className={`px-4 py-3 font-medium ${statusStyle[r.status]}`}>{statusLabel[r.status]}</td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => navigate(`/test-review/${attempt.id}/section/${r.sectionIdx}?q=${r.tq.questionId}`)}
-                      className="text-blue-600 hover:underline font-medium">Review</button>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{r.displayDomain}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {pageSize !== 'all' && totalCount > Number(pageSize) && (
-          <p className="text-xs text-slate-400 mt-2">Showing {visibleRows.length} of {totalCount} questions — use the View options above to see more.</p>
-        )}
+        {/* Single Question View with Previous/Next Navigation */}
+        {(() => {
+          const activeSection = sections[activeSectionIdx];
+          const activeQuestions = activeSection?.section.questions ?? [];
+          const filteredQuestions = activeQuestions.filter((tq) => {
+            const ans = answersMap.get(tq.questionId);
+            const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+            const isOmitted = !ans?.answerGiven;
+            const isFlagged = ans?.isFlagged ?? false;
+            
+            if (filterBy === 'correct') return isCorrect;
+            if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+            if (filterBy === 'omitted') return isOmitted;
+            if (filterBy === 'flagged') return isFlagged;
+            return true;
+          });
+
+          const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+          const currentTq = filteredQuestions[safeIdx];
+          const hasPrev = safeIdx > 0;
+          const hasNext = safeIdx < filteredQuestions.length - 1;
+
+          return (
+            <div className="space-y-6">
+              {/* Question counter & info */}
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-bold text-slate-700">
+                  Total Questions: {activeQuestions.length}
+                  {filterBy !== 'all' && (
+                    <span className="text-slate-500 font-medium ml-2">
+                      (Showing {filteredQuestions.length} matching filter)
+                    </span>
+                  )}
+                </div>
+                {filteredQuestions.length > 0 && (
+                  <div className="text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg">
+                    Question {safeIdx + 1} of {filteredQuestions.length}
+                  </div>
+                )}
+              </div>
+
+              {/* Current Question Card */}
+              {filteredQuestions.length > 0 && currentTq ? (
+                <>
+                  <QuestionDetailedReviewCard
+                    key={currentTq.id}
+                    tq={currentTq}
+                    localIndex={activeQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                    studentAnswer={answersMap.get(currentTq.questionId)}
+                    attemptId={attempt.id}
+                  />
+
+                  {/* Previous / Next Navigation */}
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      onClick={() => { setCurrentQuestionIdx(safeIdx - 1); window.scrollTo({ top: document.getElementById('question-report-anchor')?.offsetTop ?? 0, behavior: 'smooth' }); }}
+                      disabled={!hasPrev}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                        hasPrev
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <ChevronLeft size={18} />
+                      Previous Question
+                    </button>
+
+                    {/* Quick jump dots */}
+                    <div className="hidden md:flex items-center gap-1 max-w-[300px] flex-wrap justify-center">
+                      {filteredQuestions.map((_, dotIdx) => (
+                        <button
+                          key={dotIdx}
+                          onClick={() => { setCurrentQuestionIdx(dotIdx); window.scrollTo({ top: document.getElementById('question-report-anchor')?.offsetTop ?? 0, behavior: 'smooth' }); }}
+                          className={`w-2.5 h-2.5 rounded-full transition-all ${
+                            dotIdx === safeIdx
+                              ? 'bg-blue-600 scale-125'
+                              : 'bg-slate-300 hover:bg-slate-400'
+                          }`}
+                          title={`Question ${dotIdx + 1}`}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => { setCurrentQuestionIdx(safeIdx + 1); window.scrollTo({ top: document.getElementById('question-report-anchor')?.offsetTop ?? 0, behavior: 'smooth' }); }}
+                      disabled={!hasNext}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                        hasNext
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      Next Question
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-16 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+                  <p className="text-slate-500 font-semibold">No questions match the active filter.</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
+
+      {/* Pacing Modal */}
+      <Modal
+        isOpen={timeAnalyticsOpen}
+        onClose={() => setTimeAnalyticsOpen(false)}
+        title="Time Pacing Analytics"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Review how much time you spent per question on average, broken down by correctness. This helps identify pacing issues.
+          </p>
+          <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Section / Module</th>
+                  <th className="px-4 py-3 text-center">Questions</th>
+                  <th className="px-4 py-3 text-center">Total Time</th>
+                  <th className="px-4 py-3 text-center font-bold">Avg/Q</th>
+                  <th className="px-4 py-3 text-center text-green-700">Correct</th>
+                  <th className="px-4 py-3 text-center text-red-700">Incorrect</th>
+                  <th className="px-4 py-3 text-center text-amber-700">Skipped</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-600 bg-white">
+                {pacingStats.map((stat, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-semibold text-slate-800">{getSectionModuleLabel(stat.name)}</td>
+                    <td className="px-4 py-3 text-center font-medium">{stat.totalQuestions}</td>
+                    <td className="px-4 py-3 text-center">{formatSeconds(stat.totalTime)}</td>
+                    <td className="px-4 py-3 text-center font-bold text-slate-900">{stat.avgTime}s</td>
+                    <td className="px-4 py-3 text-center text-green-600 font-bold bg-green-50/20">{stat.avgTimeCorrect}s</td>
+                    <td className="px-4 py-3 text-center text-red-600 font-bold bg-red-50/20">{stat.avgTimeIncorrect}s</td>
+                    <td className="px-4 py-3 text-center text-amber-600 font-bold bg-amber-50/20">{stat.avgTimeOmitted}s</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button variant="secondary" onClick={() => setTimeAnalyticsOpen(false)}>Close</Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Score Calculator */}
       <div className="mt-8">

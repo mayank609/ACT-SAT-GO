@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Info, BarChart2, LayoutList, X, TrendingUp, Filter, Loader2, ClipboardList } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, BarChart2, LayoutList, X, TrendingUp, Filter, Loader2, ClipboardList } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -10,7 +10,6 @@ import { api, type DbUser } from '../../lib/api';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import toast from 'react-hot-toast';
 
-type TabKey = 'all' | 'active' | 'inactive';
 type AnalyticsTab = 'mistake' | 'strength' | 'parallel' | 'skill';
 type MainViewTab = 'management' | 'analysis' | 'test_analysis';
 
@@ -179,14 +178,7 @@ type AnalyticsData = {
   avgScore: number;
 };
 
-function getStageBadge(grade: string | null | undefined) {
-  const g = parseInt(grade || '0');
-  if (g === 9)  return { label: 'STAGE 1', cls: 'bg-emerald-100 text-emerald-800' };
-  if (g === 10) return { label: 'STAGE 2', cls: 'bg-teal-100 text-teal-700' };
-  if (g === 11) return { label: 'STAGE 3', cls: 'bg-orange-100 text-orange-800' };
-  if (g === 12) return { label: 'STAGE 4', cls: 'bg-purple-100 text-purple-800' };
-  return null;
-}
+// stage badge helper removed as the student table was consolidated
 
 export function StudentManagementPage() {
   const navigate = useNavigate();
@@ -197,8 +189,6 @@ export function StudentManagementPage() {
   // ── Existing state ────────────────────────────────────────────────────────
   const [students, setStudents] = useState<DbUser[]>([]);
   const [tutors, setTutors] = useState<DbUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
@@ -210,13 +200,10 @@ export function StudentManagementPage() {
   const [addLoading, setAddLoading] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
   const [copiedPassword, setCopiedPassword] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
 
   // ── New state ─────────────────────────────────────────────────────────────
-  const [primaryFilter, setPrimaryFilter] = useState<'all' | 'primary' | 'secondary'>('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>('strength');
   const [analyticsStudentId, setAnalyticsStudentId] = useState('');
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
@@ -307,11 +294,10 @@ export function StudentManagementPage() {
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const reload = () => {
-    setLoading(true);
     Promise.all([
       api.getUsersByRole('STUDENT').then((r) => setStudents(r.users ?? [])),
       api.getUsersByRole('TUTOR').then((r) => setTutors(r.users ?? [])),
-    ]).finally(() => setLoading(false));
+    ]);
   };
   useEffect(() => { reload(); }, []);
 
@@ -525,23 +511,7 @@ export function StudentManagementPage() {
   };
 
   // ── Derived data ──────────────────────────────────────────────────────────
-  const primaryStudents = students.filter(s => ['9', '10'].includes(s.grade || ''));
-  const secondaryStudents = students.filter(s => ['11', '12'].includes(s.grade || ''));
-  const displayStudents = primaryFilter === 'primary' ? primaryStudents : primaryFilter === 'secondary' ? secondaryStudents : students;
-
-  const activeStudents = displayStudents.filter((s) => (s.testsAttempted ?? 0) > 0);
-  const inactiveStudents = displayStudents.filter((s) => !s.testsAttempted || s.testsAttempted === 0);
-
-  const tabs: { key: TabKey; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: displayStudents.length },
-    { key: 'active', label: 'Active', count: activeStudents.length },
-    { key: 'inactive', label: 'Inactive', count: inactiveStudents.length },
-  ];
-
-  const tabData = tab === 'active' ? activeStudents : tab === 'inactive' ? inactiveStudents : displayStudents;
-  const filteredData = searchTerm
-    ? tabData.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.email.toLowerCase().includes(searchTerm.toLowerCase()))
-    : tabData;
+  // display variables cleaned up as student list was consolidated
 
   // ── Analytics computed data ───────────────────────────────────────────────
   const qStats = analyticsData?.questionPacingStats ?? [];
@@ -609,27 +579,6 @@ export function StudentManagementPage() {
           <p className="text-sm text-slate-500 mt-0.5">Total Students: <span className="font-semibold text-slate-700">{students.length}</span></p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* Primary / Secondary toggle */}
-          <div className="flex items-center gap-2 text-sm select-none">
-            <span className={`font-medium transition-colors ${primaryFilter !== 'secondary' ? 'text-emerald-600' : 'text-slate-400'}`}>Primary</span>
-            <button
-              onClick={() => setPrimaryFilter(f => f === 'all' ? 'secondary' : f === 'secondary' ? 'primary' : 'all')}
-              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${primaryFilter === 'secondary' ? 'bg-blue-500' : primaryFilter === 'primary' ? 'bg-emerald-500' : 'bg-slate-300'}`}
-            >
-              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${primaryFilter === 'secondary' ? 'left-6' : primaryFilter === 'primary' ? 'left-1' : 'left-3.5'}`} />
-            </button>
-            <span className={`font-medium transition-colors ${primaryFilter === 'secondary' ? 'text-blue-600' : 'text-slate-400'}`}>Secondary</span>
-          </div>
-
-          {selectedIds.length > 0 && (
-            <div className="flex items-center gap-1 bg-blue-50 border border-blue-100 rounded-lg p-1">
-              <span className="text-xs text-blue-700 font-medium px-2">{selectedIds.length} selected</span>
-              <Button variant="ghost" size="sm" className="text-blue-700 hover:bg-blue-100"
-                onClick={() => { const emails = students.filter(s => selectedIds.includes(s.id)).map(s => s.email).join(','); window.location.href = `mailto:${emails}`; }}>Email</Button>
-              <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100"
-                onClick={async () => { if (confirm(`Delete ${selectedIds.length} selected students?`)) { await Promise.all(selectedIds.map(id => api.deleteUser(id).catch(() => {}))); setSelectedIds([]); reload(); } }}>Delete</Button>
-            </div>
-          )}
           <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
           <Button size="sm" icon={<Plus size={13} />} onClick={() => { setIsEditing(false); setEditingStudentId(null); setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' }); setShowAddModal(true); }}>Add Student</Button>
         </div>
