@@ -6,21 +6,32 @@ import { redis } from '@/lib/redis'
 type AnswerJson = { key?: string; keys?: string[]; value?: number } | null
 
 function isAnswerCorrect(given: unknown, correct: unknown): boolean {
-  if (!given || !correct) return false
-  const g = given as AnswerJson
-  const c = correct as AnswerJson
-  if (!g || !c) return false
+  if (!given || !correct) return false;
+  const g = given as AnswerJson;
+  const c = correct as AnswerJson;
+  if (!g || !c) return false;
+  
   // Numeric
-  if (c.value !== undefined) return g.value === c.value
-  // MSQ — order-independent, case-insensitive
-  if (c.keys) {
-    const gKeys = (g.keys ?? []).map((k) => k.toUpperCase()).sort()
-    const cKeys = c.keys.map((k) => k.toUpperCase()).sort()
-    return JSON.stringify(gKeys) === JSON.stringify(cKeys)
+  if (c.value !== undefined) {
+    if (g.value === undefined) return false;
+    return Number(g.value) === Number(c.value) || String(g.value).trim() === String(c.value).trim();
   }
+  
+  // MSQ — order-independent, case-insensitive
+  if (Array.isArray(c.keys)) {
+    if (!Array.isArray(g.keys)) return false;
+    const gKeys = g.keys.map((k) => String(k).toUpperCase().trim()).sort();
+    const cKeys = c.keys.map((k) => String(k).toUpperCase().trim()).sort();
+    return JSON.stringify(gKeys) === JSON.stringify(cKeys);
+  }
+  
   // MCQ — case-insensitive
-  if (c.key) return g.key?.toUpperCase() === c.key.toUpperCase()
-  return false
+  if (c.key !== undefined) {
+    if (g.key === undefined) return false;
+    return String(g.key).toUpperCase().trim() === String(c.key).toUpperCase().trim();
+  }
+  
+  return false;
 }
 
 export async function POST(
@@ -84,7 +95,12 @@ export async function POST(
           where: { attemptId },
           include: {
             question: {
-              include: { testQuestions: { where: { testId: attempt.testId } } },
+              include: { 
+                testQuestions: { where: { testId: attempt.testId } },
+                parentQuestion: {
+                  include: { testQuestions: { where: { testId: attempt.testId } } }
+                }
+              },
             },
           },
         })
@@ -93,7 +109,12 @@ export async function POST(
         for (const answer of answers) {
           if (answer.answerGiven === null) continue
           const correct = isAnswerCorrect(answer.answerGiven, answer.question.correctAnswer)
-          const tq = answer.question.testQuestions[0]
+          
+          let tq = answer.question.testQuestions[0]
+          if (!tq && answer.question.parentQuestion?.testQuestions?.length) {
+            tq = answer.question.parentQuestion.testQuestions[0]
+          }
+
           if (correct) {
             totalScore += tq?.marksPositive ?? 1
           } else {

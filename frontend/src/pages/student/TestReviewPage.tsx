@@ -7,6 +7,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { ScoreCalculator } from '../../components/calculator/ScoreCalculator';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
 
@@ -80,18 +81,24 @@ function dbAnswerToDisplay(ans: DbAnswer | null): string | string[] | number | n
 }
 
 function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
-  if (!given) return false
+  if (!given || !correct) return false
   // Numeric
-  if (correct.value !== undefined) return given.value === correct.value
+  if (correct.value !== undefined) {
+    if (given.value === undefined) return false;
+    return Number(given.value) === Number(correct.value) || String(given.value).trim() === String(correct.value).trim();
+  }
   // MSQ — order-independent
   if (correct.keys) {
-    return (
-      JSON.stringify([...(given.keys ?? [])].sort()) ===
-      JSON.stringify([...correct.keys].sort())
-    )
+    if (!given.keys) return false;
+    const gKeys = given.keys.map((k) => String(k).toUpperCase().trim()).sort()
+    const cKeys = correct.keys.map((k) => String(k).toUpperCase().trim()).sort()
+    return JSON.stringify(gKeys) === JSON.stringify(cKeys)
   }
   // MCQ — case-insensitive
-  if (correct.key) return given.key?.toUpperCase() === correct.key.toUpperCase()
+  if (correct.key !== undefined) {
+    if (given.key === undefined) return false;
+    return String(given.key).toUpperCase().trim() === String(correct.key).toUpperCase().trim();
+  }
   return false
 }
 
@@ -430,6 +437,48 @@ export function TestReviewPage() {
   const overallAccuracy = totalQ > 0 ? Math.round(totalCorrect / totalQ * 100) : 0;
   const rawScore = attempt.totalScore ?? totalCorrect;
 
+  // Calculate final scaled score directly instead of raw score for SAT
+  let rw1 = 0, rw2 = 0, math1 = 0, math2 = 0;
+  let isSAT = false;
+
+  sectionStats.forEach((s) => {
+    const isMath = /math/i.test(s.name);
+    const isRW = /reading|writing|rw/i.test(s.name);
+    if (isMath || isRW) isSAT = true;
+    
+    if (isMath) {
+      if (/1|one/i.test(s.name)) math1 += s.correct;
+      else if (/2|two/i.test(s.name)) math2 += s.correct;
+      else math1 += s.correct; // Fallback
+    } else if (isRW) {
+      if (/1|one/i.test(s.name)) rw1 += s.correct;
+      else if (/2|two/i.test(s.name)) rw2 += s.correct;
+      else rw1 += s.correct; // Fallback
+    }
+  });
+
+  let finalScaledScore = rawScore;
+  if (isSAT) {
+    let rwScaled = 200;
+    let mathScaled = 200;
+
+    if (rw1 >= 18) {
+      rwScaled = 400 + Math.round(((rw1 + rw2) / 54) * 400 / 10) * 10;
+    } else {
+      rwScaled = 200 + Math.round(((rw1 + rw2) / 54) * 450 / 10) * 10;
+    }
+    
+    if (math1 >= 14) {
+      mathScaled = 420 + Math.round(((math1 + math2) / 44) * 380 / 10) * 10;
+    } else {
+      mathScaled = 200 + Math.round(((math1 + math2) / 44) * 450 / 10) * 10;
+    }
+
+    rwScaled = Math.min(800, Math.max(200, rwScaled));
+    mathScaled = Math.min(800, Math.max(200, mathScaled));
+    finalScaledScore = rwScaled + mathScaled;
+  }
+
   // Flatten every question across sections into Questions-Overview rows
   const reviewRows = sections.flatMap((sa, secIdx) =>
     sa.section.questions.map((tq) => {
@@ -514,9 +563,9 @@ export function TestReviewPage() {
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-4 md:p-6 text-white">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           <div className="col-span-2 sm:col-span-1 text-center bg-white/10 rounded-xl p-3 md:p-4">
-            <p className="text-3xl md:text-5xl font-bold">{rawScore}</p>
-            <p className="text-blue-200 text-xs mt-1">Score</p>
-            <p className="text-blue-300 text-xs">(raw points)</p>
+            <p className="text-3xl md:text-5xl font-bold">{isSAT ? finalScaledScore : rawScore}</p>
+            <p className="text-blue-200 text-xs mt-1">{isSAT ? 'Scaled Score' : 'Score'}</p>
+            <p className="text-blue-300 text-xs">{isSAT ? '(estimated)' : '(raw points)'}</p>
           </div>
           {sectionStats.map((sec) => (
             <div key={sec.name} className="text-center bg-white/10 rounded-xl p-3">
@@ -666,6 +715,10 @@ export function TestReviewPage() {
         )}
       </div>
 
+      {/* Score Calculator */}
+      <div className="mt-8">
+        <ScoreCalculator rw1={rw1} rw2={rw2} math1={math1} math2={math2} isAdaptive={true} />
+      </div>
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-end">

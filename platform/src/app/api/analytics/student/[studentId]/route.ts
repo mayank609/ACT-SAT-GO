@@ -4,17 +4,31 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 function isAnswerCorrect(given: unknown, correct: unknown): boolean {
-  if (!given || !correct) return false
-  const g = given as { key?: string; keys?: string[]; value?: number }
-  const c = correct as { key?: string; keys?: string[]; value?: number }
-  if (c.value !== undefined) return g.value === c.value
-  if (c.keys) {
-    const gKeys = (g.keys ?? []).map((k) => k.toUpperCase()).sort()
-    const cKeys = c.keys.map((k) => k.toUpperCase()).sort()
-    return JSON.stringify(gKeys) === JSON.stringify(cKeys)
+  if (!given || !correct) return false;
+  const g = given as { key?: string; keys?: string[]; value?: number };
+  const c = correct as { key?: string; keys?: string[]; value?: number };
+  
+  // Numeric
+  if (c.value !== undefined) {
+    if (g.value === undefined) return false;
+    return Number(g.value) === Number(c.value) || String(g.value).trim() === String(c.value).trim();
   }
-  if (c.key) return g.key?.toUpperCase() === c.key.toUpperCase()
-  return false
+  
+  // MSQ
+  if (Array.isArray(c.keys)) {
+    if (!Array.isArray(g.keys)) return false;
+    const gKeys = g.keys.map((k) => String(k).toUpperCase().trim()).sort();
+    const cKeys = c.keys.map((k) => String(k).toUpperCase().trim()).sort();
+    return JSON.stringify(gKeys) === JSON.stringify(cKeys);
+  }
+  
+  // MCQ
+  if (c.key !== undefined) {
+    if (g.key === undefined) return false;
+    return String(g.key).toUpperCase().trim() === String(c.key).toUpperCase().trim();
+  }
+  
+  return false;
 }
 
 export async function GET(
@@ -39,6 +53,10 @@ export async function GET(
                   include: {
                     question: {
                       include: {
+                        childQuestions: {
+                          orderBy: { createdAt: 'asc' },
+                          include: { topic: { select: { name: true } } },
+                        },
                         topic: { select: { name: true } },
                       },
                     },
@@ -139,7 +157,24 @@ export async function GET(
             console.log(`[Analytics]   Q${answerIndex-1}: ${timeSpentSeconds}s (${status})`)
           }
         } else {
+          // Flatten questions so PASSAGE parent questions are replaced by their child questions
+          const flattenedQuestions: any[] = []
           for (const tq of section.questions) {
+            const q = tq.question as any
+            const isPassage = q.type === 'PASSAGE' || (q.content && q.content.meta?.isPassage === true)
+            if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+              for (const cq of q.childQuestions) {
+                flattenedQuestions.push({
+                  ...tq,
+                  question: { ...cq, topic: cq.topic || q.topic }
+                })
+              }
+            } else {
+              flattenedQuestions.push(tq)
+            }
+          }
+
+          for (const tq of flattenedQuestions) {
             const q = tq.question
             const ans = answerMap.get(q.id)
             
@@ -170,14 +205,14 @@ export async function GET(
               sectionName: section.name,
               timeSpentSeconds,
               status,
-              difficulty: q.difficultyLevel.toLowerCase(),
+              difficulty: q.difficultyLevel?.toLowerCase() || 'unknown',
               topicName: q.topic?.name ?? 'General Skill'
             })
             console.log(`[Analytics]   Q${questionIndex-1}: ${timeSpentSeconds}s (${status}) - ${q.topic?.name}`)
           }
         }
 
-        const totalQuestions = section.questions?.length ?? answerMap.size
+        const totalQuestions = section.questions?.length > 0 ? (correct + incorrect + skipped) : answerMap.size
         sectionStats.push({
           sectionId: section.name, // using section name as UI friendly id
           sectionName: section.name,
@@ -204,12 +239,8 @@ export async function GET(
     const cheatingLogsData = await prisma.cheatingLog.findMany({
       where: { attempt: { studentId } },
       include: { attempt: { include: { test: { select: { title: true } } } } },
-      order: { createdAt: 'desc' }
-    } as any).catch(() => prisma.cheatingLog.findMany({
-      where: { attempt: { studentId } },
-      include: { attempt: { include: { test: { select: { title: true } } } } },
       orderBy: { createdAt: 'desc' }
-    }))
+    });
 
     const cheatingLogs = cheatingLogsData.map(log => ({
       id: log.id,
