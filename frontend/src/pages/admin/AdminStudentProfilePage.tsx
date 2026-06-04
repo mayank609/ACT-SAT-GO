@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Target, TrendingUp, Clock, Phone, School, Calendar,
   User2, Mail, Pencil, Trash2, CheckCircle, X, Save, MessageSquare, PlusCircle,
-  AlertTriangle,
+  AlertTriangle, Loader2, RotateCcw, FileText, Eye, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -17,6 +17,166 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend,
 } from 'recharts';
+
+// ─── Test Analysis types ──────────────────────────────────────────────────────
+
+interface TaAnswer {
+  key?: string;
+  keys?: string[];
+  value?: number;
+}
+
+interface TaQuestion {
+  id: string;
+  type: string;
+  content: { text: string; explanation?: string | null };
+  options: Record<string, string> | null;
+  correctAnswer: TaAnswer;
+  difficultyLevel: string;
+  subject?: string | null;
+  childQuestions?: TaQuestion[];
+}
+
+interface TaTestQuestion {
+  id: string;
+  questionId: string;
+  orderIndex: number;
+  question: TaQuestion;
+}
+
+interface TaSectionAttempt {
+  id: string;
+  sectionId: string;
+  startedAt: string;
+  completedAt: string | null;
+  section: {
+    id: string;
+    name: string;
+    durationMinutes: number;
+    orderIndex: number;
+    questions: TaTestQuestion[];
+  };
+}
+
+interface TaAttemptAnswer {
+  id: string;
+  questionId: string;
+  answerGiven: TaAnswer | null;
+  timeSpentSeconds: number;
+  isFlagged: boolean;
+}
+
+interface TaAttempt {
+  id: string;
+  testId: string;
+  status: string;
+  totalScore: number | null;
+  startedAt: string;
+  completedAt: string | null;
+  test: { id: string; title: string };
+  sectionAttempts: TaSectionAttempt[];
+  answers: TaAttemptAnswer[];
+}
+
+function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
+  if (!given || !correct) return false;
+  if (correct.value !== undefined) {
+    if (given.value === undefined) return false;
+    return Number(given.value) === Number(correct.value) || String(given.value).trim() === String(correct.value).trim();
+  }
+  if (correct.keys) {
+    if (!given.keys) return false;
+    const gKeys = given.keys.map(k => String(k).toUpperCase().trim()).sort();
+    const cKeys = correct.keys.map(k => String(k).toUpperCase().trim()).sort();
+    return JSON.stringify(gKeys) === JSON.stringify(cKeys);
+  }
+  if (correct.key !== undefined) {
+    if (given.key === undefined) return false;
+    return String(given.key).toUpperCase().trim() === String(correct.key).toUpperCase().trim();
+  }
+  return false;
+}
+
+interface SectionAnalysis {
+  name: string;
+  category: string;
+  correct: number;
+  incorrect: number;
+  omitted: number;
+  total: number;
+  unvisited: number;
+  accuracy: number;
+  timeTaken: string;
+}
+
+function computeTestAnalysis(attempt: TaAttempt): {
+  sections: SectionAnalysis[];
+  totalCorrect: number;
+  totalQuestions: number;
+  rwCorrect: number;
+  rwTotal: number;
+  mathCorrect: number;
+  mathTotal: number;
+} {
+  const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
+  const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+
+  let totalCorrect = 0, totalQuestions = 0;
+  let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
+
+  const sections: SectionAnalysis[] = sortedSections.map(sa => {
+    // Flatten passage questions
+    const flatQs: TaTestQuestion[] = [];
+    sa.section.questions.forEach(tq => {
+      const q = tq.question;
+      const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+      if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+        q.childQuestions.forEach(cq => {
+          flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq });
+        });
+      } else {
+        flatQs.push(tq);
+      }
+    });
+
+    let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
+    flatQs.forEach(tq => {
+      const ans = answersMap.get(tq.questionId);
+      if (!ans) { unvisited++; omitted++; return; }
+      if (!ans.answerGiven) { omitted++; return; }
+      if (taAnswersMatch(ans.answerGiven, tq.question.correctAnswer)) correct++;
+      else incorrect++;
+    });
+
+    const total = flatQs.length;
+    const accuracy = total > 0 ? (correct / total) * 100 : 0;
+
+    // Time calculation
+    let timeTaken = '—';
+    if (sa.startedAt && sa.completedAt) {
+      const mins = Math.round((new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime()) / 60000);
+      const secs = Math.round(((new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime()) % 60000) / 1000);
+      timeTaken = `${mins}:${secs.toString().padStart(2, '0')} Minutes Taken`;
+    }
+
+    // Category detection
+    const isMath = /math/i.test(sa.section.name);
+    const isRW = /reading|writing|rw/i.test(sa.section.name);
+    const category = isMath ? 'Math' : isRW ? 'Reading and Writing' : sa.section.name;
+
+    if (isMath) { mathCorrect += correct; mathTotal += total; }
+    else if (isRW) { rwCorrect += correct; rwTotal += total; }
+
+    totalCorrect += correct;
+    totalQuestions += total;
+
+    return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
+  });
+
+  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal };
+}
+
+// ─── Existing types ────────────────────────────────────────────────────────────
 
 interface Analytics {
   trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>;
@@ -76,6 +236,12 @@ export function AdminStudentProfilePage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Test Analysis state
+  const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null);
+  const [expandedAttempt, setExpandedAttempt] = useState<TaAttempt | null>(null);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState<Record<string, 'submitted' | 'not_submitted'>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -437,26 +603,185 @@ export function AdminStudentProfilePage() {
               <div className="divide-y divide-slate-50">
                 {analytics.trend.map((entry, i) => {
                   const pctBar = Math.round((entry.score / 36) * 100);
+                  const isExpanded = expandedAttemptId === entry.attemptId;
                   return (
-                    <div key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                        <BookOpen size={13} className="text-blue-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-800 font-medium truncate">{entry.testTitle}</p>
-                        <p className="text-xs text-slate-400">{entry.date}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0 mr-2">
-                        <p className="text-base font-bold text-slate-900">{entry.score}</p>
-                        <p className="text-xs text-slate-400">/ 36</p>
-                      </div>
-                      <div className="hidden sm:flex flex-col gap-1 w-20 flex-shrink-0">
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${pctBar >= 80 ? 'bg-emerald-400' : pctBar >= 60 ? 'bg-amber-400' : 'bg-red-400'}`}
-                            style={{ width: `${pctBar}%` }} />
+                    <div key={i}>
+                      <div
+                        className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${
+                          isExpanded ? 'bg-blue-50/60' : 'hover:bg-slate-50'
+                        }`}
+                        onClick={async () => {
+                          if (isExpanded) {
+                            setExpandedAttemptId(null);
+                            setExpandedAttempt(null);
+                            return;
+                          }
+                          setExpandedAttemptId(entry.attemptId);
+                          setExpandedLoading(true);
+                          try {
+                            const { attempt } = await api.getAttempt(entry.attemptId);
+                            setExpandedAttempt(attempt as TaAttempt);
+                          } catch {
+                            toast.error('Failed to load test analysis');
+                            setExpandedAttemptId(null);
+                          } finally {
+                            setExpandedLoading(false);
+                          }
+                        }}
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                          <BookOpen size={13} className="text-blue-500" />
                         </div>
-                        <p className="text-[10px] text-slate-400 text-right">{pctBar}%</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-800 font-medium truncate">{entry.testTitle}</p>
+                          <p className="text-xs text-slate-400">{entry.date}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 mr-2">
+                          <p className="text-base font-bold text-slate-900">{entry.score}</p>
+                          <p className="text-xs text-slate-400">/ 36</p>
+                        </div>
+                        <div className="hidden sm:flex flex-col gap-1 w-20 flex-shrink-0">
+                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${pctBar >= 80 ? 'bg-emerald-400' : pctBar >= 60 ? 'bg-amber-400' : 'bg-red-400'}`}
+                              style={{ width: `${pctBar}%` }} />
+                          </div>
+                          <p className="text-[10px] text-slate-400 text-right">{pctBar}%</p>
+                        </div>
+                        <div className="flex-shrink-0 ml-1">
+                          {isExpanded ? <ChevronUp size={14} className="text-blue-500" /> : <ChevronDown size={14} className="text-slate-400" />}
+                        </div>
                       </div>
+
+                      {/* ─── EXPANDED TEST ANALYSIS PANEL ─── */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-100 bg-slate-50/40">
+                          {expandedLoading ? (
+                            <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
+                              <Loader2 size={18} className="animate-spin" />
+                              <span className="text-sm">Loading test analysis…</span>
+                            </div>
+                          ) : expandedAttempt ? (() => {
+                            const analysis = computeTestAnalysis(expandedAttempt);
+                            const completedDate = expandedAttempt.completedAt
+                              ? new Date(expandedAttempt.completedAt).toLocaleDateString('en-US', {
+                                  day: '2-digit', month: '2-digit', year: 'numeric'
+                                }) + ', ' + new Date(expandedAttempt.completedAt).toLocaleTimeString('en-US', {
+                                  hour: '2-digit', minute: '2-digit'
+                                })
+                              : '—';
+                            const status = analysisStatus[entry.attemptId] ?? 'not_submitted';
+
+                            return (
+                              <div className="p-5 space-y-5">
+                                {/* ── Header: Student + Test info + Buttons ── */}
+                                <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="relative flex-shrink-0">
+                                      <div className="w-14 h-14 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
+                                        <User2 size={28} />
+                                      </div>
+                                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                                        <CheckCircle size={10} className="text-white" />
+                                      </div>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <h3 className="text-base font-bold text-slate-900">{expandedAttempt.test.title}</h3>
+                                      </div>
+                                      <p className="text-xs text-slate-500 mt-0.5">{expandedAttempt.test.title}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">Completed on {completedDate}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); toast.success('Reset functionality coming soon'); }}
+                                      className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                                    >
+                                      Reset
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAnalysisStatus(prev => ({
+                                          ...prev,
+                                          [entry.attemptId]: status === 'submitted' ? 'not_submitted' : 'submitted'
+                                        }));
+                                        toast.success(status === 'submitted' ? 'Marked as not submitted' : 'Marked as submitted');
+                                      }}
+                                      className={`px-4 py-2 text-xs font-semibold text-white rounded-md transition-colors ${
+                                        status === 'submitted'
+                                          ? 'bg-emerald-600 hover:bg-emerald-700'
+                                          : 'bg-blue-800 hover:bg-blue-900'
+                                      }`}
+                                    >
+                                      {status === 'submitted' ? 'Analysis Submitted' : 'Analysis not Submitted'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); navigate(`/test-review/${entry.attemptId}`); }}
+                                      className="px-4 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-md transition-colors"
+                                    >
+                                      View scaled Score
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* ── Overall Score ── */}
+                                <div>
+                                  <h4 className="text-sm font-bold text-slate-900 mb-3">Overall Score</h4>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden">
+                                    <div className="p-5 border-b sm:border-b-0 sm:border-r border-slate-200">
+                                      <p className="text-3xl font-bold text-blue-600">
+                                        {analysis.totalCorrect} / {analysis.totalQuestions}
+                                      </p>
+                                      <p className="text-sm text-blue-500 mt-1 font-medium">Total Questions</p>
+                                    </div>
+                                    <div className="p-5 border-b sm:border-b-0 sm:border-r border-slate-200">
+                                      <p className="text-3xl font-bold text-slate-800">
+                                        {analysis.rwCorrect} / {analysis.rwTotal}
+                                      </p>
+                                      <p className="text-sm text-slate-500 mt-1">Reading and Writing</p>
+                                    </div>
+                                    <div className="p-5">
+                                      <p className="text-3xl font-bold text-slate-800">
+                                        {analysis.mathCorrect} / {analysis.mathTotal}
+                                      </p>
+                                      <p className="text-sm text-slate-500 mt-1">Math</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* ── Section Overview ── */}
+                                <div>
+                                  <h4 className="text-sm font-bold text-slate-900 mb-3">Section Overview</h4>
+                                  <div className="space-y-2">
+                                    {analysis.sections.map((sec, si) => (
+                                      <div key={si} className="bg-white rounded-xl border border-slate-200 p-4">
+                                        <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+                                          <h5 className="text-sm font-bold text-blue-800">{sec.name}</h5>
+                                          <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                                            {sec.category}
+                                          </span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                                          <span className="text-emerald-600 font-semibold">{sec.correct} Correct</span>
+                                          <span className="text-red-500 font-semibold">{sec.incorrect} Incorrect</span>
+                                          <span className="text-slate-600">{sec.omitted} Omitted</span>
+                                          <span className="text-slate-600">{sec.total} Total Questions</span>
+                                          <span className="text-slate-600">{sec.unvisited} Unvisited</span>
+                                          <span className="text-blue-600 font-bold">{sec.accuracy.toFixed(2)}% Accuracy</span>
+                                          <span className="text-slate-600">{sec.timeTaken}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })() : (
+                            <div className="py-8 text-center text-slate-400 text-sm">Failed to load test data</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

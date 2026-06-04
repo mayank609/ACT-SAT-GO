@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Info, BarChart2, LayoutList, X, TrendingUp, Filter } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Info, BarChart2, LayoutList, X, TrendingUp, Filter, Loader2, ClipboardList } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -8,10 +8,166 @@ import { Modal } from '../../components/common/Modal';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { api, type DbUser } from '../../lib/api';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
+import toast from 'react-hot-toast';
 
 type TabKey = 'all' | 'active' | 'inactive';
 type AnalyticsTab = 'mistake' | 'strength' | 'parallel' | 'skill';
-type MainViewTab = 'management' | 'analysis';
+type MainViewTab = 'management' | 'analysis' | 'test_analysis';
+
+// ── Test Analysis types ──────────────────────────────────────────────────────
+
+interface TaAnswer {
+  key?: string;
+  keys?: string[];
+  value?: number;
+}
+
+interface TaQuestion {
+  id: string;
+  type: string;
+  content: { text: string; explanation?: string | null };
+  options: Record<string, string> | null;
+  correctAnswer: TaAnswer;
+  difficultyLevel: string;
+  subject?: string | null;
+  childQuestions?: TaQuestion[];
+}
+
+interface TaTestQuestion {
+  id: string;
+  questionId: string;
+  orderIndex: number;
+  question: TaQuestion;
+}
+
+interface TaSectionAttempt {
+  id: string;
+  sectionId: string;
+  startedAt: string;
+  completedAt: string | null;
+  section: {
+    id: string;
+    name: string;
+    durationMinutes: number;
+    orderIndex: number;
+    questions: TaTestQuestion[];
+  };
+}
+
+interface TaAttemptAnswer {
+  id: string;
+  questionId: string;
+  answerGiven: TaAnswer | null;
+  timeSpentSeconds: number;
+  isFlagged: boolean;
+}
+
+interface TaAttempt {
+  id: string;
+  testId: string;
+  status: string;
+  totalScore: number | null;
+  startedAt: string;
+  completedAt: string | null;
+  test: { id: string; title: string };
+  sectionAttempts: TaSectionAttempt[];
+  answers: TaAttemptAnswer[];
+}
+
+function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
+  if (!given || !correct) return false;
+  if (correct.value !== undefined) {
+    if (given.value === undefined) return false;
+    return Number(given.value) === Number(correct.value) || String(given.value).trim() === String(correct.value).trim();
+  }
+  if (correct.keys) {
+    if (!given.keys) return false;
+    const gKeys = given.keys.map(k => String(k).toUpperCase().trim()).sort();
+    const cKeys = correct.keys.map(k => String(k).toUpperCase().trim()).sort();
+    return JSON.stringify(gKeys) === JSON.stringify(cKeys);
+  }
+  if (correct.key !== undefined) {
+    if (given.key === undefined) return false;
+    return String(given.key).toUpperCase().trim() === String(correct.key).toUpperCase().trim();
+  }
+  return false;
+}
+
+interface SectionAnalysis {
+  name: string;
+  category: string;
+  correct: number;
+  incorrect: number;
+  omitted: number;
+  total: number;
+  unvisited: number;
+  accuracy: number;
+  timeTaken: string;
+}
+
+function computeTestAnalysis(attempt: TaAttempt): {
+  sections: SectionAnalysis[];
+  totalCorrect: number;
+  totalQuestions: number;
+  rwCorrect: number;
+  rwTotal: number;
+  mathCorrect: number;
+  mathTotal: number;
+} {
+  const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
+  const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+
+  let totalCorrect = 0, totalQuestions = 0;
+  let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
+
+  const sections: SectionAnalysis[] = sortedSections.map(sa => {
+    const flatQs: TaTestQuestion[] = [];
+    sa.section.questions.forEach(tq => {
+      const q = tq.question;
+      const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+      if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+        q.childQuestions.forEach(cq => {
+          flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq });
+        });
+      } else {
+        flatQs.push(tq);
+      }
+    });
+
+    let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
+    flatQs.forEach(tq => {
+      const ans = answersMap.get(tq.questionId);
+      if (!ans) { unvisited++; omitted++; return; }
+      if (!ans.answerGiven) { omitted++; return; }
+      if (taAnswersMatch(ans.answerGiven, tq.question.correctAnswer)) correct++;
+      else incorrect++;
+    });
+
+    const total = flatQs.length;
+    const accuracy = total > 0 ? (correct / total) * 100 : 0;
+
+    let timeTaken = '—';
+    if (sa.startedAt && sa.completedAt) {
+      const mins = Math.round((new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime()) / 60000);
+      const secs = Math.round(((new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime()) % 60000) / 1000);
+      timeTaken = `${mins}:${secs.toString().padStart(2, '0')} Minutes Taken`;
+    }
+
+    const isMath = /math/i.test(sa.section.name);
+    const isRW = /reading|writing|rw/i.test(sa.section.name);
+    const category = isMath ? 'Math' : isRW ? 'Reading and Writing' : sa.section.name;
+
+    if (isMath) { mathCorrect += correct; mathTotal += total; }
+    else if (isRW) { rwCorrect += correct; rwTotal += total; }
+
+    totalCorrect += correct;
+    totalQuestions += total;
+
+    return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
+  });
+
+  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal };
+}
 
 type AnalyticsData = {
   trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>;
@@ -97,6 +253,57 @@ export function StudentManagementPage() {
   }>>([]);
   const [analysisSearchTerm, setAnalysisSearchTerm] = useState('');
   const [analysisSortBy, setAnalysisSortBy] = useState<'name' | 'diagnostics' | 'attempts'>('name');
+
+  // ── Detailed Test Analysis state ─────────────────────────────────────────
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [studentAttempts, setStudentAttempts] = useState<Array<{ id: string; status: string; totalScore: number | null; completedAt: string | null; startedAt: string; test: { title: string } }>>([]);
+  const [selectedAttemptId, setSelectedAttemptId] = useState('');
+  const [testAnalysisLoading, setTestAnalysisLoading] = useState(false);
+  const [testAnalysisAttempt, setTestAnalysisAttempt] = useState<TaAttempt | null>(null);
+  const [testAnalysisStatus, setTestAnalysisStatus] = useState<Record<string, 'submitted' | 'not_submitted'>>({});
+
+  useEffect(() => {
+    if (mainView !== 'test_analysis' || !selectedStudentId) {
+      setStudentAttempts([]);
+      setSelectedAttemptId('');
+      setTestAnalysisAttempt(null);
+      return;
+    }
+    api.getStudentAttempts(selectedStudentId)
+      .then((r) => {
+        const submitted = ((r.attempts as any[]) ?? []).filter((a) => a.status === 'SUBMITTED');
+        setStudentAttempts(submitted);
+        if (submitted.length > 0) {
+          setSelectedAttemptId(submitted[0].id);
+        } else {
+          setSelectedAttemptId('');
+          setTestAnalysisAttempt(null);
+        }
+      })
+      .catch(() => {
+        setStudentAttempts([]);
+        setSelectedAttemptId('');
+        setTestAnalysisAttempt(null);
+      });
+  }, [mainView, selectedStudentId]);
+
+  useEffect(() => {
+    if (mainView !== 'test_analysis' || !selectedAttemptId) {
+      setTestAnalysisAttempt(null);
+      return;
+    }
+    setTestAnalysisLoading(true);
+    api.getAttempt(selectedAttemptId)
+      .then((r) => {
+        setTestAnalysisAttempt(r.attempt as TaAttempt);
+      })
+      .catch(() => {
+        setTestAnalysisAttempt(null);
+      })
+      .finally(() => {
+        setTestAnalysisLoading(false);
+      });
+  }, [mainView, selectedAttemptId]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const reload = () => {
@@ -385,9 +592,15 @@ export function StudentManagementPage() {
         >
           <TrendingUp size={14} /> Comprehensive Analysis
         </button>
+        <button
+          onClick={() => setMainView('test_analysis')}
+          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px flex items-center gap-1.5 ${mainView === 'test_analysis' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <ClipboardList size={14} /> Detailed Test Analysis
+        </button>
       </div>
 
-      {mainView === 'management' ? (
+      {mainView === 'management' && (
         <>
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -436,138 +649,7 @@ export function StudentManagementPage() {
           </div>
         ))}
       </div>
-
-      {/* ── Tabs + Search ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-0">
-        <div className="flex gap-0">
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${tab === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              {t.label}
-              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{t.count}</span>
-            </button>
-          ))}
-        </div>
-        <input
-          type="text" placeholder="Search students…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-          className="w-full sm:w-56 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-1"
-        />
-      </div>
-
-      {/* ── Student Table ── */}
-      <Card padding="none">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1080px] text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-3 py-3 text-left">
-                  <input type="checkbox" className="rounded text-blue-600"
-                    checked={selectedIds.length === filteredData.length && filteredData.length > 0}
-                    onChange={e => setSelectedIds(e.target.checked ? filteredData.map(s => s.id) : [])} />
-                </th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">Name</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">Joined On</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Attempts</th>
-                <th colSpan={2} className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap border-l border-slate-200">
-                  Baseline Scores
-                </th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Last Mock Test</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Last PRP</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Test Report</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Performance</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">Assessments</th>
-              </tr>
-              <tr className="bg-slate-50/60 border-b border-slate-200 text-[11px] text-slate-500 font-medium">
-                <th colSpan={4} />
-                <th className="px-3 py-1.5 text-center border-l border-slate-200">English</th>
-                <th className="px-3 py-1.5 text-center">Math</th>
-                <th colSpan={5} />
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={11} className="py-12 text-center text-slate-400">Loading…</td></tr>
-              ) : filteredData.length === 0 ? (
-                <tr><td colSpan={11} className="py-12 text-center text-slate-400">No students found</td></tr>
-              ) : filteredData.map((row, idx) => {
-                const stage = getStageBadge(row.grade);
-                const joinedDate = row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—';
-                const lastMock = row.lastActive ? new Date(row.lastActive).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-                return (
-                  <tr key={row.id} className={`border-b border-slate-100 hover:bg-blue-50/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
-                    <td className="px-3 py-3">
-                      <input type="checkbox" className="rounded text-blue-600"
-                        checked={selectedIds.includes(row.id)}
-                        onChange={e => setSelectedIds(e.target.checked ? [...selectedIds, row.id] : selectedIds.filter(id => id !== row.id))} />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {row.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-slate-900 text-sm">{row.name}</span>
-                            <button onClick={() => navigate(`/students/${row.id}`)} className="text-slate-400 hover:text-blue-500 transition-colors flex-shrink-0" title="View profile">
-                              <Info size={11} />
-                            </button>
-                            {stage && (
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${stage.cls}`}>{stage.label}</span>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-slate-400">{row.email}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap">{joinedDate}</td>
-                    <td className="px-3 py-3 text-sm text-slate-700 text-center font-medium">{row.testsAttempted ?? 0}</td>
-                    <td className="px-3 py-3 text-sm text-slate-700 text-center border-l border-slate-100 font-medium">
-                      {row.avgScore ? Math.round(row.avgScore) : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-slate-700 text-center font-medium">
-                      {row.avgScore ? Math.round(row.avgScore) : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-xs text-slate-500 text-center whitespace-nowrap">{lastMock}</td>
-                    <td className="px-3 py-3 text-center text-xs text-slate-400">—</td>
-                    <td className="px-3 py-3 text-center">
-                      <button onClick={() => navigate(`/students/${row.id}`)} className="text-xs text-blue-500 hover:text-blue-700 font-semibold">View</button>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <button onClick={() => navigate(`/students/${row.id}`)} className="text-xs text-blue-500 hover:text-blue-700 font-semibold">View</button>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => navigate(`/students/${row.id}`)}
-                          className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
-                        >
-                          Assign
-                        </button>
-                        <button
-                          onClick={() => {
-                            const parts = row.name.split(' ');
-                            setAddForm({ firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '', email: row.email, grade: row.grade || '', targetScore: row.targetScore ? String(row.targetScore) : '', tutorId: row.tutorId || '', phone: row.phone || '', parentPhone: row.parentPhone || '', dob: row.dob || '', schoolName: row.schoolName || '' });
-                            setIsEditing(true); setEditingStudentId(row.id); setShowAddModal(true);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Edit"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={async () => { if (confirm(`Delete ${row.name}?`)) { await api.deleteUser(row.id).catch(() => {}); reload(); } }}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <div className="h-4" />
 
       {/* ── Analytics Section ── */}
       <div className="space-y-4">
@@ -767,7 +849,9 @@ export function StudentManagementPage() {
       </div>
 
         </>
-      ) : (
+      )}
+
+      {mainView === 'analysis' && (
         <>
       {/* ── COMPREHENSIVE ANALYSIS VIEW ── */}
       <div className="space-y-5">
@@ -821,7 +905,7 @@ export function StudentManagementPage() {
                   <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200">Total Assessment</th>
                   <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Test Report</th>
                   <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Performance</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Assign</th>
+                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -869,7 +953,18 @@ export function StudentManagementPage() {
                           {row.totalAssessments ?? 0}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button onClick={() => navigate(`/students/${row.studentId}`)} className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                          <button
+                            onClick={() => {
+                              setSelectedStudentId(row.studentId);
+                              if (row.attempts && row.attempts.length > 0) {
+                                setSelectedAttemptId(row.attempts[0].id);
+                              } else {
+                                setSelectedAttemptId('');
+                              }
+                              setMainView('test_analysis');
+                            }}
+                            className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                          >
                             View
                           </button>
                         </td>
@@ -879,9 +974,54 @@ export function StudentManagementPage() {
                           </button>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button onClick={() => setShowAddModal(true)} className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                            Assign
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => navigate(`/students/${row.studentId}`)}
+                              className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+                            >
+                              Assign
+                            </button>
+                            <button
+                              onClick={() => {
+                                const student = students.find(s => s.id === row.studentId);
+                                if (!student) return;
+                                const parts = student.name.split(' ');
+                                setAddForm({
+                                  firstName: parts[0] || '',
+                                  lastName: parts.slice(1).join(' ') || '',
+                                  email: student.email,
+                                  grade: student.grade || '',
+                                  targetScore: student.targetScore ? String(student.targetScore) : '',
+                                  tutorId: student.tutorId || '',
+                                  phone: student.phone || '',
+                                  parentPhone: student.parentPhone || '',
+                                  dob: student.dob || '',
+                                  schoolName: student.schoolName || ''
+                                });
+                                setIsEditing(true);
+                                setEditingStudentId(student.id);
+                                setShowAddModal(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                const student = students.find(s => s.id === row.studentId);
+                                if (!student) return;
+                                if (confirm(`Delete ${student.name}?`)) {
+                                  await api.deleteUser(student.id).catch(() => {});
+                                  reload();
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -892,6 +1032,220 @@ export function StudentManagementPage() {
       </div>
 
         </>
+      )}
+
+      {mainView === 'test_analysis' && (
+        <div className="space-y-5 animate-fadeIn">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-slate-900">Detailed Test Analysis</h1>
+              <p className="text-sm text-slate-500 mt-0.5">Select a student and a test to view performance breakdown</p>
+            </div>
+          </div>
+
+          {/* Selector Card */}
+          <Card padding="md">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Select Student</label>
+                <SearchableSelect
+                  options={students.map(s => ({ id: s.id, label: s.name, searchText: s.name }))}
+                  value={selectedStudentId}
+                  onChange={e => {
+                    setSelectedStudentId(e);
+                    setSelectedAttemptId('');
+                    setTestAnalysisAttempt(null);
+                  }}
+                  placeholder="Choose student..."
+                  minWidth="min-w-[200px]"
+                />
+              </div>
+
+              {selectedStudentId && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Select Attempt / Test</label>
+                  {studentAttempts.length === 0 ? (
+                    <span className="text-sm text-slate-400 py-2">No completed tests found</span>
+                  ) : (
+                    <select
+                      value={selectedAttemptId}
+                      onChange={e => setSelectedAttemptId(e.target.value)}
+                      className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[240px]"
+                    >
+                      <option value="">Choose an attempt...</option>
+                      {studentAttempts.map(a => (
+                        <option key={a.id} value={a.id}>
+                          {a.test.title} ({a.totalScore ?? '—'} pts) - {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : new Date(a.startedAt).toLocaleDateString()}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Content Pane */}
+          {!selectedStudentId ? (
+            <Card padding="lg">
+              <div className="py-12 text-center">
+                <User2 size={40} className="mx-auto text-slate-300 mb-3 animate-pulse" />
+                <p className="text-slate-500 text-sm font-medium">Please select a student above</p>
+                <p className="text-slate-400 text-xs mt-1">Detailed performance metrics and section scores will appear here</p>
+              </div>
+            </Card>
+          ) : !selectedAttemptId ? (
+            <Card padding="lg">
+              <div className="py-12 text-center">
+                <FileText size={40} className="mx-auto text-slate-300 mb-3 animate-pulse" />
+                <p className="text-slate-500 text-sm font-medium">Please select a test attempt above</p>
+                <p className="text-slate-400 text-xs mt-1">This student has {studentAttempts.length} completed attempts</p>
+              </div>
+            </Card>
+          ) : testAnalysisLoading ? (
+            <Card padding="lg">
+              <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+                <Loader2 size={24} className="animate-spin text-blue-500" />
+                <span className="text-sm font-medium">Loading test analysis...</span>
+              </div>
+            </Card>
+          ) : testAnalysisAttempt ? (() => {
+            const analysis = computeTestAnalysis(testAnalysisAttempt);
+            const completedDate = testAnalysisAttempt.completedAt
+              ? new Date(testAnalysisAttempt.completedAt).toLocaleDateString('en-US', {
+                  day: '2-digit', month: '2-digit', year: 'numeric'
+                }) + ', ' + new Date(testAnalysisAttempt.completedAt).toLocaleTimeString('en-US', {
+                  hour: '2-digit', minute: '2-digit'
+                })
+              : '—';
+            const status = testAnalysisStatus[selectedAttemptId] ?? 'not_submitted';
+
+            return (
+              <div className="space-y-5">
+                {/* Header Card */}
+                <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-semibold text-lg border border-blue-100">
+                        {students.find(s => s.id === selectedStudentId)?.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                        <CheckCircle size={10} className="text-white" />
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base font-bold text-slate-900">{testAnalysisAttempt.test.title}</h3>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">Student: <span className="font-semibold text-slate-700">{students.find(s => s.id === selectedStudentId)?.name}</span></p>
+                      <p className="text-xs text-slate-400 mt-0.5">Completed on {completedDate}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toast.success('Reset functionality coming soon'); }}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-sm"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTestAnalysisStatus(prev => ({
+                          ...prev,
+                          [selectedAttemptId]: status === 'submitted' ? 'not_submitted' : 'submitted'
+                        }));
+                        toast.success(status === 'submitted' ? 'Marked as not submitted' : 'Marked as submitted');
+                      }}
+                      className={`px-4 py-2 text-xs font-semibold text-white rounded-md transition-colors shadow-sm ${
+                        status === 'submitted'
+                          ? 'bg-emerald-600 hover:bg-emerald-700'
+                          : 'bg-blue-800 hover:bg-blue-900'
+                      }`}
+                    >
+                      {status === 'submitted' ? 'Analysis Submitted' : 'Analysis not Submitted'}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/test-review/${selectedAttemptId}`); }}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-md transition-colors shadow-sm"
+                    >
+                      View scaled Score
+                    </button>
+                  </div>
+                </div>
+
+                {/* Overall Score */}
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">Overall Score</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="p-5 border-b sm:border-b-0 sm:border-r border-slate-200">
+                      <p className="text-3xl font-bold text-blue-600">
+                        {analysis.totalCorrect} / {analysis.totalQuestions}
+                      </p>
+                      <p className="text-sm text-blue-500 mt-1 font-medium">Total Questions</p>
+                    </div>
+                    <div className="p-5 border-b sm:border-b-0 sm:border-r border-slate-200">
+                      <p className="text-3xl font-bold text-slate-800">
+                        {analysis.rwCorrect} / {analysis.rwTotal}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-1 font-medium">Reading and Writing</p>
+                    </div>
+                    <div className="p-5">
+                      <p className="text-3xl font-bold text-slate-800">
+                        {analysis.mathCorrect} / {analysis.mathTotal}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-1 font-medium">Math</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section Overview */}
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">Section Overview</h4>
+                  <div className="space-y-3">
+                    {analysis.sections.map((sec, si) => (
+                      <div key={si} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:border-blue-100 transition-colors">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                          <h5 className="text-sm font-bold text-blue-800">{sec.name}</h5>
+                          <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                            {sec.category}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-emerald-700 font-semibold">{sec.correct} Correct</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                            <span className="text-red-600 font-semibold">{sec.incorrect} Incorrect</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                            <span>{sec.omitted} Omitted</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-200"></span>
+                            <span>{sec.unvisited} Unvisited</span>
+                          </div>
+                          <div className="text-slate-400 font-light">|</div>
+                          <div className="font-semibold text-slate-800">{sec.total} Questions</div>
+                          <div className="text-slate-400 font-light">|</div>
+                          <div className="font-bold text-blue-600">{sec.accuracy.toFixed(2)}% Accuracy</div>
+                          <div className="text-slate-400 font-light">|</div>
+                          <div className="text-slate-500 italic">{sec.timeTaken}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })() : (
+            <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">Failed to load test data</div></Card>
+          )}
+        </div>
       )}
 
       {/* ── Add / Edit Student Modal ── */}
