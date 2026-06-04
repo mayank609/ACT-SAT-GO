@@ -199,7 +199,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
 
   if (parentQuestionText) {
     return (
-      <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-emerald-200' : skipped ? 'border-slate-200' : 'border-red-200'}`}>
+      <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-blue-300' : skipped ? 'border-slate-200' : 'border-blue-100'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white">
           {/* Left Panel: Passage */}
           <div className="p-4 bg-slate-50 text-left">
@@ -211,12 +211,12 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
 
           {/* Right Panel: Question */}
           <div className="flex flex-col">
-            <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${correct ? 'bg-emerald-50' : skipped ? 'bg-slate-50' : 'bg-red-50'}`}>
+            <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${correct ? 'bg-blue-50/55' : skipped ? 'bg-slate-50' : 'bg-sky-50/40'}`}>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-emerald-500' : skipped ? 'bg-slate-400' : 'bg-red-500'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-blue-600' : skipped ? 'bg-slate-400' : 'bg-blue-400'}`}>
                   {index + 1}
                 </div>
-                {correct ? <CheckCircle size={14} className="text-emerald-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-red-500'} />}
+                {correct ? <CheckCircle size={14} className="text-blue-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-blue-400'} />}
               </div>
               <div className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 text-left font-medium">
                 <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
@@ -225,9 +225,13 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
                 {studentAnswer?.timeSpentSeconds ? (
                   <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
                 ) : null}
-                <Badge variant={correct ? 'success' : skipped ? 'default' : 'danger'} size="sm">
-                  {correct ? 'Correct' : skipped ? 'Skip' : 'Wrong'}
-                </Badge>
+                {correct ? (
+                  <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
+                ) : skipped ? (
+                  <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
+                ) : (
+                  <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+                )}
               </div>
             </div>
 
@@ -247,6 +251,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
                           isCorrect={isCorrectOption}
                           isIncorrect={isUserAnswer && !isCorrectOption}
                           showFeedback={true}
+                          colorTheme="blue"
                         />
                       );
                     })}
@@ -254,8 +259,8 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
                 )}
                 {q.type === 'NUMERIC' && (
                   <div className="flex gap-4 text-sm mb-3 text-left">
-                    <span className="text-slate-500">Your answer: <strong className={correct ? 'text-emerald-600' : 'text-red-500'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
-                    <span className="text-slate-500">Correct: <strong className="text-emerald-600">{q.correctAnswer.value}</strong></span>
+                    <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
+                    <span className="text-slate-500">Correct: <strong className="text-blue-600">{q.correctAnswer.value}</strong></span>
                   </div>
                 )}
               </div>
@@ -283,13 +288,13 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
   }
 
   return (
-    <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-emerald-200' : skipped ? 'border-slate-200' : 'border-red-200'}`}>
-      <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${correct ? 'bg-emerald-50' : skipped ? 'bg-slate-50' : 'bg-red-50'}`}>
+    <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-blue-300' : skipped ? 'border-slate-200' : 'border-blue-100'}`}>
+      <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${correct ? 'bg-blue-50/55' : skipped ? 'bg-slate-50' : 'bg-sky-50/40'}`}>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-emerald-500' : skipped ? 'bg-slate-400' : 'bg-red-500'}`}>
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-blue-600' : skipped ? 'bg-slate-400' : 'bg-blue-400'}`}>
             {index + 1}
           </div>
-          {correct ? <CheckCircle size={14} className="text-emerald-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-red-500'} />}
+          {correct ? <CheckCircle size={14} className="text-blue-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-blue-400'} />}
         </div>
         <div className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 text-left">
           <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
@@ -298,9 +303,13 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
           {studentAnswer?.timeSpentSeconds ? (
             <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
           ) : null}
-          <Badge variant={correct ? 'success' : skipped ? 'default' : 'danger'} size="sm">
-            {correct ? 'Correct' : skipped ? 'Skip' : 'Wrong'}
-          </Badge>
+          {correct ? (
+            <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
+          ) : skipped ? (
+            <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
+          ) : (
+            <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+          )}
         </div>
       </div>
 
@@ -319,6 +328,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
                   isCorrect={isCorrectOption}
                   isIncorrect={isUserAnswer && !isCorrectOption}
                   showFeedback={true}
+                  colorTheme="blue"
                 />
               );
             })}
@@ -326,8 +336,8 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
         )}
         {q.type === 'NUMERIC' && (
           <div className="flex gap-4 text-sm mb-3 text-left">
-            <span className="text-slate-500">Your answer: <strong className={correct ? 'text-emerald-600' : 'text-red-500'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
-            <span className="text-slate-500">Correct: <strong className="text-emerald-600">{q.correctAnswer.value}</strong></span>
+            <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
+            <span className="text-slate-500">Correct: <strong className="text-blue-600">{q.correctAnswer.value}</strong></span>
           </div>
         )}
         {q.content.explanation && (
@@ -472,9 +482,19 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
             {q.type === 'MCQ' ? 'MCQ' : q.type === 'NUMERIC' ? 'Numeric' : q.type}
           </Badge>
           {/* Correct / Incorrect / Omitted Badge */}
-          <Badge variant={status === 'correct' ? 'success' : status === 'omitted' ? 'warning' : 'danger'} className="font-semibold">
-            {status === 'correct' ? 'Correct' : status === 'omitted' ? 'Omitted' : 'Incorrect'}
-          </Badge>
+          {status === 'correct' ? (
+            <Badge variant="info" className="bg-blue-600 text-white font-semibold border-none">
+              Correct
+            </Badge>
+          ) : status === 'omitted' ? (
+            <Badge variant="info" className="bg-blue-50 text-blue-600 font-semibold border-none">
+              Omitted
+            </Badge>
+          ) : (
+            <Badge variant="info" className="bg-blue-200 text-blue-900 font-semibold border-none">
+              Incorrect
+            </Badge>
+          )}
           {/* Time spent */}
           <Badge variant="outline" className="border-slate-300 text-slate-600 bg-white font-medium flex items-center gap-1">
             <Clock size={12} />
@@ -488,7 +508,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
 
         <div className="flex items-center gap-4">
           <span className="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${skipped ? 'bg-amber-400' : 'bg-green-500'}`} />
+            <span className={`w-2 h-2 rounded-full ${skipped ? 'bg-blue-200' : 'bg-blue-600'}`} />
             {skipped ? 'Skipped' : 'Answered'}
           </span>
           <span className="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
@@ -555,6 +575,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
                     isCorrect={isCorrectOption}
                     isIncorrect={isUserAnswer && !isCorrectOption}
                     showFeedback={showAnswer}
+                    colorTheme="blue"
                   />
                 );
               })}
@@ -564,14 +585,14 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
                 <div className="text-sm">
                   <span className="text-slate-500 font-medium">Your answer: </span>
-                  <span className={`font-bold ${showAnswer ? (correct ? 'text-green-600' : 'text-red-500') : 'text-slate-800'}`}>
+                  <span className={`font-bold ${showAnswer ? (correct ? 'text-blue-600' : 'text-blue-400') : 'text-slate-800'}`}>
                     {studentAnswer?.answerGiven?.value ?? '—'}
                   </span>
                 </div>
                 {showAnswer && (
                   <div className="text-sm">
                     <span className="text-slate-500 font-medium">Correct answer: </span>
-                    <span className="font-bold text-green-600">
+                    <span className="font-bold text-blue-600">
                       {q.correctAnswer.value}
                     </span>
                   </div>
@@ -592,11 +613,11 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
             {showAnalysis ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             <span>Analysis</span>
             {status === 'correct' ? (
-              <CheckCircle size={16} className="text-green-600" />
+              <CheckCircle size={16} className="text-blue-600" />
             ) : status === 'incorrect' ? (
-              <AlertCircle size={16} className="text-red-600" />
+              <AlertCircle size={16} className="text-blue-400" />
             ) : (
-              <AlertCircle size={16} className="text-amber-500" />
+              <AlertCircle size={16} className="text-blue-300" />
             )}
           </button>
           
@@ -1046,7 +1067,7 @@ export function TestReviewPage() {
                   {/* Previous / Next Navigation */}
                   <div className="flex items-center justify-between pt-2">
                     <button
-                      onClick={() => { setCurrentQuestionIdx(safeIdx - 1); window.scrollTo({ top: document.getElementById('question-report-anchor')?.offsetTop ?? 0, behavior: 'smooth' }); }}
+                      onClick={() => { setCurrentQuestionIdx(safeIdx - 1); }}
                       disabled={!hasPrev}
                       className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
                         hasPrev
@@ -1063,7 +1084,7 @@ export function TestReviewPage() {
                       {filteredQuestions.map((_, dotIdx) => (
                         <button
                           key={dotIdx}
-                          onClick={() => { setCurrentQuestionIdx(dotIdx); window.scrollTo({ top: document.getElementById('question-report-anchor')?.offsetTop ?? 0, behavior: 'smooth' }); }}
+                          onClick={() => { setCurrentQuestionIdx(dotIdx); }}
                           className={`w-2.5 h-2.5 rounded-full transition-all ${
                             dotIdx === safeIdx
                               ? 'bg-blue-600 scale-125'
@@ -1075,7 +1096,7 @@ export function TestReviewPage() {
                     </div>
 
                     <button
-                      onClick={() => { setCurrentQuestionIdx(safeIdx + 1); window.scrollTo({ top: document.getElementById('question-report-anchor')?.offsetTop ?? 0, behavior: 'smooth' }); }}
+                      onClick={() => { setCurrentQuestionIdx(safeIdx + 1); }}
                       disabled={!hasNext}
                       className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
                         hasNext

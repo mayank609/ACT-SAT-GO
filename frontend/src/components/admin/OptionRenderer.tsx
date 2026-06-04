@@ -10,6 +10,7 @@ interface OptionRendererProps {
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
+  colorTheme?: 'classic' | 'blue';
 }
 
 /**
@@ -32,14 +33,19 @@ export function OptionRenderer({
   onClick,
   disabled = false,
   className = '',
+  colorTheme = 'classic',
 }: OptionRendererProps) {
   // Determine styling based on state
   const isSelectable = !disabled && onClick;
   const backgroundColor = showFeedback
     ? isCorrect
-      ? 'bg-green-50 border-green-400'
+      ? colorTheme === 'blue'
+        ? 'bg-blue-100 border-blue-400 text-blue-950'
+        : 'bg-green-50 border-green-400'
       : isIncorrect
-        ? 'bg-red-50 border-red-400'
+        ? colorTheme === 'blue'
+          ? 'bg-blue-50/70 border-blue-200 text-blue-800'
+          : 'bg-red-50 border-red-400'
         : 'bg-slate-50 border-slate-200'
     : isSelected
       ? 'bg-blue-50 border-blue-400'
@@ -68,9 +74,13 @@ export function OptionRenderer({
               ${
                 showFeedback
                   ? isCorrect
-                    ? 'bg-green-500 text-white'
+                    ? colorTheme === 'blue'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-green-500 text-white'
                     : isIncorrect
-                      ? 'bg-red-500 text-white'
+                      ? colorTheme === 'blue'
+                        ? 'bg-blue-400 text-white'
+                        : 'bg-red-500 text-white'
                       : 'bg-slate-300 text-slate-700'
                   : isSelected
                     ? 'bg-blue-500 text-white'
@@ -91,12 +101,12 @@ export function OptionRenderer({
         {showFeedback && (
           <div className="flex-shrink-0 flex items-center">
             {isCorrect && (
-              <div className="text-green-600 font-bold text-lg" title="Correct">
+              <div className={`${colorTheme === 'blue' ? 'text-blue-600' : 'text-green-600'} font-bold text-lg`} title="Correct">
                 ✓
               </div>
             )}
             {isIncorrect && (
-              <div className="text-red-600 font-bold text-lg" title="Incorrect">
+              <div className={`${colorTheme === 'blue' ? 'text-blue-400' : 'text-red-600'} font-bold text-lg`} title="Incorrect">
                 ✗
               </div>
             )}

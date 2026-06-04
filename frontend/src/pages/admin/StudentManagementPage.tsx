@@ -11,7 +11,7 @@ import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import toast from 'react-hot-toast';
 
 type AnalyticsTab = 'mistake' | 'strength' | 'parallel' | 'skill';
-type MainViewTab = 'management' | 'analysis' | 'test_analysis';
+type MainViewTab = 'analysis' | 'test_analysis';
 
 // ── Test Analysis types ──────────────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ export function StudentManagementPage() {
   const navigate = useNavigate();
 
   // ── Main view state ───────────────────────────────────────────────────────
-  const [mainView, setMainView] = useState<MainViewTab>('management');
+  const [mainView, setMainView] = useState<MainViewTab>('analysis');
 
   // ── Existing state ────────────────────────────────────────────────────────
   const [students, setStudents] = useState<DbUser[]>([]);
@@ -551,12 +551,6 @@ export function StudentManagementPage() {
       {/* ── View Switcher ── */}
       <div className="flex gap-2 border-b border-slate-200 pb-0">
         <button
-          onClick={() => setMainView('management')}
-          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${mainView === 'management' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          Management
-        </button>
-        <button
           onClick={() => setMainView('analysis')}
           className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px flex items-center gap-1.5 ${mainView === 'analysis' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
@@ -570,9 +564,9 @@ export function StudentManagementPage() {
         </button>
       </div>
 
-      {mainView === 'management' && (
+      {mainView === 'analysis' && (
         <>
-      {/* ── Page Header ── */}
+      {/* ── Student Management Header (moved from Management tab) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-900">Students</h1>
@@ -598,216 +592,13 @@ export function StudentManagementPage() {
           </div>
         ))}
       </div>
-      <div className="h-4" />
 
-      {/* ── Analytics Section ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-bold text-slate-800">Select Analytics</h2>
-        </div>
-
-        {/* Analytics Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {([
-            { key: 'mistake',  label: 'Mistake Analytics' },
-            { key: 'strength', label: 'Strength Analytics' },
-            { key: 'parallel', label: 'Parallel Analysis' },
-            { key: 'skill',    label: 'Skill Analysis' },
-          ] as { key: AnalyticsTab; label: string }[]).map(t => (
-            <button
-              key={t.key}
-              onClick={() => setAnalyticsTab(t.key)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${analyticsTab === t.key ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Selected Filters</span>
-
-          {/* Student selector */}
-          <SearchableSelect
-            options={students.map(s => ({ id: s.id, label: s.name, searchText: s.name }))}
-            value={analyticsStudentId}
-            onChange={e => { setAnalyticsStudentId(e); setAnalyticsSubject(''); }}
-            placeholder="Select student"
-            minWidth="min-w-[140px]"
-          />
-
-          {/* Subject filter */}
-          {analyticsData && analyticsSubjects.length > 0 && (
-            <SearchableSelect
-              options={[
-                { id: '', label: 'All Subjects', searchText: 'all' },
-                ...analyticsSubjects.map(s => ({ id: s, label: s, searchText: s }))
-              ]}
-              value={analyticsSubject}
-              onChange={setAnalyticsSubject}
-              placeholder="Select subject"
-              minWidth="min-w-[140px]"
-            />
-          )}
-
-          {analyticsSubject && (
-            <button onClick={() => setAnalyticsSubject('')} className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-medium hover:bg-blue-100">
-              {analyticsSubject} <X size={11} />
-            </button>
-          )}
-        </div>
-
-        {/* No student selected state */}
-        {!analyticsStudentId && (
-          <Card padding="md">
-            <div className="py-8 text-center">
-              <BarChart2 size={32} className="mx-auto text-slate-300 mb-3" />
-              <p className="text-slate-500 text-sm font-medium">Select a student above to view their analytics</p>
-              <p className="text-slate-400 text-xs mt-1">Mistake, Strength, Parallel, and Skill analysis will appear here</p>
-            </div>
-          </Card>
-        )}
-
-        {/* Analytics content */}
-        {analyticsStudentId && (
-          <>
-            {/* Test list — click a test to view its analytics */}
-            {analyticsAttempts.length > 0 ? (
-              <Card padding="none">
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-800">Tests</h3>
-                  <span className="text-xs text-slate-400">Click a test to view its analytics</span>
-                </div>
-                <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
-                  {analyticsAttempts.map((a, idx) => {
-                    const isActive = a.id === analyticsAttemptId;
-                    return (
-                      <button
-                        key={a.id}
-                        onClick={() => { setAnalyticsAttemptId(a.id); setAnalyticsSubject(''); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-50/70' : 'hover:bg-slate-50'}`}
-                      >
-                        <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                          {idx + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className={`text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-slate-800'}`}>{a.test.title}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {a.completedAt
-                              ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                              : new Date(a.startedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0 text-right">
-                          <span className={`text-base font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{a.totalScore ?? '—'}</span>
-                          <span className="block text-[10px] text-slate-400 uppercase tracking-wide leading-none">score</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Card>
-            ) : !analyticsLoading && (
-              <Card padding="md"><div className="py-6 text-center text-slate-400 text-sm">This student hasn't completed any tests yet.</div></Card>
-            )}
-
-            {/* Stat Cards */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-blue-100 mb-2">Total Questions</p>
-                <p className="text-4xl font-bold">{analyticsLoading ? '—' : totalQ}</p>
-              </div>
-              <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100 mb-2">Correct Questions</p>
-                <p className="text-4xl font-bold">{analyticsLoading ? '—' : correctQ}</p>
-              </div>
-              <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 p-5 text-white shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-100 mb-2">Accuracy</p>
-                <p className="text-4xl font-bold">{analyticsLoading ? '—' : `${accuracyPct.toFixed(2)}%`}</p>
-              </div>
-            </div>
-
-            {/* Table / Chart toggle */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setAnalyticsView('table')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${analyticsView === 'table' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
-              >
-                <LayoutList size={13} /> Table View
-              </button>
-              <button
-                onClick={() => setAnalyticsView('chart')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${analyticsView === 'chart' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
-              >
-                <BarChart2 size={13} /> Chart View
-              </button>
-            </div>
-
-            {analyticsLoading ? (
-              <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">Loading analytics…</div></Card>
-            ) : topicStats.length === 0 ? (
-              <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">No data for this filter</div></Card>
-            ) : analyticsView === 'table' ? (
-              <Card padding="none">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 w-10">#</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">Topic</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Total Questions</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Correct Questions</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Accuracy</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topicStats.map((t, i) => (
-                      <tr key={t.topic} className={`border-b border-slate-100 hover:bg-slate-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
-                        <td className="px-4 py-3 text-slate-400 font-mono text-xs">{i + 1}</td>
-                        <td className="px-4 py-3 font-medium text-slate-800">{t.topic}</td>
-                        <td className="px-4 py-3 text-center text-slate-600">{t.total}</td>
-                        <td className="px-4 py-3 text-center text-slate-600">{t.correct}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-semibold ${t.accuracy >= 80 ? 'text-emerald-600' : t.accuracy >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
-                            {t.accuracy.toFixed(2)} %
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-            ) : (
-              <Card padding="md">
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={topicStats} margin={{ top: 4, right: 16, left: 0, bottom: 60 }}>
-                    <XAxis dataKey="topic" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
-                    <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
-                    <Tooltip formatter={(v) => [typeof v === 'number' ? `${v.toFixed(1)}%` : '', 'Accuracy']} />
-                    <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
-                      {topicStats.map((t, i) => (
-                        <Cell key={i} fill={t.accuracy >= 80 ? '#10b981' : t.accuracy >= 60 ? '#f59e0b' : '#ef4444'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-            )}
-          </>
-        )}
-      </div>
-
-        </>
-      )}
-
-      {mainView === 'analysis' && (
-        <>
       {/* ── COMPREHENSIVE ANALYSIS VIEW ── */}
       <div className="space-y-5">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Student Analysis Dashboard</h1>
+            <h2 className="text-lg md:text-xl font-bold text-slate-900">Student Analysis Dashboard</h2>
             <p className="text-sm text-slate-500 mt-0.5">Detailed performance metrics for all students</p>
           </div>
           <div className="flex gap-2">
@@ -1194,6 +985,199 @@ export function StudentManagementPage() {
           })() : (
             <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">Failed to load test data</div></Card>
           )}
+        {/* ── Select Analytics Section (moved here from Management tab) ── */}
+        <div className="space-y-4 mt-8 pt-6 border-t border-slate-200">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-800">Select Analytics</h2>
+          </div>
+
+          {/* Analytics Tabs */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              { key: 'mistake',  label: 'Mistake Analytics' },
+              { key: 'strength', label: 'Strength Analytics' },
+              { key: 'parallel', label: 'Parallel Analysis' },
+              { key: 'skill',    label: 'Skill Analysis' },
+            ] as { key: AnalyticsTab; label: string }[]).map(t => (
+              <button
+                key={t.key}
+                onClick={() => setAnalyticsTab(t.key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${analyticsTab === t.key ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Filters Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Selected Filters</span>
+
+            <SearchableSelect
+              options={students.map(s => ({ id: s.id, label: s.name, searchText: s.name }))}
+              value={analyticsStudentId}
+              onChange={e => { setAnalyticsStudentId(e); setAnalyticsSubject(''); }}
+              placeholder="Select student"
+              minWidth="min-w-[140px]"
+            />
+
+            {analyticsData && analyticsSubjects.length > 0 && (
+              <SearchableSelect
+                options={[
+                  { id: '', label: 'All Subjects', searchText: 'all' },
+                  ...analyticsSubjects.map(s => ({ id: s, label: s, searchText: s }))
+                ]}
+                value={analyticsSubject}
+                onChange={setAnalyticsSubject}
+                placeholder="Select subject"
+                minWidth="min-w-[140px]"
+              />
+            )}
+
+            {analyticsSubject && (
+              <button onClick={() => setAnalyticsSubject('')} className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-medium hover:bg-blue-100">
+                {analyticsSubject} <X size={11} />
+              </button>
+            )}
+          </div>
+
+          {/* No student selected state */}
+          {!analyticsStudentId && (
+            <Card padding="md">
+              <div className="py-8 text-center">
+                <BarChart2 size={32} className="mx-auto text-slate-300 mb-3" />
+                <p className="text-slate-500 text-sm font-medium">Select a student above to view their analytics</p>
+                <p className="text-slate-400 text-xs mt-1">Mistake, Strength, Parallel, and Skill analysis will appear here</p>
+              </div>
+            </Card>
+          )}
+
+          {/* Analytics content */}
+          {analyticsStudentId && (
+            <>
+              {analyticsAttempts.length > 0 ? (
+                <Card padding="none">
+                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-800">Tests</h3>
+                    <span className="text-xs text-slate-400">Click a test to view its analytics</span>
+                  </div>
+                  <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                    {analyticsAttempts.map((a, idx) => {
+                      const isActive = a.id === analyticsAttemptId;
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => { setAnalyticsAttemptId(a.id); setAnalyticsSubject(''); }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-50/70' : 'hover:bg-slate-50'}`}
+                        >
+                          <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-slate-800'}`}>{a.test.title}</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {a.completedAt
+                                ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                : new Date(a.startedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <span className={`text-base font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{a.totalScore ?? '—'}</span>
+                            <span className="block text-[10px] text-slate-400 uppercase tracking-wide leading-none">score</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Card>
+              ) : !analyticsLoading && (
+                <Card padding="md"><div className="py-6 text-center text-slate-400 text-sm">This student hasn't completed any tests yet.</div></Card>
+              )}
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-100 mb-2">Total Questions</p>
+                  <p className="text-4xl font-bold">{analyticsLoading ? '—' : totalQ}</p>
+                </div>
+                <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100 mb-2">Correct Questions</p>
+                  <p className="text-4xl font-bold">{analyticsLoading ? '—' : correctQ}</p>
+                </div>
+                <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 p-5 text-white shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-amber-100 mb-2">Accuracy</p>
+                  <p className="text-4xl font-bold">{analyticsLoading ? '—' : `${accuracyPct.toFixed(2)}%`}</p>
+                </div>
+              </div>
+
+              {/* Table / Chart toggle */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAnalyticsView('table')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${analyticsView === 'table' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
+                >
+                  <LayoutList size={13} /> Table View
+                </button>
+                <button
+                  onClick={() => setAnalyticsView('chart')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${analyticsView === 'chart' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
+                >
+                  <BarChart2 size={13} /> Chart View
+                </button>
+              </div>
+
+              {analyticsLoading ? (
+                <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">Loading analytics…</div></Card>
+              ) : topicStats.length === 0 ? (
+                <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">No data for this filter</div></Card>
+              ) : analyticsView === 'table' ? (
+                <Card padding="none">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 w-10">#</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">Topic</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Total Questions</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Correct Questions</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Accuracy</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topicStats.map((t, i) => (
+                        <tr key={t.topic} className={`border-b border-slate-100 hover:bg-slate-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
+                          <td className="px-4 py-3 text-slate-400 font-mono text-xs">{i + 1}</td>
+                          <td className="px-4 py-3 font-medium text-slate-800">{t.topic}</td>
+                          <td className="px-4 py-3 text-center text-slate-600">{t.total}</td>
+                          <td className="px-4 py-3 text-center text-slate-600">{t.correct}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`font-semibold ${t.accuracy >= 80 ? 'text-emerald-600' : t.accuracy >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
+                              {t.accuracy.toFixed(2)} %
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              ) : (
+                <Card padding="md">
+                  <ResponsiveContainer width="100%" height={320}>
+                    <BarChart data={topicStats} margin={{ top: 4, right: 16, left: 0, bottom: 60 }}>
+                      <XAxis dataKey="topic" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
+                      <Tooltip formatter={(v) => [typeof v === 'number' ? `${v.toFixed(1)}%` : '', 'Accuracy']} />
+                      <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
+                        {topicStats.map((t, i) => (
+                          <Cell key={i} fill={t.accuracy >= 80 ? '#10b981' : t.accuracy >= 60 ? '#f59e0b' : '#ef4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              )}
+            </>
+          )}
+        </div>
         </div>
       )}
 
