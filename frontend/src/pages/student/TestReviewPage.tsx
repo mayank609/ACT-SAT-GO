@@ -421,8 +421,7 @@ function formatSeconds(sec: number | undefined): string {
   return s > 0 ? `${m}m ${s}s` : `${m} Minute${m > 1 ? 's' : ''}`;
 }
 
-function getAiCoachingTip(topic: string, difficulty: string, correct: boolean, timeSpent: number): string {
-  const diffStr = difficulty.toLowerCase();
+function getAiCoachingTip(topic: string, _difficulty: string, correct: boolean, timeSpent: number): string {
   const timeLimit = 75; // SAT recommended avg is ~75s for RW, ~84s for Math
   const pacingStatus = timeSpent > timeLimit ? 'slow' : 'good';
   
@@ -863,10 +862,6 @@ export function TestReviewPage() {
       };
     })
   ).map((r, i) => ({ ...r, number: i + 1 }));
-
-  const totalCount = reviewRows.length;
-  const correctCount = reviewRows.filter((r) => r.status === 'correct').length;
-  const incorrectCount = totalCount - correctCount;
 
   // Per-domain performance for Knowledge & Skills
   const domainStats: Record<string, { correct: number; total: number; diff: Record<string, number> }> = {};

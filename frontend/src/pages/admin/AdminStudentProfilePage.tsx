@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Target, TrendingUp, Clock, Phone, School, Calendar,
   User2, Mail, Pencil, Trash2, CheckCircle, X, Save, MessageSquare, PlusCircle,
-  AlertTriangle, Loader2, RotateCcw, FileText, Eye, ChevronDown, ChevronUp,
+  AlertTriangle, Loader2, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
