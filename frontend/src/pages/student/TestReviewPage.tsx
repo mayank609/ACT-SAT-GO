@@ -574,9 +574,9 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
 
       {/* Card Content Area */}
       {parentQuestionText ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100/80 flex-grow">
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100/80">
           {/* Left Column: Passage */}
-          <div className="p-6 overflow-y-auto max-h-[500px] space-y-2">
+          <div className="p-6 overflow-y-auto h-[520px] space-y-2">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Passage</div>
             <div className="prose prose-slate max-w-none text-slate-800 text-sm leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100">
               <RichContentRenderer content={parentQuestionText} variant="question" className="prose-sm" />
@@ -584,7 +584,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
           </div>
 
           {/* Right Column: Question + Options */}
-          <div className="p-6 overflow-y-auto max-h-[500px] space-y-6">
+          <div className="p-6 overflow-y-auto h-[520px] space-y-6">
             {/* Question Prompt */}
             <div className="space-y-2">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Question</div>
@@ -649,7 +649,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
         </div>
       ) : (
         /* Standard layout (without passage) */
-        <div className="p-6 space-y-6 flex-grow">
+        <div className="p-6 space-y-6 overflow-y-auto h-[520px]">
           {/* Question Prompt */}
           <div className="space-y-2">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Question</div>
