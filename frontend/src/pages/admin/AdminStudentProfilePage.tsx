@@ -3,13 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Target, TrendingUp, Clock, Phone, School, Calendar,
   User2, Mail, Pencil, Trash2, CheckCircle, X, Save, MessageSquare, PlusCircle,
-  AlertTriangle, Loader2, ChevronDown, ChevronUp,
+  AlertTriangle, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, XCircle,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
+import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
+import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api, type DbUser } from '../../lib/api';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
@@ -95,6 +97,19 @@ function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
     return String(given.key).toUpperCase().trim() === String(correct.key).toUpperCase().trim();
   }
   return false;
+}
+
+function taOptionsToDisplay(options: Record<string, string> | null): Array<{ id: string; text: string }> {
+  if (!options) return [];
+  return Object.entries(options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }));
+}
+
+function taAnswerToDisplay(ans: TaAnswer | null): string | string[] | number | null {
+  if (!ans) return null;
+  if (ans.value !== undefined) return ans.value;
+  if (ans.keys) return ans.keys.map((k) => k.toLowerCase());
+  if (ans.key) return ans.key.toLowerCase();
+  return null;
 }
 
 interface SectionAnalysis {
@@ -290,6 +305,11 @@ export function AdminStudentProfilePage() {
   const [expandedAttempt, setExpandedAttempt] = useState<TaAttempt | null>(null);
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState<Record<string, 'submitted' | 'not_submitted'>>({});
+
+  // Question Wise Report state
+  const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
+  const [questionFilterBy, setQuestionFilterBy] = useState('all');
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -826,6 +846,200 @@ export function AdminStudentProfilePage() {
                                       </div>
                                     ))}
                                   </div>
+                                </div>
+
+                                {/* ── Question Wise Report ── */}
+                                <div className="mt-8 bg-white rounded-xl border-2 border-blue-200 p-4">
+                                  <h4 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                                    Question Wise Report
+                                  </h4>
+                                  
+                                  {/* Section tabs & filter */}
+                                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+                                    <div className="flex flex-wrap gap-2">
+                                      {analysis.sections.map((sa, idx) => (
+                                        <button
+                                          key={idx}
+                                          onClick={() => {
+                                            setActiveQuestionSectionIdx(idx);
+                                            setQuestionFilterBy('all');
+                                            setCurrentQuestionIdx(0);
+                                          }}
+                                          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                                            activeQuestionSectionIdx === idx
+                                              ? 'bg-blue-600 text-white'
+                                              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                          }`}
+                                        >
+                                          {sa.category}
+                                        </button>
+                                      ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter</span>
+                                      <select
+                                        value={questionFilterBy}
+                                        onChange={(e) => { setQuestionFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
+                                        className="px-2.5 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      >
+                                        <option value="all">All</option>
+                                        <option value="correct">Correct</option>
+                                        <option value="incorrect">Incorrect</option>
+                                        <option value="omitted">Omitted</option>
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  {/* Question display */}
+                                  {(() => {
+                                    const activeSection = analysis.sections[activeQuestionSectionIdx];
+                                    if (!activeSection) return <div className="text-sm text-slate-500">No section selected</div>;
+
+                                    const sectionAttempt = expandedAttempt?.sectionAttempts.find(
+                                      (sa) => sa.section.name === activeSection.name
+                                    );
+                                    if (!sectionAttempt) return <div className="text-sm text-slate-500">No questions available for this section</div>;
+
+                                    const allQuestions = sectionAttempt.section.questions;
+                                    const answersMap = new Map(expandedAttempt?.answers.map((a) => [a.questionId, a]) ?? []);
+
+                                    const filteredQuestions = allQuestions.filter((tq) => {
+                                      const ans = answersMap.get(tq.questionId);
+                                      const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                                      const isOmitted = !ans?.answerGiven;
+
+                                      if (questionFilterBy === 'correct') return isCorrect;
+                                      if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                                      if (questionFilterBy === 'omitted') return isOmitted;
+                                      return true;
+                                    });
+
+                                    if (filteredQuestions.length === 0) {
+                                      return (
+                                        <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
+                                          <p className="text-slate-500 font-semibold text-sm">No questions match the filter</p>
+                                        </div>
+                                      );
+                                    }
+
+                                    const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+                                    const currentTq = filteredQuestions[safeIdx];
+                                    const hasPrev = safeIdx > 0;
+                                    const hasNext = safeIdx < filteredQuestions.length - 1;
+
+                                    const studentAnswer = answersMap.get(currentTq.questionId);
+                                    const correct = studentAnswer?.answerGiven ? taAnswersMatch(studentAnswer.answerGiven, currentTq.question.correctAnswer) : false;
+                                    const skipped = !studentAnswer?.answerGiven;
+                                    const options = taOptionsToDisplay(currentTq.question.options);
+                                    const userAnswerDisplay = taAnswerToDisplay(studentAnswer?.answerGiven ?? null);
+                                    const correctAnswerDisplay = taAnswerToDisplay(currentTq.question.correctAnswer);
+
+                                    return (
+                                      <div className="flex flex-col h-full gap-4">
+                                        {/* Counter */}
+                                        <div className="flex items-center justify-between text-sm flex-shrink-0">
+                                          <div className="font-bold text-slate-700">
+                                            Total: {allQuestions.length}
+                                            {questionFilterBy !== 'all' && (
+                                              <span className="text-slate-500 font-medium ml-2">
+                                                (Showing {filteredQuestions.length})
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded">
+                                            Q{safeIdx + 1} of {filteredQuestions.length}
+                                          </div>
+                                        </div>
+
+                                        {/* Scrollable Question Card Container */}
+                                        <div className="overflow-y-auto h-[480px] flex-1 border-2 rounded-lg bg-white" style={{ borderColor: correct ? '#BFDBFE' : skipped ? '#E2E8F0' : '#E0F2FE' }}>
+                                          <div className={`p-4 flex items-start gap-3 sticky top-0 z-10 ${correct ? 'bg-blue-50/55' : skipped ? 'bg-slate-50' : 'bg-sky-50/40'}`}>
+                                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-blue-600' : skipped ? 'bg-slate-400' : 'bg-blue-400'}`}>
+                                                {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                                              </div>
+                                              {correct ? <CheckCircle size={14} className="text-blue-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-blue-400'} />}
+                                            </div>
+                                            <div className="text-sm text-slate-800 flex-1 leading-relaxed text-left font-medium">
+                                              <RichContentRenderer content={currentTq.question.content.text || `Question`} variant="question" className="prose-sm" />
+                                            </div>
+                                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                              {studentAnswer?.timeSpentSeconds ? (
+                                                <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                                              ) : null}
+                                              {correct ? (
+                                                <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
+                                              ) : skipped ? (
+                                                <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
+                                              ) : (
+                                                <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          <div className="px-4 py-3 border-t border-slate-100">
+                                            {options.length > 0 && (
+                                              <div className="space-y-2 mb-3 text-left">
+                                                {options.map((opt) => {
+                                                  const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                                                  const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                                                  return (
+                                                    <OptionRenderer
+                                                      key={opt.id}
+                                                      label={opt.id.toUpperCase()}
+                                                      text={opt.text}
+                                                      isSelected={isUserAnswer && !isCorrectOption}
+                                                      isCorrect={isCorrectOption}
+                                                      isIncorrect={isUserAnswer && !isCorrectOption}
+                                                      showFeedback={true}
+                                                      colorTheme="blue"
+                                                    />
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                            {currentTq.question.type === 'NUMERIC' && (
+                                              <div className="flex gap-4 text-sm mb-3 text-left">
+                                                <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
+                                                <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.value}</strong></span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Navigation - Fixed at bottom */}
+                                        <div className="flex items-center justify-between pt-2 flex-shrink-0">
+                                          <button
+                                            onClick={() => setCurrentQuestionIdx(safeIdx - 1)}
+                                            disabled={!hasPrev}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                              hasPrev
+                                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            }`}
+                                          >
+                                            <ChevronLeft size={16} />
+                                            Previous
+                                          </button>
+
+                                          <button
+                                            onClick={() => setCurrentQuestionIdx(safeIdx + 1)}
+                                            disabled={!hasNext}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                              hasNext
+                                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                            }`}
+                                          >
+                                            Next
+                                            <ChevronRight size={16} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             );

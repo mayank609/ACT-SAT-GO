@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, BarChart2, LayoutList, X, TrendingUp, Filter, Loader2, ClipboardList } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, BarChart2, LayoutList, X, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from '../../components/common/Button';
+import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
+import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
+import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api, type DbUser } from '../../lib/api';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import toast from 'react-hot-toast';
@@ -90,6 +93,19 @@ function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
     return String(given.key).toUpperCase().trim() === String(correct.key).toUpperCase().trim();
   }
   return false;
+}
+
+function taOptionsToDisplay(options: Record<string, string> | null): Array<{ id: string; text: string }> {
+  if (!options) return [];
+  return Object.entries(options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }));
+}
+
+function taAnswerToDisplay(ans: TaAnswer | null): string | string[] | number | null {
+  if (!ans) return null;
+  if (ans.value !== undefined) return ans.value;
+  if (ans.keys) return ans.keys.map((k) => k.toLowerCase());
+  if (ans.key) return ans.key.toLowerCase();
+  return null;
 }
 
 interface SectionAnalysis {
@@ -296,6 +312,11 @@ export function StudentManagementPage() {
   const [testAnalysisLoading, setTestAnalysisLoading] = useState(false);
   const [testAnalysisAttempt, setTestAnalysisAttempt] = useState<TaAttempt | null>(null);
   const [testAnalysisStatus, setTestAnalysisStatus] = useState<Record<string, 'submitted' | 'not_submitted'>>({});
+
+  // ── Question Wise Report state ───────────────────────────────────────────
+  const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
+  const [questionFilterBy, setQuestionFilterBy] = useState('all');
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);;
 
   useEffect(() => {
     if (mainView !== 'test_analysis' || !selectedStudentId) {
@@ -1071,220 +1092,205 @@ export function StudentManagementPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* ── Question Wise Report ── */}
+                <div className="mt-8 bg-white rounded-xl border-2 border-blue-200 p-4">
+                  <h4 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                    Question Wise Report
+                  </h4>
+                  
+                  {/* Section tabs & filter */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+                    <div className="flex flex-wrap gap-2">
+                      {analysis.sections.map((sa, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setActiveQuestionSectionIdx(idx);
+                            setQuestionFilterBy('all');
+                            setCurrentQuestionIdx(0);
+                          }}
+                          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                            activeQuestionSectionIdx === idx
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                          }`}
+                        >
+                          {sa.category}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter</span>
+                      <select
+                        value={questionFilterBy}
+                        onChange={(e) => { setQuestionFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
+                        className="px-2.5 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="all">All</option>
+                        <option value="correct">Correct</option>
+                        <option value="incorrect">Incorrect</option>
+                        <option value="omitted">Omitted</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Question display */}
+                  {(() => {
+                    const activeSection = analysis.sections[activeQuestionSectionIdx];
+                    if (!activeSection) return <div className="text-sm text-slate-500">No section selected</div>;
+
+                    const sectionAttempt = testAnalysisAttempt?.sectionAttempts.find(
+                      (sa) => sa.section.name === activeSection.name
+                    );
+                    if (!sectionAttempt) return <div className="text-sm text-slate-500">No questions available for this section</div>;
+
+                    const allQuestions = sectionAttempt.section.questions;
+                    const answersMap = new Map(testAnalysisAttempt?.answers.map((a) => [a.questionId, a]) ?? []);
+
+                    const filteredQuestions = allQuestions.filter((tq) => {
+                      const ans = answersMap.get(tq.questionId);
+                      const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                      const isOmitted = !ans?.answerGiven;
+
+                      if (questionFilterBy === 'correct') return isCorrect;
+                      if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                      if (questionFilterBy === 'omitted') return isOmitted;
+                      return true;
+                    });
+
+                    if (filteredQuestions.length === 0) {
+                      return (
+                        <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
+                          <p className="text-slate-500 font-semibold text-sm">No questions match the filter</p>
+                        </div>
+                      );
+                    }
+
+                    const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+                    const currentTq = filteredQuestions[safeIdx];
+                    const hasPrev = safeIdx > 0;
+                    const hasNext = safeIdx < filteredQuestions.length - 1;
+
+                    const studentAnswer = answersMap.get(currentTq.questionId);
+                    const correct = studentAnswer?.answerGiven ? taAnswersMatch(studentAnswer.answerGiven, currentTq.question.correctAnswer) : false;
+                    const skipped = !studentAnswer?.answerGiven;
+                    const options = taOptionsToDisplay(currentTq.question.options);
+                    const userAnswerDisplay = taAnswerToDisplay(studentAnswer?.answerGiven ?? null);
+                    const correctAnswerDisplay = taAnswerToDisplay(currentTq.question.correctAnswer);
+
+                    return (
+                      <div className="flex flex-col h-full gap-4">
+                        {/* Counter */}
+                        <div className="flex items-center justify-between text-sm flex-shrink-0">
+                          <div className="font-bold text-slate-700">
+                            Total: {allQuestions.length}
+                            {questionFilterBy !== 'all' && (
+                              <span className="text-slate-500 font-medium ml-2">
+                                (Showing {filteredQuestions.length})
+                              </span>
+                            )}
+                          </div>
+                          <div className="font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded">
+                            Q{safeIdx + 1} of {filteredQuestions.length}
+                          </div>
+                        </div>
+
+                        {/* Scrollable Question Card Container */}
+                        <div className="overflow-y-auto h-[480px] flex-1 border-2 rounded-lg bg-white" style={{ borderColor: correct ? '#BFDBFE' : skipped ? '#E2E8F0' : '#E0F2FE' }}>
+                          <div className={`p-4 flex items-start gap-3 sticky top-0 z-10 ${correct ? 'bg-blue-50/55' : skipped ? 'bg-slate-50' : 'bg-sky-50/40'}`}>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-blue-600' : skipped ? 'bg-slate-400' : 'bg-blue-400'}`}>
+                                {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                              </div>
+                              {correct ? <CheckCircle size={14} className="text-blue-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-blue-400'} />}
+                            </div>
+                            <div className="text-sm text-slate-800 flex-1 leading-relaxed text-left font-medium">
+                              <RichContentRenderer content={currentTq.question.content.text || `Question`} variant="question" className="prose-sm" />
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {studentAnswer?.timeSpentSeconds ? (
+                                <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                              ) : null}
+                              {correct ? (
+                                <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
+                              ) : skipped ? (
+                                <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
+                              ) : (
+                                <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="px-4 py-3 border-t border-slate-100">
+                            {options.length > 0 && (
+                              <div className="space-y-2 mb-3 text-left">
+                                {options.map((opt) => {
+                                  const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                                  const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                                  return (
+                                    <OptionRenderer
+                                      key={opt.id}
+                                      label={opt.id.toUpperCase()}
+                                      text={opt.text}
+                                      isSelected={isUserAnswer && !isCorrectOption}
+                                      isCorrect={isCorrectOption}
+                                      isIncorrect={isUserAnswer && !isCorrectOption}
+                                      showFeedback={true}
+                                      colorTheme="blue"
+                                    />
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {currentTq.question.type === 'NUMERIC' && (
+                              <div className="flex gap-4 text-sm mb-3 text-left">
+                                <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
+                                <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.value}</strong></span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Navigation - Fixed at bottom */}
+                        <div className="flex items-center justify-between pt-2 flex-shrink-0">
+                          <button
+                            onClick={() => setCurrentQuestionIdx(safeIdx - 1)}
+                            disabled={!hasPrev}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                              hasPrev
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            }`}
+                          >
+                            <ChevronLeft size={16} />
+                            Previous
+                          </button>
+
+                          <button
+                            onClick={() => setCurrentQuestionIdx(safeIdx + 1)}
+                            disabled={!hasNext}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                              hasNext
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            }`}
+                          >
+                            Next
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             );
           })() : (
             <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">Failed to load test data</div></Card>
           )}
-        {/* ── Select Analytics Section (moved here from Management tab) ── */}
-        <div className="space-y-4 mt-8 pt-6 border-t border-slate-200">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-800">Select Analytics</h2>
-          </div>
-
-          {/* Analytics Tabs */}
-          <div className="flex flex-wrap gap-2">
-            {([
-              { key: 'mistake',  label: 'Mistake Analytics' },
-              { key: 'parallel', label: 'Parallel Analysis' },
-              { key: 'skill',    label: 'Skill Analysis' },
-            ] as { key: AnalyticsTab; label: string }[]).map(t => (
-              <button
-                key={t.key}
-                onClick={() => setAnalyticsTab(t.key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${analyticsTab === t.key ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Filters Row */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Selected Filters</span>
-
-            <SearchableSelect
-              options={students.map(s => ({ id: s.id, label: s.name, searchText: s.name }))}
-              value={analyticsStudentId}
-              onChange={e => { setAnalyticsStudentId(e); setAnalyticsSubject(''); }}
-              placeholder="Select student"
-              minWidth="min-w-[140px]"
-            />
-
-            {analyticsData && analyticsSubjects.length > 0 && (
-              <SearchableSelect
-                options={[
-                  { id: '', label: 'All Subjects', searchText: 'all' },
-                  ...analyticsSubjects.map(s => ({ id: s, label: s, searchText: s }))
-                ]}
-                value={analyticsSubject}
-                onChange={setAnalyticsSubject}
-                placeholder="Select subject"
-                minWidth="min-w-[140px]"
-              />
-            )}
-
-            {analyticsSubject && (
-              <button onClick={() => setAnalyticsSubject('')} className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-medium hover:bg-blue-100">
-                {analyticsSubject} <X size={11} />
-              </button>
-            )}
-          </div>
-
-          {/* No student selected state */}
-          {!analyticsStudentId && (
-            <Card padding="md">
-              <div className="py-8 text-center">
-                <BarChart2 size={32} className="mx-auto text-slate-300 mb-3" />
-                <p className="text-slate-500 text-sm font-medium">Select a student above to view their analytics</p>
-                <p className="text-slate-400 text-xs mt-1">Mistake, Parallel, and Skill analysis will appear here</p>
-              </div>
-            </Card>
-          )}
-
-          {/* Analytics content */}
-          {analyticsStudentId && (
-            <>
-              {analyticsAttempts.length > 0 ? (
-                <Card padding="none">
-                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-800">Tests</h3>
-                    <span className="text-xs text-slate-400">Click a test to view its analytics</span>
-                  </div>
-                  <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
-                    {analyticsAttempts.map((a, idx) => {
-                      const isActive = a.id === analyticsAttemptId;
-                      return (
-                        <button
-                          key={a.id}
-                          onClick={() => { setAnalyticsAttemptId(a.id); setAnalyticsSubject(''); }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-50/70' : 'hover:bg-slate-50'}`}
-                        >
-                          <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                            {idx + 1}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-slate-800'}`}>{a.test.title}</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5">
-                              {a.completedAt
-                                ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                : new Date(a.startedAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="flex-shrink-0 text-right">
-                            {(() => {
-                              try {
-                                const analysis = computeTestAnalysis(a as any);
-                                if (analysis.isSAT) {
-                                  return (
-                                    <>
-                                      <span className={`text-base font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{analysis.finalScaledScore}</span>
-                                      <span className="block text-[9px] text-slate-400 leading-none">R&W: {analysis.rwScaled} • M: {analysis.mathScaled}</span>
-                                    </>
-                                  );
-                                }
-                              } catch (e) {}
-                              return (
-                                <>
-                                  <span className={`text-base font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{a.totalScore ?? '—'}</span>
-                                  <span className="block text-[10px] text-slate-400 uppercase tracking-wide leading-none">score</span>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </Card>
-              ) : !analyticsLoading && (
-                <Card padding="md"><div className="py-6 text-center text-slate-400 text-sm">This student hasn't completed any tests yet.</div></Card>
-              )}
-
-              {/* Stat Cards */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-100 mb-2">Total Questions</p>
-                  <p className="text-4xl font-bold">{analyticsLoading ? '—' : totalQ}</p>
-                </div>
-                <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100 mb-2">Correct Questions</p>
-                  <p className="text-4xl font-bold">{analyticsLoading ? '—' : correctQ}</p>
-                </div>
-                <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 p-5 text-white shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-amber-100 mb-2">Accuracy</p>
-                  <p className="text-4xl font-bold">{analyticsLoading ? '—' : `${accuracyPct.toFixed(2)}%`}</p>
-                </div>
-              </div>
-
-              {/* Table / Chart toggle */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAnalyticsView('table')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${analyticsView === 'table' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
-                >
-                  <LayoutList size={13} /> Table View
-                </button>
-                <button
-                  onClick={() => setAnalyticsView('chart')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${analyticsView === 'chart' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
-                >
-                  <BarChart2 size={13} /> Chart View
-                </button>
-              </div>
-
-              {analyticsLoading ? (
-                <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">Loading analytics…</div></Card>
-              ) : topicStats.length === 0 ? (
-                <Card padding="md"><div className="py-8 text-center text-slate-400 text-sm">No data for this filter</div></Card>
-              ) : analyticsView === 'table' ? (
-                <Card padding="none">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 w-10">#</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">Topic</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Total Questions</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Correct Questions</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Accuracy</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topicStats.map((t, i) => (
-                        <tr key={t.topic} className={`border-b border-slate-100 hover:bg-slate-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
-                          <td className="px-4 py-3 text-slate-400 font-mono text-xs">{i + 1}</td>
-                          <td className="px-4 py-3 font-medium text-slate-800">{t.topic}</td>
-                          <td className="px-4 py-3 text-center text-slate-600">{t.total}</td>
-                          <td className="px-4 py-3 text-center text-slate-600">{t.correct}</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`font-semibold ${t.accuracy >= 80 ? 'text-emerald-600' : t.accuracy >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
-                              {t.accuracy.toFixed(2)} %
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </Card>
-              ) : (
-                <Card padding="md">
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={topicStats} margin={{ top: 4, right: 16, left: 0, bottom: 60 }}>
-                      <XAxis dataKey="topic" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
-                      <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
-                      <Tooltip formatter={(v) => [typeof v === 'number' ? `${v.toFixed(1)}%` : '', 'Accuracy']} />
-                      <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
-                        {topicStats.map((t, i) => (
-                          <Cell key={i} fill={t.accuracy >= 80 ? '#10b981' : t.accuracy >= 60 ? '#f59e0b' : '#ef4444'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Card>
-              )}
-            </>
-          )}
-        </div>
         </div>
       )}
 
