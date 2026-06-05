@@ -410,8 +410,21 @@ export function StudentManagementPage() {
               a.test?.title?.toLowerCase().includes('diagnostic')
             );
             if (diagnosticsAttempt) {
-              diagnosticsEnglish = diagnosticsAttempt.totalScore;
-              diagnosticsMath = diagnosticsAttempt.totalScore;
+              try {
+                const analysis = computeTestAnalysis(diagnosticsAttempt);
+                diagnosticsEnglish = analysis.rwScaled;
+                diagnosticsMath = analysis.mathScaled;
+                scaledScoreTotal = analysis.finalScaledScore;
+                scaledScoreEnglish = analysis.rwScaled;
+                scaledScoreMath = analysis.mathScaled;
+              } catch (e) {
+                console.error("Error computing analysis for diagnosticsAttempt:", e);
+                diagnosticsEnglish = diagnosticsAttempt.totalScore;
+                diagnosticsMath = diagnosticsAttempt.totalScore;
+                scaledScoreTotal = diagnosticsAttempt.totalScore;
+                scaledScoreEnglish = diagnosticsAttempt.totalScore;
+                scaledScoreMath = diagnosticsAttempt.totalScore;
+              }
             }
           }
           
@@ -728,7 +741,9 @@ export function StudentManagementPage() {
                         <td className="px-4 py-3 text-center text-sm text-slate-600 whitespace-nowrap">
                           {row.targetDate ? new Date(row.targetDate).toLocaleDateString() : '—'}
                         </td>
-                        <td className="px-4 py-3 text-center font-semibold text-blue-900 border-l border-blue-100" />
+                        <td className="px-4 py-3 text-center font-semibold text-blue-900 border-l border-blue-100">
+                          {row.scaledScoreTotal ?? '—'}
+                        </td>
                         <td className="px-4 py-3 text-center text-sm font-semibold text-blue-700">
                           {row.diagnosticsEnglish ?? '—'}
                         </td>
@@ -832,7 +847,7 @@ export function StudentManagementPage() {
 
           {/* Selector Card */}
           <Card padding="md">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-end gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Select Student</label>
                 <SearchableSelect
@@ -869,6 +884,32 @@ export function StudentManagementPage() {
                   )}
                 </div>
               )}
+
+              {/* Score Summary beside the dropdown */}
+              {selectedStudentId && selectedAttemptId && (() => {
+                const selectedAttempt = studentAttempts.find(a => a.id === selectedAttemptId);
+                if (!selectedAttempt) return null;
+                try {
+                  const analysis = computeTestAnalysis(selectedAttempt as any);
+                  if (!analysis.isSAT) return null;
+                  return (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Total</span>
+                        <span className="text-sm font-extrabold text-blue-700">{analysis.finalScaledScore}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">R&W</span>
+                        <span className="text-sm font-extrabold text-emerald-700">{analysis.rwScaled}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                        <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Math</span>
+                        <span className="text-sm font-extrabold text-amber-700">{analysis.mathScaled}</span>
+                      </div>
+                    </div>
+                  );
+                } catch { return null; }
+              })()}
             </div>
           </Card>
 
@@ -1131,8 +1172,25 @@ export function StudentManagementPage() {
                             </p>
                           </div>
                           <div className="flex-shrink-0 text-right">
-                            <span className={`text-base font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{a.totalScore ?? '—'}</span>
-                            <span className="block text-[10px] text-slate-400 uppercase tracking-wide leading-none">score</span>
+                            {(() => {
+                              try {
+                                const analysis = computeTestAnalysis(a as any);
+                                if (analysis.isSAT) {
+                                  return (
+                                    <>
+                                      <span className={`text-base font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{analysis.finalScaledScore}</span>
+                                      <span className="block text-[9px] text-slate-400 leading-none">R&W: {analysis.rwScaled} • M: {analysis.mathScaled}</span>
+                                    </>
+                                  );
+                                }
+                              } catch (e) {}
+                              return (
+                                <>
+                                  <span className={`text-base font-bold ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{a.totalScore ?? '—'}</span>
+                                  <span className="block text-[10px] text-slate-400 uppercase tracking-wide leading-none">score</span>
+                                </>
+                              );
+                            })()}
                           </div>
                         </button>
                       );

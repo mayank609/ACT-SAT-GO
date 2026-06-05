@@ -14,15 +14,21 @@ export async function GET(
       where: { studentId },
       orderBy: { startedAt: 'desc' },
       include: {
-        test: {
+        test: true,
+        sectionAttempts: {
+          orderBy: { startedAt: 'asc' },
           include: {
-            sections: {
-              orderBy: { orderIndex: 'asc' },
-              include: { _count: { select: { questions: true } } },
+            section: {
+              include: {
+                questions: {
+                  orderBy: { orderIndex: 'asc' },
+                  include: { question: true },
+                },
+              },
             },
           },
         },
-        sectionAttempts: { orderBy: { startedAt: 'asc' } },
+        answers: true,
       },
     })
     return NextResponse.json({ attempts })

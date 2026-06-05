@@ -63,14 +63,21 @@ export async function getStudentAttempts(studentId: string) {
       where: { studentId },
       orderBy: { startedAt: 'desc' },
       include: {
-        test: {
+        test: true,
+        sectionAttempts: {
+          orderBy: { startedAt: 'asc' },
           include: {
-            sections: {
-              include: { _count: { select: { questions: true } } },
+            section: {
+              include: {
+                questions: {
+                  orderBy: { orderIndex: 'asc' },
+                  include: { question: true },
+                },
+              },
             },
           },
         },
-        sectionAttempts: { orderBy: { startedAt: 'asc' } },
+        answers: true,
       },
     })
     return { success: true, attempts }
