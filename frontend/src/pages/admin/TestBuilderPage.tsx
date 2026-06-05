@@ -209,19 +209,19 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Topic</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Domain</label>
               <select value={question.topic} onChange={(e) => onUpdate({ ...question, topic: e.target.value, subTopic: '' })}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select topic</option>
+                <option value="">Select domain</option>
                 {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Sub-Topic</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Subdomain</label>
               <select value={question.subTopic ?? ''} onChange={(e) => onUpdate({ ...question, subTopic: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!question.topic || !SUB_TOPICS[question.topic]}>
-                <option value="">Select sub-topic</option>
+                <option value="">Select subdomain</option>
                 {(SUB_TOPICS[question.topic] ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
