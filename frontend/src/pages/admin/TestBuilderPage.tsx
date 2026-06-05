@@ -11,24 +11,37 @@ import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { MathRenderer } from '../../components/admin/MathRenderer';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
+import { ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 
-const TOPICS = ['Algebra', 'Geometry', 'Trigonometry', 'Statistics', 'Grammar', 'Punctuation', 'Rhetorical Skills', 'Main Idea', 'Inference', 'Vocabulary', 'Data Analysis', 'Scientific Method'];
-const SUB_TOPICS: Record<string, string[]> = {
-  'Algebra': ['Linear Equations', 'Quadratic Equations', 'Functions', 'Inequalities'],
-  'Geometry': ['Triangles', 'Circles', 'Coordinate Geometry', 'Area & Volume'],
-  'Trigonometry': ['Sin/Cos/Tan', 'Unit Circle', 'Identities'],
-  'Statistics': ['Mean/Median/Mode', 'Probability', 'Distributions'],
-  'Grammar': ['Subject-Verb Agreement', 'Pronoun Agreement', 'Modifiers'],
-  'Punctuation': ['Commas', 'Semicolons', 'Apostrophes'],
-  'Rhetorical Skills': ['Organization', 'Style', 'Strategy'],
-  'Data Analysis': ['Charts', 'Tables', 'Graphs'],
-  'Scientific Method': ['Hypothesis', 'Variables', 'Conclusions'],
-};
+// Question tagging uses the official SAT blueprint (domain → subdomain) so the
+// tags here line up exactly with the Test Review performance breakdown.
+const TOPICS = ALL_DOMAIN_NAMES;
+const SUB_TOPICS = SUBDOMAINS_BY_DOMAIN;
 
 function generateId() { return Math.random().toString(36).substr(2, 9); }
 
 function newQuestion(): Question {
   return { id: generateId(), text: '', type: 'mcq_single', options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }], correctAnswer: 'a', topic: '', difficulty: 'medium', marks: 1, marksNegative: 0, linkedQuestions: [] };
+}
+
+// A single passage-based MCQ to live inside a passage question.
+function newInternalMcq(parentId: string): Question {
+  const q = newQuestion();
+  q.parentQuestionId = parentId;
+  return q;
+}
+
+// A passage question pre-seeded with one internal MCQ — the mandatory format for
+// the Reading and Writing section.
+function newPassageQuestion(): Question {
+  const id = generateId();
+  return { id, text: '', type: 'passage', correctAnswer: 'a', topic: '', difficulty: 'medium', marks: 1, marksNegative: 0, linkedQuestions: [newInternalMcq(id)] };
+}
+
+// The Reading and Writing section is identified by its name (sections only carry
+// a free-text name). Every R&W question must be a passage with MCQs inside.
+function isReadingWritingSection(name: string): boolean {
+  return /read|writing|english|verbal/i.test(name);
 }
 
 function getNumericAnswers(correctAnswer: Question['correctAnswer']): string[] {
@@ -51,9 +64,31 @@ interface QuestionEditorProps {
   onDrop: () => void;
   onDragEnd: () => void;
   isDragOver: boolean;
+  isReadingWriting: boolean;
 }
 
-function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }: QuestionEditorProps) {
+function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver, isReadingWriting }: QuestionEditorProps) {
+  // R&W questions must always be passage-based. Coerce any legacy/non-passage
+  // question in this section into a passage, preserving its content by wrapping
+  // it as the first internal MCQ rather than discarding it.
+  useEffect(() => {
+    if (isReadingWriting && question.type !== 'passage') {
+      const internals = question.linkedQuestions?.length
+        ? question.linkedQuestions
+        : [{
+            ...question,
+            id: generateId(),
+            // numeric isn't allowed inside R&W passages — fall back to single MCQ
+            type: question.type === 'numeric' ? 'mcq_single' : question.type,
+            correctAnswer: question.type === 'numeric' ? 'a' : question.correctAnswer,
+            parentQuestionId: question.id,
+            linkedQuestions: [],
+          } as Question];
+      onUpdate({ ...question, type: 'passage', text: '', options: undefined, correctAnswer: 'a', linkedQuestions: internals });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReadingWriting, question.type]);
+
   const [expanded, setExpanded] = useState(index === 0);
   const [showPreview, setShowPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -127,13 +162,20 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Type</label>
-              <select value={question.type} onChange={(e) => onUpdate({ ...question, type: e.target.value as QuestionType })}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="mcq_single">MCQ — Single Correct</option>
-                <option value="mcq_multi">MCQ — Multiple Correct</option>
-                <option value="numeric">Numeric Response</option>
-                <option value="passage">Passage Question</option>
-              </select>
+              {isReadingWriting ? (
+                <div className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-between gap-2">
+                  <span>Passage Question</span>
+                  <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap">Required for R&amp;W</span>
+                </div>
+              ) : (
+                <select value={question.type} onChange={(e) => onUpdate({ ...question, type: e.target.value as QuestionType })}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="mcq_single">MCQ — Single Correct</option>
+                  <option value="mcq_multi">MCQ — Multiple Correct</option>
+                  <option value="numeric">Numeric Response</option>
+                  <option value="passage">Passage Question</option>
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Difficulty</label>
@@ -370,7 +412,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                           >
                             <option value="mcq_single">MCQ — Single</option>
                             <option value="mcq_multi">MCQ — Multiple</option>
-                            <option value="numeric">Numeric</option>
+                            {!isReadingWriting && <option value="numeric">Numeric</option>}
                           </select>
 
                           {/* Question Text */}
@@ -1738,7 +1780,9 @@ export function TestBuilderPage() {
     updateSection(activeSectionIdx, { questions: qs });
   };
   const deleteQuestion = (qId: string) => updateSection(activeSectionIdx, { questions: activeSection.questions.filter((q) => q.id !== qId) });
-  const addQuestion = () => updateSection(activeSectionIdx, { questions: [...activeSection.questions, newQuestion()] });
+  const addQuestion = () => updateSection(activeSectionIdx, {
+    questions: [...activeSection.questions, isReadingWritingSection(activeSection.name) ? newPassageQuestion() : newQuestion()],
+  });
 
   const handleQuestionDrop = (targetIdx: number) => {
     if (dragSrcIdx === null || dragSrcIdx === targetIdx) { setDragSrcIdx(null); setDragOverIdx(null); return; }
@@ -1999,6 +2043,7 @@ export function TestBuilderPage() {
                       onDrop={() => handleQuestionDrop(idx)}
                       onDragEnd={() => { setDragSrcIdx(null); setDragOverIdx(null); }}
                       isDragOver={dragOverIdx === idx && dragSrcIdx !== idx}
+                      isReadingWriting={isReadingWritingSection(activeSection.name)}
                     />
                   ))}
                 </div>

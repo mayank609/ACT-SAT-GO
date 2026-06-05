@@ -9,6 +9,7 @@ import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ScoreCalculator } from '../../components/calculator/ScoreCalculator';
 import { Modal } from '../../components/common/Modal';
+import { SAT_CONTENT, ALL_DOMAIN_NAMES, ALL_SUBDOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
 
@@ -112,21 +113,9 @@ function dbOptionsToDisplay(options: Record<string, string> | null): Array<{ id:
 
 // ─── Knowledge & Skills: SAT content domains (static blueprint) ────────────────
 
-const KS_DOMAINS: Record<string, { name: string; pct: number; range: string }[]> = {
-  'Reading and Writing': [
-    { name: 'Information and Ideas', pct: 26, range: '12 - 14' },
-    { name: 'Craft and Structure', pct: 28, range: '13 - 15' },
-    { name: 'Expression of Ideas', pct: 20, range: '8 - 12' },
-    { name: 'Standard English Conventions', pct: 26, range: '11 - 15' },
-  ],
-  'Math': [
-    { name: 'Algebra', pct: 35, range: '13 - 15' },
-    { name: 'Advanced Math', pct: 35, range: '13 - 15' },
-    { name: 'Problem-Solving and Data Analysis', pct: 15, range: '5 - 7' },
-    { name: 'Geometry and Trigonometry', pct: 15, range: '5 - 7' },
-  ],
-}
-const ALL_DOMAIN_NAMES = Object.values(KS_DOMAINS).flat().map((d) => d.name)
+// Domain/subdomain blueprint comes from the shared source of truth so it stays
+// in sync with what the Test Builder tags questions with.
+const KS_DOMAINS = SAT_CONTENT
 
 // Keywords that map an arbitrary topic name onto one of the 8 SAT domains.
 // Covers both proper domain names and the demo/seed topic taxonomy.
@@ -139,6 +128,41 @@ const DOMAIN_SYNONYMS: Record<string, string[]> = {
   'Advanced Math': ['advanced math', 'advanced', 'nonlinear', 'quadratic', 'function', 'exponential'],
   'Problem-Solving and Data Analysis': ['problem-solving and data analysis', 'problem solving', 'data analysis', 'data interpretation', 'statistics', 'ratio', 'rates', 'percent', 'probability', 'proportion'],
   'Geometry and Trigonometry': ['geometry and trigonometry', 'geometry', 'trigonometry', 'trig'],
+}
+
+// Keywords that map a topic name onto a specific subdomain. Matched only within
+// the question's already-resolved domain, so generic words stay unambiguous.
+const SUBDOMAIN_SYNONYMS: Record<string, string[]> = {
+  'Command of Evidence': ['command of evidence', 'evidence'],
+  'Inferences': ['inference'],
+  'Central Ideas and Details': ['central idea', 'central ideas and details', 'main idea', 'details'],
+  'Words in Context': ['words in context', 'word in context', 'vocabulary'],
+  'Text Structure and Purpose': ['text structure', 'purpose'],
+  'Cross-Text Connections': ['cross-text', 'cross text'],
+  'Rhetorical Synthesis': ['rhetorical synthesis', 'synthesis'],
+  'Transitions': ['transition'],
+  'Boundaries': ['boundaries', 'punctuation'],
+  'Form, Structure, and Sense': ['form, structure, and sense', 'form structure and sense', 'agreement', 'verb', 'tense'],
+  'Linear equations in one variable': ['linear equations in one variable', 'linear equation in one variable'],
+  'Linear functions': ['linear function'],
+  'Linear equations in two variables': ['linear equations in two variables', 'linear equation in two variables'],
+  'Systems of two linear equations in two variables': ['systems of two linear equations', 'system of two linear equations', 'systems of linear equations'],
+  'Linear inequalities in one or two variables': ['linear inequalit', 'inequalit'],
+  'Nonlinear functions': ['nonlinear function'],
+  'Nonlinear equations in one variable': ['nonlinear equation'],
+  'Systems of equations in two variables': ['systems of equations', 'system of equations'],
+  'Equivalent expressions': ['equivalent expression'],
+  'Ratios, rates, proportional relationships, and units': ['ratio', 'rates', 'proportional', 'proportion'],
+  'Percentages': ['percent'],
+  'One-variable data: Distributions and measures of center and spread': ['one-variable data', 'distribution', 'measures of center', 'spread', 'median', 'mean', 'mode'],
+  'Two-variable data: Models and scatterplots': ['two-variable data', 'scatterplot', 'scatter plot'],
+  'Probability and conditional probability': ['probability'],
+  'Inference from sample statistics and margin of error': ['margin of error', 'sample statistics'],
+  'Evaluating statistical claims: Observational studies and experiments': ['statistical claim', 'observational stud', 'experiment'],
+  'Area and volume': ['area', 'volume'],
+  'Lines, angles, and triangles': ['lines, angles', 'angle'],
+  'Right triangles and trigonometry': ['right triangle', 'trigonometry', 'trig'],
+  'Circles': ['circle'],
 }
 
 function domainCandidates(q: DbQuestion): string[] {
@@ -155,6 +179,23 @@ function matchCanonicalDomain(q: DbQuestion): string | null {
   for (const [domain, syns] of Object.entries(DOMAIN_SYNONYMS)) {
     for (const c of cands) {
       if (syns.some((s) => c === s || c.includes(s) || s.includes(c))) return domain
+    }
+  }
+  return null
+}
+
+// Resolve a question to a subdomain, searched only within its own domain so a
+// generic candidate (e.g. "function") can't leak across domains.
+function matchCanonicalSubdomain(q: DbQuestion, domain: string | null): string | null {
+  if (!domain) return null
+  const subs = SUBDOMAINS_BY_DOMAIN[domain]
+  if (!subs) return null
+  const cands = domainCandidates(q).map((c) => c.trim().toLowerCase())
+  if (!cands.length) return null
+  for (const sub of subs) {
+    const syns = SUBDOMAIN_SYNONYMS[sub] ?? [sub.toLowerCase()]
+    for (const c of cands) {
+      if (syns.some((s) => c === s || c.includes(s) || s.includes(c))) return sub
     }
   }
   return null
@@ -815,6 +856,7 @@ export function TestReviewPage() {
         sectionName: sa.section.name,
         status,
         canonicalDomain: canonical,
+        canonicalSubdomain: matchCanonicalSubdomain(tq.question, canonical),
         displayDomain: canonical ?? raw ?? sa.section.name,
         correctText: formatAnswerKeys(tq.question.correctAnswer),
         difficulty: tq.question.difficultyLevel,
@@ -835,6 +877,17 @@ export function TestReviewPage() {
       d.total++;
       if (r.status === 'correct') d.correct++;
       d.diff[r.difficulty] = (d.diff[r.difficulty] ?? 0) + 1;
+    }
+  });
+
+  // Per-subdomain performance, drilled down beneath each domain
+  const subStats: Record<string, { correct: number; total: number }> = {};
+  ALL_SUBDOMAIN_NAMES.forEach((n) => { subStats[n] = { correct: 0, total: 0 }; });
+  reviewRows.forEach((r) => {
+    if (r.canonicalSubdomain && subStats[r.canonicalSubdomain]) {
+      const s = subStats[r.canonicalSubdomain];
+      s.total++;
+      if (r.status === 'correct') s.correct++;
     }
   });
 
@@ -931,7 +984,7 @@ export function TestReviewPage() {
           <h2 className="text-2xl font-bold text-slate-900">Knowledge and Skills</h2>
           <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold"><Info size={15} /> New!</span>
         </div>
-        <p className="text-slate-500 text-sm mb-7">View your performance across the 8 content domains measured on the SAT.</p>
+        <p className="text-slate-500 text-sm mb-7">View your performance across the 8 content domains — and their subdomains — measured on the SAT.</p>
 
         {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
           <div key={group} className="mb-7 last:mb-0">
@@ -953,6 +1006,22 @@ export function TestReviewPage() {
                       Difficulty level:{' '}
                       <span className="text-blue-600 font-semibold border-b border-dotted border-blue-400">{modeDiff(stat.diff)}</span>
                     </p>
+                    {d.subs.length > 0 && (
+                      <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+                        {d.subs.map((sub) => {
+                          const s = subStats[sub] ?? { correct: 0, total: 0 };
+                          const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : null;
+                          return (
+                            <li key={sub} className="flex items-center justify-between gap-3 text-xs">
+                              <span className={s.total > 0 ? 'text-slate-700' : 'text-slate-400'}>{sub}</span>
+                              <span className={`font-semibold tabular-nums whitespace-nowrap ${s.total > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
+                                {s.total > 0 ? `${s.correct}/${s.total} · ${pct}%` : '—'}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </div>
                 );
               })}
