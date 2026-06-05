@@ -22,7 +22,7 @@ interface DbAnswer {
 interface DbQuestion {
   id: string
   type: string
-  content: { text: string; explanation?: string | null }
+  content: { text: string; explanation?: string | null; meta?: { subTopic?: string; skill?: string } }
   options: Record<string, string> | null
   correctAnswer: DbAnswer
   difficultyLevel: string
@@ -494,6 +494,8 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
   
   const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
   const topicLabel = q.topic?.name ?? 'General Review';
+  const subTopicLabel = q.content.meta?.subTopic ?? null;
+  const skillLabel = q.content.meta?.skill ?? null;
 
   const handleToggleBookmark = async () => {
     const nextState = !isBookmarked;
@@ -674,7 +676,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
 
         {showAnalysis && (
           <div className="px-6 pb-6 pt-2 space-y-4 border-t border-slate-100/60 bg-white">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
               <div>
                 <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider block">Domain</span>
                 <span className="text-slate-800 font-bold">{domainLabel}</span>
@@ -683,6 +685,18 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
                 <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider block">Topic</span>
                 <span className="text-slate-800 font-bold">{topicLabel}</span>
               </div>
+              {subTopicLabel && (
+                <div>
+                  <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider block">Subdomain</span>
+                  <span className="text-slate-800 font-bold">{subTopicLabel}</span>
+                </div>
+              )}
+              {skillLabel && (
+                <div>
+                  <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider block">Skill</span>
+                  <span className="text-slate-800 font-bold">{skillLabel}</span>
+                </div>
+              )}
             </div>
 
             {showAiTip && (

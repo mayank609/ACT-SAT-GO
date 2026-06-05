@@ -11,17 +11,18 @@ import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { MathRenderer } from '../../components/admin/MathRenderer';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
-import { ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
+import { ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN, SKILLS_BY_SUBDOMAIN } from '../../data/satDomains';
 
 // Question tagging uses the official SAT blueprint (domain → subdomain) so the
 // tags here line up exactly with the Test Review performance breakdown.
 const TOPICS = ALL_DOMAIN_NAMES;
 const SUB_TOPICS = SUBDOMAINS_BY_DOMAIN;
+const SKILLS = SKILLS_BY_SUBDOMAIN;
 
 function generateId() { return Math.random().toString(36).substr(2, 9); }
 
 function newQuestion(): Question {
-  return { id: generateId(), text: '', type: 'mcq_single', options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }], correctAnswer: 'a', topic: '', difficulty: 'medium', marks: 1, marksNegative: 0, linkedQuestions: [] };
+  return { id: generateId(), text: '', type: 'mcq_single', options: [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }], correctAnswer: 'a', topic: '', subTopic: '', skill: '', difficulty: 'medium', marks: 1, marksNegative: 0, linkedQuestions: [] };
 }
 
 // A single passage-based MCQ to live inside a passage question.
@@ -35,7 +36,7 @@ function newInternalMcq(parentId: string): Question {
 // the Reading and Writing section.
 function newPassageQuestion(): Question {
   const id = generateId();
-  return { id, text: '', type: 'passage', correctAnswer: 'a', topic: '', difficulty: 'medium', marks: 1, marksNegative: 0, linkedQuestions: [newInternalMcq(id)] };
+  return { id, text: '', type: 'passage', correctAnswer: 'a', topic: '', subTopic: '', skill: '', difficulty: 'medium', marks: 1, marksNegative: 0, linkedQuestions: [newInternalMcq(id)] };
 }
 
 // The Reading and Writing section is identified by its name (sections only carry
@@ -246,7 +247,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Domain</label>
-              <select value={question.topic} onChange={(e) => onUpdate({ ...question, topic: e.target.value, subTopic: '' })}
+              <select value={question.topic} onChange={(e) => onUpdate({ ...question, topic: e.target.value, subTopic: '', skill: '' })}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Select domain</option>
                 {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -254,12 +255,18 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Subdomain</label>
-              <select value={question.subTopic ?? ''} onChange={(e) => onUpdate({ ...question, subTopic: e.target.value })}
+              <select value={question.subTopic ?? ''} onChange={(e) => onUpdate({ ...question, subTopic: e.target.value, skill: '' })}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!question.topic || !SUB_TOPICS[question.topic]}>
                 <option value="">Select subdomain</option>
                 {(SUB_TOPICS[question.topic] ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Skill</label>
+              <input type="text" value={question.skill ?? ''} onChange={(e) => onUpdate({ ...question, skill: e.target.value })}
+                placeholder="Enter skill"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
 
@@ -1743,7 +1750,7 @@ export function TestBuilderPage() {
         timeLimit: sec.durationMinutes,
         questions: (sec.questions ?? []).map((tq: any) => {
           const q = tq.question;
-          const content = q.content as { text: string; explanation?: string; meta?: { isPassage?: boolean } };
+          const content = q.content as { text: string; explanation?: string; meta?: { isPassage?: boolean; subTopic?: string; skill?: string } };
           const rawOptions = q.options as Record<string, string> | null;
           const options = rawOptions
             ? Object.entries(rawOptions).map(([k, v]) => ({ id: k.toLowerCase(), text: v as string }))
@@ -1759,7 +1766,7 @@ export function TestBuilderPage() {
           const type = (isPassage ? 'passage' : TYPE_MAP[q.type] ?? 'mcq_single') as QuestionType;
 
           const linkedQuestions = (q.childQuestions ?? []).map((cq: any) => {
-            const cqContent = cq.content as { text: string; explanation?: string };
+            const cqContent = cq.content as { text: string; explanation?: string; meta?: { subTopic?: string; skill?: string } };
             const cqRawOptions = cq.options as Record<string, string> | null;
             const cqOptions = cqRawOptions
               ? Object.entries(cqRawOptions).map(([k, v]) => ({ id: k.toLowerCase(), text: v as string }))
@@ -1779,6 +1786,8 @@ export function TestBuilderPage() {
               correctAnswer: cqCorrectAnswer,
               difficulty: (DIFF_MAP[cq.difficultyLevel] ?? 'medium') as Difficulty,
               topic: cq.topic?.name ?? '',
+              subTopic: cqContent?.meta?.subTopic ?? '',
+              skill: cqContent?.meta?.skill ?? '',
               explanation: cqContent?.explanation ?? undefined,
               parentQuestionId: q.id,
             };
@@ -1792,6 +1801,8 @@ export function TestBuilderPage() {
             correctAnswer,
             difficulty: (DIFF_MAP[q.difficultyLevel] ?? 'medium') as Difficulty,
             topic: q.topic?.name ?? '',
+            subTopic: content?.meta?.subTopic ?? '',
+            skill: content?.meta?.skill ?? '',
             explanation: content?.explanation ?? undefined,
             marks: tq.marksPositive ?? 1,
             marksNegative: tq.marksNegative ?? 0,

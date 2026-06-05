@@ -28,6 +28,7 @@ export interface Question {
   referenceId?: string;
   topic: string;
   subTopic?: string;
+  skill?: string;
   difficulty: Difficulty;
   explanation?: string;
   marks: number;

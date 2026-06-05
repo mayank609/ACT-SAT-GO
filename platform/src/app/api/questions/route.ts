@@ -91,6 +91,8 @@ export async function POST(request: NextRequest) {
     correctAnswer: string | string[] | number
     difficulty: FrontendDifficulty
     topic?: string
+    subTopic?: string
+    skill?: string
     subject?: string
     referenceId?: string
     explanation?: string
@@ -120,7 +122,14 @@ export async function POST(request: NextRequest) {
     const question = await prisma.question.create({
       data: {
         type: dbType,
-        content: { text: body.text, explanation: body.explanation ?? null } as Prisma.InputJsonValue,
+        content: {
+          text: body.text,
+          explanation: body.explanation ?? null,
+          meta: {
+            subTopic: body.subTopic ?? null,
+            skill: body.skill ?? null,
+          }
+        } as Prisma.InputJsonValue,
         options: body.options ? transformOptions(body.options) : Prisma.DbNull,
         correctAnswer: transformCorrectAnswer(body.correctAnswer),
         difficultyLevel: dbDiff,

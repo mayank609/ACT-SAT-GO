@@ -84,6 +84,8 @@ interface FrontendQuestion {
   options?: Array<{ id: string; text: string }>
   correctAnswer: string | string[] | number
   topic?: string
+  subTopic?: string
+  skill?: string
   difficulty: FrontendDifficulty
   explanation?: string
   marks?: number
@@ -177,7 +179,15 @@ export async function POST(request: NextRequest) {
           // Store passage items as MCQ and mark in content.meta.isPassage to avoid Prisma enum errors.
           const isPassage = dbType === 'PASSAGE'
           const writeType = isPassage ? 'MCQ' : dbType
-          const contentJson = { text: q.text, explanation: q.explanation ?? null, meta: isPassage ? { isPassage: true } : undefined } as Prisma.InputJsonValue
+          const contentJson = {
+            text: q.text,
+            explanation: q.explanation ?? null,
+            meta: {
+              ...(isPassage ? { isPassage: true } : {}),
+              subTopic: q.subTopic ?? null,
+              skill: q.skill ?? null,
+            }
+          } as Prisma.InputJsonValue
 
           const newQuestion = await tx.question.create({
             data: {
@@ -195,7 +205,14 @@ export async function POST(request: NextRequest) {
               const childDbType = TYPE_MAP[child.type] || 'MCQ'
               const childDbDiff = DIFF_MAP[child.difficulty] || 'MEDIUM'
               const childTopicId = child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null
-              const childContentJson = { text: child.text, explanation: child.explanation ?? null } as Prisma.InputJsonValue
+              const childContentJson = {
+                text: child.text,
+                explanation: child.explanation ?? null,
+                meta: {
+                  subTopic: child.subTopic ?? null,
+                  skill: child.skill ?? null,
+                }
+              } as Prisma.InputJsonValue
 
               await tx.question.create({
                 data: {

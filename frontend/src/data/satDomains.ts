@@ -41,3 +41,41 @@ export const ALL_SUBDOMAIN_NAMES: string[] = Object.values(SAT_CONTENT).flat().f
 export const SUBDOMAINS_BY_DOMAIN: Record<string, string[]> = Object.fromEntries(
   Object.values(SAT_CONTENT).flat().map((d) => [d.name, d.subs])
 );
+
+/** Subdomain name → its list of key Skills. */
+export const SKILLS_BY_SUBDOMAIN: Record<string, string[]> = {
+  // Reading & Writing
+  'Command of Evidence': ['Textual Evidence', 'Quantitative Evidence'],
+  'Inferences': ['Logical Completion', 'Drawing Conclusions'],
+  'Central Ideas and Details': ['Main Idea Identification', 'Supporting Details'],
+  'Words in Context': ['Vocabulary in Context', 'Word Choice'],
+  'Text Structure and Purpose': ['Structure Analysis', 'Author\'s Purpose'],
+  'Cross-Text Connections': ['Dual Passage Comparison', 'Perspective Synthesis'],
+  'Rhetorical Synthesis': ['Note-taking Synthesis', 'Goal-oriented Revision'],
+  'Transitions': ['Logical Connectives', 'Sentence Transitions'],
+  'Boundaries': ['Punctuation Marks', 'Sentence Structure Rules'],
+  'Form, Structure, and Sense': ['Subject-Verb Agreement', 'Verb Tense & Aspect', 'Pronoun Antecedent Agreement'],
+
+  // Math
+  'Linear equations in one variable': ['Solving Linear Equations', 'Creating Linear Equations'],
+  'Linear functions': ['Interpreting Linear Graphs', 'Determining Slope & Intercepts'],
+  'Linear equations in two variables': ['Formulating Two-Variable Equations', 'Graphing Linear Inequalities'],
+  'Systems of two linear equations in two variables': ['Substitution Method', 'Elimination Method', 'Interpreting System Solutions'],
+  'Linear inequalities in one or two variables': ['Solving Linear Inequalities', 'Systems of Linear Inequalities'],
+  'Nonlinear functions': ['Quadratic Function Properties', 'Exponential Growth & Decay'],
+  'Nonlinear equations in one variable': ['Solving Quadratic Equations', 'Solving Radical/Rational Equations'],
+  'Systems of equations in two variables': ['Nonlinear System Solutions', 'Graphical Intersection'],
+  'Equivalent expressions': ['Factoring Polynomials', 'Simplifying Rational Expressions'],
+  'Ratios, rates, proportional relationships, and units': ['Unit Conversions', 'Ratios & Proportions'],
+  'Percentages': ['Percentage Calculations', 'Percent Increase & Decrease'],
+  'One-variable data: Distributions and measures of center and spread': ['Mean, Median, & Mode', 'Standard Deviation & Range'],
+  'Two-variable data: Models and scatterplots': ['Line of Best Fit', 'Interpreting Scatterplots'],
+  'Probability and conditional probability': ['Simple Probability', 'Conditional Probability'],
+  'Inference from sample statistics and margin of error': ['Margin of Error', 'Sample Representative Analysis'],
+  'Evaluating statistical claims: Observational studies and experiments': ['Experimental Design', 'Observational Studies'],
+  'Area and volume': ['Area of Polygons', 'Volume & Surface Area of Solids'],
+  'Lines, angles, and triangles': ['Congruence & Similarity', 'Angle Theorems'],
+  'Right triangles and trigonometry': ['Pythagorean Theorem', 'Sine, Cosine, & Tangent'],
+  'Circles': ['Arc Length & Sector Area', 'Circle Equation in Coordinate Plane']
+};
+
