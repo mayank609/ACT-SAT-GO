@@ -511,9 +511,10 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      {/* Top Metadata Row */}
-      <div className="bg-slate-50/70 px-6 py-4 flex flex-wrap items-center justify-between border-b border-slate-100 gap-3">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow min-h-[520px] flex flex-col justify-between">
+      <div className="flex-1 flex flex-col">
+        {/* Top Metadata Row */}
+        <div className="bg-slate-50/70 px-6 py-4 flex flex-wrap items-center justify-between border-b border-slate-100 gap-3">
         <div className="flex flex-wrap items-center gap-3">
           {/* Question Local Index */}
           <div className="w-8 h-8 rounded-lg bg-blue-800 text-white font-bold flex items-center justify-center text-sm shadow-sm">
@@ -572,77 +573,145 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
       </div>
 
       {/* Card Content Area */}
-      <div className="p-6 space-y-6">
-        {/* Passage Container */}
-        {parentQuestionText && (
-          <div className="space-y-2 border-b border-slate-100/60 pb-4">
+      {parentQuestionText ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100/80 flex-grow">
+          {/* Left Column: Passage */}
+          <div className="p-6 overflow-y-auto max-h-[500px] space-y-2">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Passage</div>
             <div className="prose prose-slate max-w-none text-slate-800 text-sm leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100">
               <RichContentRenderer content={parentQuestionText} variant="question" className="prose-sm" />
             </div>
           </div>
-        )}
 
-        {/* Question Prompt */}
-        <div className="space-y-2">
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Question</div>
-          <div className="text-slate-800 font-medium text-base">
-            <RichContentRenderer content={q.content.text || `Question ${localIndex}`} variant="question" className="prose-sm" />
+          {/* Right Column: Question + Options */}
+          <div className="p-6 overflow-y-auto max-h-[500px] space-y-6">
+            {/* Question Prompt */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Question</div>
+              <div className="text-slate-800 font-medium text-base">
+                <RichContentRenderer content={q.content.text || `Question ${localIndex}`} variant="question" className="prose-sm" />
+              </div>
+            </div>
+
+            {/* Options / Answer Input Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Options</span>
+                <button
+                  onClick={() => setShowAnswer(!showAnswer)}
+                  className="text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-md shadow-sm transition-colors"
+                >
+                  {showAnswer ? 'Hide Answer' : 'Show Answer'}
+                </button>
+              </div>
+
+              {options.length > 0 ? (
+                <div className="space-y-2">
+                  {options.map((opt) => {
+                    const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                    const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                    return (
+                      <OptionRenderer
+                        key={opt.id}
+                        label={opt.id.toUpperCase()}
+                        text={opt.text}
+                        isSelected={isUserAnswer}
+                        isCorrect={isCorrectOption}
+                        isIncorrect={isUserAnswer && !isCorrectOption}
+                        showFeedback={showAnswer}
+                        colorTheme="blue"
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                q.type === 'NUMERIC' && (
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
+                    <div className="text-sm">
+                      <span className="text-slate-500 font-medium">Your answer: </span>
+                      <span className={`font-bold ${showAnswer ? (correct ? 'text-blue-600' : 'text-blue-400') : 'text-slate-800'}`}>
+                        {studentAnswer?.answerGiven?.value ?? '—'}
+                      </span>
+                    </div>
+                    {showAnswer && (
+                      <div className="text-sm">
+                        <span className="text-slate-500 font-medium">Correct answer: </span>
+                        <span className="font-bold text-blue-600">
+                          {q.correctAnswer.value}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Options / Answer Input Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Options</span>
-            <button
-              onClick={() => setShowAnswer(!showAnswer)}
-              className="text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-md shadow-sm transition-colors"
-            >
-              {showAnswer ? 'Hide Answer' : 'Show Answer'}
-            </button>
+      ) : (
+        /* Standard layout (without passage) */
+        <div className="p-6 space-y-6 flex-grow">
+          {/* Question Prompt */}
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Question</div>
+            <div className="text-slate-800 font-medium text-base">
+              <RichContentRenderer content={q.content.text || `Question ${localIndex}`} variant="question" className="prose-sm" />
+            </div>
           </div>
 
-          {options.length > 0 ? (
-            <div className="space-y-2">
-              {options.map((opt) => {
-                const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
-                const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
-                return (
-                  <OptionRenderer
-                    key={opt.id}
-                    label={opt.id.toUpperCase()}
-                    text={opt.text}
-                    isSelected={isUserAnswer}
-                    isCorrect={isCorrectOption}
-                    isIncorrect={isUserAnswer && !isCorrectOption}
-                    showFeedback={showAnswer}
-                    colorTheme="blue"
-                  />
-                );
-              })}
+          {/* Options / Answer Input Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Options</span>
+              <button
+                onClick={() => setShowAnswer(!showAnswer)}
+                className="text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-md shadow-sm transition-colors"
+              >
+                {showAnswer ? 'Hide Answer' : 'Show Answer'}
+              </button>
             </div>
-          ) : (
-            q.type === 'NUMERIC' && (
-              <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
-                <div className="text-sm">
-                  <span className="text-slate-500 font-medium">Your answer: </span>
-                  <span className={`font-bold ${showAnswer ? (correct ? 'text-blue-600' : 'text-blue-400') : 'text-slate-800'}`}>
-                    {studentAnswer?.answerGiven?.value ?? '—'}
-                  </span>
-                </div>
-                {showAnswer && (
+
+            {options.length > 0 ? (
+              <div className="space-y-2">
+                {options.map((opt) => {
+                  const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                  const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                  return (
+                    <OptionRenderer
+                      key={opt.id}
+                      label={opt.id.toUpperCase()}
+                      text={opt.text}
+                      isSelected={isUserAnswer}
+                      isCorrect={isCorrectOption}
+                      isIncorrect={isUserAnswer && !isCorrectOption}
+                      showFeedback={showAnswer}
+                      colorTheme="blue"
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              q.type === 'NUMERIC' && (
+                <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
                   <div className="text-sm">
-                    <span className="text-slate-500 font-medium">Correct answer: </span>
-                    <span className="font-bold text-blue-600">
-                      {q.correctAnswer.value}
+                    <span className="text-slate-500 font-medium">Your answer: </span>
+                    <span className={`font-bold ${showAnswer ? (correct ? 'text-blue-600' : 'text-blue-400') : 'text-slate-800'}`}>
+                      {studentAnswer?.answerGiven?.value ?? '—'}
                     </span>
                   </div>
-                )}
-              </div>
-            )
-          )}
+                  {showAnswer && (
+                    <div className="text-sm">
+                      <span className="text-slate-500 font-medium">Correct answer: </span>
+                      <span className="font-bold text-blue-600">
+                        {q.correctAnswer.value}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+          </div>
         </div>
+      )}
       </div>
 
       {/* Expandable Analysis Footer */}
