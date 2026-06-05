@@ -11,13 +11,12 @@ import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { MathRenderer } from '../../components/admin/MathRenderer';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
-import { ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN, SKILLS_BY_SUBDOMAIN } from '../../data/satDomains';
+import { ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 
 // Question tagging uses the official SAT blueprint (domain → subdomain) so the
 // tags here line up exactly with the Test Review performance breakdown.
 const TOPICS = ALL_DOMAIN_NAMES;
 const SUB_TOPICS = SUBDOMAINS_BY_DOMAIN;
-const SKILLS = SKILLS_BY_SUBDOMAIN;
 
 function generateId() { return Math.random().toString(36).substr(2, 9); }
 
