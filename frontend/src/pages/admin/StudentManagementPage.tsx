@@ -112,6 +112,10 @@ function computeTestAnalysis(attempt: TaAttempt): {
   rwTotal: number;
   mathCorrect: number;
   mathTotal: number;
+  isSAT: boolean;
+  finalScaledScore: number;
+  rwScaled: number;
+  mathScaled: number;
 } {
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
@@ -165,7 +169,51 @@ function computeTestAnalysis(attempt: TaAttempt): {
     return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
   });
 
-  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal };
+  // Calculate final scaled score directly instead of raw score for SAT
+  let rw1 = 0, rw2 = 0, math1 = 0, math2 = 0;
+  let isSAT = false;
+
+  sections.forEach((s) => {
+    const isMath = /math/i.test(s.name);
+    const isRW = /reading|writing|rw/i.test(s.name);
+    if (isMath || isRW) isSAT = true;
+    
+    if (isMath) {
+      if (/1|one/i.test(s.name)) math1 += s.correct;
+      else if (/2|two/i.test(s.name)) math2 += s.correct;
+      else math1 += s.correct; // Fallback
+    } else if (isRW) {
+      if (/1|one/i.test(s.name)) rw1 += s.correct;
+      else if (/2|two/i.test(s.name)) rw2 += s.correct;
+      else rw1 += s.correct; // Fallback
+    }
+  });
+
+  let finalScaledScore = totalCorrect;
+  let rwScaled = 0;
+  let mathScaled = 0;
+  if (isSAT) {
+    rwScaled = 200;
+    mathScaled = 200;
+
+    if (rw1 >= 18) {
+      rwScaled = 400 + Math.round(((rw1 + rw2) / 54) * 400 / 10) * 10;
+    } else {
+      rwScaled = 200 + Math.round(((rw1 + rw2) / 54) * 450 / 10) * 10;
+    }
+    
+    if (math1 >= 14) {
+      mathScaled = 420 + Math.round(((math1 + math2) / 44) * 380 / 10) * 10;
+    } else {
+      mathScaled = 200 + Math.round(((math1 + math2) / 44) * 450 / 10) * 10;
+    }
+
+    rwScaled = Math.min(800, Math.max(200, rwScaled));
+    mathScaled = Math.min(800, Math.max(200, mathScaled));
+    finalScaledScore = rwScaled + mathScaled;
+  }
+
+  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, isSAT, finalScaledScore, rwScaled, mathScaled };
 }
 
 type AnalyticsData = {
@@ -860,30 +908,30 @@ export function StudentManagementPage() {
             const status = testAnalysisStatus[selectedAttemptId] ?? 'not_submitted';
 
             return (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {/* Header Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm">
+                <div className="bg-white rounded-xl border border-slate-200 py-3 px-4 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="relative flex-shrink-0">
-                      <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-semibold text-lg border border-blue-100">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-semibold text-base border border-blue-100">
                         {students.find(s => s.id === selectedStudentId)?.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
-                        <CheckCircle size={10} className="text-white" />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                        <CheckCircle size={8} className="text-white" />
                       </div>
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-base font-bold text-slate-900">{testAnalysisAttempt.test.title}</h3>
+                        <h3 className="text-sm font-bold text-slate-900">{testAnalysisAttempt.test.title}</h3>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">Student: <span className="font-semibold text-slate-700">{students.find(s => s.id === selectedStudentId)?.name}</span></p>
-                      <p className="text-xs text-slate-400 mt-0.5">Completed on {completedDate}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Student: <span className="font-semibold text-slate-700">{students.find(s => s.id === selectedStudentId)?.name}</span></p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Completed on {completedDate}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); toast.success('Reset functionality coming soon'); }}
-                      className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-sm"
+                      className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-sm"
                     >
                       Reset
                     </button>
@@ -896,7 +944,7 @@ export function StudentManagementPage() {
                         }));
                         toast.success(status === 'submitted' ? 'Marked as not submitted' : 'Marked as submitted');
                       }}
-                      className={`px-4 py-2 text-xs font-semibold text-white rounded-md transition-colors shadow-sm ${
+                      className={`px-3 py-1.5 text-xs font-semibold text-white rounded-md transition-colors shadow-sm ${
                         status === 'submitted'
                           ? 'bg-emerald-600 hover:bg-emerald-700'
                           : 'bg-blue-800 hover:bg-blue-900'
@@ -904,74 +952,78 @@ export function StudentManagementPage() {
                     >
                       {status === 'submitted' ? 'Analysis Submitted' : 'Analysis not Submitted'}
                     </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigate(`/test-review/${selectedAttemptId}`); }}
-                      className="px-4 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-md transition-colors shadow-sm"
-                    >
-                      View scaled Score
-                    </button>
                   </div>
                 </div>
 
                 {/* Overall Score */}
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">Overall Score</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="p-5 border-b sm:border-b-0 sm:border-r border-slate-200">
-                      <p className="text-3xl font-bold text-blue-600">
+                  <h4 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">Overall Score</h4>
+                  <div className={`grid grid-cols-1 ${analysis.isSAT ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm`}>
+                    {analysis.isSAT && (
+                      <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200 bg-blue-50/50">
+                        <p className="text-2xl font-bold text-blue-700">
+                          {analysis.finalScaledScore} <span className="text-xs text-slate-400 font-normal">/ 1600</span>
+                        </p>
+                        <p className="text-xs text-blue-600 mt-0.5 font-bold">Estimated Scaled Score</p>
+                      </div>
+                    )}
+                    <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200">
+                      <p className="text-2xl font-bold text-blue-600">
                         {analysis.totalCorrect} / {analysis.totalQuestions}
                       </p>
-                      <p className="text-sm text-blue-500 mt-1 font-medium">Total Questions</p>
+                      <p className="text-xs text-blue-500 mt-0.5 font-medium">Total Questions</p>
                     </div>
-                    <div className="p-5 border-b sm:border-b-0 sm:border-r border-slate-200">
-                      <p className="text-3xl font-bold text-slate-800">
+                    <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200">
+                      <p className="text-2xl font-bold text-slate-800">
                         {analysis.rwCorrect} / {analysis.rwTotal}
+                        {analysis.isSAT && <span className="text-xs text-slate-400 font-normal ml-1.5">({analysis.rwScaled} pts)</span>}
                       </p>
-                      <p className="text-sm text-slate-500 mt-1 font-medium">Reading and Writing</p>
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium">Reading and Writing</p>
                     </div>
-                    <div className="p-5">
-                      <p className="text-3xl font-bold text-slate-800">
+                    <div className="py-3 px-4">
+                      <p className="text-2xl font-bold text-slate-800">
                         {analysis.mathCorrect} / {analysis.mathTotal}
+                        {analysis.isSAT && <span className="text-xs text-slate-400 font-normal ml-1.5">({analysis.mathScaled} pts)</span>}
                       </p>
-                      <p className="text-sm text-slate-500 mt-1 font-medium">Math</p>
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium">Math</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Section Overview */}
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">Section Overview</h4>
-                  <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">Section Overview</h4>
+                  <div className="space-y-2">
                     {analysis.sections.map((sec, si) => (
-                      <div key={si} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:border-blue-100 transition-colors">
-                        <div className="flex items-center gap-2 mb-3 flex-wrap">
-                          <h5 className="text-sm font-bold text-blue-800">{sec.name}</h5>
-                          <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                      <div key={si} className="bg-white rounded-xl border border-slate-200 py-3 px-4 shadow-sm hover:border-blue-100 transition-colors">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <h5 className="text-xs font-bold text-blue-800">{sec.name}</h5>
+                          <span className="text-[9px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
                             {sec.category}
                           </span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                             <span className="text-emerald-700 font-semibold">{sec.correct} Correct</span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-red-500"></span>
                             <span className="text-red-600 font-semibold">{sec.incorrect} Incorrect</span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-slate-300"></span>
                             <span>{sec.omitted} Omitted</span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-200"></span>
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-blue-200"></span>
                             <span>{sec.unvisited} Unvisited</span>
                           </div>
-                          <div className="text-slate-400 font-light">|</div>
+                          <div className="text-slate-300 font-light">|</div>
                           <div className="font-semibold text-slate-800">{sec.total} Questions</div>
-                          <div className="text-slate-400 font-light">|</div>
+                          <div className="text-slate-300 font-light">|</div>
                           <div className="font-bold text-blue-600">{sec.accuracy.toFixed(2)}% Accuracy</div>
-                          <div className="text-slate-400 font-light">|</div>
+                          <div className="text-slate-300 font-light">|</div>
                           <div className="text-slate-500 italic">{sec.timeTaken}</div>
                         </div>
                       </div>
