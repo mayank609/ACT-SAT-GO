@@ -54,6 +54,42 @@ function newSection(): Section {
   return { id: generateId(), name: 'New Section', timeLimit: 45, questions: [newQuestion()] };
 }
 
+// An empty module/section (no starter question, default 45 min).
+function emptyModule(name: string): Section {
+  return { id: generateId(), name, timeLimit: 45, questions: [] };
+}
+
+// Each test type dictates its own fixed module structure. Modules are auto-built
+// up front but remain editable afterwards.
+function buildSectionsForType(category: string, subject?: string): Section[] {
+  switch (category) {
+    case 'Mock':
+      return [
+        emptyModule('Reading Writing Module 1'),
+        emptyModule('Reading Writing Module 2'),
+        emptyModule('Math Module 1'),
+        emptyModule('Math Module 2'),
+      ];
+    case 'Sectional':
+      return subject === 'Math'
+        ? [emptyModule('Math Module 1'), emptyModule('Math Module 2')]
+        : [emptyModule('Reading Writing Module 1'), emptyModule('Reading Writing Module 2')];
+    case 'Practice Sheet':
+      return [emptyModule(`${subject ?? 'Practice'} Practice`)];
+    default: // Diagnostic / free-form
+      return [newSection()];
+  }
+}
+
+// Subject options per test type.
+const SECTIONAL_SUBJECTS = ['Reading & Writing', 'Math'];
+const PRACTICE_SUBJECTS = ['Math', 'Reading', 'Writing'];
+const ASSIGNMENT_TYPES = [
+  { key: 'Homework',  label: 'Homework',  emoji: '📚' },
+  { key: 'Classwork', label: 'Classwork', emoji: '🏫' },
+  { key: 'General',   label: 'General',   emoji: '📊' },
+];
+
 interface QuestionEditorProps {
   question: Question;
   index: number;
@@ -1643,8 +1679,11 @@ export function TestBuilderPage() {
     publishStatus: 'draft' as TestStatus,
     category: '',
     subCategory: '',
-    assignmentType: '', // for Practice Sheet: Homework | Classwork | Overall
+    assignmentType: '', // for Practice Sheet: Homework | Classwork | General
   });
+
+  // For new tests, the admin must pick a test type first; this gates the builder.
+  const [typeSelected, setTypeSelected] = useState(false);
 
   const activeSection = sections[activeSectionIdx];
 
@@ -1675,6 +1714,7 @@ export function TestBuilderPage() {
     if (!testId) return;
 
     setEditTestId(testId);
+    setTypeSelected(true); // editing an existing test skips the type-picker gate
     setIsLoadingEdit(true);
 
     api.getTest(testId).then((data: any) => {
@@ -1796,6 +1836,28 @@ export function TestBuilderPage() {
   const addSection = () => { setSections((prev) => [...prev, newSection()]); setActiveSectionIdx(sections.length); };
   const deleteSection = (idx: number) => { setSections((prev) => prev.filter((_, i) => i !== idx)); setActiveSectionIdx(Math.max(0, idx - 1)); };
 
+  // Confirm the chosen test type: build its module structure and open the builder.
+  const startBuilding = () => {
+    setSections(buildSectionsForType(testSettings.category, testSettings.subCategory));
+    setActiveSectionIdx(0);
+    setTypeSelected(true);
+  };
+
+  // Whether the current gate selection is complete enough to start building.
+  const gateReady = (() => {
+    switch (testSettings.category) {
+      case 'Mock':
+      case 'Diagnostic':
+        return true;
+      case 'Sectional':
+        return !!testSettings.subCategory;
+      case 'Practice Sheet':
+        return !!testSettings.subCategory && !!testSettings.assignmentType;
+      default:
+        return false;
+    }
+  })();
+
   const totalQ = sections.reduce((a, s) => a + s.questions.length, 0);
   const totalTime = sections.reduce((a, s) => a + s.timeLimit, 0);
   const hasUntimedSection = sections.some(s => s.timeLimit === 0);
@@ -1864,6 +1926,84 @@ export function TestBuilderPage() {
       <div className="flex items-center justify-center h-64 gap-3 text-slate-500">
         <Loader2 size={20} className="animate-spin" />
         <span>Loading test for editing…</span>
+      </div>
+    );
+  }
+
+  // ── Step 1: choose the test type (new tests only) ──────────────────────────
+  if (!typeSelected) {
+    const TYPE_OPTIONS = [
+      { key: 'Mock',           label: 'Mock Test',      desc: 'Full composite — Reading & Writing + Math, 2 modules each.', color: 'border-blue-400 bg-blue-50 text-blue-800' },
+      { key: 'Sectional',      label: 'Sectional',      desc: 'One subject, delivered as 2 modules.',                       color: 'border-emerald-400 bg-emerald-50 text-emerald-800' },
+      { key: 'Practice Sheet', label: 'Practice Sheet', desc: 'Single drill for one subject — Homework / Classwork / General.', color: 'border-purple-400 bg-purple-50 text-purple-800' },
+      { key: 'Diagnostic',     label: 'Diagnostic',     desc: 'Free-form structure — build sections yourself.',             color: 'border-amber-400 bg-amber-50 text-amber-800' },
+    ];
+    const pickCategory = (key: string) =>
+      setTestSettings((prev) => ({ ...prev, category: key, subCategory: '', assignmentType: '' }));
+
+    return (
+      <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
+        <Toaster position="bottom-right" />
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">New Test</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Choose the type of test you want to build. This sets up its module structure.</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {TYPE_OPTIONS.map((t) => (
+            <button key={t.key} type="button" onClick={() => pickCategory(t.key)}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${testSettings.category === t.key ? t.color : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+              <p className="text-sm font-bold">{t.label}</p>
+              <p className={`text-xs mt-1 ${testSettings.category === t.key ? '' : 'text-slate-400'}`}>{t.desc}</p>
+            </button>
+          ))}
+        </div>
+
+        {/* Sectional → subject */}
+        {testSettings.category === 'Sectional' && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
+            <div className="flex flex-wrap gap-2">
+              {SECTIONAL_SUBJECTS.map((s) => (
+                <button key={s} type="button" onClick={() => setTestSettings((prev) => ({ ...prev, subCategory: s }))}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.subCategory === s ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-200 text-slate-600 hover:border-emerald-400'}`}
+                >{s}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Practice Sheet → subject + assignment type */}
+        {testSettings.category === 'Practice Sheet' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
+              <div className="flex flex-wrap gap-2">
+                {PRACTICE_SUBJECTS.map((s) => (
+                  <button key={s} type="button" onClick={() => setTestSettings((prev) => ({ ...prev, subCategory: s }))}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.subCategory === s ? 'bg-purple-600 border-purple-600 text-white' : 'border-slate-200 text-slate-600 hover:border-purple-400'}`}
+                  >{s}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Assign As</label>
+              <div className="flex flex-wrap gap-2">
+                {ASSIGNMENT_TYPES.map((a) => (
+                  <button key={a.key} type="button" onClick={() => setTestSettings((prev) => ({ ...prev, assignmentType: a.key }))}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.assignmentType === a.key ? 'bg-slate-800 border-slate-800 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-400'}`}
+                  >{a.emoji} {a.label}</button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="flex justify-end pt-2">
+          <Button onClick={startBuilding} disabled={!gateReady} icon={<Plus size={15} />}>
+            Start building
+          </Button>
+        </div>
       </div>
     );
   }
@@ -2268,7 +2408,7 @@ export function TestBuilderPage() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
               <div className="flex flex-wrap gap-2">
-                {['English', 'Math', 'Reading', 'Science'].map((s) => (
+                {SECTIONAL_SUBJECTS.map((s) => (
                   <button key={s} type="button"
                     onClick={() => setTestSettings((prev) => ({ ...prev, subCategory: s }))}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.subCategory === s ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-200 text-slate-600 hover:border-emerald-400'}`}
@@ -2284,7 +2424,7 @@ export function TestBuilderPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
                 <div className="flex gap-2">
-                  {['Math', 'Reading', 'Writing'].map((s) => (
+                  {PRACTICE_SUBJECTS.map((s) => (
                     <button key={s} type="button"
                       onClick={() => setTestSettings((prev) => ({ ...prev, subCategory: s }))}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.subCategory === s ? 'bg-purple-600 border-purple-600 text-white' : 'border-slate-200 text-slate-600 hover:border-purple-400'}`}
@@ -2295,11 +2435,7 @@ export function TestBuilderPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Assign As</label>
                 <div className="flex gap-2">
-                  {[
-                    { key: 'Homework',  label: 'Homework',  emoji: '📚' },
-                    { key: 'Classwork', label: 'Classwork', emoji: '🏫' },
-                    { key: 'Overall',   label: 'Overall',   emoji: '📊' },
-                  ].map((a) => (
+                  {ASSIGNMENT_TYPES.map((a) => (
                     <button key={a.key} type="button"
                       onClick={() => setTestSettings((prev) => ({ ...prev, assignmentType: a.key }))}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${testSettings.assignmentType === a.key ? 'bg-slate-800 border-slate-800 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-400'}`}
