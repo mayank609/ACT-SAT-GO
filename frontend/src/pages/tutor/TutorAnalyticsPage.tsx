@@ -173,13 +173,23 @@ function computeTestAnalysis(attempt: TaAttempt): {
   mathTotal: number;
   finalScaledScore: number;
 } {
+  console.log('[DEBUG] computeTestAnalysis called with attempt:', attempt);
+  console.log('[DEBUG] Total answers in attempt:', attempt.answers.length);
+  console.log('[DEBUG] Sample answers:', attempt.answers.slice(0, 3).map(a => ({ id: a.questionId, answered: !!a.answerGiven })));
+  
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
+  console.log('[DEBUG] AnswersMap size:', answersMap.size);
+  
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+  console.log('[DEBUG] Sorted sections count:', sortedSections.length);
 
   let totalCorrect = 0, totalQuestions = 0;
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
 
-  const sections: SectionAnalysis[] = sortedSections.map(sa => {
+  const sections: SectionAnalysis[] = sortedSections.map((sa, sectionIdx) => {
+    console.log(`[DEBUG] Processing section ${sectionIdx}: "${sa.section.name}"`);
+    console.log(`[DEBUG]   Section has ${sa.section.questions?.length || 0} questions`);
+    
     // Flatten questions to handle PASSAGE questions
     const flatQs: any[] = [];
     for (const tq of (sa.section.questions || [])) {
@@ -204,28 +214,36 @@ function computeTestAnalysis(attempt: TaAttempt): {
       }
     }
 
+    console.log(`[DEBUG]   Flattened to ${flatQs.length} questions`);
+    console.log(`[DEBUG]   Sample question IDs:`, flatQs.slice(0, 2).map(q => q.questionId));
+
     let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
-    flatQs.forEach(tq => {
+    flatQs.forEach((tq, qIdx) => {
       const ans = answersMap.get(tq.questionId);
       if (!ans) { 
         unvisited++; 
         omitted++; 
+        console.log(`[DEBUG]     Q${qIdx + 1}: No answer found for question ${tq.questionId}`);
         return; 
       }
       if (!ans.answerGiven) { 
         omitted++; 
+        console.log(`[DEBUG]     Q${qIdx + 1}: Answer skipped`);
         return; 
       }
       // Check if answer is actually correct
       if (isAnswerCorrect(ans.answerGiven, tq.correctAnswer)) {
         correct++;
+        console.log(`[DEBUG]     Q${qIdx + 1}: ✓ Correct`);
       } else {
         incorrect++;
+        console.log(`[DEBUG]     Q${qIdx + 1}: ✗ Incorrect`);
       }
     });
 
     const total = flatQs.length;
     const accuracy = total > 0 ? (correct / total) * 100 : 0;
+    console.log(`[DEBUG]   Section result: ${correct}/${total} correct (${Math.round(accuracy)}%)`);
 
     let timeTaken = '—';
     if (sa.startedAt && sa.completedAt) {
@@ -249,6 +267,7 @@ function computeTestAnalysis(attempt: TaAttempt): {
 
   // Simplified scaled score calculation
   const finalScaledScore = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+  console.log('[DEBUG] Final result: totalCorrect=' + totalCorrect + ', totalQuestions=' + totalQuestions + ', finalScaledScore=' + finalScaledScore);
 
   return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, finalScaledScore };
 }
@@ -356,9 +375,18 @@ export function TutorAnalyticsPage() {
     setExpandedLoading(true);
     api.getAttempt(selectedAttemptId)
       .then((data) => {
-        setExpandedAttempt((data as any).attempt as TaAttempt);
+        const attempt = (data as any).attempt as TaAttempt;
+        console.log('[DEBUG] Fetched attempt data:', {
+          id: attempt.id,
+          testTitle: attempt.test.title,
+          sectionCount: attempt.sectionAttempts.length,
+          answerCount: attempt.answers.length,
+          firstSectionQuestions: attempt.sectionAttempts[0]?.section.questions?.length || 0,
+        });
+        setExpandedAttempt(attempt);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[DEBUG] Failed to fetch attempt:', err);
         setExpandedAttempt(null);
       })
       .finally(() => setExpandedLoading(false));
