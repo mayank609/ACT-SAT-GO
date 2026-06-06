@@ -427,11 +427,14 @@ export function StudentManagementPage() {
             rawScoreTotal = latestAttempt?.totalScore || null;
             
             // Look for diagnostics test
-            const diagnosticsAttempt = studentAttempts.find((a: any) => 
+            const diagnosticsAttemptBasic = studentAttempts.find((a: any) => 
               a.test?.title?.toLowerCase().includes('diagnostic')
             );
-            if (diagnosticsAttempt) {
+            if (diagnosticsAttemptBasic) {
               try {
+                // Fetch full attempt data for analysis
+                const fullAttemptResp = await api.getAttempt(diagnosticsAttemptBasic.id);
+                const diagnosticsAttempt = fullAttemptResp.attempt as TaAttempt;
                 const analysis = computeTestAnalysis(diagnosticsAttempt);
                 diagnosticsEnglish = analysis.rwScaled;
                 diagnosticsMath = analysis.mathScaled;
@@ -440,11 +443,11 @@ export function StudentManagementPage() {
                 scaledScoreMath = analysis.mathScaled;
               } catch (e) {
                 console.error("Error computing analysis for diagnosticsAttempt:", e);
-                diagnosticsEnglish = diagnosticsAttempt.totalScore;
-                diagnosticsMath = diagnosticsAttempt.totalScore;
-                scaledScoreTotal = diagnosticsAttempt.totalScore;
-                scaledScoreEnglish = diagnosticsAttempt.totalScore;
-                scaledScoreMath = diagnosticsAttempt.totalScore;
+                diagnosticsEnglish = diagnosticsAttemptBasic.totalScore;
+                diagnosticsMath = diagnosticsAttemptBasic.totalScore;
+                scaledScoreTotal = diagnosticsAttemptBasic.totalScore;
+                scaledScoreEnglish = diagnosticsAttemptBasic.totalScore;
+                scaledScoreMath = diagnosticsAttemptBasic.totalScore;
               }
             }
           }
@@ -1182,7 +1185,7 @@ export function StudentManagementPage() {
                     const correctAnswerDisplay = taAnswerToDisplay(currentTq.question.correctAnswer);
 
                     return (
-                      <div className="flex flex-col h-full gap-4">
+                      <div className="flex flex-col gap-4 h-[600px]">
                         {/* Counter */}
                         <div className="flex items-center justify-between text-sm flex-shrink-0">
                           <div className="font-bold text-slate-700">
@@ -1199,7 +1202,7 @@ export function StudentManagementPage() {
                         </div>
 
                         {/* Scrollable Question Card Container */}
-                        <div className="overflow-y-auto h-[480px] flex-1 border-2 rounded-lg bg-white" style={{ borderColor: correct ? '#BFDBFE' : skipped ? '#E2E8F0' : '#E0F2FE' }}>
+                        <div className="overflow-y-auto flex-1 border-2 rounded-lg bg-white" style={{ borderColor: correct ? '#BFDBFE' : skipped ? '#E2E8F0' : '#E0F2FE' }}>
                           <div className={`p-4 flex items-start gap-3 sticky top-0 z-10 ${correct ? 'bg-blue-50/55' : skipped ? 'bg-slate-50' : 'bg-sky-50/40'}`}>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-blue-600' : skipped ? 'bg-slate-400' : 'bg-blue-400'}`}>

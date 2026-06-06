@@ -65,7 +65,21 @@ export async function GET(
       },
     })
     if (!attempt) return NextResponse.json({ error: 'Attempt not found' }, { status: 404 })
-    return NextResponse.json({ attempt })
+    
+    // If sectionAttempts is empty, create synthetic ones from test.sections
+    let sectionAttempts = attempt.sectionAttempts
+    if (sectionAttempts.length === 0 && attempt.test?.sections) {
+      sectionAttempts = attempt.test.sections.map(section => ({
+        id: `synthetic-${section.id}`,
+        attemptId: attempt.id,
+        sectionId: section.id,
+        startedAt: attempt.startedAt,
+        completedAt: attempt.completedAt || attempt.startedAt,
+        section: section,
+      })) as any
+    }
+    
+    return NextResponse.json({ attempt: { ...attempt, sectionAttempts } })
   } catch (error) {
     console.error('GET /api/attempts/[attemptId]:', error)
     return NextResponse.json({ error: 'Failed to fetch attempt' }, { status: 500 })
