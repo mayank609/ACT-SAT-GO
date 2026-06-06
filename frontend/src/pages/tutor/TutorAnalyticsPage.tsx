@@ -71,9 +71,18 @@ interface TaAttempt {
         question: {
           id: string;
           type: string;
-          content: { text: string };
+          content: { text: string; meta?: { isPassage?: boolean } };
           correctAnswer: { key?: string; keys?: string[]; value?: number };
-          childQuestions?: any[];
+          difficultyLevel?: string;
+          childQuestions?: Array<{
+            id: string;
+            type: string;
+            content: { text: string };
+            correctAnswer: { key?: string; keys?: string[]; value?: number };
+            difficultyLevel?: string;
+            topic?: { name: string };
+          }>;
+          topic?: { name: string };
         };
       }>;
     };
@@ -85,6 +94,35 @@ interface TaAttempt {
     timeSpentSeconds: number;
     isFlagged: boolean;
   }>;
+}
+
+// Helper function to check if an answer is correct
+function isAnswerCorrect(given: unknown, correct: unknown): boolean {
+  if (!given || !correct) return false;
+  const g = given as { key?: string; keys?: string[]; value?: number };
+  const c = correct as { key?: string; keys?: string[]; value?: number };
+
+  // Numeric answers
+  if (c.value !== undefined) {
+    if (g.value === undefined) return false;
+    return Number(g.value) === Number(c.value) || String(g.value).trim() === String(c.value).trim();
+  }
+
+  // Multiple Select Questions (MSQ)
+  if (Array.isArray(c.keys)) {
+    if (!Array.isArray(g.keys)) return false;
+    const gKeys = g.keys.map((k) => String(k).toUpperCase().trim()).sort();
+    const cKeys = c.keys.map((k) => String(k).toUpperCase().trim()).sort();
+    return JSON.stringify(gKeys) === JSON.stringify(cKeys);
+  }
+
+  // Multiple Choice Questions (MCQ)
+  if (c.key !== undefined) {
+    if (g.key === undefined) return false;
+    return String(g.key).toUpperCase().trim() === String(c.key).toUpperCase().trim();
+  }
+
+  return false;
 }
 
 function deriveTopicPerformance(pacingStats: PacingStat[]) {
@@ -142,14 +180,48 @@ function computeTestAnalysis(attempt: TaAttempt): {
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
 
   const sections: SectionAnalysis[] = sortedSections.map(sa => {
-    const flatQs = sa.section.questions;
+    // Flatten questions to handle PASSAGE questions
+    const flatQs: any[] = [];
+    for (const tq of (sa.section.questions || [])) {
+      const q = tq.question;
+      const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+      if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+        for (const cq of q.childQuestions) {
+          flatQs.push({
+            id: cq.id,
+            questionId: cq.id,
+            question: cq,
+            correctAnswer: cq.correctAnswer,
+          });
+        }
+      } else {
+        flatQs.push({
+          id: q.id,
+          questionId: q.id,
+          question: q,
+          correctAnswer: q.correctAnswer,
+        });
+      }
+    }
 
     let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
     flatQs.forEach(tq => {
       const ans = answersMap.get(tq.questionId);
-      if (!ans) { unvisited++; omitted++; return; }
-      if (!ans.answerGiven) { omitted++; return; }
-      correct++;
+      if (!ans) { 
+        unvisited++; 
+        omitted++; 
+        return; 
+      }
+      if (!ans.answerGiven) { 
+        omitted++; 
+        return; 
+      }
+      // Check if answer is actually correct
+      if (isAnswerCorrect(ans.answerGiven, tq.correctAnswer)) {
+        correct++;
+      } else {
+        incorrect++;
+      }
     });
 
     const total = flatQs.length;
