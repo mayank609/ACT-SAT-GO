@@ -42,25 +42,19 @@ async function main() {
   console.log('✓ Users & assignments')
 
   // ── Topics ────────────────────────────────────────────────────────────────
-  const tMath    = await prisma.topic.create({ data: { name: 'Mathematics' } })
-  const tEng     = await prisma.topic.create({ data: { name: 'English' } })
-  const tRead    = await prisma.topic.create({ data: { name: 'Reading' } })
-  const tSci     = await prisma.topic.create({ data: { name: 'Science' } })
-
-  const [algebra, geometry, trig, stats, grammar, rhetoric, inference, mainIdea, dataInterp, sciReason] =
+  // SAT Domain names (the official College Board blueprint)
+  const [algebra, advMath, probSolvData, geomTrig, infoIdeas, craftStruct, exprIdeas, stdEngConv] =
     await Promise.all([
-      prisma.topic.create({ data: { name: 'Algebra',               parentId: tMath.id } }),
-      prisma.topic.create({ data: { name: 'Geometry',              parentId: tMath.id } }),
-      prisma.topic.create({ data: { name: 'Trigonometry',          parentId: tMath.id } }),
-      prisma.topic.create({ data: { name: 'Statistics',            parentId: tMath.id } }),
-      prisma.topic.create({ data: { name: 'Grammar & Usage',       parentId: tEng.id  } }),
-      prisma.topic.create({ data: { name: 'Rhetoric',              parentId: tEng.id  } }),
-      prisma.topic.create({ data: { name: 'Inference',             parentId: tRead.id } }),
-      prisma.topic.create({ data: { name: 'Main Idea',             parentId: tRead.id } }),
-      prisma.topic.create({ data: { name: 'Data Interpretation',   parentId: tSci.id  } }),
-      prisma.topic.create({ data: { name: 'Scientific Reasoning',  parentId: tSci.id  } }),
+      prisma.topic.create({ data: { name: 'Algebra' } }),
+      prisma.topic.create({ data: { name: 'Advanced Math' } }),
+      prisma.topic.create({ data: { name: 'Problem-Solving and Data Analysis' } }),
+      prisma.topic.create({ data: { name: 'Geometry and Trigonometry' } }),
+      prisma.topic.create({ data: { name: 'Information and Ideas' } }),
+      prisma.topic.create({ data: { name: 'Craft and Structure' } }),
+      prisma.topic.create({ data: { name: 'Expression of Ideas' } }),
+      prisma.topic.create({ data: { name: 'Standard English Conventions' } }),
     ])
-  console.log('✓ Topics')
+  console.log('✓ SAT Topics')
 
   // ── Questions ─────────────────────────────────────────────────────────────
   // Helper
@@ -74,46 +68,46 @@ async function main() {
   const [mq1, mq2, mq3, mq4, mq5, mq6, mq7, mq8, mq9, mq10] = await Promise.all([
     mcq('If 3x + 6 = 21, what is x?', { A:'3', B:'5', C:'7', D:'9' }, 'B', algebra.id, 'EASY'),
     mcq('What is the slope of y = 4x - 7?', { A:'-7', B:'4', C:'-4', D:'7' }, 'B', algebra.id, 'EASY'),
-    mcq('A circle has radius 5. What is its area?', { A:'10π', B:'25π', C:'5π', D:'50π' }, 'B', geometry.id, 'MEDIUM'),
-    mcq('What is sin(30°)?', { A:'√3/2', B:'1/2', C:'1', D:'√2/2' }, 'B', trig.id, 'MEDIUM'),
-    mcq('The average of 8, 12, and x is 10. Find x.', { A:'8', B:'10', C:'12', D:'14' }, 'B', stats.id, 'MEDIUM'),
-    num('Solve: 2x² = 50. Find positive x.', 5, algebra.id, 'MEDIUM'),
-    mcq('Lines l and m are parallel, cut by transversal. If one angle is 65°, the co-interior angle is?', { A:'65°', B:'115°', C:'25°', D:'180°' }, 'B', geometry.id, 'HARD'),
-    mcq('What is the period of f(x) = 3sin(2x)?', { A:'π', B:'2π', C:'3π', D:'π/2' }, 'A', trig.id, 'HARD'),
-    num('A rectangle has perimeter 36 and length 10. Find its area.', 80, geometry.id, 'MEDIUM'),
+    mcq('A circle has radius 5. What is its area?', { A:'10π', B:'25π', C:'5π', D:'50π' }, 'B', geomTrig.id, 'MEDIUM'),
+    mcq('What is sin(30°)?', { A:'√3/2', B:'1/2', C:'1', D:'√2/2' }, 'B', geomTrig.id, 'MEDIUM'),
+    mcq('The average of 8, 12, and x is 10. Find x.', { A:'8', B:'10', C:'12', D:'14' }, 'B', probSolvData.id, 'MEDIUM'),
+    num('Solve: 2x² = 50. Find positive x.', 5, advMath.id, 'MEDIUM'),
+    mcq('Lines l and m are parallel, cut by transversal. If one angle is 65°, the co-interior angle is?', { A:'65°', B:'115°', C:'25°', D:'180°' }, 'B', geomTrig.id, 'HARD'),
+    mcq('What is the period of f(x) = 3sin(2x)?', { A:'π', B:'2π', C:'3π', D:'π/2' }, 'A', geomTrig.id, 'HARD'),
+    num('A rectangle has perimeter 36 and length 10. Find its area.', 80, geomTrig.id, 'MEDIUM'),
     mcq('Which value of x satisfies |2x - 3| = 7?', { A:'5 or -2', B:'5 only', C:'-2 only', D:'2 or -5' }, 'A', algebra.id, 'HARD'),
   ])
 
-  // English questions
+  // Reading & Writing questions
   const [eq1, eq2, eq3, eq4, eq5, eq6, eq7, eq8] = await Promise.all([
-    mcq('Choose the correct sentence: ___', { A:'Him and I went.', B:'He and I went.', C:'He and me went.', D:'Him and me went.' }, 'B', grammar.id, 'EASY'),
-    mcq('Which word is a conjunction? "She studied hard, ___ she passed."', { A:'so', B:'very', C:'quickly', D:'often' }, 'A', grammar.id, 'EASY'),
-    mcq("The author's primary purpose in the passage is to ___", { A:'entertain', B:'persuade', C:'inform', D:'critique' }, 'C', rhetoric.id, 'MEDIUM'),
-    mcq('Which revision best improves sentence clarity?', { A:'Original', B:'Option B', C:'Option C', D:'Option D' }, 'C', rhetoric.id, 'MEDIUM'),
-    mcq('The word "ephemeral" most nearly means:', { A:'everlasting', B:'short-lived', C:'mysterious', D:'colorful' }, 'B', grammar.id, 'HARD'),
-    mcq('What is the subject of the sentence: "Running fast, the dog reached the fence."?', { A:'Running', B:'fast', C:'dog', D:'fence' }, 'C', grammar.id, 'EASY'),
-    mcq('Which sentence uses the semicolon correctly?', { A:'I like apples; and oranges.', B:'She left early; she had a meeting.', C:'He runs; fast.', D:'They sang; happily.' }, 'B', grammar.id, 'MEDIUM'),
-    mcq('The tone of the passage can best be described as:', { A:'sarcastic', B:'melancholic', C:'optimistic', D:'indifferent' }, 'C', rhetoric.id, 'MEDIUM'),
+    mcq('Choose the correct sentence: ___', { A:'Him and I went.', B:'He and I went.', C:'He and me went.', D:'Him and me went.' }, 'B', stdEngConv.id, 'EASY'),
+    mcq('Which word is a conjunction? "She studied hard, ___ she passed."', { A:'so', B:'very', C:'quickly', D:'often' }, 'A', stdEngConv.id, 'EASY'),
+    mcq("The author's primary purpose in the passage is to ___", { A:'entertain', B:'persuade', C:'inform', D:'critique' }, 'C', infoIdeas.id, 'MEDIUM'),
+    mcq('Which revision best improves sentence clarity?', { A:'Original', B:'Option B', C:'Option C', D:'Option D' }, 'C', exprIdeas.id, 'MEDIUM'),
+    mcq('The word "ephemeral" most nearly means:', { A:'everlasting', B:'short-lived', C:'mysterious', D:'colorful' }, 'B', craftStruct.id, 'HARD'),
+    mcq('What is the subject of the sentence: "Running fast, the dog reached the fence."?', { A:'Running', B:'fast', C:'dog', D:'fence' }, 'C', stdEngConv.id, 'EASY'),
+    mcq('Which sentence uses the semicolon correctly?', { A:'I like apples; and oranges.', B:'She left early; she had a meeting.', C:'He runs; fast.', D:'They sang; happily.' }, 'B', stdEngConv.id, 'MEDIUM'),
+    mcq('The tone of the passage can best be described as:', { A:'sarcastic', B:'melancholic', C:'optimistic', D:'indifferent' }, 'C', craftStruct.id, 'MEDIUM'),
   ])
 
   // Reading questions
   const [rq1, rq2, rq3, rq4, rq5, rq6] = await Promise.all([
-    mcq('Based on the passage, the author implies that ___', { A:'change is inevitable', B:'tradition must be preserved', C:'progress harms society', D:'nature is indifferent' }, 'A', inference.id, 'MEDIUM'),
-    mcq('The central argument of the passage is best stated as ___', { A:'Option A', B:'Option B', C:'Option C', D:'Option D' }, 'B', mainIdea.id, 'MEDIUM'),
-    mcq('The word "austere" in line 12 most likely means:', { A:'warm', B:'severe', C:'colorful', D:'generous' }, 'B', inference.id, 'MEDIUM'),
-    mcq('Which detail best supports the main idea?', { A:'Detail A', B:'Detail B', C:'Detail C', D:'Detail D' }, 'C', mainIdea.id, 'HARD'),
-    mcq("The author's attitude toward the subject can be described as ___", { A:'critical', B:'neutral', C:'enthusiastic', D:'dismissive' }, 'C', inference.id, 'HARD'),
-    mcq('What can be inferred from the final paragraph?', { A:'The problem is unsolvable', B:'Further research is needed', C:'The solution was found', D:'The author disagrees' }, 'B', inference.id, 'HARD'),
+    mcq('Based on the passage, the author implies that ___', { A:'change is inevitable', B:'tradition must be preserved', C:'progress harms society', D:'nature is indifferent' }, 'A', infoIdeas.id, 'MEDIUM'),
+    mcq('The central argument of the passage is best stated as ___', { A:'Option A', B:'Option B', C:'Option C', D:'Option D' }, 'B', infoIdeas.id, 'MEDIUM'),
+    mcq('The word "austere" in line 12 most likely means:', { A:'warm', B:'severe', C:'colorful', D:'generous' }, 'B', craftStruct.id, 'MEDIUM'),
+    mcq('Which detail best supports the main idea?', { A:'Detail A', B:'Detail B', C:'Detail C', D:'Detail D' }, 'C', infoIdeas.id, 'HARD'),
+    mcq("The author's attitude toward the subject can be described as ___", { A:'critical', B:'neutral', C:'enthusiastic', D:'dismissive' }, 'C', craftStruct.id, 'HARD'),
+    mcq('What can be inferred from the final paragraph?', { A:'The problem is unsolvable', B:'Further research is needed', C:'The solution was found', D:'The author disagrees' }, 'B', infoIdeas.id, 'HARD'),
   ])
 
-  // Science questions
+  // Data Analysis & Science questions
   const [sq1, sq2, sq3, sq4, sq5, sq6] = await Promise.all([
-    mcq('According to Figure 1, as temperature increases, enzyme activity ___', { A:'decreases steadily', B:'increases then decreases', C:'stays constant', D:'increases steadily' }, 'B', dataInterp.id, 'MEDIUM'),
-    mcq('Which hypothesis is supported by the experimental data?', { A:'Hypothesis 1', B:'Hypothesis 2', C:'Hypothesis 3', D:'None' }, 'A', sciReason.id, 'MEDIUM'),
-    mcq('In Experiment 2, the control group had ___', { A:'no fertiliser', B:'double fertiliser', C:'UV exposure', D:'reduced water' }, 'A', dataInterp.id, 'EASY'),
-    mcq('A student claims that higher pH increases reaction rate. The data ___', { A:'supports the claim', B:'refutes the claim', C:'is inconclusive', D:'is irrelevant' }, 'C', sciReason.id, 'HARD'),
-    mcq('The independent variable in Study 3 is ___', { A:'temperature', B:'time', C:'pressure', D:'mass' }, 'A', dataInterp.id, 'MEDIUM'),
-    mcq('Based on Tables 1 and 2, what trend is consistent across both experiments?', { A:'Inverse relationship', B:'Direct relationship', C:'No relationship', D:'Exponential growth' }, 'B', sciReason.id, 'HARD'),
+    mcq('According to Figure 1, as temperature increases, enzyme activity ___', { A:'decreases steadily', B:'increases then decreases', C:'stays constant', D:'increases steadily' }, 'B', probSolvData.id, 'MEDIUM'),
+    mcq('Which hypothesis is supported by the experimental data?', { A:'Hypothesis 1', B:'Hypothesis 2', C:'Hypothesis 3', D:'None' }, 'A', probSolvData.id, 'MEDIUM'),
+    mcq('In Experiment 2, the control group had ___', { A:'no fertiliser', B:'double fertiliser', C:'UV exposure', D:'reduced water' }, 'A', probSolvData.id, 'EASY'),
+    mcq('A student claims that higher pH increases reaction rate. The data ___', { A:'supports the claim', B:'refutes the claim', C:'is inconclusive', D:'is irrelevant' }, 'C', probSolvData.id, 'HARD'),
+    mcq('The independent variable in Study 3 is ___', { A:'temperature', B:'time', C:'pressure', D:'mass' }, 'A', probSolvData.id, 'MEDIUM'),
+    mcq('Based on Tables 1 and 2, what trend is consistent across both experiments?', { A:'Inverse relationship', B:'Direct relationship', C:'No relationship', D:'Exponential growth' }, 'B', probSolvData.id, 'HARD'),
   ])
   console.log('✓ Questions (30+)')
 
