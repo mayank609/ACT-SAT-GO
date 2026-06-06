@@ -179,6 +179,7 @@ function computeTestAnalysis(attempt: TaAttempt): {
   
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
   console.log('[DEBUG] AnswersMap size:', answersMap.size);
+  console.log('[DEBUG] AnswersMap keys (first 5):', Array.from(answersMap.keys()).slice(0, 5));
   
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
   console.log('[DEBUG] Sorted sections count:', sortedSections.length);
@@ -188,6 +189,8 @@ function computeTestAnalysis(attempt: TaAttempt): {
 
   const sections: SectionAnalysis[] = sortedSections.map((sa, sectionIdx) => {
     console.log(`[DEBUG] Processing section ${sectionIdx}: "${sa.section.name}"`);
+    console.log(`[DEBUG]   Section object:`, sa.section);
+    console.log(`[DEBUG]   Section has questions array:`, !!sa.section.questions);
     console.log(`[DEBUG]   Section has ${sa.section.questions?.length || 0} questions`);
     
     // Flatten questions to handle PASSAGE questions
@@ -215,7 +218,7 @@ function computeTestAnalysis(attempt: TaAttempt): {
     }
 
     console.log(`[DEBUG]   Flattened to ${flatQs.length} questions`);
-    console.log(`[DEBUG]   Sample question IDs:`, flatQs.slice(0, 2).map(q => q.questionId));
+    console.log(`[DEBUG]   Question IDs:`, flatQs.map((q, i) => `Q${i + 1}=${q.questionId}`).join(', '));
 
     let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
     flatQs.forEach((tq, qIdx) => {
@@ -223,12 +226,12 @@ function computeTestAnalysis(attempt: TaAttempt): {
       if (!ans) { 
         unvisited++; 
         omitted++; 
-        console.log(`[DEBUG]     Q${qIdx + 1}: No answer found for question ${tq.questionId}`);
+        console.log(`[DEBUG]     Q${qIdx + 1} (${tq.questionId}): NOT FOUND in answers map`);
         return; 
       }
       if (!ans.answerGiven) { 
         omitted++; 
-        console.log(`[DEBUG]     Q${qIdx + 1}: Answer skipped`);
+        console.log(`[DEBUG]     Q${qIdx + 1}: Skipped`);
         return; 
       }
       // Check if answer is actually correct
