@@ -4,7 +4,7 @@ import type { DbUser } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
+import { type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -393,17 +393,6 @@ export function ReportsPage() {
                 </span>
               </div>
             )}
-          </div>
-
-          {/* ── Time per question ────────────────────────────────────────────── */}
-          <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">
-                Time per Question{sectionFilter !== 'All' ? ` — ${sectionFilter}` : ''}
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">Real time spent on each question, colored by result</p>
-            </div>
-            <QuestionTimeChart stats={filteredPacing} />
           </div>
 
           {/* ── Question log ─────────────────────────────────────────────────── */}

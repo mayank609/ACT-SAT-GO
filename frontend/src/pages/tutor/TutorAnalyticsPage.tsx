@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, AlertTriangle, Clock, Users, ArrowUpRight,
-  CheckCircle2, Award,
-  Timer, AlertCircle, AlertOctagon
+  CheckCircle2, Award
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
@@ -13,7 +12,6 @@ import { useAuthStore } from '../../store/useAuthStore';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { QuestionTimeChart } from '../../components/dashboard/QuestionTimeChart';
 
 type SectionStat = {
   sectionId: string; sectionName: string; totalQuestions: number;
@@ -34,6 +32,59 @@ type AnalyticsData = {
   totalAttempts: number
   latestScore: number
   avgScore: number
+}
+
+interface SectionAnalysis {
+  name: string;
+  category: string;
+  correct: number;
+  incorrect: number;
+  omitted: number;
+  total: number;
+  unvisited: number;
+  accuracy: number;
+  timeTaken: string;
+}
+
+interface TaAttempt {
+  id: string;
+  testId: string;
+  status: string;
+  totalScore: number | null;
+  startedAt: string;
+  completedAt: string | null;
+  test: { id: string; title: string };
+  sectionAttempts: Array<{
+    id: string;
+    sectionId: string;
+    startedAt: string;
+    completedAt: string | null;
+    section: {
+      id: string;
+      name: string;
+      durationMinutes: number;
+      orderIndex: number;
+      questions: Array<{
+        id: string;
+        questionId: string;
+        orderIndex: number;
+        question: {
+          id: string;
+          type: string;
+          content: { text: string };
+          correctAnswer: { key?: string; keys?: string[]; value?: number };
+          childQuestions?: any[];
+        };
+      }>;
+    };
+  }>;
+  answers: Array<{
+    id: string;
+    questionId: string;
+    answerGiven: { key?: string; keys?: string[]; value?: number } | null;
+    timeSpentSeconds: number;
+    isFlagged: boolean;
+  }>;
 }
 
 function deriveTopicPerformance(pacingStats: PacingStat[]) {
@@ -74,16 +125,72 @@ function aggregateSections(analyticsMap: Record<string, AnalyticsData>): Section
   }));
 }
 
+function computeTestAnalysis(attempt: TaAttempt): {
+  sections: SectionAnalysis[];
+  totalCorrect: number;
+  totalQuestions: number;
+  rwCorrect: number;
+  rwTotal: number;
+  mathCorrect: number;
+  mathTotal: number;
+  finalScaledScore: number;
+} {
+  const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
+  const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+
+  let totalCorrect = 0, totalQuestions = 0;
+  let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
+
+  const sections: SectionAnalysis[] = sortedSections.map(sa => {
+    const flatQs = sa.section.questions;
+
+    let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
+    flatQs.forEach(tq => {
+      const ans = answersMap.get(tq.questionId);
+      if (!ans) { unvisited++; omitted++; return; }
+      if (!ans.answerGiven) { omitted++; return; }
+      correct++;
+    });
+
+    const total = flatQs.length;
+    const accuracy = total > 0 ? (correct / total) * 100 : 0;
+
+    let timeTaken = '—';
+    if (sa.startedAt && sa.completedAt) {
+      const mins = Math.round((new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime()) / 60000);
+      const secs = Math.round(((new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime()) % 60000) / 1000);
+      timeTaken = `${mins}:${secs.toString().padStart(2, '0')} Minutes Taken`;
+    }
+
+    const isMath = /math/i.test(sa.section.name);
+    const isRW = /reading|writing|rw/i.test(sa.section.name);
+    const category = isMath ? 'Math' : isRW ? 'Reading and Writing' : sa.section.name;
+
+    if (isMath) { mathCorrect += correct; mathTotal += total; }
+    else if (isRW) { rwCorrect += correct; rwTotal += total; }
+
+    totalCorrect += correct;
+    totalQuestions += total;
+
+    return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
+  });
+
+  // Simplified scaled score calculation
+  const finalScaledScore = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+
+  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, finalScaledScore };
+}
+
 export function TutorAnalyticsPage() {
   const { dbId } = useAuthStore();
   const [selectedStudent, setSelectedStudent] = useState<string>(() => sessionStorage.getItem('tutor_analytics_student') || 'all');
   const [students, setStudents] = useState<DbUser[]>([]);
   const [analyticsMap, setAnalyticsMap] = useState<Record<string, AnalyticsData>>({});
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Correct' | 'Incorrect' | 'Skipped'>('All');
-  const [sectionFilter, setSectionFilter] = useState('All');
   const [selectedAttemptId, setSelectedAttemptId] = useState<string>(() => sessionStorage.getItem('tutor_analytics_attemptId') || '');
   const [studentAttempts, setStudentAttempts] = useState<any[]>([]);
+  const [expandedAttempt, setExpandedAttempt] = useState<TaAttempt | null>(null);
+  const [expandedLoading, setExpandedLoading] = useState(false);
 
   const currentAnalytics = selectedStudent !== 'all' ? analyticsMap[selectedStudent] : null;
   const currentStudentProfile = students.find((s) => s.id === selectedStudent);
@@ -104,20 +211,6 @@ export function TutorAnalyticsPage() {
       sessionStorage.removeItem('tutor_analytics_attemptId');
     }
   }, [selectedAttemptId]);
-
-  // Auto-select first section when analytics data changes
-  useEffect(() => {
-    if (currentAnalytics && currentAnalytics.questionPacingStats && currentAnalytics.questionPacingStats.length > 0) {
-      setSectionFilter(currentAnalytics.questionPacingStats[0].sectionName);
-    } else {
-      setSectionFilter('All');
-    }
-  }, [currentAnalytics]);
-
-  const sections = useMemo(() => {
-    if (!currentAnalytics) return ['All'];
-    return ['All', ...Array.from(new Set(currentAnalytics.questionPacingStats.map(q => q.sectionName)))];
-  }, [currentAnalytics]);
 
   // Load students on mount
   useEffect(() => {
@@ -182,6 +275,23 @@ export function TutorAnalyticsPage() {
       .catch(() => {});
   }, [selectedStudent, selectedAttemptId]);
 
+  // Load full attempt details for test analysis
+  useEffect(() => {
+    if (!selectedAttemptId || selectedStudent === 'all') {
+      setExpandedAttempt(null);
+      return;
+    }
+    setExpandedLoading(true);
+    api.getAttempt(selectedAttemptId)
+      .then((data) => {
+        setExpandedAttempt((data as any).attempt as TaAttempt);
+      })
+      .catch(() => {
+        setExpandedAttempt(null);
+      })
+      .finally(() => setExpandedLoading(false));
+  }, [selectedAttemptId, selectedStudent]);
+
   // Aggregate metrics
   const avgScore = useMemo(() => {
     const withScore = students.filter((s) => s.avgScore != null);
@@ -243,38 +353,6 @@ export function TutorAnalyticsPage() {
     'Actual (s/q)': s.totalQuestions > 0 ? Math.round(s.timeUsed / s.totalQuestions) : 0,
   }));
 
-  const filteredPacingStats = useMemo(() => {
-    if (!currentAnalytics) return [];
-    const qs = currentAnalytics.questionPacingStats;
-    if (sectionFilter === 'All') return qs;
-    return qs.filter(q => q.sectionName === sectionFilter);
-  }, [currentAnalytics, sectionFilter]);
-
-  // Pacing scatter — only meaningful for specific student
-  const pacingData = useMemo(() => {
-    const mapped = filteredPacingStats.map((q) => ({
-      qNum: q.questionIndex,
-      timeSpent: q.timeSpentSeconds,
-      topic: q.topicName,
-      correct: q.status === 'correct',
-      status: q.status,
-    }));
-    if (statusFilter === 'All') return mapped;
-    return mapped.filter(q => q.status === statusFilter.toLowerCase());
-  }, [filteredPacingStats, statusFilter]);
-
-  // Stats fed to the honest per-question time chart (section + status filtered)
-  const chartStats = useMemo(() => {
-    if (statusFilter === 'All') return filteredPacingStats;
-    return filteredPacingStats.filter(q => q.status === statusFilter.toLowerCase());
-  }, [filteredPacingStats, statusFilter]);
-
-  // Questions where the student got stuck — surfaced for tutor follow-up
-  const stuckQuestions = useMemo(
-    () => pacingData.filter((q) => q.timeSpent >= 90),
-    [pacingData]
-  );
-
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-slate-400 text-sm">Loading analytics...</div></div>;
   }
@@ -333,99 +411,66 @@ export function TutorAnalyticsPage() {
             <StatCard title="Target Score Status" value={selectedStudent === 'all' ? `${onTrackCount}/${students.length}` : `${currentStudentProfile?.avgScore ?? 0}/${(currentStudentProfile?.targetScore as number | null) ?? 36}`} subtitle={selectedStudent === 'all' ? 'On track for target' : 'Current vs Target Score'} icon={<Award size={20} />} color="amber" />
           </div>
 
-          {/* Pacing Diagnostics */}
-          <Card className="border border-slate-100 shadow-sm p-4 md:p-5 bg-white overflow-hidden">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-100 pb-3 mb-4 gap-2">
-              <div>
-                <h3 className="font-bold text-slate-850 text-sm flex items-center gap-2">
-                  <Timer className="text-blue-500 w-5 h-5" />
-                  Time per Question
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Real time spent on each question for {selectedStudent === 'all' ? 'the class cohort' : currentStudentProfile?.name}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {selectedStudent !== 'all' && currentAnalytics && currentAnalytics.questionPacingStats && currentAnalytics.questionPacingStats.length > 0 && (
-                  <>
-                    <select
-                      value={sectionFilter}
-                      onChange={(e) => setSectionFilter(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
-                    >
-                      {sections.map(s => (
-                        <option key={s} value={s}>{s === 'All' ? 'All Sections' : s}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as any)}
-                      className="px-2.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
-                    >
-                      <option value="All">All Results</option>
-                      <option value="Correct">✓ Correct Only</option>
-                      <option value="Incorrect">✗ Incorrect Only</option>
-                      <option value="Skipped">○ Skipped Only</option>
-                    </select>
-                  </>
-                )}
-              </div>
-            </div>
+          {/* Test Analysis Panel - Only show when specific student & attempt selected */}
+          {selectedStudent !== 'all' && selectedAttemptId && expandedAttempt && !expandedLoading && (() => {
+            const analysis = computeTestAnalysis(expandedAttempt);
+            const completedDate = expandedAttempt.completedAt
+              ? new Date(expandedAttempt.completedAt).toLocaleDateString('en-US', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+              }) + ', ' + new Date(expandedAttempt.completedAt).toLocaleTimeString('en-US', {
+                hour: '2-digit', minute: '2-digit'
+              })
+              : '—';
 
-            {selectedStudent === 'all' ? (
-              <div className="py-8 text-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-lg">
-                Select a specific student to view question-level pacing analysis.
-              </div>
-            ) : pacingData.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-lg">
-                No completed tests yet for {currentStudentProfile?.name}.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
-                <div className="lg:col-span-2">
-                  <QuestionTimeChart stats={chartStats} />
-                </div>
-
-                <div className="bg-slate-50/30 p-3 border border-slate-100 rounded-xl shadow-xs flex flex-col justify-between">
+            return (
+              <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white shadow-lg space-y-4">
+                {/* Header Section */}
+                <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 mb-1">
-                      <AlertOctagon size={12} className="text-red-500" />
-                      Stuck Questions
-                    </h4>
-                    <p className="text-[10px] text-slate-400 mb-3">Questions where the student lost valuable test time (≥90s):</p>
-                    <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
-                      {stuckQuestions.map((q) => (
-                        <div key={q.qNum} className="p-2 bg-white border border-red-50 rounded-lg flex items-center justify-between shadow-xs">
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-slate-800 block">Q{q.qNum}: {q.topic}</span>
-                            <span className="text-[9px] text-slate-400 block uppercase font-bold">{q.correct ? 'Correct' : 'Incorrect'} Solution</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-xs font-extrabold text-red-600 block">{q.timeSpent}s</span>
-                            <Badge variant="danger" className="text-[7px] font-extrabold px-1 py-0 border-red-150">Got Stuck</Badge>
-                          </div>
-                        </div>
-                      ))}
-                      {stuckQuestions.length === 0 && (
-                        <div className="py-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg bg-white">
-                          <CheckCircle2 size={16} className="text-emerald-500 mx-auto mb-2" />
-                          Pacing is optimal! No stuck solving patterns detected.
-                        </div>
-                      )}
-                    </div>
+                    <p className="text-blue-100 text-sm font-semibold uppercase tracking-wide">{currentStudentProfile?.name}</p>
+                    <h2 className="text-2xl md:text-3xl font-bold mt-1">{expandedAttempt.test.title}</h2>
+                    <p className="text-blue-100 text-xs mt-1">Completed on {completedDate}</p>
                   </div>
-                  {stuckQuestions.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-slate-150 flex items-center gap-1.5 bg-blue-50/50 p-2 border border-blue-100 rounded-lg">
-                      <AlertCircle size={14} className="text-blue-500 flex-shrink-0" />
-                      <p className="text-[9.5px] text-blue-700 leading-tight">
-                        <strong>Tutor Action:</strong> Suggest targeted focus practice in <strong>{stuckQuestions[0]?.topic}</strong> to reduce question lag time.
-                      </p>
-                    </div>
-                  )}
+                  <div className="text-right">
+                    <p className="text-6xl font-bold">{analysis.finalScaledScore}</p>
+                    <p className="text-blue-100 text-sm mt-1">Score</p>
+                  </div>
+                </div>
+
+                {/* Section Breakdown Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {analysis.sections.map((sec, idx) => {
+                    const accuracy = sec.total > 0 ? Math.round((sec.correct / sec.total) * 100) : 0;
+                    return (
+                      <div key={idx} className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                        <p className="text-xs font-semibold text-blue-100 uppercase tracking-wider">{sec.category}</p>
+                        <p className="text-2xl font-bold mt-2 text-white">{accuracy}%</p>
+                        <p className="text-xs text-blue-100 mt-1">{sec.correct}/{sec.total} correct</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Overall Stats */}
+                <div className="grid grid-cols-3 gap-3 pt-2 border-t border-white/20">
+                  <div>
+                    <p className="text-blue-100 text-xs font-semibold uppercase">Total Correct</p>
+                    <p className="text-xl font-bold text-white mt-1">{analysis.totalCorrect} / {analysis.totalQuestions}</p>
+                  </div>
+                  <div>
+                    <p className="text-blue-100 text-xs font-semibold uppercase">Reading & Writing</p>
+                    <p className="text-xl font-bold text-white mt-1">{analysis.rwCorrect} / {analysis.rwTotal}</p>
+                  </div>
+                  <div>
+                    <p className="text-blue-100 text-xs font-semibold uppercase">Math</p>
+                    <p className="text-xl font-bold text-white mt-1">{analysis.mathCorrect} / {analysis.mathTotal}</p>
+                  </div>
                 </div>
               </div>
-            )}
-          </Card>
+            );
+          })()}
+
+
 
           {/* Heatmaps & Weak Topics */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
