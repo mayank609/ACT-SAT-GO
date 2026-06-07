@@ -64,8 +64,8 @@ export function MyTestsPage() {
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">To Complete</h2>
           <div className="space-y-2">
             {pending.map((test) => {
-              const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
-              const totalMin = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
+              const totalQ = (test.sections ?? []).reduce((a, s) => a + (s._count?.questions ?? 0), 0);
+              const totalMin = (test.sections ?? []).reduce((a, s) => a + s.durationMinutes, 0);
               const isInProgress = test.status === 'In Progress';
               const usedAttempts = Math.max(test.maxAttempts - test.remainingAttempts, 0);
               const isRetake = !isInProgress && usedAttempts > 0;
@@ -132,7 +132,7 @@ export function MyTestsPage() {
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
             <div className="divide-y divide-gray-50">
               {completed.map((test) => {
-                const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
+                const totalQ = (test.sections ?? []).reduce((a, s) => a + (s._count?.questions ?? 0), 0);
                 return (
                   <div key={test.assignmentId} className="flex items-center gap-4 px-4 py-3.5">
                     <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">

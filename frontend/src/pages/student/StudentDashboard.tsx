@@ -85,8 +85,8 @@ export function StudentDashboard() {
           <h2 className="text-sm font-semibold text-gray-900 mb-2">Tests to Complete</h2>
           <div className="space-y-2">
             {pending.map((test) => {
-              const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
-              const totalMin = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
+              const totalQ = (test.sections ?? []).reduce((a, s) => a + (s._count?.questions ?? 0), 0);
+              const totalMin = (test.sections ?? []).reduce((a, s) => a + s.durationMinutes, 0);
               const isInProgress = test.status === 'In Progress';
               return (
                 <div key={test.assignmentId} className="bg-white border-2 border-[#1b3d6e]/20 rounded-xl p-4 hover:border-[#1b3d6e]/40 transition-colors">

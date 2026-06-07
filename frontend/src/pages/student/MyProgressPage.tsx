@@ -174,7 +174,7 @@ export function MyProgressPage() {
           </div>
           <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50 overflow-hidden">
             {attempts.map((a, idx) => {
-              const totalQ = a.test.sections.reduce((sum, s) => sum + s._count.questions, 0);
+              const totalQ = (a.test.sections ?? []).reduce((sum, s) => sum + (s._count?.questions ?? 0), 0);
               return (
                 <button
                   key={a.id}

@@ -292,6 +292,15 @@ export function StudentManagementPage() {
   const [testAnalysisAttempt, setTestAnalysisAttempt] = useState<TaAttempt | null>(null);
   const [testAnalysisStatus, setTestAnalysisStatus] = useState<Record<string, 'submitted' | 'not_submitted'>>({});
 
+  // ── Mock Test Report (per-student list of all attempts) ─────────────────────
+  const [reportRows, setReportRows] = useState<Array<{
+    id: string; title: string; startedAt: string; completedAt: string | null;
+    rwM1: number; rwM2: number; mathM1: number; mathM2: number;
+    rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
+    totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean;
+  }>>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+
   // ── Question Wise Report state ───────────────────────────────────────────
   const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
   const [questionFilterBy, setQuestionFilterBy] = useState('all');
@@ -308,12 +317,9 @@ export function StudentManagementPage() {
       .then((r) => {
         const submitted = ((r.attempts as any[]) ?? []).filter((a) => a.status === 'SUBMITTED');
         setStudentAttempts(submitted);
-        if (submitted.length > 0) {
-          setSelectedAttemptId(submitted[0].id);
-        } else {
-          setSelectedAttemptId('');
-          setTestAnalysisAttempt(null);
-        }
+        // Land on the report list (no attempt pre-selected) so the table shows first.
+        setSelectedAttemptId('');
+        setTestAnalysisAttempt(null);
       })
       .catch(() => {
         setStudentAttempts([]);
@@ -339,6 +345,44 @@ export function StudentManagementPage() {
         setTestAnalysisLoading(false);
       });
   }, [mainView, selectedAttemptId]);
+
+  // Build the Mock Test Report: fetch every attempt's detail and derive module
+  // raw scores + estimated scaled scores for the list table.
+  useEffect(() => {
+    if (mainView !== 'test_analysis' || !selectedStudentId || studentAttempts.length === 0) {
+      setReportRows([]);
+      return;
+    }
+    let cancelled = false;
+    setReportLoading(true);
+    Promise.all(
+      studentAttempts.map((a) => api.getAttempt(a.id).then((r) => r.attempt as TaAttempt).catch(() => null))
+    ).then((attempts) => {
+      if (cancelled) return;
+      const rows = attempts
+        .filter((a): a is TaAttempt => !!a)
+        .map((att) => {
+          const an = computeTestAnalysis(att);
+          let rwM1 = 0, rwM2 = 0, mathM1 = 0, mathM2 = 0;
+          let rwM1T = 0, rwM2T = 0, mathM1T = 0, mathM2T = 0;
+          for (const s of an.sections) {
+            const isMath = /math/i.test(s.name);
+            const isRW = /read|writing|rw/i.test(s.name);
+            const isM2 = /2|two/i.test(s.name);
+            if (isMath) { if (isM2) { mathM2 += s.correct; mathM2T += s.total; } else { mathM1 += s.correct; mathM1T += s.total; } }
+            else if (isRW) { if (isM2) { rwM2 += s.correct; rwM2T += s.total; } else { rwM1 += s.correct; rwM1T += s.total; } }
+          }
+          return {
+            id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+            rwM1, rwM2, mathM1, mathM2, rwM1T, rwM2T, mathM1T, mathM2T,
+            totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
+            rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
+          };
+        });
+      setReportRows(rows);
+    }).finally(() => { if (!cancelled) setReportLoading(false); });
+    return () => { cancelled = true; };
+  }, [mainView, selectedStudentId, studentAttempts]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const reload = () => {
@@ -709,11 +753,7 @@ export function StudentManagementPage() {
                           <button
                             onClick={() => {
                               setSelectedStudentId(row.studentId);
-                              if (row.attempts && row.attempts.length > 0) {
-                                setSelectedAttemptId(row.attempts[0].id);
-                              } else {
-                                setSelectedAttemptId('');
-                              }
+                              setSelectedAttemptId('');
                               setMainView('test_analysis');
                             }}
                             className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
@@ -875,13 +915,104 @@ export function StudentManagementPage() {
               </div>
             </Card>
           ) : !selectedAttemptId ? (
-            <Card padding="lg">
-              <div className="py-12 text-center">
-                <FileText size={40} className="mx-auto text-slate-300 mb-3 animate-pulse" />
-                <p className="text-slate-500 text-sm font-medium">Please select a test attempt above</p>
-                <p className="text-slate-400 text-xs mt-1">This student has {studentAttempts.length} completed attempts</p>
-              </div>
-            </Card>
+            (() => {
+              const studentName = students.find((s) => s.id === selectedStudentId)?.name ?? 'Student';
+              const dRaw = reportRows.reduce((d, r) => ({
+                rwM1: Math.max(d.rwM1, r.rwM1T), rwM2: Math.max(d.rwM2, r.rwM2T),
+                mathM1: Math.max(d.mathM1, r.mathM1T), mathM2: Math.max(d.mathM2, r.mathM2T),
+                total: Math.max(d.total, r.totalRawT),
+              }), { rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0, total: 0 });
+              const den = { rwM1: dRaw.rwM1 || 27, rwM2: dRaw.rwM2 || 27, mathM1: dRaw.mathM1 || 22, mathM2: dRaw.mathM2 || 22, total: dRaw.total || 98 };
+              const downloadReport = () => {
+                const head = ['#', 'Test Name', 'Started At', 'Completed At', `RW MD1/${den.rwM1}`, `RW MD2/${den.rwM2}`, `Math MD1/${den.mathM1}`, `Math MD2/${den.mathM2}`, `Total/${den.total}`, 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
+                const lines = reportRows.map((r, i) => [
+                  i + 1, r.title,
+                  r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
+                  r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
+                  r.rwM1, r.rwM2, r.mathM1, r.mathM2, r.totalRaw,
+                  r.isSAT ? r.rwSS : '-', r.isSAT ? r.mathSS : '-', r.isSAT ? r.totalSS : '-',
+                  testAnalysisStatus[r.id] === 'submitted' ? 'Analysed' : 'Unanalysed',
+                ]);
+                const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+                const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${studentName.replace(/\s+/g, '_')}_Test_Report.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+              };
+              return (
+                <Card padding="none">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-500">Total Session : <span className="text-slate-900 font-bold">{reportRows.length}</span></p>
+                      <h2 className="text-lg font-bold text-purple-800 mt-0.5">{studentName}<span className="text-slate-500 font-medium text-sm ml-2">Test Report</span></h2>
+                    </div>
+                    <button onClick={downloadReport} disabled={reportRows.length === 0}
+                      className="px-4 py-2 text-sm font-semibold text-white bg-purple-700 hover:bg-purple-800 disabled:opacity-50 rounded-lg transition-colors self-start">
+                      Download Report
+                    </button>
+                  </div>
+                  {reportLoading ? (
+                    <div className="flex items-center justify-center py-16 gap-2 text-slate-400">
+                      <Loader2 size={20} className="animate-spin text-blue-500" />
+                      <span className="text-sm">Loading report…</span>
+                    </div>
+                  ) : reportRows.length === 0 ? (
+                    <p className="py-12 text-center text-slate-400 text-sm">No completed tests found.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                            <th className="px-3 py-3 text-left font-semibold">#</th>
+                            <th className="px-3 py-3 text-left font-semibold">Test Name</th>
+                            <th className="px-3 py-3 text-center font-semibold">Started At</th>
+                            <th className="px-3 py-3 text-center font-semibold">Completed At</th>
+                            <th className="px-3 py-3 text-center font-semibold">RW MD1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">RW MD2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">Math MD1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">Math MD2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">RW SS</th>
+                            <th className="px-3 py-3 text-center font-semibold">Math SS</th>
+                            <th className="px-3 py-3 text-center font-semibold">Total SS</th>
+                            <th className="px-3 py-3 text-center font-semibold">Analysis</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportRows.map((r, i) => {
+                            const analysed = testAnalysisStatus[r.id] === 'submitted';
+                            return (
+                              <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
+                                className="border-b border-slate-50 hover:bg-blue-50/50 cursor-pointer transition-colors">
+                                <td className="px-3 py-3 text-slate-500">{i + 1}</td>
+                                <td className="px-3 py-3 font-semibold text-purple-700 hover:underline">{r.title}</td>
+                                <td className="px-3 py-3 text-center text-xs text-slate-500">{r.startedAt ? new Date(r.startedAt).toLocaleString() : '—'}</td>
+                                <td className="px-3 py-3 text-center text-xs text-slate-500">{r.completedAt ? new Date(r.completedAt).toLocaleString() : '—'}</td>
+                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.rwM1}</td>
+                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.rwM2}</td>
+                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.mathM1}</td>
+                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.mathM2}</td>
+                                <td className="px-3 py-3 text-center font-bold text-slate-900">{r.totalRaw}</td>
+                                <td className="px-3 py-3 text-center text-slate-600">{r.isSAT ? r.rwSS : '—'}</td>
+                                <td className="px-3 py-3 text-center text-slate-600">{r.isSAT ? r.mathSS : '—'}</td>
+                                <td className="px-3 py-3 text-center font-semibold text-slate-800">{r.isSAT ? r.totalSS : '—'}</td>
+                                <td className="px-3 py-3 text-center">
+                                  <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${analysed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                                    {analysed ? 'ANALYSED' : 'UNANALYSED'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              );
+            })()
           ) : testAnalysisLoading ? (
             <Card padding="lg">
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
@@ -902,6 +1033,13 @@ export function StudentManagementPage() {
 
             return (
               <div className="space-y-4">
+                {/* Back to report list */}
+                <button
+                  onClick={() => setSelectedAttemptId('')}
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  <ChevronLeft size={15} /> Back to Test Report
+                </button>
                 {/* Header Card */}
                 <div className="bg-white rounded-xl border border-slate-200 py-3 px-4 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm">
                   <div className="flex items-center gap-3 flex-1 min-w-0">

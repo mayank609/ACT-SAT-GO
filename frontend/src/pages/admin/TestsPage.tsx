@@ -288,8 +288,8 @@ export function TestsPage() {
 
       <div className="space-y-2">
         {filtered.map((test) => {
-          const totalQ = test.sections.reduce((a, s) => a + (s._count?.questions ?? 0), 0);
-          const totalTime = test.sections.reduce((a, s) => a + s.durationMinutes, 0);
+          const totalQ = (test.sections ?? []).reduce((a, s) => a + (s._count?.questions ?? 0), 0);
+          const totalTime = (test.sections ?? []).reduce((a, s) => a + s.durationMinutes, 0);
           const attemptsCount = test._count?.attempts ?? 0;
           const statusLower = test.status.toLowerCase();
 
