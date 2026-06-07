@@ -267,7 +267,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={!question.subTopic || !SKILLS_BY_SUBDOMAIN[question.subTopic]}>
                 <option value="">Select skill</option>
-                {(SKILLS_BY_SUBDOMAIN[question.subTopic] ?? []).map((skill) => <option key={skill} value={skill}>{skill}</option>)}
+                {(question.subTopic ? SKILLS_BY_SUBDOMAIN[question.subTopic] ?? [] : []).map((skill) => <option key={skill} value={skill}>{skill}</option>)}
               </select>
             </div>
           </div>
