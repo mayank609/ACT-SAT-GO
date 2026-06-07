@@ -799,18 +799,26 @@ export function MyStudentsPage() {
                       <p className="text-xs text-blue-500 mt-0.5 font-medium">Total Questions</p>
                     </div>
                     <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200">
-                      <p className="text-2xl font-bold text-slate-800">
-                        {analysis.rwCorrect} / {analysis.rwTotal}
-                        {analysis.isSAT && <span className="text-xs text-slate-400 font-normal ml-1.5">({analysis.rwScaled} pts)</span>}
+                      <p className="text-2xl font-bold text-emerald-700">
+                        {analysis.isSAT
+                          ? <>{analysis.rwScaled} <span className="text-xs text-slate-400 font-normal">/ 800</span></>
+                          : <>{analysis.rwCorrect} / {analysis.rwTotal}</>}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5 font-medium">Reading and Writing</p>
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                        Reading and Writing
+                        {analysis.isSAT && <span className="text-slate-400 font-normal"> · {analysis.rwCorrect}/{analysis.rwTotal} correct</span>}
+                      </p>
                     </div>
                     <div className="py-3 px-4">
-                      <p className="text-2xl font-bold text-slate-800">
-                        {analysis.mathCorrect} / {analysis.mathTotal}
-                        {analysis.isSAT && <span className="text-xs text-slate-400 font-normal ml-1.5">({analysis.mathScaled} pts)</span>}
+                      <p className="text-2xl font-bold text-amber-700">
+                        {analysis.isSAT
+                          ? <>{analysis.mathScaled} <span className="text-xs text-slate-400 font-normal">/ 800</span></>
+                          : <>{analysis.mathCorrect} / {analysis.mathTotal}</>}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5 font-medium">Math</p>
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                        Math
+                        {analysis.isSAT && <span className="text-slate-400 font-normal"> · {analysis.mathCorrect}/{analysis.mathTotal} correct</span>}
+                      </p>
                     </div>
                   </div>
                 </div>
