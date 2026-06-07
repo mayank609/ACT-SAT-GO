@@ -910,7 +910,16 @@ export function AdminStudentProfilePage() {
                                     );
                                     if (!sectionAttempt) return <div className="text-sm text-slate-500">No questions available for this section</div>;
 
-                                    const allQuestions = sectionAttempt.section.questions;
+                                    // Flatten passage parents into their child questions so every
+                                    // answerable sub-question is shown (mirrors computeTestAnalysis).
+                                    const allQuestions = sectionAttempt.section.questions.flatMap((tq) => {
+                                      const q = tq.question;
+                                      const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+                                      if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+                                        return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
+                                      }
+                                      return [tq];
+                                    });
                                     const answersMap = new Map(expandedAttempt?.answers.map((a) => [a.questionId, a]) ?? []);
 
                                     const filteredQuestions = allQuestions.filter((tq) => {
