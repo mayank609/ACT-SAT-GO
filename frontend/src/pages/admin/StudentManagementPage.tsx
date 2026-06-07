@@ -1230,7 +1230,7 @@ export function StudentManagementPage() {
                       const q = tq.question;
                       const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
                       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-                        return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
+                        return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
                       }
                       return [tq];
                     });
@@ -1286,58 +1286,129 @@ export function StudentManagementPage() {
 
                         {/* Scrollable Question Card Container */}
                         <div className="overflow-y-auto flex-1 border-2 rounded-lg bg-white" style={{ borderColor: correct ? '#BFDBFE' : skipped ? '#E2E8F0' : '#E0F2FE' }}>
-                          <div className={`p-4 flex items-start gap-3 sticky top-0 z-10 ${correct ? 'bg-blue-50/55' : skipped ? 'bg-slate-50' : 'bg-sky-50/40'}`}>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-blue-600' : skipped ? 'bg-slate-400' : 'bg-blue-400'}`}>
-                                {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                          {(currentTq as any).parentPassageText ? (
+                            // Side-by-side layout for passage questions
+                            <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 h-full">
+                              {/* Left: Passage */}
+                              <div className="p-4 overflow-y-auto">
+                                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Passage</div>
+                                <RichContentRenderer content={(currentTq as any).parentPassageText || ''} variant="passage" className="prose-sm text-slate-700" />
                               </div>
-                              {correct ? <CheckCircle size={14} className="text-blue-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-blue-400'} />}
+                              {/* Right: Question + Options */}
+                              <div className="flex flex-col p-4">
+                                <div className={`p-3 flex items-start gap-3 rounded-lg mb-3 ${correct ? 'bg-blue-50/55' : skipped ? 'bg-slate-50' : 'bg-sky-50/40'}`}>
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-blue-600' : skipped ? 'bg-slate-400' : 'bg-blue-400'}`}>
+                                      {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                                    </div>
+                                    {correct ? <CheckCircle size={14} className="text-blue-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-blue-400'} />}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Question</div>
+                                    <div className="text-sm text-slate-800 leading-relaxed font-medium">
+                                      <RichContentRenderer content={currentTq.question.content.text || `Question`} variant="question" className="prose-sm" />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {studentAnswer?.timeSpentSeconds ? (
+                                      <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                                    ) : null}
+                                    {correct ? (
+                                      <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
+                                    ) : skipped ? (
+                                      <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
+                                    ) : (
+                                      <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="space-y-2 flex-1 overflow-y-auto">
+                                  {options.length > 0 && (
+                                    <div className="space-y-2">
+                                      {options.map((opt) => {
+                                        const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                                        const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                                        return (
+                                          <OptionRenderer
+                                            key={opt.id}
+                                            label={opt.id.toUpperCase()}
+                                            text={opt.text}
+                                            isSelected={isUserAnswer && !isCorrectOption}
+                                            isCorrect={isCorrectOption}
+                                            isIncorrect={isUserAnswer && !isCorrectOption}
+                                            showFeedback={true}
+                                            colorTheme="blue"
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                  {currentTq.question.type === 'NUMERIC' && (
+                                    <div className="flex gap-4 text-sm">
+                                      <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
+                                      <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.value}</strong></span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-sm text-slate-800 flex-1 leading-relaxed text-left font-medium">
-                              <RichContentRenderer content={currentTq.question.content.text || `Question`} variant="question" className="prose-sm" />
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {studentAnswer?.timeSpentSeconds ? (
-                                <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
-                              ) : null}
-                              {correct ? (
-                                <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
-                              ) : skipped ? (
-                                <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
-                              ) : (
-                                <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
-                              )}
-                            </div>
-                          </div>
+                          ) : (
+                            // Regular single question layout
+                            <>
+                              <div className={`p-4 flex items-start gap-3 sticky top-0 z-10 ${correct ? 'bg-blue-50/55' : skipped ? 'bg-slate-50' : 'bg-sky-50/40'}`}>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${correct ? 'bg-blue-600' : skipped ? 'bg-slate-400' : 'bg-blue-400'}`}>
+                                    {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                                  </div>
+                                  {correct ? <CheckCircle size={14} className="text-blue-600" /> : <XCircle size={14} className={skipped ? 'text-slate-400' : 'text-blue-400'} />}
+                                </div>
+                                <div className="text-sm text-slate-800 flex-1 leading-relaxed text-left font-medium">
+                                  <RichContentRenderer content={currentTq.question.content.text || `Question`} variant="question" className="prose-sm" />
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {studentAnswer?.timeSpentSeconds ? (
+                                    <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                                  ) : null}
+                                  {correct ? (
+                                    <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
+                                  ) : skipped ? (
+                                    <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
+                                  ) : (
+                                    <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+                                  )}
+                                </div>
+                              </div>
 
-                          <div className="px-4 py-3 border-t border-slate-100">
-                            {options.length > 0 && (
-                              <div className="space-y-2 mb-3 text-left">
-                                {options.map((opt) => {
-                                  const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
-                                  const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
-                                  return (
-                                    <OptionRenderer
-                                      key={opt.id}
-                                      label={opt.id.toUpperCase()}
-                                      text={opt.text}
-                                      isSelected={isUserAnswer && !isCorrectOption}
-                                      isCorrect={isCorrectOption}
-                                      isIncorrect={isUserAnswer && !isCorrectOption}
-                                      showFeedback={true}
-                                      colorTheme="blue"
-                                    />
-                                  );
-                                })}
+                              <div className="px-4 py-3 border-t border-slate-100">
+                                {options.length > 0 && (
+                                  <div className="space-y-2 mb-3 text-left">
+                                    {options.map((opt) => {
+                                      const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                                      const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                                      return (
+                                        <OptionRenderer
+                                          key={opt.id}
+                                          label={opt.id.toUpperCase()}
+                                          text={opt.text}
+                                          isSelected={isUserAnswer && !isCorrectOption}
+                                          isCorrect={isCorrectOption}
+                                          isIncorrect={isUserAnswer && !isCorrectOption}
+                                          showFeedback={true}
+                                          colorTheme="blue"
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                {currentTq.question.type === 'NUMERIC' && (
+                                  <div className="flex gap-4 text-sm mb-3 text-left">
+                                    <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
+                                    <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.value}</strong></span>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                            {currentTq.question.type === 'NUMERIC' && (
-                              <div className="flex gap-4 text-sm mb-3 text-left">
-                                <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
-                                <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.value}</strong></span>
-                              </div>
-                            )}
-                          </div>
+                            </>
+                          )}
                         </div>
 
                         {/* Navigation - Fixed at bottom */}
