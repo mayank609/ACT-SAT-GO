@@ -1,11 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, BarChart2, LayoutList, X, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Button } from '../../components/common/Button';
+import { CheckCircle, FileText, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
-import { Modal } from '../../components/common/Modal';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
@@ -13,7 +10,6 @@ import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 
-type AnalyticsTab = 'mistake' | 'parallel' | 'skill';
 type MainViewTab = 'analysis' | 'test_analysis';
 
 // ── Test Analysis types ──────────────────────────────────────────────────────
@@ -232,16 +228,6 @@ function computeTestAnalysis(attempt: TaAttempt): {
   return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, isSAT, finalScaledScore, rwScaled, mathScaled };
 }
 
-type AnalyticsData = {
-  trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>;
-  sectionStats: Array<{ sectionId: string; sectionName: string; totalQuestions: number; correct: number; incorrect: number; skipped: number; accuracy: number; timeAllocated: number; timeUsed: number }>;
-  questionPacingStats: Array<{ questionIndex: number; sectionName: string; timeSpentSeconds: number; status: 'correct' | 'incorrect' | 'skipped'; difficulty: string; topicName: string }>;
-  overallAccuracy: number;
-  totalAttempts: number;
-  latestScore: number;
-  avgScore: number;
-};
-
 export function MyStudentsPage() {
   const navigate = useNavigate();
   const { dbId } = useAuthStore();
@@ -252,15 +238,6 @@ export function MyStudentsPage() {
   // ── Existing state ────────────────────────────────────────────────────────
   const [students, setStudents] = useState<DbUser[]>([]);
 
-  // ── New state ─────────────────────────────────────────────────────────────
-  const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>('mistake');
-  const [analyticsStudentId, setAnalyticsStudentId] = useState('');
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [analyticsView, setAnalyticsView] = useState<'table' | 'chart'>('table');
-  const [analyticsSubject, setAnalyticsSubject] = useState('');
-  const [analyticsAttempts, setAnalyticsAttempts] = useState<Array<{ id: string; status: string; totalScore: number | null; completedAt: string | null; startedAt: string; test: { title: string } }>>([]);
-  const [analyticsAttemptId, setAnalyticsAttemptId] = useState('');
 
   // ── Comprehensive Analysis state ──────────────────────────────────────────
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -354,28 +331,6 @@ export function MyStudentsPage() {
       .catch(() => {});
   };
   useEffect(() => { reload(); }, [dbId]);
-
-  // Load the selected student's list of completed tests
-  useEffect(() => {
-    if (!analyticsStudentId) { setAnalyticsAttempts([]); setAnalyticsAttemptId(''); return; }
-    api.getStudentAttempts(analyticsStudentId)
-      .then((r) => {
-        const submitted = ((r.attempts as any[]) ?? []).filter((a) => a.status === 'SUBMITTED');
-        setAnalyticsAttempts(submitted);
-        setAnalyticsAttemptId(submitted[0]?.id ?? '');
-      })
-      .catch(() => { setAnalyticsAttempts([]); setAnalyticsAttemptId(''); });
-  }, [analyticsStudentId]);
-
-  // Load analytics for the selected student + test
-  useEffect(() => {
-    if (!analyticsStudentId) { setAnalyticsData(null); return; }
-    setAnalyticsLoading(true);
-    api.getStudentAnalytics(analyticsStudentId, analyticsAttemptId || undefined)
-      .then((r) => setAnalyticsData(r as AnalyticsData))
-      .catch(() => {})
-      .finally(() => setAnalyticsLoading(false));
-  }, [analyticsStudentId, analyticsAttemptId]);
 
   // Load comprehensive analysis data
   const loadComprehensiveAnalysis = async () => {
@@ -487,35 +442,6 @@ export function MyStudentsPage() {
   }, [mainView]);
 
   // ── Derived data ──────────────────────────────────────────────────────────
-  // ── Analytics computed data ───────────────────────────────────────────────
-  const qStats = analyticsData?.questionPacingStats ?? [];
-  const filteredQStats = analyticsSubject
-    ? qStats.filter(q => q.sectionName.toLowerCase().includes(analyticsSubject.toLowerCase()))
-    : qStats;
-
-  const topicMap: Record<string, { total: number; correct: number }> = {};
-  filteredQStats.forEach(q => {
-    const key = q.topicName || 'Unknown';
-    if (!topicMap[key]) topicMap[key] = { total: 0, correct: 0 };
-    topicMap[key].total++;
-    if (q.status === 'correct') topicMap[key].correct++;
-  });
-  const rawTopicStats = Object.entries(topicMap).map(([topic, { total, correct }]) => ({
-    topic, total, correct, accuracy: total > 0 ? (correct / total) * 100 : 0,
-  }));
-
-  const topicStats = analyticsTab === 'mistake'
-    ? rawTopicStats.filter(t => t.accuracy < 70).sort((a, b) => a.accuracy - b.accuracy)
-    : analyticsTab === 'parallel'
-    ? (analyticsData?.sectionStats ?? []).map(s => ({ topic: s.sectionName, total: s.totalQuestions, correct: s.correct, accuracy: s.accuracy }))
-    : rawTopicStats.sort((a, b) => a.topic.localeCompare(b.topic));
-
-  const totalQ = filteredQStats.length;
-  const correctQ = filteredQStats.filter(q => q.status === 'correct').length;
-  const accuracyPct = totalQ > 0 ? (correctQ / totalQ) * 100 : 0;
-
-  const analyticsSubjects = [...new Set(qStats.map(q => q.sectionName).filter(Boolean))];
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
