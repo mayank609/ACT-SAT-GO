@@ -18,16 +18,16 @@ export interface SatDomain {
 /** Domains grouped by the two SAT sections. */
 export const SAT_CONTENT: Record<'Reading and Writing' | 'Math', SatDomain[]> = {
   'Reading and Writing': [
-    { name: 'Information and Ideas', pct: 26, range: '12 - 14', subs: ['Command of Evidence', 'Inferences', 'Central Ideas and Details'] },
-    { name: 'Craft and Structure', pct: 28, range: '13 - 15', subs: ['Words in Context', 'Text Structure and Purpose', 'Cross-Text Connections'] },
-    { name: 'Expression of Ideas', pct: 20, range: '8 - 12', subs: ['Rhetorical Synthesis', 'Transitions'] },
-    { name: 'Standard English Conventions', pct: 26, range: '11 - 15', subs: ['Boundaries', 'Form, Structure, and Sense'] },
+    { name: 'Information and Ideas', pct: 26, range: '12 - 14', subs: ['Main Idea', 'Fact-based / Inference', 'Critical Reasoning', 'Illustrate the Claim', 'Logical Completion'] },
+    { name: 'Craft and Structure', pct: 28, range: '13 - 15', subs: ['Cross-text Connections', 'Words in Context', 'Overall Structure', 'Function / Purpose'] },
+    { name: 'Expression of Ideas', pct: 20, range: '8 - 12', subs: ['Transitions', 'Rhetorical Synthesis'] },
+    { name: 'Standard English Conventions', pct: 26, range: '11 - 15', subs: ['Form Structure and Sense', 'Boundaries'] },
   ],
   'Math': [
-    { name: 'Algebra', pct: 35, range: '13 - 15', subs: ['Linear equations in one variable', 'Linear functions', 'Linear equations in two variables', 'Systems of two linear equations in two variables', 'Linear inequalities in one or two variables'] },
-    { name: 'Advanced Math', pct: 35, range: '13 - 15', subs: ['Nonlinear functions', 'Nonlinear equations in one variable', 'Systems of equations in two variables', 'Equivalent expressions'] },
-    { name: 'Problem-Solving and Data Analysis', pct: 15, range: '5 - 7', subs: ['Ratios, rates, proportional relationships, and units', 'Percentages', 'One-variable data: Distributions and measures of center and spread', 'Two-variable data: Models and scatterplots', 'Probability and conditional probability', 'Inference from sample statistics and margin of error', 'Evaluating statistical claims: Observational studies and experiments'] },
-    { name: 'Geometry and Trigonometry', pct: 15, range: '5 - 7', subs: ['Area and volume', 'Lines, angles, and triangles', 'Right triangles and trigonometry', 'Circles'] },
+    { name: 'Algebra', pct: 35, range: '13 - 15', subs: ['Linear Equations in one or two variables', 'Linear Inequalities'] },
+    { name: 'Advanced Math', pct: 35, range: '13 - 15', subs: ['Exponent Rules', 'Basic Function Questions', 'Radical Equations', 'Polynomial', 'Exponential Functions', 'Absolute Value Equations & Inequalities', 'Parabolas', 'Quadratic Equations'] },
+    { name: 'Problem-Solving and Data Analysis', pct: 15, range: '5 - 7', subs: ['Research Studies', 'Statistics', 'Ratio, Rates and Percentages'] },
+    { name: 'Geometry', pct: 15, range: '5 - 7', subs: ['Lines and Angles', 'Areas and Volumes', 'Triangles', 'Circles', 'Polygons'] },
   ],
 };
 
@@ -44,38 +44,137 @@ export const SUBDOMAINS_BY_DOMAIN: Record<string, string[]> = Object.fromEntries
 
 /** Subdomain name → its list of key Skills. */
 export const SKILLS_BY_SUBDOMAIN: Record<string, string[]> = {
-  // Reading & Writing
-  'Command of Evidence': ['Textual Evidence', 'Quantitative Evidence'],
-  'Inferences': ['Logical Completion', 'Drawing Conclusions'],
-  'Central Ideas and Details': ['Main Idea Identification', 'Supporting Details'],
-  'Words in Context': ['Vocabulary in Context', 'Word Choice'],
-  'Text Structure and Purpose': ['Structure Analysis', 'Author\'s Purpose'],
-  'Cross-Text Connections': ['Dual Passage Comparison', 'Perspective Synthesis'],
-  'Rhetorical Synthesis': ['Note-taking Synthesis', 'Goal-oriented Revision'],
-  'Transitions': ['Logical Connectives', 'Sentence Transitions'],
-  'Boundaries': ['Punctuation Marks', 'Sentence Structure Rules'],
-  'Form, Structure, and Sense': ['Subject-Verb Agreement', 'Verb Tense & Aspect', 'Pronoun Antecedent Agreement'],
+  // Reading & Writing - Information and Ideas
+  'Main Idea': [],
+  'Fact-based / Inference': [],
+  'Critical Reasoning': [],
+  'Illustrate the Claim': [],
+  'Logical Completion': [],
 
-  // Math
-  'Linear equations in one variable': ['Solving Linear Equations', 'Creating Linear Equations'],
-  'Linear functions': ['Interpreting Linear Graphs', 'Determining Slope & Intercepts'],
-  'Linear equations in two variables': ['Formulating Two-Variable Equations', 'Graphing Linear Inequalities'],
-  'Systems of two linear equations in two variables': ['Substitution Method', 'Elimination Method', 'Interpreting System Solutions'],
-  'Linear inequalities in one or two variables': ['Solving Linear Inequalities', 'Systems of Linear Inequalities'],
-  'Nonlinear functions': ['Quadratic Function Properties', 'Exponential Growth & Decay'],
-  'Nonlinear equations in one variable': ['Solving Quadratic Equations', 'Solving Radical/Rational Equations'],
-  'Systems of equations in two variables': ['Nonlinear System Solutions', 'Graphical Intersection'],
-  'Equivalent expressions': ['Factoring Polynomials', 'Simplifying Rational Expressions'],
-  'Ratios, rates, proportional relationships, and units': ['Unit Conversions', 'Ratios & Proportions'],
-  'Percentages': ['Percentage Calculations', 'Percent Increase & Decrease'],
-  'One-variable data: Distributions and measures of center and spread': ['Mean, Median, & Mode', 'Standard Deviation & Range'],
-  'Two-variable data: Models and scatterplots': ['Line of Best Fit', 'Interpreting Scatterplots'],
-  'Probability and conditional probability': ['Simple Probability', 'Conditional Probability'],
-  'Inference from sample statistics and margin of error': ['Margin of Error', 'Sample Representative Analysis'],
-  'Evaluating statistical claims: Observational studies and experiments': ['Experimental Design', 'Observational Studies'],
-  'Area and volume': ['Area of Polygons', 'Volume & Surface Area of Solids'],
-  'Lines, angles, and triangles': ['Congruence & Similarity', 'Angle Theorems'],
-  'Right triangles and trigonometry': ['Pythagorean Theorem', 'Sine, Cosine, & Tangent'],
-  'Circles': ['Arc Length & Sector Area', 'Circle Equation in Coordinate Plane']
+  // Reading & Writing - Craft and Structure
+  'Cross-text Connections': [],
+  'Words in Context': [],
+  'Overall Structure': [],
+  'Function / Purpose': [],
+
+  // Reading & Writing - Expression of Ideas
+  'Transitions': [],
+  'Rhetorical Synthesis': [],
+
+  // Reading & Writing - Standard English Conventions
+  'Form Structure and Sense': ['Modifiers', 'Plurals and Possessives', 'Sentence Structure', 'Pronoun Antecedent', 'Parallelism and Faulty Comparison', 'Verb Agreement and Forms'],
+  'Boundaries': ['Linking Clauses', 'Supplements', 'Punctuation'],
+
+  // Math - Algebra
+  'Linear Equations in one or two variables': [
+    'Identification of Linear Equations for word problems',
+    'Interpreting slope / y-intercept of linear function',
+    'Identification of linear equation using graphs',
+    'Calculating equation of straight lines using slope/points',
+    'Finding linear function using x,f(x)',
+    'Conditions of solvability for slope intercept form',
+    'Solving simultaneous linear equations in two variables',
+    'Conditions of solvability for general form',
+    'Solving linear equation in one variable'
+  ],
+  'Linear Inequalities': [
+    'Solving linear inequality in one variable',
+    'Solving linear inequality in two variables',
+    'Absolute value functions (equations/inequalities)'
+  ],
+
+  // Math - Advanced Math
+  'Exponent Rules': [
+    'Simplification of expressions using exponent rules'
+  ],
+  'Basic Function Questions': [
+    'Function graph interpretation',
+    'Comparison of two functions',
+    'Function evaluation at a given point'
+  ],
+  'Radical Equations': [
+    'Solving radical equations'
+  ],
+  'Polynomial': [
+    'Equivalent expression / simplification based questions',
+    'Identifying functions using graphs (Factor theorem)'
+  ],
+  'Exponential Functions': [
+    'Solving exponential equations',
+    'Identifying y-intercept of exponential functions',
+    'Linear vs exponential function comparison',
+    'Compound interest problems',
+    'Identifying exponential function from graph',
+    'Identifying exponential function from word problem',
+    'Interpreting y-intercept / rate of exponential function'
+  ],
+  'Absolute Value Equations & Inequalities': [
+    'Framing / solving of absolute value equations & inequalities',
+    'Absolute value equations inequalities'
+  ],
+  'Parabolas': [
+    'Identifying x/y intercept of parabola',
+    'Identifying x/y coordinate of vertex of parabola',
+    'Converting one form to another for parabolas',
+    'Word problems on parabolas',
+    'Identification of equations using graphs'
+  ],
+  'Quadratic Equations': [
+    'Sum and product of roots (cubic)',
+    'Sum and product of roots (quadratic)',
+    'Solving system of one linear and one quadratic equation',
+    'Solving quadratic equations',
+    'Using discriminant of a quadratic equation (no. of x intercepts)',
+    'Frame quadratic equation and solve'
+  ],
+
+  // Math - Geometry
+  'Lines and Angles': [
+    'Basic properties'
+  ],
+  'Areas and Volumes': [
+    'Calculating areas',
+    'Calculating volumes',
+    'Calculating dimensions of geometric figures'
+  ],
+  'Triangles': [
+    'Properties of triangles',
+    'Trigonometry',
+    'Special triangles',
+    'Similarity in triangles'
+  ],
+  'Circles': [
+    'Arc length / area of sector calculations',
+    'Circle properties',
+    'Translations on circles',
+    'Circle equations',
+    'Unit circle / circle trigonometry'
+  ],
+  'Polygons': [
+    'Angle sum properties',
+    'Length and areas'
+  ],
+
+  // Math - Problem Solving and Data Analysis
+  'Research Studies': [
+    'Confidence interval / margin of error inference',
+    'Cause and effect questions',
+    'Generalisation questions'
+  ],
+  'Statistics': [
+    'Two way probability table',
+    'Effects on numerical values (outliers / removal of values etc)',
+    'Table based data interpretation',
+    'Graph based data interpretation (Pie charts, bar graphs)',
+    'Scatterplot based questions (line of best fit)',
+    'Data based calculation questions (mean/median/std etc)'
+  ],
+  'Ratio, Rates and Percentages': [
+    'Questions on time, distance and speed',
+    'Percentage based questions',
+    'Unit change questions (other than areas and volumes)',
+    'Area/volume questions based on ratios / unit change',
+    'Calculating multipliers for percentage increase/decrease'
+  ]
 };
 
