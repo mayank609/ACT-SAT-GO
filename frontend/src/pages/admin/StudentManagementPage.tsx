@@ -1324,7 +1324,7 @@ export function StudentManagementPage() {
                                 </div>
                                 <div className="space-y-2 flex-1 overflow-y-auto">
                                   {options.length > 0 && (
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 max-w-3xl">
                                       {options.map((opt) => {
                                         const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
                                         const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
@@ -1381,7 +1381,7 @@ export function StudentManagementPage() {
 
                               <div className="px-4 py-3 border-t border-slate-100">
                                 {options.length > 0 && (
-                                  <div className="space-y-2 mb-3 text-left">
+                                  <div className="space-y-2 mb-3 text-left max-w-3xl">
                                     {options.map((opt) => {
                                       const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
                                       const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;

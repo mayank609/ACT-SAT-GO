@@ -57,7 +57,7 @@ export function OptionRenderer({
     <div
       onClick={onClick}
       className={`
-        p-4 rounded-lg border-2 transition-all
+        p-2.5 rounded-lg border transition-all
         ${backgroundColor}
         ${cursorClass}
         ${disabled ? 'opacity-60' : ''}
@@ -65,12 +65,12 @@ export function OptionRenderer({
         ${className}
       `}
     >
-      <div className="flex gap-4">
+      <div className="flex gap-3">
         {/* Option Label */}
         <div className="flex-shrink-0">
           <div
             className={`
-              w-8 h-8 rounded-lg flex items-center justify-center font-semibold text-sm
+              w-7 h-7 rounded-md flex items-center justify-center font-semibold text-xs
               ${
                 showFeedback
                   ? isCorrect
