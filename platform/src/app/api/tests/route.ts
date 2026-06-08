@@ -201,7 +201,8 @@ export async function POST(request: NextRequest) {
           })
 
           if (isPassage && q.linkedQuestions && Array.isArray(q.linkedQuestions)) {
-            for (const child of q.linkedQuestions) {
+            for (let childIdx = 0; childIdx < q.linkedQuestions.length; childIdx++) {
+              const child = q.linkedQuestions[childIdx]
               const childDbType = TYPE_MAP[child.type] || 'MCQ'
               const childDbDiff = DIFF_MAP[child.difficulty] || 'MEDIUM'
               const childTopicId = child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null
@@ -214,7 +215,7 @@ export async function POST(request: NextRequest) {
                 }
               } as Prisma.InputJsonValue
 
-              await tx.question.create({
+              const newChildQuestion = await tx.question.create({
                 data: {
                   type: childDbType as any,
                   content: childContentJson,
@@ -223,6 +224,18 @@ export async function POST(request: NextRequest) {
                   difficultyLevel: childDbDiff as any,
                   topicId: childTopicId,
                   parentQuestionId: newQuestion.id,
+                },
+              })
+
+              // Create TestQuestion record for child question with inherited or own marks
+              await tx.testQuestion.create({
+                data: {
+                  testId: newTest.id,
+                  sectionId: newSection.id,
+                  questionId: newChildQuestion.id,
+                  orderIndex: qIdx * 1000 + childIdx,  // Child questions ordered after parent
+                  marksPositive: child.marks ?? q.marks ?? 1,  // Use child marks, fallback to parent marks, then default
+                  marksNegative: child.marksNegative ?? q.marksNegative ?? 0,
                 },
               })
             }

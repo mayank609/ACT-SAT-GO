@@ -369,15 +369,28 @@ export function StudentManagementPage() {
       const rows = attempts
         .filter((a): a is TaAttempt => !!a)
         .map((att) => {
-          const an = computeTestAnalysis(att);
-          return {
-            id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
-            rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
-            rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
-            totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
-            rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
-          };
+          try {
+            const an = computeTestAnalysis(att);
+            return {
+              id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+              rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
+              rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
+              totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
+              rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
+            };
+          } catch (err) {
+            console.error(`[TestAnalysis] Error computing analysis for attempt ${att.id}:`, err);
+            // Fallback: show totalScore instead of recomputed values
+            return {
+              id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+              rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0,
+              rwM1T: 0, rwM2T: 0, mathM1T: 0, mathM2T: 0,
+              totalRaw: att.totalScore ?? 0, totalRawT: 0,
+              rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false,
+            };
+          }
         });
+      console.log(`[TestAnalysis] Computed ${rows.length} test reports`);
       setReportRows(rows);
     }).finally(() => { if (!cancelled) setReportLoading(false); });
     return () => { cancelled = true; };
@@ -400,8 +413,14 @@ export function StudentManagementPage() {
       
       for (const student of students) {
         try {
-          const attempts = (await api.getStudentAttempts(student.id)) as any;
-          const studentAttempts = attempts?.attempts?.filter((a: any) => a.status === 'SUBMITTED') || [];
+          // Get attempts list for test type counting and details
+          const attemptsResp = (await api.getStudentAttempts(student.id)) as any;
+          const studentAttempts = attemptsResp?.attempts?.filter((a: any) => a.status === 'SUBMITTED') || [];
+          console.log(`[Analysis] Student ${student.id} has ${studentAttempts.length} submitted attempts`);
+          
+          // Get analytics from backend - this has pre-computed scores and stats
+          const analyticsResp = await api.getStudentAnalytics(student.id);
+          console.log(`[Analysis] Analytics for ${student.id}:`, { trend: analyticsResp.trend.length, latestScore: analyticsResp.latestScore, avgScore: analyticsResp.avgScore, sectionStats: analyticsResp.sectionStats.length });
           
           let diagnosticsEnglish = null;
           let diagnosticsMath = null;
@@ -414,54 +433,58 @@ export function StudentManagementPage() {
           let rawScoreEnglish = null;
           let rawScoreMath = null;
           
-          // Find diagnostics test and latest test
-          if (studentAttempts.length > 0) {
-            const sortedAttempts = [...studentAttempts].sort((a: any, b: any) => 
-              new Date(b.completedAt || b.startedAt).getTime() - new Date(a.completedAt || a.startedAt).getTime()
-            );
+          // Extract scores from backend analytics
+          if (analyticsResp.latestScore !== undefined) {
+            rawScoreTotal = analyticsResp.latestScore;
+            scaledScoreTotal = analyticsResp.latestScore;
+            scaledScoreEnglish = analyticsResp.latestScore;
+            scaledScoreMath = analyticsResp.latestScore;
+          }
+          
+          // Get last test info from trend
+          if (analyticsResp.trend && analyticsResp.trend.length > 0) {
+            const latestTrend = analyticsResp.trend[analyticsResp.trend.length - 1];
+            lastTestName = latestTrend.testTitle;
+            lastSubmittedAt = latestTrend.date;
+          }
+          
+          // Try to get section-wise breakdown if multiple sections exist
+          if (analyticsResp.sectionStats && analyticsResp.sectionStats.length > 0) {
+            const sections = analyticsResp.sectionStats;
+            console.log(`[Analysis] Section stats for ${student.id}:`, sections.map((s: any) => ({ name: s.sectionName, correct: s.correct, total: s.totalQuestions, accuracy: s.accuracy })));
             
-            const latestAttempt = sortedAttempts[0];
-            lastTestName = latestAttempt?.test?.title || null;
-            lastSubmittedAt = latestAttempt?.completedAt || latestAttempt?.startedAt || null;
-            rawScoreTotal = latestAttempt?.totalScore || null;
-            // scaledScoreTotal stays null until we compute it from full attempt data below
-
-            // Look for diagnostics test
-            const diagnosticsAttemptBasic = studentAttempts.find((a: any) =>
-              a.test?.title?.toLowerCase().includes('diagnostic')
-            );
-            // If no separate diagnostics, treat the latest attempt as the baseline
-            const baselineAttemptBasic = diagnosticsAttemptBasic ?? latestAttempt;
-            if (baselineAttemptBasic) {
-              try {
-                const fullAttemptResp = await api.getAttempt(baselineAttemptBasic.id);
-                const fullAttempt = fullAttemptResp.attempt as TaAttempt;
-                const analysis = computeTestAnalysis(fullAttempt);
-                if (analysis.isSAT) {
-                  diagnosticsEnglish = analysis.rwScaled;
-                  diagnosticsMath = analysis.mathScaled;
-                  scaledScoreTotal = analysis.finalScaledScore;
-                  scaledScoreEnglish = analysis.rwScaled;
-                  scaledScoreMath = analysis.mathScaled;
-                } else {
-                  // Non-SAT test: show raw correct count
-                  diagnosticsEnglish = analysis.rwCorrect || null;
-                  diagnosticsMath = analysis.mathCorrect || null;
-                  scaledScoreTotal = analysis.totalCorrect || null;
-                }
-              } catch (e) {
-                console.error("Error computing analysis for attempt:", e);
-              }
+            // Find English sections (first occurrence) and Math sections (first occurrence)
+            const engSection = sections.find((s: any) => /reading|writing|rw|english/i.test(s.sectionName));
+            const mathSection = sections.find((s: any) => /math/i.test(s.sectionName));
+            
+            if (engSection) {
+              scaledScoreEnglish = engSection.correct || 0;
+              diagnosticsEnglish = engSection.correct || 0;
+              console.log(`[Analysis] English for ${student.id}: ${engSection.correct}/${engSection.totalQuestions}`);
+            }
+            
+            if (mathSection) {
+              scaledScoreMath = mathSection.correct || 0;
+              diagnosticsMath = mathSection.correct || 0;
+              console.log(`[Analysis] Math for ${student.id}: ${mathSection.correct}/${mathSection.totalQuestions}`);
             }
           }
           
-          // Count assessment types
+          // If no section data, use overall score
+          if (diagnosticsEnglish === null && analyticsResp.latestScore !== undefined) {
+            diagnosticsEnglish = Math.round(analyticsResp.latestScore / 2);
+          }
+          if (diagnosticsMath === null && analyticsResp.latestScore !== undefined) {
+            diagnosticsMath = Math.round(analyticsResp.latestScore / 2);
+          }
+          
+          // Count assessment types by test title from actual attempts list
           const mockCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('mock')).length;
           const sectionalCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('sectional')).length;
           const hwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('homework') || a.test?.title?.toLowerCase().includes('hw')).length;
           const cwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('classwork') || a.test?.title?.toLowerCase().includes('cw')).length;
           const practiceCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('practice')).length;
-          const totalAssessments = mockCount + sectionalCount + hwCount + cwCount + practiceCount;
+          const totalAssessments = studentAttempts.length;  // Total submitted attempts
           
           allStudentData.push({
             studentId: student.id,
@@ -488,6 +511,30 @@ export function StudentManagementPage() {
           });
         } catch (err) {
           console.error(`Error loading analysis for student ${student.id}:`, err);
+          // Still add student entry even if analytics fails, with null scores
+          allStudentData.push({
+            studentId: student.id,
+            studentName: student.name,
+            studentEmail: student.email,
+            targetDate: null,
+            diagnosticsEnglish: null,
+            diagnosticsMath: null,
+            mockTests: 0,
+            sectionalTests: 0,
+            hwCount: 0,
+            cwCount: 0,
+            practiceSheets: 0,
+            totalAssessments: 0,
+            lastTestName: null,
+            lastSubmittedAt: null,
+            scaledScoreTotal: null,
+            scaledScoreEnglish: null,
+            scaledScoreMath: null,
+            rawScoreTotal: null,
+            rawScoreEnglish: null,
+            rawScoreMath: null,
+            attempts: [],
+          });
         }
       }
       

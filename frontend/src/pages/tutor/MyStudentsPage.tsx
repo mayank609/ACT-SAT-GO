@@ -387,6 +387,10 @@ export function MyStudentsPage() {
           const attempts = (await api.getStudentAttempts(student.id)) as any;
           const studentAttempts = attempts?.attempts?.filter((a: any) => a.status === 'SUBMITTED') || [];
           
+          // Fetch analytics from backend for accurate scores
+          const analytics = await api.getStudentAnalytics(student.id);
+          console.log(`[TutorAnalysis] ${student.name}: latestScore=${analytics.latestScore}, sectionStats=${analytics.sectionStats.length}`);
+          
           let diagnosticsEnglish = null;
           let diagnosticsMath = null;
           let lastTestName = null;
@@ -398,42 +402,49 @@ export function MyStudentsPage() {
           let rawScoreEnglish = null;
           let rawScoreMath = null;
           
-          // Find diagnostics test and latest test
-          if (studentAttempts.length > 0) {
-            const sortedAttempts = [...studentAttempts].sort((a: any, b: any) => 
-              new Date(b.completedAt || b.startedAt).getTime() - new Date(a.completedAt || a.startedAt).getTime()
-            );
+          // Use backend analytics data
+          if (analytics.latestScore !== undefined) {
+            scaledScoreTotal = analytics.latestScore;
+            rawScoreTotal = analytics.latestScore;
+            scaledScoreEnglish = analytics.latestScore;
+            scaledScoreMath = analytics.latestScore;
+          }
+          
+          // Get last test info from trend
+          if (analytics.trend && analytics.trend.length > 0) {
+            const latestTrend = analytics.trend[analytics.trend.length - 1];
+            lastTestName = latestTrend.testTitle;
+            lastSubmittedAt = latestTrend.date;
+          }
+          
+          // Get section-wise scores from analytics
+          if (analytics.sectionStats && analytics.sectionStats.length > 0) {
+            const sections = analytics.sectionStats;
+            console.log(`[TutorAnalysis] Sections for ${student.name}:`, sections.map((s: any) => ({ name: s.sectionName, correct: s.correct, total: s.totalQuestions })));
             
-            const latestAttempt = sortedAttempts[0];
-            lastTestName = latestAttempt?.test?.title || null;
-            lastSubmittedAt = latestAttempt?.completedAt || latestAttempt?.startedAt || null;
-            scaledScoreTotal = latestAttempt?.totalScore || null;
-            rawScoreTotal = latestAttempt?.totalScore || null;
-            
-            // Look for diagnostics test
-            const diagnosticsAttemptBasic = studentAttempts.find((a: any) => 
-              a.test?.title?.toLowerCase().includes('diagnostic')
-            );
-            if (diagnosticsAttemptBasic) {
-              try {
-                // Fetch full attempt data for analysis
-                const fullAttemptResp = await api.getAttempt(diagnosticsAttemptBasic.id);
-                const diagnosticsAttempt = fullAttemptResp.attempt as TaAttempt;
-                const analysis = computeTestAnalysis(diagnosticsAttempt);
-                diagnosticsEnglish = analysis.rwScaled;
-                diagnosticsMath = analysis.mathScaled;
-                scaledScoreTotal = analysis.finalScaledScore;
-                scaledScoreEnglish = analysis.rwScaled;
-                scaledScoreMath = analysis.mathScaled;
-              } catch (e) {
-                console.error("Error computing analysis for diagnosticsAttempt:", e);
-                diagnosticsEnglish = diagnosticsAttemptBasic.totalScore;
-                diagnosticsMath = diagnosticsAttemptBasic.totalScore;
-                scaledScoreTotal = diagnosticsAttemptBasic.totalScore;
-                scaledScoreEnglish = diagnosticsAttemptBasic.totalScore;
-                scaledScoreMath = diagnosticsAttemptBasic.totalScore;
-              }
+            // Find English section
+            const engSection = sections.find((s: any) => /reading|writing|rw|english/i.test(s.sectionName));
+            if (engSection) {
+              diagnosticsEnglish = engSection.correct || 0;
+              scaledScoreEnglish = engSection.correct || 0;
+              console.log(`[TutorAnalysis] English for ${student.name}: ${engSection.correct}/${engSection.totalQuestions}`);
             }
+            
+            // Find Math section
+            const mathSection = sections.find((s: any) => /math/i.test(s.sectionName));
+            if (mathSection) {
+              diagnosticsMath = mathSection.correct || 0;
+              scaledScoreMath = mathSection.correct || 0;
+              console.log(`[TutorAnalysis] Math for ${student.name}: ${mathSection.correct}/${mathSection.totalQuestions}`);
+            }
+          }
+          
+          // Fallback if no section data
+          if (diagnosticsEnglish === null && analytics.latestScore !== undefined) {
+            diagnosticsEnglish = Math.round(analytics.latestScore / 2);
+          }
+          if (diagnosticsMath === null && analytics.latestScore !== undefined) {
+            diagnosticsMath = Math.round(analytics.latestScore / 2);
           }
           
           // Count assessment types

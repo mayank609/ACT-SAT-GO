@@ -47,8 +47,13 @@ export function MyProgressPage() {
     if (!dbId) { setLoading(false); return; }
     setLoading(true);
     api.getStudentAnalytics(dbId)
-      .then((r) => setAnalytics(r as Analytics))
-      .catch(() => {})
+      .then((r) => {
+        console.log(`[MyProgress] Loaded analytics:`, { totalAttempts: r.totalAttempts, latestScore: r.latestScore, avgScore: r.avgScore, trend: r.trend.length });
+        setAnalytics(r as Analytics);
+      })
+      .catch((err) => {
+        console.error('[MyProgress] Error loading analytics:', err);
+      })
       .finally(() => setLoading(false));
   }, [dbId]);
 

@@ -173,25 +173,20 @@ function computeTestAnalysis(attempt: TaAttempt): {
   mathTotal: number;
   finalScaledScore: number;
 } {
-  console.log('[DEBUG] computeTestAnalysis called with attempt:', attempt);
-  console.log('[DEBUG] Total answers in attempt:', attempt.answers.length);
-  console.log('[DEBUG] Sample answers:', attempt.answers.slice(0, 3).map(a => ({ id: a.questionId, answered: !!a.answerGiven })));
+  console.log('[TutorAnalytics] computeTestAnalysis called for attempt:', attempt.id);
+  console.log('[TutorAnalytics] Total answers in attempt:', attempt.answers.length);
   
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
-  console.log('[DEBUG] AnswersMap size:', answersMap.size);
-  console.log('[DEBUG] AnswersMap keys (first 5):', Array.from(answersMap.keys()).slice(0, 5));
+  console.log('[TutorAnalytics] AnswersMap size:', answersMap.size);
   
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
-  console.log('[DEBUG] Sorted sections count:', sortedSections.length);
+  console.log('[TutorAnalytics] Sections count:', sortedSections.length);
 
   let totalCorrect = 0, totalQuestions = 0;
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
 
   const sections: SectionAnalysis[] = sortedSections.map((sa, sectionIdx) => {
-    console.log(`[DEBUG] Processing section ${sectionIdx}: "${sa.section.name}"`);
-    console.log(`[DEBUG]   Section object:`, sa.section);
-    console.log(`[DEBUG]   Section has questions array:`, !!sa.section.questions);
-    console.log(`[DEBUG]   Section has ${sa.section.questions?.length || 0} questions`);
+    console.log(`[TutorAnalytics] Processing section ${sectionIdx}: "${sa.section.name}" with ${sa.section.questions?.length || 0} questions`);
     
     // Flatten questions to handle PASSAGE questions
     const flatQs: any[] = [];
@@ -217,36 +212,31 @@ function computeTestAnalysis(attempt: TaAttempt): {
       }
     }
 
-    console.log(`[DEBUG]   Flattened to ${flatQs.length} questions`);
-    console.log(`[DEBUG]   Question IDs:`, flatQs.map((q, i) => `Q${i + 1}=${q.questionId}`).join(', '));
+    console.log(`[TutorAnalytics]   Flattened to ${flatQs.length} questions`);
 
     let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
-    flatQs.forEach((tq, qIdx) => {
+    flatQs.forEach((tq) => {
       const ans = answersMap.get(tq.questionId);
       if (!ans) { 
         unvisited++; 
         omitted++; 
-        console.log(`[DEBUG]     Q${qIdx + 1} (${tq.questionId}): NOT FOUND in answers map`);
         return; 
       }
       if (!ans.answerGiven) { 
         omitted++; 
-        console.log(`[DEBUG]     Q${qIdx + 1}: Skipped`);
         return; 
       }
       // Check if answer is actually correct
       if (isAnswerCorrect(ans.answerGiven, tq.correctAnswer)) {
         correct++;
-        console.log(`[DEBUG]     Q${qIdx + 1}: ✓ Correct`);
       } else {
         incorrect++;
-        console.log(`[DEBUG]     Q${qIdx + 1}: ✗ Incorrect`);
       }
     });
 
     const total = flatQs.length;
     const accuracy = total > 0 ? (correct / total) * 100 : 0;
-    console.log(`[DEBUG]   Section result: ${correct}/${total} correct (${Math.round(accuracy)}%)`);
+    console.log(`[TutorAnalytics]   Result: ${correct}/${total} correct (${Math.round(accuracy)}%)`);
 
     let timeTaken = '—';
     if (sa.startedAt && sa.completedAt) {
@@ -268,9 +258,9 @@ function computeTestAnalysis(attempt: TaAttempt): {
     return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
   });
 
-  // Simplified scaled score calculation
-  const finalScaledScore = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-  console.log('[DEBUG] Final result: totalCorrect=' + totalCorrect + ', totalQuestions=' + totalQuestions + ', finalScaledScore=' + finalScaledScore);
+  // Use totalScore from attempt if available, otherwise calculate
+  const finalScaledScore = attempt.totalScore ?? (totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0);
+  console.log('[TutorAnalytics] Final: totalCorrect=' + totalCorrect + ', totalQuestions=' + totalQuestions + ', finalScaledScore=' + finalScaledScore + ', savedTotalScore=' + attempt.totalScore);
 
   return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, finalScaledScore };
 }

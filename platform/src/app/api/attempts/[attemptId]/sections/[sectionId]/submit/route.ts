@@ -106,22 +106,40 @@ export async function POST(
         })
 
         let totalScore = 0
+        console.log(`[Submit] Calculating score for attempt ${attemptId}. Found ${answers.length} answers.`)
+        
         for (const answer of answers) {
-          if (answer.answerGiven === null) continue
+          if (answer.answerGiven === null) {
+            console.log(`[Submit] Q${answer.questionId.substring(0,8)} skipped (no answer given)`)
+            continue
+          }
+          
           const correct = isAnswerCorrect(answer.answerGiven, answer.question.correctAnswer)
           
+          // Priority: child's own TestQuestion > parent's TestQuestion > default marks
           let tq = answer.question.testQuestions[0]
           if (!tq && answer.question.parentQuestion?.testQuestions?.length) {
             tq = answer.question.parentQuestion.testQuestions[0]
+            console.log(`[Submit] Q${answer.questionId.substring(0,8)} (child of passage) using parent marks: ${tq?.marksPositive}`)
+          } else if (tq) {
+            console.log(`[Submit] Q${answer.questionId.substring(0,8)} has own marks: ${tq.marksPositive}`)
           }
 
+          const marksPositive = tq?.marksPositive ?? 1
+          const marksNegative = tq?.marksNegative ?? 0
+          
           if (correct) {
-            totalScore += tq?.marksPositive ?? 1
+            totalScore += marksPositive
+            console.log(`[Submit] Q${answer.questionId.substring(0,8)} CORRECT +${marksPositive} (total: ${totalScore})`)
           } else {
-            totalScore = Math.max(0, totalScore - (tq?.marksNegative ?? 0))
+            const penalty = marksNegative
+            totalScore = Math.max(0, totalScore - penalty)
+            console.log(`[Submit] Q${answer.questionId.substring(0,8)} INCORRECT -${penalty} (total: ${totalScore})`)
           }
         }
 
+        console.log(`[Submit] Final score: ${totalScore}`)
+        
         await prisma.testAttempt.update({
           where: { id: attemptId },
           data: { status: 'SUBMITTED', totalScore, completedAt: new Date() },

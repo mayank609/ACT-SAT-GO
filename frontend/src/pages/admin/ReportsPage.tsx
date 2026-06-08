@@ -146,8 +146,18 @@ export function ReportsPage() {
     if (attempts.length > 0 && !selectedAttemptId) return;
 
     setLoading(true);
+    console.log(`[ReportsPage] Loading analytics for student=${selectedStudentId}, attempt=${selectedAttemptId || 'all'}`);
     api.getStudentAnalytics(selectedStudentId, selectedAttemptId || undefined)
-      .then((analyticsRes) => setAnalytics(analyticsRes as Analytics))
+      .then((analyticsRes) => {
+        console.log(`[ReportsPage] Analytics loaded:`, { 
+          latestScore: analyticsRes.latestScore,
+          avgScore: analyticsRes.avgScore,
+          totalAttempts: analyticsRes.totalAttempts,
+          sectionStats: analyticsRes.sectionStats.length,
+          questionStats: analyticsRes.questionPacingStats?.length || 0
+        });
+        setAnalytics(analyticsRes as Analytics);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [selectedStudentId, selectedAttemptId]);
