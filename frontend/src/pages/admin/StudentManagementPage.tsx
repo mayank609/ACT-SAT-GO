@@ -441,11 +441,26 @@ export function StudentManagementPage() {
             scaledScoreMath = analyticsResp.latestScore;
           }
           
-          // Get last test info from trend
+          // Get last test info from trend and get latest attempt for scaled score calculation
+          let latestAttempt = null;
           if (analyticsResp.trend && analyticsResp.trend.length > 0) {
             const latestTrend = analyticsResp.trend[analyticsResp.trend.length - 1];
             lastTestName = latestTrend.testTitle;
             lastSubmittedAt = latestTrend.date;
+            
+            // Fetch the latest attempt to calculate scaled scores
+            try {
+              latestAttempt = (await api.getAttempt(latestTrend.attemptId)) as any;
+              if (latestAttempt?.attempt) {
+                const analysis = computeTestAnalysis(latestAttempt.attempt);
+                scaledScoreTotal = analysis.finalScaledScore;
+                scaledScoreEnglish = analysis.rwScaled;
+                scaledScoreMath = analysis.mathScaled;
+                console.log(`[Analysis] Scaled scores for ${student.id}: total=${scaledScoreTotal}, rw=${scaledScoreEnglish}, math=${scaledScoreMath}`);
+              }
+            } catch (err) {
+              console.log(`[Analysis] Could not fetch attempt for scaled score calculation: ${err}`);
+            }
           }
           
           // Try to get section-wise breakdown if multiple sections exist
@@ -453,20 +468,28 @@ export function StudentManagementPage() {
             const sections = analyticsResp.sectionStats;
             console.log(`[Analysis] Section stats for ${student.id}:`, sections.map((s: any) => ({ name: s.sectionName, correct: s.correct, total: s.totalQuestions, accuracy: s.accuracy })));
             
-            // Find English sections (first occurrence) and Math sections (first occurrence)
-            const engSection = sections.find((s: any) => /reading|writing|rw|english/i.test(s.sectionName));
-            const mathSection = sections.find((s: any) => /math/i.test(s.sectionName));
+            // Find ALL English sections and Math sections (sum them up if multiple)
+            const engSections = sections.filter((s: any) => /reading|writing|rw|english/i.test(s.sectionName));
+            const mathSections = sections.filter((s: any) => /math/i.test(s.sectionName));
             
-            if (engSection) {
-              scaledScoreEnglish = engSection.correct || 0;
-              diagnosticsEnglish = engSection.correct || 0;
-              console.log(`[Analysis] English for ${student.id}: ${engSection.correct}/${engSection.totalQuestions}`);
+            if (engSections.length > 0) {
+              diagnosticsEnglish = engSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
+              rawScoreEnglish = diagnosticsEnglish;
+              // Only update scaledScoreEnglish if it wasn't set from the full attempt analysis
+              if (scaledScoreEnglish === analyticsResp.latestScore) {
+                scaledScoreEnglish = diagnosticsEnglish;
+              }
+              console.log(`[Analysis] English for ${student.id}: ${diagnosticsEnglish} (from ${engSections.length} sections)`);
             }
             
-            if (mathSection) {
-              scaledScoreMath = mathSection.correct || 0;
-              diagnosticsMath = mathSection.correct || 0;
-              console.log(`[Analysis] Math for ${student.id}: ${mathSection.correct}/${mathSection.totalQuestions}`);
+            if (mathSections.length > 0) {
+              diagnosticsMath = mathSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
+              rawScoreMath = diagnosticsMath;
+              // Only update scaledScoreMath if it wasn't set from the full attempt analysis
+              if (scaledScoreMath === analyticsResp.latestScore) {
+                scaledScoreMath = diagnosticsMath;
+              }
+              console.log(`[Analysis] Math for ${student.id}: ${diagnosticsMath} (from ${mathSections.length} sections)`);
             }
           }
           
@@ -1501,11 +1524,11 @@ export function StudentManagementPage() {
                         </div>
 
                         {/* Navigation - Fixed at bottom */}
-                        <div className="flex items-center justify-between pt-2 flex-shrink-0">
+                        <div className="flex items-center justify-between pt-2 flex-shrink-0 gap-3">
                           <button
                             onClick={() => setCurrentQuestionIdx(safeIdx - 1)}
                             disabled={!hasPrev}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all flex-shrink-0 ${
                               hasPrev
                                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
@@ -1515,10 +1538,37 @@ export function StudentManagementPage() {
                             Previous
                           </button>
 
+                          {/* Question Number Navigation */}
+                          <div className="hidden md:flex items-center gap-1 flex-wrap justify-center flex-1 min-w-0 max-h-12 overflow-y-auto px-1 py-0.5">
+                            {filteredQuestions.map((fq, dotIdx) => {
+                              const ans = answersMap.get(fq.questionId);
+                              const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                              const isOmitted = !ans?.answerGiven;
+                              const isActive = dotIdx === safeIdx;
+                              const colorClass = isActive
+                                ? 'bg-blue-600 text-white ring-2 ring-blue-300 ring-offset-1'
+                                : isOmitted
+                                ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                : isCorrect
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                : 'bg-red-100 text-red-700 hover:bg-red-200';
+                              return (
+                                <button
+                                  key={dotIdx}
+                                  onClick={() => setCurrentQuestionIdx(dotIdx)}
+                                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex-shrink-0 ${colorClass}`}
+                                  title={`Q${dotIdx + 1} — ${isOmitted ? 'Omitted' : isCorrect ? 'Correct' : 'Incorrect'}`}
+                                >
+                                  {dotIdx + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+
                           <button
                             onClick={() => setCurrentQuestionIdx(safeIdx + 1)}
                             disabled={!hasNext}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all flex-shrink-0 ${
                               hasNext
                                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
