@@ -130,12 +130,21 @@ function computeTestAnalysis(attempt: TaAttempt): {
   finalScaledScore: number;
   rwScaled: number;
   mathScaled: number;
+  rw1Correct: number; rw1Total: number;
+  rw2Correct: number; rw2Total: number;
+  math1Correct: number; math1Total: number;
+  math2Correct: number; math2Total: number;
 } {
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
 
   let totalCorrect = 0, totalQuestions = 0;
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
+  // Module breakdown — assigned by position within each subject group (orderIndex order),
+  // not by "1"/"2" in section names, so any naming convention works.
+  let mathGroupIdx = 0, rwGroupIdx = 0;
+  let rw1Correct = 0, rw1Total = 0, rw2Correct = 0, rw2Total = 0;
+  let math1Correct = 0, math1Total = 0, math2Correct = 0, math2Total = 0;
 
   const sections: SectionAnalysis[] = sortedSections.map(sa => {
     const flatQs: TaTestQuestion[] = [];
@@ -165,17 +174,27 @@ function computeTestAnalysis(attempt: TaAttempt): {
 
     let timeTaken = '—';
     if (sa.startedAt && sa.completedAt) {
-      const mins = Math.round((new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime()) / 60000);
-      const secs = Math.round(((new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime()) % 60000) / 1000);
+      const ms = new Date(sa.completedAt).getTime() - new Date(sa.startedAt).getTime();
+      const mins = Math.floor(ms / 60000);
+      const secs = Math.round((ms % 60000) / 1000);
       timeTaken = `${mins}:${secs.toString().padStart(2, '0')} Minutes Taken`;
     }
 
     const isMath = /math/i.test(sa.section.name);
-    const isRW = /reading|writing|rw/i.test(sa.section.name);
+    const isRW = /reading|writing|rw|english/i.test(sa.section.name);
     const category = isMath ? 'Math' : isRW ? 'Reading and Writing' : sa.section.name;
 
-    if (isMath) { mathCorrect += correct; mathTotal += total; }
-    else if (isRW) { rwCorrect += correct; rwTotal += total; }
+    if (isMath) {
+      mathCorrect += correct; mathTotal += total;
+      if (mathGroupIdx === 0) { math1Correct += correct; math1Total += total; }
+      else { math2Correct += correct; math2Total += total; }
+      mathGroupIdx++;
+    } else if (isRW) {
+      rwCorrect += correct; rwTotal += total;
+      if (rwGroupIdx === 0) { rw1Correct += correct; rw1Total += total; }
+      else { rw2Correct += correct; rw2Total += total; }
+      rwGroupIdx++;
+    }
 
     totalCorrect += correct;
     totalQuestions += total;
@@ -183,43 +202,25 @@ function computeTestAnalysis(attempt: TaAttempt): {
     return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
   });
 
-  // Calculate final scaled score directly instead of raw score for SAT
-  let rw1 = 0, rw2 = 0, math1 = 0, math2 = 0;
-  let isSAT = false;
-
-  sections.forEach((s) => {
-    const isMath = /math/i.test(s.name);
-    const isRW = /reading|writing|rw/i.test(s.name);
-    if (isMath || isRW) isSAT = true;
-    
-    if (isMath) {
-      if (/1|one/i.test(s.name)) math1 += s.correct;
-      else if (/2|two/i.test(s.name)) math2 += s.correct;
-      else math1 += s.correct; // Fallback
-    } else if (isRW) {
-      if (/1|one/i.test(s.name)) rw1 += s.correct;
-      else if (/2|two/i.test(s.name)) rw2 += s.correct;
-      else rw1 += s.correct; // Fallback
-    }
-  });
+  const isSAT = rwTotal > 0 || mathTotal > 0;
 
   let finalScaledScore = totalCorrect;
   let rwScaled = 0;
   let mathScaled = 0;
   if (isSAT) {
-    rwScaled = 200;
-    mathScaled = 200;
+    const rwActualTotal = rw1Total + rw2Total || 54;
+    const mathActualTotal = math1Total + math2Total || 44;
 
-    if (rw1 >= 18) {
-      rwScaled = 400 + Math.round(((rw1 + rw2) / 54) * 400 / 10) * 10;
+    if (rw1Correct >= 18) {
+      rwScaled = 400 + Math.round(((rw1Correct + rw2Correct) / rwActualTotal) * 400 / 10) * 10;
     } else {
-      rwScaled = 200 + Math.round(((rw1 + rw2) / 54) * 450 / 10) * 10;
+      rwScaled = 200 + Math.round(((rw1Correct + rw2Correct) / rwActualTotal) * 450 / 10) * 10;
     }
-    
-    if (math1 >= 14) {
-      mathScaled = 420 + Math.round(((math1 + math2) / 44) * 380 / 10) * 10;
+
+    if (math1Correct >= 14) {
+      mathScaled = 420 + Math.round(((math1Correct + math2Correct) / mathActualTotal) * 380 / 10) * 10;
     } else {
-      mathScaled = 200 + Math.round(((math1 + math2) / 44) * 450 / 10) * 10;
+      mathScaled = 200 + Math.round(((math1Correct + math2Correct) / mathActualTotal) * 450 / 10) * 10;
     }
 
     rwScaled = Math.min(800, Math.max(200, rwScaled));
@@ -227,7 +228,12 @@ function computeTestAnalysis(attempt: TaAttempt): {
     finalScaledScore = rwScaled + mathScaled;
   }
 
-  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, isSAT, finalScaledScore, rwScaled, mathScaled };
+  return {
+    sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal,
+    isSAT, finalScaledScore, rwScaled, mathScaled,
+    rw1Correct, rw1Total, rw2Correct, rw2Total,
+    math1Correct, math1Total, math2Correct, math2Total,
+  };
 }
 
 // stage badge helper removed as the student table was consolidated
@@ -364,18 +370,10 @@ export function StudentManagementPage() {
         .filter((a): a is TaAttempt => !!a)
         .map((att) => {
           const an = computeTestAnalysis(att);
-          let rwM1 = 0, rwM2 = 0, mathM1 = 0, mathM2 = 0;
-          let rwM1T = 0, rwM2T = 0, mathM1T = 0, mathM2T = 0;
-          for (const s of an.sections) {
-            const isMath = /math/i.test(s.name);
-            const isRW = /read|writing|rw/i.test(s.name);
-            const isM2 = /2|two/i.test(s.name);
-            if (isMath) { if (isM2) { mathM2 += s.correct; mathM2T += s.total; } else { mathM1 += s.correct; mathM1T += s.total; } }
-            else if (isRW) { if (isM2) { rwM2 += s.correct; rwM2T += s.total; } else { rwM1 += s.correct; rwM1T += s.total; } }
-          }
           return {
             id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
-            rwM1, rwM2, mathM1, mathM2, rwM1T, rwM2T, mathM1T, mathM2T,
+            rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
+            rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
             totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
             rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
           };
@@ -425,31 +423,34 @@ export function StudentManagementPage() {
             const latestAttempt = sortedAttempts[0];
             lastTestName = latestAttempt?.test?.title || null;
             lastSubmittedAt = latestAttempt?.completedAt || latestAttempt?.startedAt || null;
-            scaledScoreTotal = latestAttempt?.totalScore || null;
             rawScoreTotal = latestAttempt?.totalScore || null;
-            
+            // scaledScoreTotal stays null until we compute it from full attempt data below
+
             // Look for diagnostics test
-            const diagnosticsAttemptBasic = studentAttempts.find((a: any) => 
+            const diagnosticsAttemptBasic = studentAttempts.find((a: any) =>
               a.test?.title?.toLowerCase().includes('diagnostic')
             );
-            if (diagnosticsAttemptBasic) {
+            // If no separate diagnostics, treat the latest attempt as the baseline
+            const baselineAttemptBasic = diagnosticsAttemptBasic ?? latestAttempt;
+            if (baselineAttemptBasic) {
               try {
-                // Fetch full attempt data for analysis
-                const fullAttemptResp = await api.getAttempt(diagnosticsAttemptBasic.id);
-                const diagnosticsAttempt = fullAttemptResp.attempt as TaAttempt;
-                const analysis = computeTestAnalysis(diagnosticsAttempt);
-                diagnosticsEnglish = analysis.rwScaled;
-                diagnosticsMath = analysis.mathScaled;
-                scaledScoreTotal = analysis.finalScaledScore;
-                scaledScoreEnglish = analysis.rwScaled;
-                scaledScoreMath = analysis.mathScaled;
+                const fullAttemptResp = await api.getAttempt(baselineAttemptBasic.id);
+                const fullAttempt = fullAttemptResp.attempt as TaAttempt;
+                const analysis = computeTestAnalysis(fullAttempt);
+                if (analysis.isSAT) {
+                  diagnosticsEnglish = analysis.rwScaled;
+                  diagnosticsMath = analysis.mathScaled;
+                  scaledScoreTotal = analysis.finalScaledScore;
+                  scaledScoreEnglish = analysis.rwScaled;
+                  scaledScoreMath = analysis.mathScaled;
+                } else {
+                  // Non-SAT test: show raw correct count
+                  diagnosticsEnglish = analysis.rwCorrect || null;
+                  diagnosticsMath = analysis.mathCorrect || null;
+                  scaledScoreTotal = analysis.totalCorrect || null;
+                }
               } catch (e) {
-                console.error("Error computing analysis for diagnosticsAttempt:", e);
-                diagnosticsEnglish = diagnosticsAttemptBasic.totalScore;
-                diagnosticsMath = diagnosticsAttemptBasic.totalScore;
-                scaledScoreTotal = diagnosticsAttemptBasic.totalScore;
-                scaledScoreEnglish = diagnosticsAttemptBasic.totalScore;
-                scaledScoreMath = diagnosticsAttemptBasic.totalScore;
+                console.error("Error computing analysis for attempt:", e);
               }
             }
           }
