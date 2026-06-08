@@ -300,6 +300,7 @@ export function StudentManagementPage() {
     totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
+  const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw' | 'cw' | 'practice'>('all');
 
   // ── Question Wise Report state ───────────────────────────────────────────
   const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
@@ -495,12 +496,13 @@ export function StudentManagementPage() {
     }
   };
 
-  // Load comprehensive analysis when switching to analysis view
+  // Load comprehensive analysis when on analysis view and students are ready
   useEffect(() => {
-    if (mainView === 'analysis' && studentAnalysisData.length === 0) {
+    if (mainView === 'analysis' && students.length > 0 && studentAnalysisData.length === 0) {
       loadComprehensiveAnalysis();
     }
-  }, [mainView]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainView, students.length]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleFileDrop = (file: File) => {
@@ -754,6 +756,7 @@ export function StudentManagementPage() {
                             onClick={() => {
                               setSelectedStudentId(row.studentId);
                               setSelectedAttemptId('');
+                              setReportFilter('all');
                               setMainView('test_analysis');
                             }}
                             className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
@@ -849,6 +852,7 @@ export function StudentManagementPage() {
                     setSelectedStudentId(e);
                     setSelectedAttemptId('');
                     setTestAnalysisAttempt(null);
+                    setReportFilter('all');
                   }}
                   placeholder="Choose student..."
                   minWidth="min-w-[200px]"
@@ -941,11 +945,31 @@ export function StudentManagementPage() {
                 link.click();
                 URL.revokeObjectURL(url);
               };
+              const filterMatches = (title: string, f: typeof reportFilter) => {
+                const t = title.toLowerCase();
+                if (f === 'all') return true;
+                if (f === 'mock') return t.includes('mock');
+                if (f === 'diagnostic') return t.includes('diagnostic');
+                if (f === 'hw') return t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+                if (f === 'cw') return t.includes('classwork') || t.includes(' cw') || t.endsWith('cw') || /\bcw\b/.test(t);
+                if (f === 'practice') return t.includes('practice');
+                return true;
+              };
+              const filterLabels: { key: typeof reportFilter; label: string }[] = [
+                { key: 'all', label: 'All' },
+                { key: 'mock', label: 'Mock' },
+                { key: 'diagnostic', label: 'Diagnostic' },
+                { key: 'hw', label: 'HW' },
+                { key: 'cw', label: 'CW' },
+                { key: 'practice', label: 'Practice' },
+              ];
+              const filteredRows = reportRows.filter(r => filterMatches(r.title, reportFilter));
+
               return (
                 <Card padding="none">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
                     <div>
-                      <p className="text-sm font-semibold text-slate-500">Total Session : <span className="text-slate-900 font-bold">{reportRows.length}</span></p>
+                      <p className="text-sm font-semibold text-slate-500">Total Session : <span className="text-slate-900 font-bold">{filteredRows.length}</span></p>
                       <h2 className="text-lg font-bold text-purple-800 mt-0.5">{studentName}<span className="text-slate-500 font-medium text-sm ml-2">Test Report</span></h2>
                     </div>
                     <button onClick={downloadReport} disabled={reportRows.length === 0}
@@ -953,13 +977,30 @@ export function StudentManagementPage() {
                       Download Report
                     </button>
                   </div>
+                  {/* Filter tabs */}
+                  <div className="flex items-center gap-1.5 px-5 py-3 border-b border-slate-100 flex-wrap">
+                    {filterLabels.map(({ key, label }) => {
+                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r.title, key)).length;
+                      const active = reportFilter === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setReportFilter(key)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${active ? 'bg-purple-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        >
+                          {label}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-purple-500 text-white' : 'bg-slate-300 text-slate-600'}`}>{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                   {reportLoading ? (
                     <div className="flex items-center justify-center py-16 gap-2 text-slate-400">
                       <Loader2 size={20} className="animate-spin text-blue-500" />
                       <span className="text-sm">Loading report…</span>
                     </div>
-                  ) : reportRows.length === 0 ? (
-                    <p className="py-12 text-center text-slate-400 text-sm">No completed tests found.</p>
+                  ) : filteredRows.length === 0 ? (
+                    <p className="py-12 text-center text-slate-400 text-sm">{reportRows.length === 0 ? 'No completed tests found.' : `No ${filterLabels.find(f => f.key === reportFilter)?.label} tests found.`}</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
@@ -981,7 +1022,7 @@ export function StudentManagementPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {reportRows.map((r, i) => {
+                          {filteredRows.map((r, i) => {
                             const analysed = testAnalysisStatus[r.id] === 'submitted';
                             return (
                               <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
