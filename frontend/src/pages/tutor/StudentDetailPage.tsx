@@ -174,8 +174,8 @@ export function StudentDetailPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard title="Overall Accuracy" value={analytics ? `${analytics.overallAccuracy}%` : '—'} icon={<TrendingUp size={16} />} trend={{ value: 5, positive: true }} />
         <StatCard title="Tests Taken" value={analytics?.totalAttempts ?? 0} subtitle="submitted" icon={<Clock size={16} />} />
-        <StatCard title="Avg Score" value={analytics?.avgScore ?? '—'} subtitle="submitted tests" icon={<Target size={16} />} />
-        <StatCard title="Latest Score" value={analytics?.latestScore ?? '—'} subtitle="ACT composite" icon={<BookOpen size={16} />} />
+        <StatCard title="Avg Score" value={analytics?.avgScore ?? '—'} subtitle={analytics?.trend.some(d => d.score > 36) ? "submitted tests (SAT)" : "submitted tests (ACT)"} icon={<Target size={16} />} />
+        <StatCard title="Latest Score" value={analytics?.latestScore ?? '—'} subtitle={analytics?.trend.some(d => d.score > 36) ? "SAT composite" : "ACT composite"} icon={<BookOpen size={16} />} />
       </div>
 
       {analytics && analytics.trend.length > 0 && (
@@ -187,7 +187,7 @@ export function StudentDetailPage() {
               <LineChart data={analytics.trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
                 <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 36]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+                <YAxis domain={analytics.trend.some(d => d.score > 36) ? [400, 1600] : [0, 36]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', boxShadow: 'none' }}
                   formatter={(v, n, p) => [v, p.payload?.testTitle ?? n]} />
                 <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} name="Score" />

@@ -168,7 +168,7 @@ export function TutorDashboard() {
                 <BarChart data={studentCompareData} barGap={6} margin={{ left: -20, right: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 36]} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={studentCompareData.some(d => d.score > 36 || d.target > 36) ? [400, 1600] : [0, 36]} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '11px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }} />
                   <Legend wrapperStyle={{ fontSize: '11px' }} />
                   <Bar dataKey="score" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Current Score" barSize={16} />

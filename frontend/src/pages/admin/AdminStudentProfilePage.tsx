@@ -608,12 +608,17 @@ export function AdminStudentProfilePage() {
         <div className="lg:col-span-2 space-y-4">
 
           {/* Stat cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard title="Accuracy" value={analytics ? `${analytics.overallAccuracy}%` : '—'} icon={<TrendingUp size={15} />} />
-            <StatCard title="Tests Taken" value={analytics?.totalAttempts ?? 0} subtitle="completed" icon={<Clock size={15} />} />
-            <StatCard title="Avg Score" value={analytics?.avgScore ?? '—'} subtitle="out of 36" icon={<Target size={15} />} />
-            <StatCard title="Latest Score" value={analytics?.latestScore ?? '—'} subtitle="ACT composite" icon={<BookOpen size={15} />} />
-          </div>
+          {(() => {
+            const isSATStudent = analytics?.trend.some(d => d.score > 36) ?? false;
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard title="Accuracy" value={analytics ? `${analytics.overallAccuracy}%` : '—'} icon={<TrendingUp size={15} />} />
+                <StatCard title="Tests Taken" value={analytics?.totalAttempts ?? 0} subtitle="completed" icon={<Clock size={15} />} />
+                <StatCard title="Avg Score" value={analytics?.avgScore ?? '—'} subtitle={isSATStudent ? "out of 1600" : "out of 36"} icon={<Target size={15} />} />
+                <StatCard title="Latest Score" value={analytics?.latestScore ?? '—'} subtitle={isSATStudent ? "SAT composite" : "ACT composite"} icon={<BookOpen size={15} />} />
+              </div>
+            );
+          })()}
 
           {/* Score trend */}
           <div className="bg-white rounded-xl border border-slate-100 p-5">
@@ -626,7 +631,7 @@ export function AdminStudentProfilePage() {
                 <LineChart data={analytics.trend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
                   <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 36]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={analytics.trend.some(d => d.score > 36) ? [400, 1600] : [0, 36]} tick={{ fontSize: 10, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', boxShadow: 'none' }}
                     formatter={(v, n, p) => [v, p.payload?.testTitle ?? n]} />
                   <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} name="Score" />

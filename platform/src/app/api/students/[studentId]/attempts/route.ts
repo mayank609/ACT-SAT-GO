@@ -14,7 +14,17 @@ export async function GET(
       where: { studentId },
       orderBy: { startedAt: 'desc' },
       include: {
-        test: true,
+        test: {
+          include: {
+            sections: {
+              include: {
+                _count: {
+                  select: { questions: true }
+                }
+              }
+            }
+          }
+        },
         sectionAttempts: {
           orderBy: { startedAt: 'asc' },
           include: {

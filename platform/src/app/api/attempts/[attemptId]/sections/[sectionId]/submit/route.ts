@@ -83,11 +83,18 @@ export async function POST(
     // 4. Check if all sections done → calculate and save total score
     const attempt = await prisma.testAttempt.findUnique({
       where: { id: attemptId },
-      include: { sectionAttempts: true },
+      include: {
+        sectionAttempts: true,
+        test: {
+          include: {
+            sections: true
+          }
+        }
+      },
     })
 
-    if (attempt) {
-      const allSections = await prisma.testSection.findMany({ where: { testId: attempt.testId } })
+    if (attempt && attempt.test) {
+      const allSections = attempt.test.sections
       const completedCount = attempt.sectionAttempts.filter((sa) => sa.completedAt !== null).length
 
       if (completedCount >= allSections.length) {
@@ -105,44 +112,181 @@ export async function POST(
           },
         })
 
-        let totalScore = 0
-        console.log(`[Submit] Calculating score for attempt ${attemptId}. Found ${answers.length} answers.`)
-        
-        for (const answer of answers) {
-          if (answer.answerGiven === null) {
-            console.log(`[Submit] Q${answer.questionId.substring(0,8)} skipped (no answer given)`)
-            continue
+        // Fetch all TestQuestions for this test to build the structure
+        const testQuestions = await prisma.testQuestion.findMany({
+          where: { testId: attempt.testId },
+          include: {
+            question: {
+              include: {
+                childQuestions: true
+              }
+            }
           }
-          
-          const correct = isAnswerCorrect(answer.answerGiven, answer.question.correctAnswer)
-          
-          // Priority: child's own TestQuestion > parent's TestQuestion > default marks
-          let tq = answer.question.testQuestions[0]
-          if (!tq && answer.question.parentQuestion?.testQuestions?.length) {
-            tq = answer.question.parentQuestion.testQuestions[0]
-            console.log(`[Submit] Q${answer.questionId.substring(0,8)} (child of passage) using parent marks: ${tq?.marksPositive}`)
-          } else if (tq) {
-            console.log(`[Submit] Q${answer.questionId.substring(0,8)} has own marks: ${tq.marksPositive}`)
-          }
+        })
 
-          const marksPositive = tq?.marksPositive ?? 1
-          const marksNegative = tq?.marksNegative ?? 0
+        // Group and flatten questions by section to know which are answerable
+        const sectionQuestionsMap = new Map<string, string[]>() // sectionId -> questionIds
+        const questionToSectionMap = new Map<string, string>() // questionId -> sectionId
+
+        for (const tq of testQuestions) {
+          const q = tq.question
+          const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true)
           
-          if (correct) {
-            totalScore += marksPositive
-            console.log(`[Submit] Q${answer.questionId.substring(0,8)} CORRECT +${marksPositive} (total: ${totalScore})`)
-          } else {
-            const penalty = marksNegative
-            totalScore = Math.max(0, totalScore - penalty)
-            console.log(`[Submit] Q${answer.questionId.substring(0,8)} INCORRECT -${penalty} (total: ${totalScore})`)
+          if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+            for (const cq of q.childQuestions) {
+              if (!sectionQuestionsMap.has(tq.sectionId)) {
+                sectionQuestionsMap.set(tq.sectionId, [])
+              }
+              sectionQuestionsMap.get(tq.sectionId)!.push(cq.id)
+              questionToSectionMap.set(cq.id, tq.sectionId)
+            }
+          } else if (!isPassage) {
+            if (!sectionQuestionsMap.has(tq.sectionId)) {
+              sectionQuestionsMap.set(tq.sectionId, [])
+            }
+            sectionQuestionsMap.get(tq.sectionId)!.push(q.id)
+            questionToSectionMap.set(q.id, tq.sectionId)
           }
         }
 
-        console.log(`[Submit] Final score: ${totalScore}`)
+        // Group correct answers by section
+        const sectionCorrectMap = new Map<string, number>()
+        for (const sec of allSections) {
+          sectionCorrectMap.set(sec.id, 0)
+        }
+
+        for (const answer of answers) {
+          if (answer.answerGiven === null || answer.answerGiven === undefined) {
+            continue
+          }
+
+          const correct = isAnswerCorrect(answer.answerGiven, answer.question.correctAnswer)
+          if (correct) {
+            const secId = questionToSectionMap.get(answer.questionId)
+            if (secId) {
+              sectionCorrectMap.set(secId, (sectionCorrectMap.get(secId) || 0) + 1)
+            }
+          }
+        }
+
+        // Determine test category
+        const categoryUpper = attempt.test.category?.toUpperCase() || ''
+        const titleUpper = attempt.test.title?.toUpperCase() || ''
+        
+        const isSAT = categoryUpper === 'SAT' || titleUpper.includes('SAT') || 
+                      (categoryUpper === 'MOCK' && !titleUpper.includes('ACT'));
+        const isACT = categoryUpper === 'ACT' || titleUpper.includes('ACT');
+
+        let finalScaledScore = 0
+
+        if (isSAT) {
+          let rw1Correct = 0, rw2Correct = 0, math1Correct = 0, math2Correct = 0
+          let rw1Total = 0, rw2Total = 0, math1Total = 0, math2Total = 0
+
+          for (const sec of allSections) {
+            const secName = sec.name.toLowerCase()
+            const isMath = secName.includes('math')
+            const isRW = secName.includes('reading') || secName.includes('writing') || secName.includes('rw')
+            
+            const correct = sectionCorrectMap.get(sec.id) || 0
+            const total = sectionQuestionsMap.get(sec.id)?.length || 0
+
+            if (isMath) {
+              if (secName.includes('1') || secName.includes('one')) {
+                math1Correct += correct
+                math1Total += total
+              } else if (secName.includes('2') || secName.includes('two')) {
+                math2Correct += correct
+                math2Total += total
+              } else {
+                if (math1Total === 0) {
+                  math1Correct += correct
+                  math1Total += total
+                } else {
+                  math2Correct += correct
+                  math2Total += total
+                }
+              }
+            } else if (isRW) {
+              if (secName.includes('1') || secName.includes('one')) {
+                rw1Correct += correct
+                rw1Total += total
+              } else if (secName.includes('2') || secName.includes('two')) {
+                rw2Correct += correct
+                rw2Total += total
+              } else {
+                if (rw1Total === 0) {
+                  rw1Correct += correct
+                  rw1Total += total
+                } else {
+                  rw2Correct += correct
+                  rw2Total += total
+                }
+              }
+            }
+          }
+
+          const rwActualTotal = rw1Total + rw2Total || 54
+          const mathActualTotal = math1Total + math2Total || 44
+          let rwScaled = 200
+          let mathScaled = 200
+
+          if (rw1Correct >= 18) {
+            rwScaled = 400 + Math.round(((rw1Correct + rw2Correct) / rwActualTotal) * 400 / 10) * 10
+          } else {
+            rwScaled = 200 + Math.round(((rw1Correct + rw2Correct) / rwActualTotal) * 450 / 10) * 10
+          }
+
+          if (math1Correct >= 14) {
+            mathScaled = 420 + Math.round(((math1Correct + math2Correct) / mathActualTotal) * 380 / 10) * 10
+          } else {
+            mathScaled = 200 + Math.round(((math1Correct + math2Correct) / mathActualTotal) * 450 / 10) * 10
+          }
+
+          rwScaled = Math.min(800, Math.max(200, rwScaled))
+          mathScaled = Math.min(800, Math.max(200, mathScaled))
+          finalScaledScore = rwScaled + mathScaled
+          console.log(`[Submit] SAT calculation: RW=${rwScaled} (M1=${rw1Correct}/${rw1Total}, M2=${rw2Correct}/${rw2Total}), Math=${mathScaled} (M1=${math1Correct}/${math1Total}, M2=${math2Correct}/${math2Total})`)
+        } else if (isACT) {
+          const sectionScores: number[] = []
+          for (const sec of allSections) {
+            const correct = sectionCorrectMap.get(sec.id) || 0
+            const total = sectionQuestionsMap.get(sec.id)?.length || 0
+            const scaled = total > 0 ? Math.max(1, Math.min(36, Math.round((correct / total) * 36))) : 1
+            sectionScores.push(scaled)
+            console.log(`[Submit] ACT Section "${sec.name}": correct=${correct}, total=${total}, scaled=${scaled}`)
+          }
+          finalScaledScore = sectionScores.length > 0 
+            ? Math.round(sectionScores.reduce((sum, s) => sum + s, 0) / sectionScores.length)
+            : 0
+        } else {
+          // Fallback to raw positive marks
+          let rawScore = 0
+          for (const answer of answers) {
+            if (answer.answerGiven === null || answer.answerGiven === undefined) continue
+            const correct = isAnswerCorrect(answer.answerGiven, answer.question.correctAnswer)
+            
+            let tq = answer.question.testQuestions[0]
+            if (!tq && answer.question.parentQuestion?.testQuestions?.length) {
+              tq = answer.question.parentQuestion.testQuestions[0]
+            }
+            const marksPositive = tq?.marksPositive ?? 1
+            const marksNegative = tq?.marksNegative ?? 0
+
+            if (correct) {
+              rawScore += marksPositive
+            } else {
+              rawScore = Math.max(0, rawScore - marksNegative)
+            }
+          }
+          finalScaledScore = rawScore
+        }
+
+        console.log(`[Submit] Final score: ${finalScaledScore}`)
         
         await prisma.testAttempt.update({
           where: { id: attemptId },
-          data: { status: 'SUBMITTED', totalScore, completedAt: new Date() },
+          data: { status: 'SUBMITTED', totalScore: finalScaledScore, completedAt: new Date() },
         })
       }
     }

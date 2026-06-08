@@ -3,9 +3,10 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-type UserRow = { id: string; email: string; permissions: unknown }
+type UserRow = { id: string; name?: string | null; email: string; permissions: unknown }
 
 function userName(u: UserRow): string {
+  if (u.name) return u.name
   const perms = (u.permissions ?? {}) as Record<string, unknown>
   return (perms.displayName as string) ?? u.email.split('@')[0]
 }
@@ -22,10 +23,10 @@ export async function GET(request: NextRequest) {
         ...(studentId ? { studentId } : {}),
       },
       include: {
-        tutor: { select: { id: true, email: true, permissions: true } },
+        tutor: { select: { id: true, name: true, email: true, permissions: true } },
         student: {
           select: {
-            id: true, email: true, permissions: true, role: true,
+            id: true, name: true, email: true, permissions: true, role: true,
             attempts: {
               where: { status: 'SUBMITTED' },
               select: { totalScore: true, completedAt: true },

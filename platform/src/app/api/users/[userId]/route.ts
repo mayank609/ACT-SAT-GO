@@ -111,9 +111,12 @@ export async function PATCH(
     if (dob !== undefined) permissions.dob = dob
     if (schoolName !== undefined) permissions.schoolName = schoolName
 
+    const updateData: any = { permissions: permissions as any }
+    if (name !== undefined) updateData.name = name
+
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { permissions: permissions as any },
+      data: updateData,
     })
 
     if (tutorId !== undefined) {
