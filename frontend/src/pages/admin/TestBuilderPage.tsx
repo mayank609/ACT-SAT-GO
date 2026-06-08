@@ -1675,6 +1675,7 @@ export function TestBuilderPage() {
   const [showOCRUploader, setShowOCRUploader] = useState(false);
   const [showPDFUploader, setShowPDFUploader] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isSavingTest, setIsSavingTest] = useState(false);
   const [titleError, setTitleError] = useState(false);
   const [editTestId, setEditTestId] = useState<string | null>(null);
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
@@ -1882,6 +1883,7 @@ export function TestBuilderPage() {
       return;
     }
     setTitleError(false);
+    setIsSavingTest(true);
 
     // Sanitize: ensure no NaN/null/undefined correctAnswer reaches the backend
     const sanitizedSections = sections.map(sec => ({
@@ -1931,6 +1933,8 @@ export function TestBuilderPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save test';
       toast.error(msg);
+    } finally {
+      setIsSavingTest(false);
     }
   };
 
@@ -2067,8 +2071,8 @@ export function TestBuilderPage() {
             </button>
           </div>
 
-          <Button size="sm" icon={<Save size={14} />} onClick={handleSave} variant={saved ? 'success' : 'primary'} disabled={saved}>
-            {saved ? '✓ Saved' : editTestId ? 'Update' : testSettings.publishStatus === 'published' ? 'Publish' : 'Save Draft'}
+          <Button size="sm" icon={saved ? undefined : isSavingTest ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} onClick={handleSave} variant={saved ? 'success' : 'primary'} disabled={saved || isSavingTest}>
+            {saved ? '✓ Saved' : isSavingTest ? 'Saving…' : editTestId ? 'Update' : testSettings.publishStatus === 'published' ? 'Publish' : 'Save Draft'}
           </Button>
         </div>
       </div>

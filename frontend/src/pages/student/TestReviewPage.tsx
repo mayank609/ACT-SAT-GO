@@ -1226,20 +1226,32 @@ export function TestReviewPage() {
                       Previous Question
                     </button>
 
-                    {/* Quick jump dots */}
-                    <div className="hidden md:flex items-center gap-1 max-w-[300px] flex-wrap justify-center">
-                      {filteredQuestions.map((_, dotIdx) => (
-                        <button
-                          key={dotIdx}
-                          onClick={() => { setCurrentQuestionIdx(dotIdx); }}
-                          className={`w-2.5 h-2.5 rounded-full transition-all ${
-                            dotIdx === safeIdx
-                              ? 'bg-blue-600 scale-125'
-                              : 'bg-slate-300 hover:bg-slate-400'
-                          }`}
-                          title={`Question ${dotIdx + 1}`}
-                        />
-                      ))}
+                    {/* Quick jump — numbered buttons */}
+                    <div className="hidden md:flex items-center gap-1 flex-wrap justify-center max-w-[55vw] overflow-x-auto px-1 py-0.5">
+                      {filteredQuestions.map((fq, dotIdx) => {
+                        const ans = answersMap.get(fq.questionId);
+                        const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                        const isOmitted = !ans?.answerGiven;
+                        const isActive = dotIdx === safeIdx;
+                        const globalNum = activeQuestions.findIndex(q => q.questionId === fq.questionId) + 1;
+                        const colorClass = isActive
+                          ? 'bg-blue-600 text-white ring-2 ring-blue-300 ring-offset-1'
+                          : isOmitted
+                          ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          : isCorrect
+                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                          : 'bg-red-100 text-red-700 hover:bg-red-200';
+                        return (
+                          <button
+                            key={dotIdx}
+                            onClick={() => setCurrentQuestionIdx(dotIdx)}
+                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex-shrink-0 ${colorClass}`}
+                            title={`Q${globalNum} — ${isOmitted ? 'Omitted' : isCorrect ? 'Correct' : 'Incorrect'}`}
+                          >
+                            {globalNum}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     <button

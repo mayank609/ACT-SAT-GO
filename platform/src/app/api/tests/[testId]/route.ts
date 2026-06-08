@@ -22,8 +22,10 @@ export async function GET(
               include: {
                 question: {
                   include: {
+                    topic: true,
                     childQuestions: {
                       orderBy: { createdAt: 'asc' },
+                      include: { topic: true },
                     },
                     parentQuestion: true,
                   },

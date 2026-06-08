@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -30,7 +31,9 @@ export function DashboardLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1 p-4 md:p-6 overflow-auto max-w-7xl w-full mx-auto">
-          <Outlet />
+          <Suspense fallback={<div className="flex items-center justify-center h-64 text-slate-400"><Loader2 size={22} className="animate-spin" /></div>}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

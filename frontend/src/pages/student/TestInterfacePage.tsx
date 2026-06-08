@@ -73,12 +73,13 @@ function toDbAnswer(type: string, answer: string | string[] | number | null | Re
   return { key: (answer as string).toUpperCase() };
 }
 
+// Bluebook-style square button colours (active state handled separately)
 const stateColors: Record<QuestionState, string> = {
-  not_visited:    'bg-white border border-gray-300 text-gray-600',
-  not_answered:   'bg-white border border-gray-300 text-gray-400',
+  not_visited:    'bg-white border border-[#1b3d6e] text-[#1b3d6e]',
+  not_answered:   'bg-white border border-dashed border-[#1b3d6e] text-[#1b3d6e]',
   answered:       'bg-[#1b3d6e] text-white border border-[#1b3d6e]',
-  marked_review:  'bg-white border-2 border-amber-500 text-amber-700',
-  answered_marked:'bg-[#1b3d6e] text-white border-2 border-amber-400',
+  marked_review:  'bg-white border border-[#1b3d6e] text-[#1b3d6e]',
+  answered_marked:'bg-[#1b3d6e] text-white border border-[#1b3d6e]',
 };
 
 // ─── Bluebook-style option with elimination ───────────────────────────────────
@@ -1457,59 +1458,106 @@ export function TestInterfacePage() {
       {showPalette && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowPalette(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            {/* Palette header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">{currentSection.name}</h3>
-                <p className="text-xs text-gray-500 mt-0.5">{answeredCount} of {totalQInSection} answered</p>
-              </div>
-              <button onClick={() => setShowPalette(false)} className="p-1.5 rounded-md hover:bg-gray-100 transition-colors text-gray-500">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h3 className="text-base font-bold text-gray-900 text-center flex-1 pr-6">
+                {currentSection.name}
+              </h3>
+              <button onClick={() => setShowPalette(false)} className="p-1.5 rounded-md hover:bg-gray-100 transition-colors text-gray-500 flex-shrink-0">
                 <X size={18} />
               </button>
             </div>
+
             {/* Legend */}
-            <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-3">
-              {[
-                { cls: 'bg-white border border-gray-300', label: 'Not visited' },
-                { cls: 'bg-[#1b3d6e]', label: 'Answered' },
-                { cls: 'bg-white border-2 border-amber-500', label: 'Marked' },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-1.5 text-xs text-gray-600">
-                  <div className={`w-5 h-5 rounded-full ${item.cls} flex-shrink-0`} />
-                  {item.label}
-                </div>
-              ))}
+            <div className="px-6 py-3 border-b border-gray-200 flex items-center gap-6">
+              {/* Current */}
+              <div className="flex items-center gap-2 text-xs text-gray-700 font-medium">
+                <svg width="14" height="18" viewBox="0 0 14 18" fill="none" className="text-[#1b3d6e]">
+                  <path d="M7 0C3.13 0 0 3.13 0 7c0 5.25 7 11 7 11s7-5.75 7-11c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S5.62 4.5 7 4.5s2.5 1.12 2.5 2.5S8.38 9.5 7 9.5z" fill="currentColor"/>
+                </svg>
+                Current
+              </div>
+              {/* Unanswered */}
+              <div className="flex items-center gap-2 text-xs text-gray-700 font-medium">
+                <div className="w-6 h-6 rounded border border-dashed border-[#1b3d6e] flex-shrink-0" />
+                Unanswered
+              </div>
+              {/* For Review */}
+              <div className="flex items-center gap-2 text-xs text-gray-700 font-medium">
+                <Bookmark size={14} fill="#1b3d6e" className="text-[#1b3d6e] flex-shrink-0" />
+                For Review
+              </div>
             </div>
+
             {/* Grid */}
-            <div className="p-5 grid grid-cols-8 gap-2 max-h-64 overflow-y-auto">
-              {currentSection.questions.map((q, idx) => {
-                const state = getQuestionState(currentSection.id, q.id);
-                const isActive = idx === currentQIdx;
-                return (
-                  <button
-                    key={q.id}
-                    onClick={() => { saveAndNavigate(idx); setShowPalette(false); }}
-                    className={`w-9 h-9 rounded-full text-xs font-semibold transition-all ${stateColors[state]} ${isActive ? 'ring-2 ring-offset-1 ring-[#1b3d6e] scale-110' : ''}`}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
+            <div className="px-6 pt-5 pb-3 max-h-72 overflow-y-auto">
+              <div className="grid grid-cols-10 gap-2">
+                {currentSection.questions.map((q, idx) => {
+                  const state = getQuestionState(currentSection.id, q.id);
+                  const isActive = idx === currentQIdx;
+                  const isReview = state === 'marked_review' || state === 'answered_marked';
+                  return (
+                    <div key={q.id} className="flex flex-col items-center gap-0.5">
+                      {/* Pin above current */}
+                      <div className="h-4 flex items-end justify-center">
+                        {isActive && (
+                          <svg width="10" height="13" viewBox="0 0 14 18" fill="none">
+                            <path d="M7 0C3.13 0 0 3.13 0 7c0 5.25 7 11 7 11s7-5.75 7-11c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S5.62 4.5 7 4.5s2.5 1.12 2.5 2.5S8.38 9.5 7 9.5z" fill="#1b3d6e"/>
+                          </svg>
+                        )}
+                      </div>
+                      {/* Button */}
+                      <button
+                        onClick={() => { saveAndNavigate(idx); setShowPalette(false); }}
+                        className={`relative w-9 h-9 rounded text-xs font-bold transition-all ${
+                          isActive
+                            ? 'bg-[#1b3d6e] text-white border border-[#1b3d6e]'
+                            : stateColors[state]
+                        }`}
+                      >
+                        {idx + 1}
+                        {/* Bookmark badge for review */}
+                        {isReview && !isActive && (
+                          <span className="absolute -top-1 -right-1">
+                            <Bookmark size={9} fill="#1b3d6e" className="text-[#1b3d6e]" />
+                          </span>
+                        )}
+                        {isReview && isActive && (
+                          <span className="absolute -top-1 -right-1">
+                            <Bookmark size={9} fill="white" className="text-white" />
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
             {/* Stats row */}
-            <div className="px-5 py-3 border-t border-gray-100 grid grid-cols-4 gap-2 text-center">
+            <div className="px-6 py-3 border-t border-gray-200 grid grid-cols-4 gap-2 text-center">
               {[
                 { label: 'Answered', count: answeredCount, color: 'text-[#1b3d6e]' },
-                { label: 'Marked', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'marked_review' || q.state === 'answered_marked').length, color: 'text-amber-600' },
-                { label: 'Skipped', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'not_answered').length, color: 'text-gray-500' },
-                { label: 'Unseen', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'not_visited').length, color: 'text-gray-400' },
+                { label: 'For Review', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'marked_review' || q.state === 'answered_marked').length, color: 'text-[#1b3d6e]' },
+                { label: 'Unanswered', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'not_answered' || q.state === 'not_visited').length, color: 'text-gray-500' },
+                { label: 'Total', count: totalQInSection, color: 'text-gray-400' },
               ].map((s) => (
                 <div key={s.label}>
                   <p className={`text-base font-bold ${s.color}`}>{s.count}</p>
                   <p className="text-[11px] text-gray-400">{s.label}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Go to Review Page */}
+            <div className="px-6 pb-5 pt-2 flex justify-center">
+              <button
+                onClick={() => { setShowPalette(false); setShowSubmitModal(true); }}
+                className="px-8 py-2.5 rounded-full border border-[#1b3d6e] text-[#1b3d6e] text-sm font-semibold hover:bg-blue-50 transition-colors"
+              >
+                Go to Review Page
+              </button>
             </div>
           </div>
         </div>

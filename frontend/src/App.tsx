@@ -1,41 +1,54 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 
-// Auth
+// Auth — kept eager so the login screen paints instantly (it's the common entry).
 import { LoginPage } from './pages/auth/LoginPage';
 
+// All other pages are code-split so each route's JS (and heavy deps like pdf.js,
+// KaTeX and recharts) only loads when that route is actually visited.
+
 // Admin pages
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { SuperAdminDashboard } from './pages/admin/SuperAdminDashboard';
-import { TestBuilderPage } from './pages/admin/TestBuilderPage';
-import { StudentManagementPage } from './pages/admin/StudentManagementPage';
-import { AdminStudentProfilePage } from './pages/admin/AdminStudentProfilePage';
-import { TutorManagementPage } from './pages/admin/TutorManagementPage';
-import { TestsPage } from './pages/admin/TestsPage';
-import { MonitoringPage } from './pages/admin/MonitoringPage';
-import { SettingsPage } from './pages/admin/SettingsPage';
-import { QuestionBankPage } from './pages/admin/QuestionBankPage';
-import { ReportsPage } from './pages/admin/ReportsPage';
-import { SupportPage } from './pages/admin/SupportPage';
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const SuperAdminDashboard = lazy(() => import('./pages/admin/SuperAdminDashboard').then((m) => ({ default: m.SuperAdminDashboard })));
+const TestBuilderPage = lazy(() => import('./pages/admin/TestBuilderPage').then((m) => ({ default: m.TestBuilderPage })));
+const StudentManagementPage = lazy(() => import('./pages/admin/StudentManagementPage').then((m) => ({ default: m.StudentManagementPage })));
+const AdminStudentProfilePage = lazy(() => import('./pages/admin/AdminStudentProfilePage').then((m) => ({ default: m.AdminStudentProfilePage })));
+const TutorManagementPage = lazy(() => import('./pages/admin/TutorManagementPage').then((m) => ({ default: m.TutorManagementPage })));
+const TestsPage = lazy(() => import('./pages/admin/TestsPage').then((m) => ({ default: m.TestsPage })));
+const MonitoringPage = lazy(() => import('./pages/admin/MonitoringPage').then((m) => ({ default: m.MonitoringPage })));
+const SettingsPage = lazy(() => import('./pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const QuestionBankPage = lazy(() => import('./pages/admin/QuestionBankPage').then((m) => ({ default: m.QuestionBankPage })));
+const ReportsPage = lazy(() => import('./pages/admin/ReportsPage').then((m) => ({ default: m.ReportsPage })));
+const SupportPage = lazy(() => import('./pages/admin/SupportPage').then((m) => ({ default: m.SupportPage })));
 
 // Tutor pages
-import { TutorDashboard } from './pages/tutor/TutorDashboard';
-import { MyStudentsPage } from './pages/tutor/MyStudentsPage';
-import { StudentDetailPage } from './pages/tutor/StudentDetailPage';
-import { TutorAnalyticsPage } from './pages/tutor/TutorAnalyticsPage';
-import { StudentComparisonPage } from './pages/tutor/StudentComparisonPage';
+const TutorDashboard = lazy(() => import('./pages/tutor/TutorDashboard').then((m) => ({ default: m.TutorDashboard })));
+const MyStudentsPage = lazy(() => import('./pages/tutor/MyStudentsPage').then((m) => ({ default: m.MyStudentsPage })));
+const StudentDetailPage = lazy(() => import('./pages/tutor/StudentDetailPage').then((m) => ({ default: m.StudentDetailPage })));
+const TutorAnalyticsPage = lazy(() => import('./pages/tutor/TutorAnalyticsPage').then((m) => ({ default: m.TutorAnalyticsPage })));
+const StudentComparisonPage = lazy(() => import('./pages/tutor/StudentComparisonPage').then((m) => ({ default: m.StudentComparisonPage })));
 
 // Student pages
-import { StudentDashboard } from './pages/student/StudentDashboard';
-import { TestInstructionsPage } from './pages/student/TestInstructionsPage';
-import { TestInterfacePage } from './pages/student/TestInterfacePage';
-import { TestReviewPage } from './pages/student/TestReviewPage';
-import { SectionReviewPage } from './pages/student/SectionReviewPage';
-import { MyTestsPage } from './pages/student/MyTestsPage';
-import { MyProgressPage } from './pages/student/MyProgressPage';
-import { ReviewAttemptsPage } from './pages/student/ReviewAttemptsPage';
-import { MistakesPage } from './pages/student/MistakesPage';
+const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
+const TestInstructionsPage = lazy(() => import('./pages/student/TestInstructionsPage').then((m) => ({ default: m.TestInstructionsPage })));
+const TestInterfacePage = lazy(() => import('./pages/student/TestInterfacePage').then((m) => ({ default: m.TestInterfacePage })));
+const TestReviewPage = lazy(() => import('./pages/student/TestReviewPage').then((m) => ({ default: m.TestReviewPage })));
+const SectionReviewPage = lazy(() => import('./pages/student/SectionReviewPage').then((m) => ({ default: m.SectionReviewPage })));
+const MyTestsPage = lazy(() => import('./pages/student/MyTestsPage').then((m) => ({ default: m.MyTestsPage })));
+const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage').then((m) => ({ default: m.MyProgressPage })));
+const ReviewAttemptsPage = lazy(() => import('./pages/student/ReviewAttemptsPage').then((m) => ({ default: m.ReviewAttemptsPage })));
+const MistakesPage = lazy(() => import('./pages/student/MistakesPage').then((m) => ({ default: m.MistakesPage })));
+
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center h-screen text-slate-400">
+      <Loader2 size={24} className="animate-spin" />
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -66,13 +79,13 @@ const router = createBrowserRouter(
 
       {/* Full-screen test pages (no dashboard layout) */}
       <Route path="/test-instructions/:testId" element={
-        <ProtectedRoute><TestInstructionsPage /></ProtectedRoute>
+        <ProtectedRoute><Suspense fallback={<PageFallback />}><TestInstructionsPage /></Suspense></ProtectedRoute>
       } />
       <Route path="/test/:testId" element={
-        <ProtectedRoute><TestInterfacePage /></ProtectedRoute>
+        <ProtectedRoute><Suspense fallback={<PageFallback />}><TestInterfacePage /></Suspense></ProtectedRoute>
       } />
 
-      {/* Dashboard layout */}
+      {/* Dashboard layout — its <Outlet/> is wrapped in Suspense for lazy children */}
       <Route path="/" element={
         <ProtectedRoute>
           <DashboardLayout />
