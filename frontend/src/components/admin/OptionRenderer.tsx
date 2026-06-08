@@ -43,9 +43,7 @@ export function OptionRenderer({
         ? 'bg-blue-100 border-blue-400 text-blue-950'
         : 'bg-green-50 border-green-400'
       : isIncorrect
-        ? colorTheme === 'blue'
-          ? 'bg-blue-50/70 border-blue-200 text-blue-800'
-          : 'bg-red-50 border-red-400'
+        ? 'bg-red-50 border-red-400 text-red-900'
         : 'bg-slate-50 border-slate-200'
     : isSelected
       ? 'bg-blue-50 border-blue-400'
@@ -78,9 +76,7 @@ export function OptionRenderer({
                       ? 'bg-blue-600 text-white'
                       : 'bg-green-500 text-white'
                     : isIncorrect
-                      ? colorTheme === 'blue'
-                        ? 'bg-blue-400 text-white'
-                        : 'bg-red-500 text-white'
+                      ? 'bg-red-500 text-white'
                       : 'bg-slate-300 text-slate-700'
                   : isSelected
                     ? 'bg-blue-500 text-white'
@@ -106,7 +102,7 @@ export function OptionRenderer({
               </div>
             )}
             {isIncorrect && (
-              <div className={`${colorTheme === 'blue' ? 'text-blue-400' : 'text-red-600'} font-bold text-lg`} title="Incorrect">
+              <div className="text-red-600 font-bold text-lg" title="Incorrect">
                 ✗
               </div>
             )}
