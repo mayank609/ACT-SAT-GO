@@ -1441,25 +1441,15 @@ export function TestReviewPage() {
         </div>
       )}
 
-      {/* Fullscreen Question Report Modal */}
+      {/* Fullscreen Question Report Modal - Test-like Interface */}
       {fullscreenReportOpen && (
-        <div className="fixed inset-0 bg-white z-50 overflow-auto">
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-slate-200 p-2 md:p-3 flex items-center justify-between shadow-sm">
-            <h2 className="text-lg md:text-xl font-bold text-slate-900">Question wise report</h2>
-            <button
-              onClick={() => setFullscreenReportOpen(false)}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="p-2 md:p-3 space-y-2">
-            {/* Tabs & Filters bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-2 gap-2">
-              <div className="flex flex-wrap gap-1">
+        <div className="fixed inset-0 bg-white z-50 overflow-hidden flex flex-col font-sans">
+          {/* ── TOP HEADER BAR ───────────────────────────────────────────────── */}
+          <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-16 flex items-center justify-between z-20">
+            {/* Left: Section tabs */}
+            <div className="flex items-center gap-4 min-w-0">
+              <span className="font-bold text-slate-800 text-sm hidden sm:inline">Reviewing:</span>
+              <div className="flex flex-wrap gap-1 min-w-0">
                 {sections.map((sa, idx) => (
                   <button
                     key={sa.id}
@@ -1478,24 +1468,46 @@ export function TestReviewPage() {
                   </button>
                 ))}
               </div>
+            </div>
 
-              <div className="flex items-center gap-2 self-end md:self-auto">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter</span>
+            {/* Center Info Banner */}
+            <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 select-none">
+              Test Review - Question Analysis
+            </div>
+
+            {/* Right: Filter and close */}
+            <div className="flex items-center gap-4 z-30">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">Filter</span>
                 <select
                   value={filterBy}
                   onChange={(e) => { setFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
-                  className="px-2 py-1 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  className="px-2.5 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="all">All</option>
-                  <option value="correct">Correct</option>
-                  <option value="incorrect">Incorrect</option>
-                  <option value="omitted">Omitted</option>
-                  <option value="flagged">Bookmarked</option>
+                  <option value="all">All Questions</option>
+                  <option value="correct">Correct Only</option>
+                  <option value="incorrect">Incorrect Only</option>
+                  <option value="omitted">Omitted Only</option>
+                  <option value="flagged">Bookmarked Only</option>
                 </select>
               </div>
+              <button
+                onClick={() => setFullscreenReportOpen(false)}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all cursor-pointer"
+                title="Close Fullscreen"
+              >
+                <X size={20} />
+              </button>
             </div>
+          </header>
 
-            {/* Single Question View */}
+          {/* Practice Banner */}
+          <div className="flex-shrink-0 bg-[#1e2150] text-white text-center text-[12px] font-semibold tracking-wide py-1.5 z-10 select-none">
+            QUESTION ANALYSIS - TEST-LIKE VIEW
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 overflow-hidden bg-white">
             {(() => {
               const activeSection = sections[activeSectionIdx];
               const activeQuestions = activeSection?.section.questions ?? [];
@@ -1514,84 +1526,252 @@ export function TestReviewPage() {
 
               const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
               const currentTq = filteredQuestions[safeIdx];
-              const hasPrev = safeIdx > 0;
-              const hasNext = safeIdx < filteredQuestions.length - 1;
+              const studentAnswer = currentTq ? answersMap.get(currentTq.questionId) : null;
+              const answerDisplay = studentAnswer ? dbAnswerToDisplay(studentAnswer.answerGiven) : null;
+
+              if (filteredQuestions.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center h-full p-8">
+                    <p className="text-slate-500 font-semibold text-sm">No questions match the filter in this section</p>
+                  </div>
+                );
+              }
+
+              if (!currentTq) {
+                return (
+                  <div className="flex flex-col items-center justify-center h-full p-8">
+                    <p className="text-slate-500 font-semibold text-sm">Loading question...</p>
+                  </div>
+                );
+              }
+
+              // Check if it's a passage question
+              const isPassageQuestion = currentTq.question.type === 'PASSAGE' || 
+                (currentTq.question.content && (currentTq.question.content as any).meta?.isPassage === true);
+              
+              // Get passage text for child questions
+              const passageText = !isPassageQuestion ? null : currentTq.question.content?.text;
 
               return (
-                <div className="space-y-2">
-                  {/* Question counter & info */}
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="font-bold text-slate-700">
-                      Total: {activeQuestions.length}
-                      {filterBy !== 'all' && (
-                        <span className="text-slate-500 font-medium ml-1">
-                          ({filteredQuestions.length} shown)
-                        </span>
-                      )}
-                    </div>
-                    {filteredQuestions.length > 0 && (
-                      <div className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">
-                        Q{safeIdx + 1} of {filteredQuestions.length}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Current Question Card */}
-                  {filteredQuestions.length > 0 && currentTq ? (
+                <div className="flex h-full min-h-full">
+                  {passageText ? (
+                    // Split layout for passage questions
                     <>
-                      <QuestionDetailedReviewCard
-                        key={currentTq.id}
-                        tq={currentTq}
-                        localIndex={activeQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
-                        studentAnswer={answersMap.get(currentTq.questionId)}
-                        attemptId={attempt.id}
-                      />
-
-                      {/* Navigation Bar with Previous, Question Navigator, and Next */}
-                      <div className="flex items-center justify-between gap-2 px-1 py-2 bg-slate-50 rounded-b-lg border border-t-0 border-slate-200 shadow-sm">
-                        <button
-                          onClick={() => { setCurrentQuestionIdx(safeIdx - 1); }}
-                          disabled={!hasPrev}
-                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-bold transition-all shadow-sm ${
-                            hasPrev
-                              ? 'bg-blue-600 text-white hover:bg-blue-700'
-                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          }`}
-                        >
-                          <ChevronLeft size={14} />
-                          <span className="hidden sm:inline">Prev</span>
-                        </button>
-
-                        <button
-                          onClick={() => setQuestionNavigatorOpen(true)}
-                          className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-lg"
-                        >
-                          Q{safeIdx + 1}/{filteredQuestions.length}
-                          <ChevronDown size={14} />
-                        </button>
-
-                        <button
-                          onClick={() => { setCurrentQuestionIdx(safeIdx + 1); }}
-                          disabled={!hasNext}
-                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-bold transition-all shadow-sm ${
-                            hasNext
-                              ? 'bg-blue-600 text-white hover:bg-blue-700'
-                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          }`}
-                        >
-                          <span className="hidden sm:inline">Next</span>
-                          <ChevronRight size={14} />
-                        </button>
+                      {/* Left: Passage */}
+                      <div className="w-1/2 overflow-y-auto p-8 bg-white h-full border-r border-slate-200">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Reading Passage</p>
+                        <div className="prose prose-slate max-w-none text-slate-800 text-[15px] leading-relaxed">
+                          <RichContentRenderer content={passageText} variant="passage" />
+                        </div>
+                      </div>
+                      {/* Right: Question */}
+                      <div className="w-1/2 overflow-y-auto p-8 bg-white h-full flex flex-col">
+                        <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5 mb-5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 bg-slate-900 text-white text-xs font-bold flex items-center justify-center rounded">{activeQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}</span>
+                          </div>
+                        </div>
+                        <div className="text-[15px] text-slate-800 leading-relaxed mb-6 font-medium">
+                          <RichContentRenderer content={currentTq.question.content?.text || 'Question'} variant="question" className="prose-sm" />
+                        </div>
+                        {/* Options */}
+                        {currentTq.question.options && (
+                          <div className="space-y-2 flex-1 overflow-y-auto">
+                            {Object.entries(currentTq.question.options).map(([optId, optText]) => {
+                              const isSelected = Array.isArray(answerDisplay) 
+                                ? answerDisplay.includes(optId.toLowerCase())
+                                : answerDisplay === optId.toLowerCase();
+                              return (
+                                <div
+                                  key={optId}
+                                  className={`p-3 rounded-lg border-2 transition-all ${
+                                    isSelected
+                                      ? 'border-blue-600 bg-blue-50'
+                                      : 'border-slate-300 bg-white'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                                      isSelected
+                                        ? 'bg-blue-600 border-blue-600 text-white'
+                                        : 'border-slate-400 text-slate-600'
+                                    }`}>
+                                      {optId.toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 text-sm text-slate-700 pt-0.5">
+                                      <RichContentRenderer content={optText} variant="option" />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {currentTq.question.type === 'NUMERIC' && (
+                          <div className="flex gap-4 text-sm mt-4">
+                            <span className="text-slate-600">Your answer: <strong className="text-blue-600">{answerDisplay ?? '—'}</strong></span>
+                          </div>
+                        )}
                       </div>
                     </>
                   ) : (
-                    <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
-                      <p className="text-slate-500 font-semibold text-sm">No questions match the active filter.</p>
+                    // Regular layout for single questions
+                    <div className="w-full overflow-y-auto p-8 flex flex-col">
+                      <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5 mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 bg-slate-900 text-white text-xs font-bold flex items-center justify-center rounded">{activeQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}</span>
+                        </div>
+                      </div>
+                      <div className="text-[16px] text-slate-800 leading-relaxed mb-8 font-normal">
+                        <RichContentRenderer content={currentTq.question.content?.text || 'Question'} variant="question" />
+                      </div>
+                      {/* Options */}
+                      {currentTq.question.options && (
+                        <div className="space-y-2.5 flex-1 max-w-3xl">
+                          {Object.entries(currentTq.question.options).map(([optId, optText]) => {
+                            const isSelected = Array.isArray(answerDisplay)
+                              ? answerDisplay.includes(optId.toLowerCase())
+                              : answerDisplay === optId.toLowerCase();
+                            return (
+                              <div
+                                key={optId}
+                                className={`p-3 rounded-lg border-2 transition-all ${
+                                  isSelected
+                                    ? 'border-blue-600 bg-blue-50'
+                                    : 'border-slate-300 bg-white hover:border-slate-400'
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                                    isSelected
+                                      ? 'bg-blue-600 border-blue-600 text-white'
+                                      : 'border-slate-400 text-slate-600'
+                                  }`}>
+                                    {optId.toUpperCase()}
+                                  </div>
+                                  <div className="flex-1 text-sm text-slate-700 pt-0.5">
+                                    <RichContentRenderer content={optText} variant="option" />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {currentTq.question.type === 'NUMERIC' && (
+                        <div className="flex gap-4 text-sm mt-4">
+                          <span className="text-slate-600">Your answer: <strong className="text-blue-600">{answerDisplay ?? '—'}</strong></span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })()}
+          </div>
+
+          {/* Navigation Footer */}
+          <div className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-between">
+            {/* Question counter info */}
+            <div className="text-sm font-bold text-slate-700">
+              {(() => {
+                const activeSection = sections[activeSectionIdx];
+                const activeQuestions = activeSection?.section.questions ?? [];
+                const filteredQuestions = activeQuestions.filter((tq) => {
+                  const ans = answersMap.get(tq.questionId);
+                  const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                  const isOmitted = !ans?.answerGiven;
+                  const isFlagged = ans?.isFlagged ?? false;
+                  
+                  if (filterBy === 'correct') return isCorrect;
+                  if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                  if (filterBy === 'omitted') return isOmitted;
+                  if (filterBy === 'flagged') return isFlagged;
+                  return true;
+                });
+                const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+                return `Question ${safeIdx + 1} of ${filteredQuestions.length}`;
+              })()}
+            </div>
+
+            {/* Navigation buttons */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))}
+                disabled={currentQuestionIdx === 0}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  currentQuestionIdx === 0
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </button>
+
+              <button
+                onClick={() => {
+                  const activeSection = sections[activeSectionIdx];
+                  const activeQuestions = activeSection?.section.questions ?? [];
+                  const filteredQuestions = activeQuestions.filter((tq) => {
+                    const ans = answersMap.get(tq.questionId);
+                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                    const isOmitted = !ans?.answerGiven;
+                    const isFlagged = ans?.isFlagged ?? false;
+                    
+                    if (filterBy === 'correct') return isCorrect;
+                    if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                    if (filterBy === 'omitted') return isOmitted;
+                    if (filterBy === 'flagged') return isFlagged;
+                    return true;
+                  });
+                  if (currentQuestionIdx < filteredQuestions.length - 1) {
+                    setCurrentQuestionIdx(currentQuestionIdx + 1);
+                  }
+                }}
+                disabled={(() => {
+                  const activeSection = sections[activeSectionIdx];
+                  const activeQuestions = activeSection?.section.questions ?? [];
+                  const filteredQuestions = activeQuestions.filter((tq) => {
+                    const ans = answersMap.get(tq.questionId);
+                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                    const isOmitted = !ans?.answerGiven;
+                    const isFlagged = ans?.isFlagged ?? false;
+                    
+                    if (filterBy === 'correct') return isCorrect;
+                    if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                    if (filterBy === 'omitted') return isOmitted;
+                    if (filterBy === 'flagged') return isFlagged;
+                    return true;
+                  });
+                  return currentQuestionIdx >= filteredQuestions.length - 1;
+                })()}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  (() => {
+                    const activeSection = sections[activeSectionIdx];
+                    const activeQuestions = activeSection?.section.questions ?? [];
+                    const filteredQuestions = activeQuestions.filter((tq) => {
+                      const ans = answersMap.get(tq.questionId);
+                      const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                      const isOmitted = !ans?.answerGiven;
+                      const isFlagged = ans?.isFlagged ?? false;
+                      
+                      if (filterBy === 'correct') return isCorrect;
+                      if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                      if (filterBy === 'omitted') return isOmitted;
+                      if (filterBy === 'flagged') return isFlagged;
+                      return true;
+                    });
+                    return currentQuestionIdx >= filteredQuestions.length - 1;
+                  })()
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         </div>
       )}
