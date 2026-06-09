@@ -1777,7 +1777,7 @@ export function StudentManagementPage() {
           const q = tq.question;
           const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
           if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
+            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
           }
           return [tq];
         });

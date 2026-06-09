@@ -1359,7 +1359,7 @@ export function MyStudentsPage() {
           const q = tq.question;
           const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
           if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
+            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
           }
           // Skip child rows: already emitted via their passage parent above.
           return (q as any).parentQuestionId ? [] : [tq];

@@ -36,6 +36,7 @@ export interface DbTestQuestion {
   questionId: string
   orderIndex: number
   question: DbQuestion
+  parentPassageText?: string
 }
 
 interface DbSectionAttempt {
@@ -858,8 +859,8 @@ export function TestReviewPage() {
             orderIndex: tq.orderIndex,
             question: {
               ...cq,
-              parentQuestionText: q.content.text,
             } as any,
+            parentPassageText: q.content.text,
           });
         });
       } else if (!(q as any).parentQuestionId) {
@@ -1549,8 +1550,8 @@ export function TestReviewPage() {
               const isPassageQuestion = currentTq.question.type === 'PASSAGE' || 
                 (currentTq.question.content && (currentTq.question.content as any).meta?.isPassage === true);
               
-              // Get passage text for child questions
-              const passageText = !isPassageQuestion ? null : currentTq.question.content?.text;
+              // Get passage text for child questions (has priority) or passage questions themselves
+              const passageText = (currentTq as any).parentPassageText || (isPassageQuestion ? currentTq.question.content?.text : null);
 
               return (
                 <div className="flex h-full min-h-full">
