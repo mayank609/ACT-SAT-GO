@@ -73,7 +73,8 @@ export function SectionReviewPage() {
           question: { ...cq, parentQuestionText: q.content.text } as any,
         });
       });
-    } else {
+    } else if (!(q as any).parentQuestionId) {
+      // Skip child rows: already emitted via their passage parent above.
       flat.push(tq);
     }
   });

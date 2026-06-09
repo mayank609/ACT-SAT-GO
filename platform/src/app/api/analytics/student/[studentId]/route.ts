@@ -161,6 +161,9 @@ export async function GET(
           const flattenedQuestions: any[] = []
           for (const tq of section.questions) {
             const q = tq.question as any
+            // Skip child question rows: they are reached via their passage parent's
+            // childQuestions below. Counting their own rows too double-counts passages.
+            if (q.parentQuestionId) continue
             const isPassage = q.type === 'PASSAGE' || (q.content && q.content.meta?.isPassage === true)
             if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
               for (const cq of q.childQuestions) {
@@ -206,7 +209,7 @@ export async function GET(
               timeSpentSeconds,
               status,
               difficulty: q.difficultyLevel?.toLowerCase() || 'unknown',
-              topicName: q.topic?.name ?? 'General Skill'
+              topicName: (q.content as any)?.meta?.domain ?? q.topic?.name ?? 'General Skill'
             })
             console.log(`[Analytics]   Q${questionIndex-1}: ${timeSpentSeconds}s (${status}) - ${q.topic?.name}`)
           }

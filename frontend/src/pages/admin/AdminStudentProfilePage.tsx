@@ -153,7 +153,8 @@ function computeTestAnalysis(attempt: TaAttempt): {
         q.childQuestions.forEach(cq => {
           flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq });
         });
-      } else {
+      } else if (!(q as any).parentQuestionId) {
+        // Skip child rows: already emitted via their passage parent above.
         flatQs.push(tq);
       }
     });
@@ -936,7 +937,8 @@ export function AdminStudentProfilePage() {
                                       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
                                         return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
                                       }
-                                      return [tq];
+                                      // Skip child rows: already emitted via their passage parent above.
+                                      return (q as any).parentQuestionId ? [] : [tq];
                                     });
                                     const answersMap = new Map(expandedAttempt?.answers.map((a) => [a.questionId, a]) ?? []);
 
@@ -1227,7 +1229,8 @@ export function AdminStudentProfilePage() {
           if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
             return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
           }
-          return [tq];
+          // Skip child rows: already emitted via their passage parent above.
+          return (q as any).parentQuestionId ? [] : [tq];
         });
         const answersMap = new Map(expandedAttempt.answers.map((a) => [a.questionId, a]));
 
@@ -1318,7 +1321,8 @@ export function AdminStudentProfilePage() {
           if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
             return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
           }
-          return [tq];
+          // Skip child rows: already emitted via their passage parent above.
+          return (q as any).parentQuestionId ? [] : [tq];
         });
         const answersMap = new Map(expandedAttempt.answers.map((a) => [a.questionId, a]));
 

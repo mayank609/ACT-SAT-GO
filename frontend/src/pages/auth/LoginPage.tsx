@@ -204,6 +204,21 @@ export function LoginPage() {
 
           {/* Quick access */}
           <div className="mt-6 space-y-4">
+            {/* Hardcoded admin shortcut */}
+            <button
+              onClick={async () => {
+                try {
+                  const { users } = await api.getUsersByRole('SUPER_ADMIN');
+                  const admin = users?.[0];
+                  if (admin) { handleDemoLogin(admin); }
+                  else setError('No admin user found in DB.');
+                } catch { setError('Unable to connect to backend.'); }
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              <ShieldCheck size={15} />
+              Login as Admin
+            </button>
             {/* Students */}
             <div>
               <div className="flex items-center gap-2 mb-2">

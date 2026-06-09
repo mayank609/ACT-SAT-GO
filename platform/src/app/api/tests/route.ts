@@ -184,6 +184,7 @@ export async function POST(request: NextRequest) {
             explanation: q.explanation ?? null,
             meta: {
               ...(isPassage ? { isPassage: true } : {}),
+              domain: q.topic ?? null,
               subTopic: q.subTopic ?? null,
               skill: q.skill ?? null,
             }
@@ -210,12 +211,16 @@ export async function POST(request: NextRequest) {
                 text: child.text,
                 explanation: child.explanation ?? null,
                 meta: {
+                  domain: child.topic ?? null,
                   subTopic: child.subTopic ?? null,
                   skill: child.skill ?? null,
                 }
               } as Prisma.InputJsonValue
 
-              const newChildQuestion = await tx.question.create({
+              // No TestQuestion row for child questions — they belong to the test
+              // via their passage parent's childQuestions relation. Creating a row
+              // here would double-count the passage everywhere it's read.
+              await tx.question.create({
                 data: {
                   type: childDbType as any,
                   content: childContentJson,
@@ -224,18 +229,6 @@ export async function POST(request: NextRequest) {
                   difficultyLevel: childDbDiff as any,
                   topicId: childTopicId,
                   parentQuestionId: newQuestion.id,
-                },
-              })
-
-              // Create TestQuestion record for child question with inherited or own marks
-              await tx.testQuestion.create({
-                data: {
-                  testId: newTest.id,
-                  sectionId: newSection.id,
-                  questionId: newChildQuestion.id,
-                  orderIndex: qIdx * 1000 + childIdx,  // Child questions ordered after parent
-                  marksPositive: child.marks ?? q.marks ?? 1,  // Use child marks, fallback to parent marks, then default
-                  marksNegative: child.marksNegative ?? q.marksNegative ?? 0,
                 },
               })
             }

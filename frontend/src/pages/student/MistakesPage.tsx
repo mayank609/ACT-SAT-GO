@@ -349,7 +349,8 @@ export function MistakesPage() {
                         } as any,
                       });
                     });
-                  } else {
+                  } else if (!(q as any).parentQuestionId) {
+                    // Skip child rows: already emitted via their passage parent above.
                     flattenedQuestions.push(tq);
                   }
                 });

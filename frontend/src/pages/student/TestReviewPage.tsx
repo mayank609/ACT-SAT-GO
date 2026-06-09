@@ -22,7 +22,7 @@ interface DbAnswer {
 interface DbQuestion {
   id: string
   type: string
-  content: { text: string; explanation?: string | null; meta?: { subTopic?: string; skill?: string } }
+  content: { text: string; explanation?: string | null; meta?: { domain?: string; subTopic?: string; skill?: string } }
   options: Record<string, string> | null
   correctAnswer: DbAnswer
   difficultyLevel: string
@@ -166,16 +166,20 @@ const SUBDOMAIN_SYNONYMS: Record<string, string[]> = {
 }
 
 function domainCandidates(q: DbQuestion): string[] {
-  return [q.topic?.name, q.topic?.parent?.name, q.subject].filter(Boolean) as string[]
+  // meta.domain is the exact canonical name tagged in the Test Builder; prefer it.
+  return [q.content?.meta?.domain, q.topic?.name, q.topic?.parent?.name, q.subject].filter(Boolean) as string[]
 }
 
 function rawDomainLabel(q: DbQuestion): string | null {
-  return q.topic?.name ?? q.topic?.parent?.name ?? q.subject ?? null
+  return q.content?.meta?.domain ?? q.topic?.name ?? q.topic?.parent?.name ?? q.subject ?? null
 }
 
 function matchCanonicalDomain(q: DbQuestion): string | null {
   const cands = domainCandidates(q).map((c) => c.trim().toLowerCase())
   if (!cands.length) return null
+  // Direct hit: a candidate that already equals a canonical domain name.
+  const direct = ALL_DOMAIN_NAMES.find((d) => cands.includes(d.toLowerCase()))
+  if (direct) return direct
   for (const [domain, syns] of Object.entries(DOMAIN_SYNONYMS)) {
     for (const c of cands) {
       if (syns.some((s) => c === s || c.includes(s) || s.includes(c))) return domain
@@ -190,7 +194,13 @@ function matchCanonicalSubdomain(q: DbQuestion, domain: string | null): string |
   if (!domain) return null
   const subs = SUBDOMAINS_BY_DOMAIN[domain]
   if (!subs) return null
-  const cands = domainCandidates(q).map((c) => c.trim().toLowerCase())
+  // The subdomain tagged in the Test Builder (meta.subTopic) takes priority.
+  const tagged = q.content?.meta?.subTopic?.trim()
+  if (tagged) {
+    const exact = subs.find((s) => s.toLowerCase() === tagged.toLowerCase())
+    if (exact) return exact
+  }
+  const cands = [q.content?.meta?.subTopic, ...domainCandidates(q)].filter(Boolean).map((c) => (c as string).trim().toLowerCase())
   if (!cands.length) return null
   for (const sub of subs) {
     const syns = SUBDOMAIN_SYNONYMS[sub] ?? [sub.toLowerCase()]
@@ -852,7 +862,8 @@ export function TestReviewPage() {
             } as any,
           });
         });
-      } else {
+      } else if (!(q as any).parentQuestionId) {
+        // Skip child rows: already emitted via their passage parent above.
         flattenedQuestions.push(tq);
       }
     });

@@ -1751,9 +1751,14 @@ export function TestBuilderPage() {
         id: generateId(),
         name: sec.name,
         timeLimit: sec.durationMinutes,
-        questions: (sec.questions ?? []).map((tq: any) => {
+        // Skip child question rows: passage children have their own TestQuestion
+        // rows AND are reachable via their parent's childQuestions. Mapping both
+        // would load each child twice (once nested in linkedQuestions, once as a
+        // standalone question), causing the question count to multiply on every
+        // edit-save round-trip. Children are loaded below via q.childQuestions.
+        questions: (sec.questions ?? []).filter((tq: any) => tq.question?.parentQuestionId == null).map((tq: any) => {
           const q = tq.question;
-          const content = q.content as { text: string; explanation?: string; meta?: { isPassage?: boolean; subTopic?: string; skill?: string } };
+          const content = q.content as { text: string; explanation?: string; meta?: { isPassage?: boolean; domain?: string; subTopic?: string; skill?: string } };
           const rawOptions = q.options as Record<string, string> | null;
           const options = rawOptions
             ? Object.entries(rawOptions).map(([k, v]) => ({ id: k.toLowerCase(), text: v as string }))
@@ -1769,7 +1774,7 @@ export function TestBuilderPage() {
           const type = (isPassage ? 'passage' : TYPE_MAP[q.type] ?? 'mcq_single') as QuestionType;
 
           const linkedQuestions = (q.childQuestions ?? []).map((cq: any) => {
-            const cqContent = cq.content as { text: string; explanation?: string; meta?: { subTopic?: string; skill?: string } };
+            const cqContent = cq.content as { text: string; explanation?: string; meta?: { domain?: string; subTopic?: string; skill?: string } };
             const cqRawOptions = cq.options as Record<string, string> | null;
             const cqOptions = cqRawOptions
               ? Object.entries(cqRawOptions).map(([k, v]) => ({ id: k.toLowerCase(), text: v as string }))
@@ -1788,7 +1793,7 @@ export function TestBuilderPage() {
               options: cqOptions,
               correctAnswer: cqCorrectAnswer,
               difficulty: (DIFF_MAP[cq.difficultyLevel] ?? 'medium') as Difficulty,
-              topic: cq.topic?.name ?? '',
+              topic: cqContent?.meta?.domain ?? cq.topic?.name ?? '',
               subTopic: cqContent?.meta?.subTopic ?? '',
               skill: cqContent?.meta?.skill ?? '',
               explanation: cqContent?.explanation ?? undefined,
@@ -1803,7 +1808,7 @@ export function TestBuilderPage() {
             options,
             correctAnswer,
             difficulty: (DIFF_MAP[q.difficultyLevel] ?? 'medium') as Difficulty,
-            topic: q.topic?.name ?? '',
+            topic: content?.meta?.domain ?? q.topic?.name ?? '',
             subTopic: content?.meta?.subTopic ?? '',
             skill: content?.meta?.skill ?? '',
             explanation: content?.explanation ?? undefined,

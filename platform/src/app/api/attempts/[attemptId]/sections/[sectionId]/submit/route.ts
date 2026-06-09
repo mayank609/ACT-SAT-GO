@@ -130,8 +130,10 @@ export async function POST(
 
         for (const tq of testQuestions) {
           const q = tq.question
+          // Skip child question rows: counted via their passage parent below.
+          if ((q as any).parentQuestionId) continue
           const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true)
-          
+
           if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
             for (const cq of q.childQuestions) {
               if (!sectionQuestionsMap.has(tq.sectionId)) {

@@ -62,7 +62,12 @@ export function transformDbTest(raw: DbTest): Test {
       id: sec.id,
       name: sec.name,
       timeLimit: sec.durationMinutes,
-      questions: sec.questions.slice().sort((a, b) => a.orderIndex - b.orderIndex).map((tq): Question => {
+      questions: sec.questions
+        // Skip child question rows: passage children are reached via the parent's
+        // childQuestions (expanded by flattenTest). Mapping their own rows too would
+        // show every passage sub-question twice during the test.
+        .filter((tq) => !(tq.question as any).parentQuestionId)
+        .slice().sort((a, b) => a.orderIndex - b.orderIndex).map((tq): Question => {
         const q = tq.question
         const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true)
         const type: QuestionType = isPassage ? 'passage' : q.type === 'MCQ' ? 'mcq_single' : q.type === 'MSQ' ? 'mcq_multi' : 'numeric'
