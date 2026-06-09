@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -311,7 +311,10 @@ export function StudentManagementPage() {
   // ── Question Wise Report state ───────────────────────────────────────────
   const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
   const [questionFilterBy, setQuestionFilterBy] = useState('all');
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);;
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [fullscreenQuestionReportOpen, setFullscreenQuestionReportOpen] = useState(false);
+  const [showFullscreenPalette, setShowFullscreenPalette] = useState(false);
+  const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
 
   useEffect(() => {
     if (mainView !== 'test_analysis' || !selectedStudentId) {
@@ -1284,10 +1287,20 @@ export function StudentManagementPage() {
 
                 {/* ── Question Wise Report ── */}
                 <div className="mt-8 bg-white rounded-xl border-2 border-blue-200 p-4">
-                  <h4 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
-                    Question Wise Report
-                  </h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                      Question Wise Report
+                    </h4>
+                    <button
+                      onClick={() => setFullscreenQuestionReportOpen(true)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all font-semibold text-sm shadow-sm"
+                      title="View in fullscreen"
+                    >
+                      <Maximize2 size={16} />
+                      Fullscreen
+                    </button>
+                  </div>
                   
                   {/* Section tabs & filter */}
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
@@ -1538,32 +1551,16 @@ export function StudentManagementPage() {
                             Previous
                           </button>
 
-                          {/* Question Number Navigation */}
-                          <div className="hidden md:flex items-center gap-1 flex-wrap justify-center flex-1 min-w-0 max-h-12 overflow-y-auto px-1 py-0.5">
-                            {filteredQuestions.map((fq, dotIdx) => {
-                              const ans = answersMap.get(fq.questionId);
-                              const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
-                              const isOmitted = !ans?.answerGiven;
-                              const isActive = dotIdx === safeIdx;
-                              const colorClass = isActive
-                                ? 'bg-blue-600 text-white ring-2 ring-blue-300 ring-offset-1'
-                                : isOmitted
-                                ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                : isCorrect
-                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                                : 'bg-red-100 text-red-700 hover:bg-red-200';
-                              return (
-                                <button
-                                  key={dotIdx}
-                                  onClick={() => setCurrentQuestionIdx(dotIdx)}
-                                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex-shrink-0 ${colorClass}`}
-                                  title={`Q${dotIdx + 1} — ${isOmitted ? 'Omitted' : isCorrect ? 'Correct' : 'Incorrect'}`}
-                                >
-                                  {dotIdx + 1}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {/* Question Navigator Pill */}
+                          {filteredQuestions.length > 0 && (
+                            <button
+                              onClick={() => setShowQuestionNavigator(true)}
+                              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg cursor-pointer text-xs"
+                            >
+                              Question {safeIdx + 1} of {filteredQuestions.length}
+                              <ChevronDown size={14} />
+                            </button>
+                          )}
 
                           <button
                             onClick={() => setCurrentQuestionIdx(safeIdx + 1)}
@@ -1764,6 +1761,513 @@ export function StudentManagementPage() {
           </div>
         </div>
       </Modal>
+
+      {/* ── Question Navigator Modal ── */}
+      {showQuestionNavigator && testAnalysisAttempt && (() => {
+        const analysis = computeTestAnalysis(testAnalysisAttempt);
+        const activeSection = analysis.sections[activeQuestionSectionIdx];
+        if (!activeSection) return null;
+
+        const sectionAttempt = testAnalysisAttempt.sectionAttempts.find(
+          (sa) => sa.section.name === activeSection.name
+        );
+        if (!sectionAttempt) return null;
+
+        const allQuestions = sectionAttempt.section.questions.flatMap((tq) => {
+          const q = tq.question;
+          const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+          if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
+          }
+          return [tq];
+        });
+        const answersMap = new Map(testAnalysisAttempt.answers.map((a) => [a.questionId, a]));
+
+        const filteredQuestions = allQuestions.filter((tq) => {
+          const ans = answersMap.get(tq.questionId);
+          const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+          const isOmitted = !ans?.answerGiven;
+
+          if (questionFilterBy === 'correct') return isCorrect;
+          if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+          if (questionFilterBy === 'omitted') return isOmitted;
+          return true;
+        });
+
+        const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+
+        return (
+          <Modal isOpen={showQuestionNavigator} onClose={() => setShowQuestionNavigator(false)} title="" size="md">
+            <div className="space-y-6">
+              {/* Title */}
+              <div className="text-center border-b border-slate-200 pb-4">
+                <h3 className="text-lg md:text-xl font-bold text-slate-900">{activeSection.name}</h3>
+                <p className="text-sm text-slate-500 mt-1">Questions</p>
+              </div>
+
+              {/* Status Legend */}
+              <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-slate-300" />
+                  <span className="text-xs font-semibold text-slate-600">Unanswered</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-semibold text-slate-600">Correct</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-red-500" />
+                  <span className="text-xs font-semibold text-slate-600">Wrong</span>
+                </div>
+              </div>
+
+              {/* Question Grid */}
+              <div className="flex justify-center">
+                <div className="grid grid-cols-6 sm:grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
+                  {filteredQuestions.map((fq, idx) => {
+                    const ans = answersMap.get(fq.questionId);
+                    const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                    const isOmitted = !ans?.answerGiven;
+                    const isCurrent = idx === safeIdx;
+
+                    let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
+                    let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
+
+                    if (isCurrent) {
+                      bgColor = 'bg-blue-600 border-blue-700';
+                      textColor = 'text-white font-bold ring-2 ring-blue-300';
+                    }
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setCurrentQuestionIdx(idx);
+                          setShowQuestionNavigator(false);
+                        }}
+                        className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 cursor-pointer`}
+                        title={`Q${idx + 1} — ${isOmitted ? 'Omitted' : isCorrect ? 'Correct' : 'Incorrect'}`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bottom Section - Question Counter */}
+              <div className="border-t border-slate-200 pt-4 text-center">
+                <button
+                  onClick={() => setShowQuestionNavigator(false)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer"
+                >
+                  Question {safeIdx + 1} of {filteredQuestions.length}
+                  <ChevronDown size={16} />
+                </button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {/* ── Fullscreen Question Wise Report review mode ── */}
+      {fullscreenQuestionReportOpen && testAnalysisAttempt && (() => {
+        const analysis = computeTestAnalysis(testAnalysisAttempt);
+        const activeSection = analysis.sections[activeQuestionSectionIdx];
+        if (!activeSection) return null;
+
+        const sectionAttempt = testAnalysisAttempt.sectionAttempts.find(
+          (sa) => sa.section.name === activeSection.name
+        );
+        if (!sectionAttempt) return null;
+
+        const allQuestions = sectionAttempt.section.questions.flatMap((tq) => {
+          const q = tq.question;
+          const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+          if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
+          }
+          return [tq];
+        });
+        const answersMap = new Map(testAnalysisAttempt.answers.map((a) => [a.questionId, a]));
+
+        const filteredQuestions = allQuestions.filter((tq) => {
+          const ans = answersMap.get(tq.questionId);
+          const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+          const isOmitted = !ans?.answerGiven;
+
+          if (questionFilterBy === 'correct') return isCorrect;
+          if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+          if (questionFilterBy === 'omitted') return isOmitted;
+          return true;
+        });
+
+        const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+        const currentTq = filteredQuestions[safeIdx];
+        const hasPrev = safeIdx > 0;
+        const hasNext = safeIdx < filteredQuestions.length - 1;
+
+        const studentAnswer = currentTq ? answersMap.get(currentTq.questionId) : null;
+        const correct = studentAnswer?.answerGiven ? taAnswersMatch(studentAnswer.answerGiven, currentTq.question.correctAnswer) : false;
+        const skipped = !studentAnswer?.answerGiven;
+        const options = currentTq ? taOptionsToDisplay(currentTq.question.options) : [];
+        const userAnswerDisplay = studentAnswer ? taAnswerToDisplay(studentAnswer.answerGiven) : null;
+        const correctAnswerDisplay = currentTq ? taAnswerToDisplay(currentTq.question.correctAnswer) : null;
+
+        return (
+          <div className="fixed inset-0 bg-white z-[150] overflow-hidden flex flex-col font-sans select-none">
+            {/* Top Header Bar */}
+            <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-16 flex items-center justify-between z-20">
+              {/* Left: Section Selection tabs */}
+              <div className="flex items-center gap-4 min-w-0">
+                <span className="font-bold text-slate-800 text-sm hidden sm:inline">Reviewing:</span>
+                <div className="flex flex-wrap gap-1 min-w-0">
+                  {analysis.sections.map((sa, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setActiveQuestionSectionIdx(idx);
+                        setQuestionFilterBy('all');
+                        setCurrentQuestionIdx(0);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                        activeQuestionSectionIdx === idx
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      }`}
+                    >
+                      {sa.category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Center Info Banner */}
+              <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 select-none">
+                Review Mode - Admin Portal
+              </div>
+
+              {/* Right tools and exit */}
+              <div className="flex items-center gap-4 z-30">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">Filter</span>
+                  <select
+                    value={questionFilterBy}
+                    onChange={(e) => { setQuestionFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
+                    className="px-2.5 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Questions</option>
+                    <option value="correct">Correct Only</option>
+                    <option value="incorrect">Incorrect Only</option>
+                    <option value="omitted">Omitted Only</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => setFullscreenQuestionReportOpen(false)}
+                  className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all cursor-pointer"
+                  title="Close Fullscreen"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </header>
+
+            {/* Practice Banner */}
+            <div className="flex-shrink-0 bg-[#1e2150] text-white text-center text-[12px] font-semibold tracking-wide py-1.5 z-10 select-none">
+              THIS IS A PRACTICE TEST REVIEW
+            </div>
+
+            {/* Main Area */}
+            <div className="flex-1 overflow-hidden bg-white min-h-0">
+              {filteredQuestions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full p-8">
+                  <p className="text-slate-500 font-semibold text-sm">No questions match the filter in this section</p>
+                </div>
+              ) : !currentTq ? (
+                <div className="flex flex-col items-center justify-center h-full p-8">
+                  <p className="text-slate-500 font-semibold text-sm">Loading question...</p>
+                </div>
+              ) : (currentTq as any).parentPassageText ? (
+                /* Split Passage Layout */
+                <div className="flex h-full min-h-full divide-x divide-slate-200">
+                  {/* Left Column: Passage */}
+                  <div className="w-1/2 overflow-y-auto p-8 bg-white h-full">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Reading Passage</p>
+                    <div className="prose prose-slate max-w-none text-slate-800 text-[15px] leading-relaxed">
+                      <RichContentRenderer content={(currentTq as any).parentPassageText || ''} variant="passage" />
+                    </div>
+                  </div>
+
+                  {/* Right Column: Question + Options + Explanation */}
+                  <div className="w-1/2 overflow-y-auto p-8 bg-white h-full flex flex-col gap-6 select-text">
+                    {/* Status header */}
+                    <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-7 h-7 text-white text-sm font-bold flex items-center justify-center rounded ${correct ? 'bg-emerald-600' : skipped ? 'bg-slate-400' : 'bg-red-600'}`}>
+                          {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                        </span>
+                        <span className={`text-sm font-bold ${correct ? 'text-emerald-700' : skipped ? 'text-slate-600' : 'text-red-700'}`}>
+                          {correct ? 'Correct' : skipped ? 'Omitted' : 'Incorrect'}
+                        </span>
+                      </div>
+                      {studentAnswer?.timeSpentSeconds ? (
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Clock size={12} />
+                          Time Spent: {studentAnswer.timeSpentSeconds}s
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Question text */}
+                    <div className="text-[15px] text-slate-900 leading-relaxed font-normal">
+                      <RichContentRenderer content={currentTq.question.content.text || ''} variant="question" />
+                    </div>
+
+                    {/* Options / Answer Input */}
+                    {options.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {options.map((opt) => {
+                          const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                          const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                          return (
+                            <OptionRenderer
+                              key={opt.id}
+                              label={opt.id.toUpperCase()}
+                              text={opt.text}
+                              isSelected={isUserAnswer && !isCorrectOption}
+                              isCorrect={isCorrectOption}
+                              isIncorrect={isUserAnswer && !isCorrectOption}
+                              showFeedback={true}
+                              colorTheme="blue"
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      currentTq.question.type === 'NUMERIC' && (
+                        <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
+                          <div className="text-sm">
+                            <span className="text-slate-500 font-medium">Your answer: </span>
+                            <span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {studentAnswer?.answerGiven?.value ?? '—'}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-slate-500 font-medium">Correct answer: </span>
+                            <span className="font-bold text-emerald-600">
+                              {currentTq.question.correctAnswer.value}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    )}
+
+                    {/* Explanation */}
+                    {currentTq.question.content.explanation && (
+                      <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100/80">
+                        <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Explanation</h5>
+                        <div className="text-sm text-slate-700 leading-relaxed">
+                          <RichContentRenderer content={currentTq.question.content.explanation} variant="question" className="prose-sm" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Standard Single Column Layout */
+                <div className="overflow-y-auto h-full p-8 bg-white select-text">
+                  <div className="max-w-3xl mx-auto flex flex-col gap-6">
+                    {/* Status header */}
+                    <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-7 h-7 text-white text-sm font-bold flex items-center justify-center rounded ${correct ? 'bg-emerald-600' : skipped ? 'bg-slate-400' : 'bg-red-600'}`}>
+                          {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                        </span>
+                        <span className={`text-sm font-bold ${correct ? 'text-emerald-700' : skipped ? 'text-slate-600' : 'text-red-700'}`}>
+                          {correct ? 'Correct' : skipped ? 'Omitted' : 'Incorrect'}
+                        </span>
+                      </div>
+                      {studentAnswer?.timeSpentSeconds ? (
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Clock size={12} />
+                          Time Spent: {studentAnswer.timeSpentSeconds}s
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Question text */}
+                    <div className="text-[16px] text-slate-900 leading-relaxed font-normal">
+                      <RichContentRenderer content={currentTq.question.content.text || ''} variant="question" />
+                    </div>
+
+                    {/* Options / Answer Input */}
+                    {options.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {options.map((opt) => {
+                          const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                          const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                          return (
+                            <OptionRenderer
+                              key={opt.id}
+                              label={opt.id.toUpperCase()}
+                              text={opt.text}
+                              isSelected={isUserAnswer && !isCorrectOption}
+                              isCorrect={isCorrectOption}
+                              isIncorrect={isUserAnswer && !isCorrectOption}
+                              showFeedback={true}
+                              colorTheme="blue"
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      currentTq.question.type === 'NUMERIC' && (
+                        <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
+                          <div className="text-sm">
+                            <span className="text-slate-500 font-medium">Your answer: </span>
+                            <span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {studentAnswer?.answerGiven?.value ?? '—'}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-slate-500 font-medium">Correct answer: </span>
+                            <span className="font-bold text-emerald-600">
+                              {currentTq.question.correctAnswer.value}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    )}
+
+                    {/* Explanation */}
+                    {currentTq.question.content.explanation && (
+                      <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100/80">
+                        <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Explanation</h5>
+                        <div className="text-sm text-slate-700 leading-relaxed">
+                          <RichContentRenderer content={currentTq.question.content.explanation} variant="question" className="prose-sm" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Footer Bar */}
+            <footer className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-between z-20">
+              {/* Left: student name */}
+              <p className="text-sm font-bold text-slate-800 truncate max-w-[28%] select-text">
+                Reviewing: {students.find(s => s.id === selectedStudentId)?.name || 'Student'}
+              </p>
+
+              {/* Center: question navigator pill */}
+              {filteredQuestions.length > 0 && (
+                <button
+                  onClick={() => setShowFullscreenPalette(true)}
+                  className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors shadow-md cursor-pointer"
+                >
+                  Question {safeIdx + 1} of {filteredQuestions.length}
+                  <ChevronUp size={14} />
+                </button>
+              )}
+
+              {/* Right: navigation buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={!hasPrev}
+                  onClick={() => setCurrentQuestionIdx(safeIdx - 1)}
+                  className={`px-5 py-2 text-xs font-bold rounded-full transition-colors cursor-pointer ${
+                    hasPrev
+                      ? 'text-blue-600 hover:bg-blue-50'
+                      : 'text-slate-300 cursor-not-allowed'
+                  }`}
+                >
+                  Back
+                </button>
+                <button
+                  disabled={!hasNext}
+                  onClick={() => setCurrentQuestionIdx(safeIdx + 1)}
+                  className={`px-7 py-2 text-xs font-bold text-white rounded-full transition-colors cursor-pointer ${
+                    hasNext
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-slate-300 cursor-not-allowed'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </footer>
+
+            {/* Question Palette Modal overlay */}
+            {showFullscreenPalette && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/40" onClick={() => setShowFullscreenPalette(false)} />
+                <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden z-10 border border-slate-200">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                    <h3 className="text-sm font-bold text-slate-900 text-center flex-1">
+                      {activeSection.name}
+                    </h3>
+                    <button onClick={() => setShowFullscreenPalette(false)} className="p-1.5 rounded-md hover:bg-gray-100 transition-colors text-slate-500 cursor-pointer">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="px-6 py-3 border-b border-slate-200 flex items-center justify-center gap-4 flex-wrap bg-slate-50 select-none">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
+                      <div className="w-3.5 h-3.5 rounded bg-emerald-100 border border-emerald-500" />
+                      Correct
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
+                      <div className="w-3.5 h-3.5 rounded bg-red-100 border border-red-500" />
+                      Incorrect
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
+                      <div className="w-3.5 h-3.5 rounded bg-slate-200 border border-slate-300" />
+                      Omitted
+                    </div>
+                  </div>
+
+                  {/* Grid */}
+                  <div className="p-6 max-h-72 overflow-y-auto flex justify-center">
+                    <div className="grid grid-cols-6 gap-3">
+                      {filteredQuestions.map((fq, idx) => {
+                        const ans = answersMap.get(fq.questionId);
+                        const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                        const isOmitted = !ans?.answerGiven;
+                        const isCurrent = idx === safeIdx;
+                        
+                        let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
+                        let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
+                        
+                        if (isCurrent) {
+                          bgColor = 'bg-blue-600 border-blue-700';
+                          textColor = 'text-white font-bold ring-2 ring-blue-300';
+                        }
+                        
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setCurrentQuestionIdx(idx);
+                              setShowFullscreenPalette(false);
+                            }}
+                            className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 cursor-pointer`}
+                            title={`Q${idx + 1} — ${isOmitted ? 'Omitted' : isCorrect ? 'Correct' : 'Incorrect'}`}
+                          >
+                            {idx + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
     </div>
   );

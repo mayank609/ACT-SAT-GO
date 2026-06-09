@@ -1328,107 +1328,100 @@ export function TestReviewPage() {
       </Modal>
 
       {/* Question Navigator Modal */}
-      {questionNavigatorOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-lg shadow-2xl">
-            <div className="space-y-6 p-6">
-              {/* Title */}
-              <div className="text-center border-b border-slate-200 pb-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg md:text-xl font-bold text-slate-900">{getSectionModuleLabel(sections[activeSectionIdx]?.section.name ?? '')}</h3>
-                  <button
-                    onClick={() => setQuestionNavigatorOpen(false)}
-                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-                <p className="text-sm text-slate-500 mt-1">Questions</p>
-              </div>
+      <Modal
+        isOpen={questionNavigatorOpen}
+        onClose={() => setQuestionNavigatorOpen(false)}
+        title=""
+        size="md"
+      >
+        <div className="space-y-6">
+          {/* Title */}
+          <div className="text-center border-b border-slate-200 pb-4">
+            <h3 className="text-lg md:text-xl font-bold text-slate-900">{getSectionModuleLabel(sections[activeSectionIdx]?.section.name ?? '')}</h3>
+            <p className="text-sm text-slate-500 mt-1">Questions</p>
+          </div>
 
-              {/* Status Legend */}
-              <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-slate-300" />
-                  <span className="text-xs font-semibold text-slate-600">Unanswered</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-semibold text-slate-600">Correct</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-red-500" />
-                  <span className="text-xs font-semibold text-slate-600">Wrong</span>
-                </div>
-              </div>
-
-              {/* Question Grid */}
-              {(() => {
-                const activeSection = sections[activeSectionIdx];
-                const activeQuestions = activeSection?.section.questions ?? [];
-                
-                return (
-                  <div className="flex justify-center max-h-[50vh] overflow-y-auto">
-                    <div className="grid grid-cols-9 gap-2 md:gap-3">
-                      {activeQuestions.map((tq, idx) => {
-                        const ans = answersMap.get(tq.questionId);
-                        const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
-                        const isOmitted = !ans?.answerGiven;
-                        const globalNum = idx + 1;
-                        
-                        const bgColor = isOmitted
-                          ? 'bg-slate-200'
-                          : isCorrect
-                          ? 'bg-emerald-100 border-emerald-500'
-                          : 'bg-red-100 border-red-500';
-                        
-                        const textColor = isOmitted
-                          ? 'text-slate-600'
-                          : isCorrect
-                          ? 'text-emerald-700'
-                          : 'text-red-700';
-
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              const filteredIdx = activeQuestions.findIndex((q) => q.questionId === tq.questionId);
-                              setCurrentQuestionIdx(filteredIdx);
-                              setQuestionNavigatorOpen(false);
-                            }}
-                            className={`w-10 h-10 md:w-11 md:h-11 rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
-                            title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
-                          >
-                            {globalNum}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Bottom Section - Question Counter */}
-              <div className="border-t border-slate-200 pt-4 text-center">
-                {(() => {
-                  const activeSection = sections[activeSectionIdx];
-                  const activeQuestions = activeSection?.section.questions ?? [];
-                  const safeIdx = Math.min(currentQuestionIdx, Math.max(activeQuestions.length - 1, 0));
-                  return (
-                    <button
-                      onClick={() => setQuestionNavigatorOpen(false)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 transition-all"
-                    >
-                      Question {safeIdx + 1} of {activeQuestions.length}
-                      <ChevronDown size={16} />
-                    </button>
-                  );
-                })()}
-              </div>
+          {/* Status Legend */}
+          <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-slate-300" />
+              <span className="text-xs font-semibold text-slate-600">Unanswered</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-emerald-500" />
+              <span className="text-xs font-semibold text-slate-600">Correct</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-red-500" />
+              <span className="text-xs font-semibold text-slate-600">Wrong</span>
             </div>
           </div>
+
+          {/* Question Grid */}
+          {(() => {
+            const activeSection = sections[activeSectionIdx];
+            const activeQuestions = activeSection?.section.questions ?? [];
+            
+            return (
+              <div className="flex justify-center">
+                <div className="grid grid-cols-9 gap-2 md:gap-3">
+                  {activeQuestions.map((tq, idx) => {
+                    const ans = answersMap.get(tq.questionId);
+                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                    const isOmitted = !ans?.answerGiven;
+                    const globalNum = idx + 1;
+                    
+                    const bgColor = isOmitted
+                      ? 'bg-slate-200'
+                      : isCorrect
+                      ? 'bg-emerald-100 border-emerald-500'
+                      : 'bg-red-100 border-red-500';
+                    
+                    const textColor = isOmitted
+                      ? 'text-slate-600'
+                      : isCorrect
+                      ? 'text-emerald-700'
+                      : 'text-red-700';
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          const filteredIdx = activeQuestions.findIndex((q) => q.questionId === tq.questionId);
+                          setCurrentQuestionIdx(filteredIdx);
+                          setQuestionNavigatorOpen(false);
+                        }}
+                        className={`w-10 h-10 md:w-11 md:h-11 rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                        title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
+                      >
+                        {globalNum}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Bottom Section - Question Counter */}
+          <div className="border-t border-slate-200 pt-4 text-center">
+            {(() => {
+              const activeSection = sections[activeSectionIdx];
+              const activeQuestions = activeSection?.section.questions ?? [];
+              const safeIdx = Math.min(currentQuestionIdx, Math.max(activeQuestions.length - 1, 0));
+              return (
+                <button
+                  onClick={() => setQuestionNavigatorOpen(false)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 transition-all"
+                >
+                  Question {safeIdx + 1} of {activeQuestions.length}
+                  <ChevronDown size={16} />
+                </button>
+              );
+            })()}
+          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Fullscreen Question Report Modal */}
       {fullscreenReportOpen && (

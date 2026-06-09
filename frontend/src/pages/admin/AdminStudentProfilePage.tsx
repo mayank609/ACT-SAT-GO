@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Target, TrendingUp, Clock, Phone, School, Calendar,
   User2, Mail, Pencil, Trash2, CheckCircle, X, Save, MessageSquare, PlusCircle,
-  AlertTriangle, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, XCircle,
+  AlertTriangle, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, XCircle, Maximize2,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -310,6 +310,9 @@ export function AdminStudentProfilePage() {
   const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
   const [questionFilterBy, setQuestionFilterBy] = useState('all');
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [fullscreenQuestionReportOpen, setFullscreenQuestionReportOpen] = useState(false);
+  const [showFullscreenPalette, setShowFullscreenPalette] = useState(false);
+  const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -863,10 +866,20 @@ export function AdminStudentProfilePage() {
 
                                 {/* ── Question Wise Report ── */}
                                 <div className="mt-8 bg-white rounded-xl border-2 border-blue-200 p-4">
-                                  <h4 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
-                                    Question Wise Report
-                                  </h4>
+                                  <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                      <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                                      Question Wise Report
+                                    </h4>
+                                    <button
+                                      onClick={() => setFullscreenQuestionReportOpen(true)}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors border border-slate-200 cursor-pointer"
+                                      title="Open report in fullscreen review mode"
+                                    >
+                                      <Maximize2 size={13} />
+                                      Fullscreen
+                                    </button>
+                                  </div>
                                   
                                   {/* Section tabs & filter */}
                                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
@@ -1032,11 +1045,11 @@ export function AdminStudentProfilePage() {
                                         </div>
 
                                         {/* Navigation - Fixed at bottom */}
-                                        <div className="flex items-center justify-between pt-2 flex-shrink-0">
+                                        <div className="flex items-center justify-between pt-2 flex-shrink-0 gap-3">
                                           <button
                                             onClick={() => setCurrentQuestionIdx(safeIdx - 1)}
                                             disabled={!hasPrev}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all flex-shrink-0 ${
                                               hasPrev
                                                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
@@ -1046,10 +1059,21 @@ export function AdminStudentProfilePage() {
                                             Previous
                                           </button>
 
+                                          {/* Question Navigator Pill */}
+                                          {filteredQuestions.length > 0 && (
+                                            <button
+                                              onClick={() => setShowQuestionNavigator(true)}
+                                              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg cursor-pointer text-xs"
+                                            >
+                                              Question {safeIdx + 1} of {filteredQuestions.length}
+                                              <ChevronDown size={14} />
+                                            </button>
+                                          )}
+
                                           <button
                                             onClick={() => setCurrentQuestionIdx(safeIdx + 1)}
                                             disabled={!hasNext}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all flex-shrink-0 ${
                                               hasNext
                                                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
