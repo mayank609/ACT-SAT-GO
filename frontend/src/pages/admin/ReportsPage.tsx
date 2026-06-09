@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
-import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, ChevronLeft, ChevronRight, X, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, ChevronLeft, ChevronRight, X, Clock, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Modal } from '../../components/common/Modal';
 import { type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
@@ -96,6 +97,7 @@ export function ReportsPage() {
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [questionFilterBy, setQuestionFilterBy] = useState('all');
+  const [showFullscreenQuestionNavigator, setShowFullscreenQuestionNavigator] = useState(false);
 
   // Sync selection to sessionStorage
   useEffect(() => {
@@ -673,28 +675,121 @@ export function ReportsPage() {
             </div>
 
             {/* Bottom navigation */}
-            <footer className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-14 flex items-center justify-between z-20">
+            <footer className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-center z-20">
               <button
-                onClick={() => setCurrentQuestionIdx(Math.max(safeIdx - 1, 0))}
-                disabled={!hasPrev}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => setShowFullscreenQuestionNavigator(true)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer shadow-md"
               >
-                <ChevronLeft size={16} /> Previous
-              </button>
-              <span className="text-xs font-semibold text-slate-500">
-                Question {safeIdx + 1} of {filteredQuestions.length}
-              </span>
-              <button
-                onClick={() => setCurrentQuestionIdx(Math.min(safeIdx + 1, filteredQuestions.length - 1))}
-                disabled={!hasNext}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Next <ChevronRight size={16} />
+                Question {(() => {
+                  const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+                  return `${safeIdx + 1} of ${filteredQuestions.length}`;
+                })()}
+                <ChevronDown size={16} />
               </button>
             </footer>
           </div>
         );
       })()}
+
+      {/* Question Navigator Modal */}
+      <Modal isOpen={showFullscreenQuestionNavigator} onClose={() => setShowFullscreenQuestionNavigator(false)} title="" size="md">
+        {(() => {
+          const sectionAttempts = currentAttempt?.sectionAttempts || [];
+          const activeSection = sectionAttempts[activeSectionIdx];
+          if (!activeSection) return null;
+
+          const answersMap = new Map(currentAttempt.answers.map((a: any) => [a.questionId, a]));
+          
+          // Flatten questions
+          const allQuestions = activeSection.section.questions.flatMap((tq: any) => {
+            const q = tq.question;
+            const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+            if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+              return q.childQuestions.map((cq: any) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
+            }
+            return (q as any).parentQuestionId ? [] : [tq];
+          });
+
+          const filteredQuestions = allQuestions.filter((tq: any) => {
+            const ans = answersMap.get(tq.questionId) as any;
+            const isCorrect = ans?.answerGiven ? answersMatchFn(ans.answerGiven, tq.question.correctAnswer) : false;
+            const isOmitted = !ans?.answerGiven;
+            if (questionFilterBy === 'correct') return isCorrect;
+            if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+            if (questionFilterBy === 'omitted') return isOmitted;
+            return true;
+          });
+
+          const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+
+          return (
+            <div className="space-y-6">
+              <div className="text-center border-b border-slate-200 pb-4">
+                <h3 className="text-lg md:text-xl font-bold text-slate-900">{activeSection.section.name}</h3>
+                <p className="text-sm text-slate-500 mt-1">Questions</p>
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-slate-300" />
+                  <span className="text-xs font-semibold text-slate-600">Unanswered</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-semibold text-slate-600">Correct</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-red-500" />
+                  <span className="text-xs font-semibold text-slate-600">Wrong</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full border-2 border-blue-600 bg-blue-50" />
+                  <span className="text-xs font-semibold text-slate-600">Current</span>
+                </div>
+              </div>
+
+              {/* Question Grid */}
+              <div className="flex justify-center">
+                <div className="grid grid-cols-6 sm:grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
+                  {filteredQuestions.map((fq: any, idx: number) => {
+                    const ans = answersMap.get(fq.questionId) as any;
+                    const isCorrect = ans?.answerGiven ? answersMatchFn(ans.answerGiven, fq.question.correctAnswer) : false;
+                    const isOmitted = !ans?.answerGiven;
+                    const isCurrent = idx === safeIdx;
+
+                    let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
+                    let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
+                    if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => { setCurrentQuestionIdx(idx); setShowFullscreenQuestionNavigator(false); }}
+                        className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 cursor-pointer`}
+                        title={`Q${idx + 1} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Incorrect'}`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-slate-200 pt-4 text-center">
+                <button
+                  onClick={() => setShowFullscreenQuestionNavigator(false)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer"
+                >
+                  Question {safeIdx + 1} of {filteredQuestions.length}
+                  <ChevronDown size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
     </div>
   );
 }

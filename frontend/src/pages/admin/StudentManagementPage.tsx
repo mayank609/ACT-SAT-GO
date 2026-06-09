@@ -2154,117 +2154,22 @@ export function StudentManagementPage() {
             </div>
 
             {/* Bottom Footer Bar */}
-            <footer className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-between z-20">
-              {/* Left: student name */}
-              <p className="text-sm font-bold text-slate-800 truncate max-w-[28%] select-text">
-                Reviewing: {students.find(s => s.id === selectedStudentId)?.name || 'Student'}
-              </p>
+            <footer className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-center z-20">
 
               {/* Center: question navigator pill */}
               {filteredQuestions.length > 0 && (
                 <button
-                  onClick={() => setShowFullscreenPalette(true)}
-                  className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors shadow-md cursor-pointer"
+                  onClick={() => setShowQuestionNavigator(true)}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer shadow-md"
                 >
                   Question {safeIdx + 1} of {filteredQuestions.length}
-                  <ChevronUp size={14} />
+                  <ChevronDown size={16} />
                 </button>
               )}
 
-              {/* Right: navigation buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={!hasPrev}
-                  onClick={() => setCurrentQuestionIdx(safeIdx - 1)}
-                  className={`px-5 py-2 text-xs font-bold rounded-full transition-colors cursor-pointer ${
-                    hasPrev
-                      ? 'text-blue-600 hover:bg-blue-50'
-                      : 'text-slate-300 cursor-not-allowed'
-                  }`}
-                >
-                  Back
-                </button>
-                <button
-                  disabled={!hasNext}
-                  onClick={() => setCurrentQuestionIdx(safeIdx + 1)}
-                  className={`px-7 py-2 text-xs font-bold text-white rounded-full transition-colors cursor-pointer ${
-                    hasNext
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-slate-300 cursor-not-allowed'
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
+
             </footer>
 
-            {/* Question Palette Modal overlay */}
-            {showFullscreenPalette && (
-              <div className="fixed inset-0 z-[200] flex items-center justify-center">
-                <div className="absolute inset-0 bg-black/40" onClick={() => setShowFullscreenPalette(false)} />
-                <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden z-10 border border-slate-200">
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                    <h3 className="text-sm font-bold text-slate-900 text-center flex-1">
-                      {activeSection.name}
-                    </h3>
-                    <button onClick={() => setShowFullscreenPalette(false)} className="p-1.5 rounded-md hover:bg-gray-100 transition-colors text-slate-500 cursor-pointer">
-                      <X size={18} />
-                    </button>
-                  </div>
-                  
-                  {/* Legend */}
-                  <div className="px-6 py-3 border-b border-slate-200 flex items-center justify-center gap-4 flex-wrap bg-slate-50 select-none">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-                      <div className="w-3.5 h-3.5 rounded bg-emerald-100 border border-emerald-500" />
-                      Correct
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-                      <div className="w-3.5 h-3.5 rounded bg-red-100 border border-red-500" />
-                      Incorrect
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-                      <div className="w-3.5 h-3.5 rounded bg-slate-200 border border-slate-300" />
-                      Omitted
-                    </div>
-                  </div>
-
-                  {/* Grid */}
-                  <div className="p-6 max-h-72 overflow-y-auto flex justify-center">
-                    <div className="grid grid-cols-6 gap-3">
-                      {filteredQuestions.map((fq, idx) => {
-                        const ans = answersMap.get(fq.questionId);
-                        const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
-                        const isOmitted = !ans?.answerGiven;
-                        const isCurrent = idx === safeIdx;
-                        
-                        let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
-                        let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
-                        
-                        if (isCurrent) {
-                          bgColor = 'bg-blue-600 border-blue-700';
-                          textColor = 'text-white font-bold ring-2 ring-blue-300';
-                        }
-                        
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              setCurrentQuestionIdx(idx);
-                              setShowFullscreenPalette(false);
-                            }}
-                            className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 cursor-pointer`}
-                            title={`Q${idx + 1} — ${isOmitted ? 'Omitted' : isCorrect ? 'Correct' : 'Incorrect'}`}
-                          >
-                            {idx + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         );
       })()}

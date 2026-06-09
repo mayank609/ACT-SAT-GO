@@ -814,6 +814,7 @@ export function TestReviewPage() {
   const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
   const [questionNavigatorOpen, setQuestionNavigatorOpen] = useState(false);
   const [fullscreenReportOpen, setFullscreenReportOpen] = useState(false);
+  const [showFullscreenQuestionNavigator, setShowFullscreenQuestionNavigator] = useState(false);
   const [knowledgeSkillsOpen, setKnowledgeSkillsOpen] = useState(false);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
@@ -1710,10 +1711,12 @@ export function TestReviewPage() {
             })()}
           </div>
 
-          {/* Navigation Footer */}
-          <div className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-between">
-            {/* Question counter info */}
-            <div className="text-sm font-bold text-slate-700">
+          {/* Navigation Footer - Question Navigator Button */}
+          <div className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-center">
+            <button
+              onClick={() => setShowFullscreenQuestionNavigator(true)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer shadow-md"
+            >
               {(() => {
                 const activeSection = sections[activeSectionIdx];
                 const activeQuestions = activeSection?.section.questions ?? [];
@@ -1732,89 +1735,100 @@ export function TestReviewPage() {
                 const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
                 return `Question ${safeIdx + 1} of ${filteredQuestions.length}`;
               })()}
-            </div>
-
-            {/* Navigation buttons */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))}
-                disabled={currentQuestionIdx === 0}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                  currentQuestionIdx === 0
-                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                <ChevronLeft size={16} />
-                Previous
-              </button>
-
-              <button
-                onClick={() => {
-                  const activeSection = sections[activeSectionIdx];
-                  const activeQuestions = activeSection?.section.questions ?? [];
-                  const filteredQuestions = activeQuestions.filter((tq) => {
-                    const ans = answersMap.get(tq.questionId);
-                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
-                    const isOmitted = !ans?.answerGiven;
-                    const isFlagged = ans?.isFlagged ?? false;
-                    
-                    if (filterBy === 'correct') return isCorrect;
-                    if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
-                    if (filterBy === 'omitted') return isOmitted;
-                    if (filterBy === 'flagged') return isFlagged;
-                    return true;
-                  });
-                  if (currentQuestionIdx < filteredQuestions.length - 1) {
-                    setCurrentQuestionIdx(currentQuestionIdx + 1);
-                  }
-                }}
-                disabled={(() => {
-                  const activeSection = sections[activeSectionIdx];
-                  const activeQuestions = activeSection?.section.questions ?? [];
-                  const filteredQuestions = activeQuestions.filter((tq) => {
-                    const ans = answersMap.get(tq.questionId);
-                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
-                    const isOmitted = !ans?.answerGiven;
-                    const isFlagged = ans?.isFlagged ?? false;
-                    
-                    if (filterBy === 'correct') return isCorrect;
-                    if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
-                    if (filterBy === 'omitted') return isOmitted;
-                    if (filterBy === 'flagged') return isFlagged;
-                    return true;
-                  });
-                  return currentQuestionIdx >= filteredQuestions.length - 1;
-                })()}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                  (() => {
-                    const activeSection = sections[activeSectionIdx];
-                    const activeQuestions = activeSection?.section.questions ?? [];
-                    const filteredQuestions = activeQuestions.filter((tq) => {
-                      const ans = answersMap.get(tq.questionId);
-                      const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
-                      const isOmitted = !ans?.answerGiven;
-                      const isFlagged = ans?.isFlagged ?? false;
-                      
-                      if (filterBy === 'correct') return isCorrect;
-                      if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
-                      if (filterBy === 'omitted') return isOmitted;
-                      if (filterBy === 'flagged') return isFlagged;
-                      return true;
-                    });
-                    return currentQuestionIdx >= filteredQuestions.length - 1;
-                  })()
-                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                Next
-                <ChevronRight size={16} />
-              </button>
-            </div>
+              <ChevronDown size={16} />
+            </button>
           </div>
         </div>
       )}
+
+      {/* Question Navigator Modal */}
+      <Modal isOpen={showFullscreenQuestionNavigator} onClose={() => setShowFullscreenQuestionNavigator(false)} title="" size="md">
+        {(() => {
+          const activeSection = sections[activeSectionIdx];
+          const activeQuestions = activeSection?.section.questions ?? [];
+          const filteredQuestions = activeQuestions.filter((tq) => {
+            const ans = answersMap.get(tq.questionId);
+            const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+            const isOmitted = !ans?.answerGiven;
+            const isFlagged = ans?.isFlagged ?? false;
+            
+            if (filterBy === 'correct') return isCorrect;
+            if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+            if (filterBy === 'omitted') return isOmitted;
+            if (filterBy === 'flagged') return isFlagged;
+            return true;
+          });
+
+          const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+
+          return (
+            <div className="space-y-6">
+              <div className="text-center border-b border-slate-200 pb-4">
+                <h3 className="text-lg md:text-xl font-bold text-slate-900">{getSectionModuleLabel(activeSection?.section.name || '')}</h3>
+                <p className="text-sm text-slate-500 mt-1">Questions</p>
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-slate-300" />
+                  <span className="text-xs font-semibold text-slate-600">Unanswered</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-semibold text-slate-600">Correct</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-red-500" />
+                  <span className="text-xs font-semibold text-slate-600">Wrong</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full border-2 border-blue-600 bg-blue-50" />
+                  <span className="text-xs font-semibold text-slate-600">Current</span>
+                </div>
+              </div>
+
+              {/* Question Grid */}
+              <div className="flex justify-center">
+                <div className="grid grid-cols-6 sm:grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
+                  {filteredQuestions.map((fq, idx) => {
+                    const ans = answersMap.get(fq.questionId);
+                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                    const isOmitted = !ans?.answerGiven;
+                    const isCurrent = idx === safeIdx;
+
+                    let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
+                    let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
+                    if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => { setCurrentQuestionIdx(idx); setShowFullscreenQuestionNavigator(false); }}
+                        className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 cursor-pointer`}
+                        title={`Q${idx + 1} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Incorrect'}`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-slate-200 pt-4 text-center">
+                <button
+                  onClick={() => setShowFullscreenQuestionNavigator(false)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer"
+                >
+                  Question {safeIdx + 1} of {filteredQuestions.length}
+                  <ChevronDown size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
 
       {/* Score Calculator */}
       <div className="mt-8">
