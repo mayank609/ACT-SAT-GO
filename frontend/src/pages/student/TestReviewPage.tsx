@@ -722,7 +722,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
             className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
           >
             {showAnalysis ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            <span>Analysis</span>
+            <span>Explanation</span>
             {status === 'correct' ? (
               <CheckCircle size={16} className="text-blue-600" />
             ) : status === 'incorrect' ? (

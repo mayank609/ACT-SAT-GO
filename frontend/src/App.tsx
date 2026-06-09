@@ -29,7 +29,6 @@ const TutorDashboard = lazy(() => import('./pages/tutor/TutorDashboard').then((m
 const MyStudentsPage = lazy(() => import('./pages/tutor/MyStudentsPage').then((m) => ({ default: m.MyStudentsPage })));
 const StudentDetailPage = lazy(() => import('./pages/tutor/StudentDetailPage').then((m) => ({ default: m.StudentDetailPage })));
 const TutorAnalyticsPage = lazy(() => import('./pages/tutor/TutorAnalyticsPage').then((m) => ({ default: m.TutorAnalyticsPage })));
-const StudentComparisonPage = lazy(() => import('./pages/tutor/StudentComparisonPage').then((m) => ({ default: m.StudentComparisonPage })));
 
 // Student pages
 const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
@@ -113,9 +112,6 @@ const router = createBrowserRouter(
         <Route path="my-students" element={<MyStudentsPage />} />
         <Route path="student/:id" element={<StudentDetailPage />} />
         <Route path="analytics" element={<AnalyticsRouter />} />
-
-        {/* Shared / Tutor / Admin */}
-        <Route path="comparison" element={<StudentComparisonPage />} />
 
         {/* Student */}
         <Route path="my-tests" element={<MyTestsPage />} />

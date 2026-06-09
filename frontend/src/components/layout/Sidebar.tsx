@@ -45,10 +45,6 @@ const adminNavItems: NavItem[] = [
     path: '/analytics',
     icon: <BarChart3 size={18} />,
     roles: ['super_admin', 'admin', 'tutor'],
-    subItems: [
-      { label: 'Performance', path: '/analytics' },
-      { label: 'Student Comparison', path: '/comparison' },
-    ],
   },
   { label: 'Live Monitoring', path: '/monitoring', icon: <Activity size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
