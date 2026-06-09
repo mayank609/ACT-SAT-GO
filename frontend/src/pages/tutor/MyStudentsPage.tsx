@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
+import { Modal } from '../../components/common/Modal';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
