@@ -1138,8 +1138,9 @@ export function TestReviewPage() {
       </div>
 
       {/* ── QUESTION WISE REPORT ───────────────────────────────────────────────── */}
-      <div className="space-y-6">
-        <div id="question-report-anchor" className="flex items-center justify-between">
+      <div id="question-report-anchor" className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        {/* Card Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900">Question wise report</h2>
           <button
             onClick={() => setFullscreenReportOpen(true)}
@@ -1152,7 +1153,7 @@ export function TestReviewPage() {
         </div>
 
         {/* Tabs & Filters bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-3 gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 px-6 py-4 gap-4">
           <div className="flex flex-wrap gap-2">
             {sections.map((sa, idx) => (
               <button
@@ -1196,7 +1197,9 @@ export function TestReviewPage() {
           </div>
         </div>
 
-        {/* Single Question View with Previous/Next Navigation */}
+        {/* Card Content Area */}
+        <div className="px-6 py-4">
+          {/* Single Question View with Previous/Next Navigation */}
         {(() => {
           const activeSection = sections[activeSectionIdx];
           const activeQuestions = activeSection?.section.questions ?? [];
@@ -1219,10 +1222,10 @@ export function TestReviewPage() {
           const hasNext = safeIdx < filteredQuestions.length - 1;
 
           return (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Question counter & info */}
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-bold text-slate-700">
+              <div className="flex items-center justify-between pb-2">
+                <div className="text-xs font-bold text-slate-600">
                   Total Questions: {activeQuestions.length}
                   {filterBy !== 'all' && (
                     <span className="text-slate-500 font-medium ml-2">
@@ -1249,7 +1252,7 @@ export function TestReviewPage() {
                   />
 
                   {/* Navigation Bar with Previous, Question Navigator, and Next */}
-                  <div className="flex items-center justify-between gap-3 px-2 py-3 bg-slate-50 rounded-b-xl border border-t-0 border-slate-200 shadow-sm">
+                  <div className="flex items-center justify-between gap-3 mt-6 pt-6 border-t border-slate-200">
                     <button
                       onClick={() => { setCurrentQuestionIdx(safeIdx - 1); }}
                       disabled={!hasPrev}
@@ -1293,6 +1296,7 @@ export function TestReviewPage() {
             </div>
           );
         })()}
+        </div>
       </div>
 
       {/* Pacing Modal */}
