@@ -1328,120 +1328,127 @@ export function TestReviewPage() {
       </Modal>
 
       {/* Question Navigator Modal */}
-      <Modal
-        isOpen={questionNavigatorOpen}
-        onClose={() => setQuestionNavigatorOpen(false)}
-        title=""
-        size="md"
-      >
-        <div className="space-y-6">
-          {/* Title */}
-          <div className="text-center border-b border-slate-200 pb-4">
-            <h3 className="text-lg md:text-xl font-bold text-slate-900">{getSectionModuleLabel(sections[activeSectionIdx]?.section.name ?? '')}</h3>
-            <p className="text-sm text-slate-500 mt-1">Questions</p>
-          </div>
+      {questionNavigatorOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg shadow-2xl">
+            <div className="space-y-6 p-6">
+              {/* Title */}
+              <div className="text-center border-b border-slate-200 pb-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg md:text-xl font-bold text-slate-900">{getSectionModuleLabel(sections[activeSectionIdx]?.section.name ?? '')}</h3>
+                  <button
+                    onClick={() => setQuestionNavigatorOpen(false)}
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <p className="text-sm text-slate-500 mt-1">Questions</p>
+              </div>
 
-          {/* Status Legend */}
-          <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-slate-300" />
-              <span className="text-xs font-semibold text-slate-600">Unanswered</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-emerald-500" />
-              <span className="text-xs font-semibold text-slate-600">Correct</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-red-500" />
-              <span className="text-xs font-semibold text-slate-600">Wrong</span>
-            </div>
-          </div>
-
-          {/* Question Grid */}
-          {(() => {
-            const activeSection = sections[activeSectionIdx];
-            const activeQuestions = activeSection?.section.questions ?? [];
-            
-            return (
-              <div className="flex justify-center">
-                <div className="grid grid-cols-9 gap-2 md:gap-3">
-                  {activeQuestions.map((tq, idx) => {
-                    const ans = answersMap.get(tq.questionId);
-                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
-                    const isOmitted = !ans?.answerGiven;
-                    const globalNum = idx + 1;
-                    
-                    const bgColor = isOmitted
-                      ? 'bg-slate-200'
-                      : isCorrect
-                      ? 'bg-emerald-100 border-emerald-500'
-                      : 'bg-red-100 border-red-500';
-                    
-                    const textColor = isOmitted
-                      ? 'text-slate-600'
-                      : isCorrect
-                      ? 'text-emerald-700'
-                      : 'text-red-700';
-
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          const filteredIdx = activeQuestions.findIndex((q) => q.questionId === tq.questionId);
-                          setCurrentQuestionIdx(filteredIdx);
-                          setQuestionNavigatorOpen(false);
-                        }}
-                        className={`w-10 h-10 md:w-11 md:h-11 rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
-                        title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
-                      >
-                        {globalNum}
-                      </button>
-                    );
-                  })}
+              {/* Status Legend */}
+              <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-slate-300" />
+                  <span className="text-xs font-semibold text-slate-600">Unanswered</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-semibold text-slate-600">Correct</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-red-500" />
+                  <span className="text-xs font-semibold text-slate-600">Wrong</span>
                 </div>
               </div>
-            );
-          })()}
 
-          {/* Bottom Section - Question Counter */}
-          <div className="border-t border-slate-200 pt-4 text-center">
-            {(() => {
-              const activeSection = sections[activeSectionIdx];
-              const activeQuestions = activeSection?.section.questions ?? [];
-              const safeIdx = Math.min(currentQuestionIdx, Math.max(activeQuestions.length - 1, 0));
-              return (
-                <button
-                  onClick={() => setQuestionNavigatorOpen(false)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 transition-all"
-                >
-                  Question {safeIdx + 1} of {activeQuestions.length}
-                  <ChevronDown size={16} />
-                </button>
-              );
-            })()}
+              {/* Question Grid */}
+              {(() => {
+                const activeSection = sections[activeSectionIdx];
+                const activeQuestions = activeSection?.section.questions ?? [];
+                
+                return (
+                  <div className="flex justify-center max-h-[50vh] overflow-y-auto">
+                    <div className="grid grid-cols-9 gap-2 md:gap-3">
+                      {activeQuestions.map((tq, idx) => {
+                        const ans = answersMap.get(tq.questionId);
+                        const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                        const isOmitted = !ans?.answerGiven;
+                        const globalNum = idx + 1;
+                        
+                        const bgColor = isOmitted
+                          ? 'bg-slate-200'
+                          : isCorrect
+                          ? 'bg-emerald-100 border-emerald-500'
+                          : 'bg-red-100 border-red-500';
+                        
+                        const textColor = isOmitted
+                          ? 'text-slate-600'
+                          : isCorrect
+                          ? 'text-emerald-700'
+                          : 'text-red-700';
+
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              const filteredIdx = activeQuestions.findIndex((q) => q.questionId === tq.questionId);
+                              setCurrentQuestionIdx(filteredIdx);
+                              setQuestionNavigatorOpen(false);
+                            }}
+                            className={`w-10 h-10 md:w-11 md:h-11 rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                            title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
+                          >
+                            {globalNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Bottom Section - Question Counter */}
+              <div className="border-t border-slate-200 pt-4 text-center">
+                {(() => {
+                  const activeSection = sections[activeSectionIdx];
+                  const activeQuestions = activeSection?.section.questions ?? [];
+                  const safeIdx = Math.min(currentQuestionIdx, Math.max(activeQuestions.length - 1, 0));
+                  return (
+                    <button
+                      onClick={() => setQuestionNavigatorOpen(false)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 transition-all"
+                    >
+                      Question {safeIdx + 1} of {activeQuestions.length}
+                      <ChevronDown size={16} />
+                    </button>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
-      </Modal>
+      )}
 
       {/* Fullscreen Question Report Modal */}
       {fullscreenReportOpen && (
         <div className="fixed inset-0 bg-white z-50 overflow-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900">Question wise report</h2>
+          <div className="sticky top-0 bg-white border-b border-slate-200 p-2 md:p-3 flex items-center justify-between shadow-sm">
+            <h2 className="text-lg md:text-xl font-bold text-slate-900">Question wise report</h2>
             <button
               onClick={() => setFullscreenReportOpen(false)}
               className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
 
           {/* Content */}
-          <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+          <div className="p-2 md:p-3 space-y-2">
             {/* Tabs & Filters bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-3 gap-4">
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-2 gap-2">
+              <div className="flex flex-wrap gap-1">
                 {sections.map((sa, idx) => (
                   <button
                     key={sa.id}
@@ -1450,7 +1457,7 @@ export function TestReviewPage() {
                       setFilterBy('all');
                       setCurrentQuestionIdx(0);
                     }}
-                    className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
                       activeSectionIdx === idx
                         ? 'bg-blue-600 text-white'
                         : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
@@ -1461,12 +1468,12 @@ export function TestReviewPage() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-3 self-end md:self-auto">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter By</span>
+              <div className="flex items-center gap-2 self-end md:self-auto">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter</span>
                 <select
                   value={filterBy}
                   onChange={(e) => { setFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
-                  className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  className="px-2 py-1 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                 >
                   <option value="all">All</option>
                   <option value="correct">Correct</option>
@@ -1500,20 +1507,20 @@ export function TestReviewPage() {
               const hasNext = safeIdx < filteredQuestions.length - 1;
 
               return (
-                <div className="space-y-6">
+                <div className="space-y-2">
                   {/* Question counter & info */}
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-bold text-slate-700">
-                      Total Questions: {activeQuestions.length}
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="font-bold text-slate-700">
+                      Total: {activeQuestions.length}
                       {filterBy !== 'all' && (
-                        <span className="text-slate-500 font-medium ml-2">
-                          (Showing {filteredQuestions.length} matching filter)
+                        <span className="text-slate-500 font-medium ml-1">
+                          ({filteredQuestions.length} shown)
                         </span>
                       )}
                     </div>
                     {filteredQuestions.length > 0 && (
-                      <div className="text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg">
-                        Question {safeIdx + 1} of {filteredQuestions.length}
+                      <div className="font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                        Q{safeIdx + 1} of {filteredQuestions.length}
                       </div>
                     )}
                   </div>
@@ -1530,45 +1537,45 @@ export function TestReviewPage() {
                       />
 
                       {/* Navigation Bar with Previous, Question Navigator, and Next */}
-                      <div className="flex items-center justify-between gap-3 px-2 py-3 bg-slate-50 rounded-b-xl border border-t-0 border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between gap-2 px-1 py-2 bg-slate-50 rounded-b-lg border border-t-0 border-slate-200 shadow-sm">
                         <button
                           onClick={() => { setCurrentQuestionIdx(safeIdx - 1); }}
                           disabled={!hasPrev}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-bold transition-all shadow-sm ${
                             hasPrev
                               ? 'bg-blue-600 text-white hover:bg-blue-700'
                               : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                           }`}
                         >
-                          <ChevronLeft size={18} />
-                          Previous
+                          <ChevronLeft size={14} />
+                          <span className="hidden sm:inline">Prev</span>
                         </button>
 
                         <button
                           onClick={() => setQuestionNavigatorOpen(true)}
-                          className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg"
+                          className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-lg"
                         >
-                          Question {safeIdx + 1} of {filteredQuestions.length}
-                          <ChevronDown size={18} />
+                          Q{safeIdx + 1}/{filteredQuestions.length}
+                          <ChevronDown size={14} />
                         </button>
 
                         <button
                           onClick={() => { setCurrentQuestionIdx(safeIdx + 1); }}
                           disabled={!hasNext}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-bold transition-all shadow-sm ${
                             hasNext
                               ? 'bg-blue-600 text-white hover:bg-blue-700'
                               : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                           }`}
                         >
-                          Next
-                          <ChevronRight size={18} />
+                          <span className="hidden sm:inline">Next</span>
+                          <ChevronRight size={14} />
                         </button>
                       </div>
                     </>
                   ) : (
-                    <div className="text-center py-16 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
-                      <p className="text-slate-500 font-semibold">No questions match the active filter.</p>
+                    <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
+                      <p className="text-slate-500 font-semibold text-sm">No questions match the active filter.</p>
                     </div>
                   )}
                 </div>
