@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, ChevronLeft, ChevronRight, X, Clock } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
+import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
+import { OptionRenderer } from '../../components/admin/OptionRenderer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,8 +83,6 @@ function AccuracyBar({ pct }: { pct: number }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function ReportsPage() {
-  const navigate = useNavigate();
-
   const [students, setStudents] = useState<DbUser[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState(() => sessionStorage.getItem('admin_reports_studentId') || '');
   const [attempts, setAttempts] = useState<Attempt[]>([]);
@@ -92,6 +91,11 @@ export function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [studentsLoading, setStudentsLoading] = useState(true);
   const [sectionFilter, setSectionFilter] = useState('All');
+  const [fullscreenReportOpen, setFullscreenReportOpen] = useState(false);
+  const [currentAttempt, setCurrentAttempt] = useState<any>(null);
+  const [activeSectionIdx, setActiveSectionIdx] = useState(0);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [questionFilterBy, setQuestionFilterBy] = useState('all');
 
   // Sync selection to sessionStorage
   useEffect(() => {
@@ -238,7 +242,19 @@ export function ReportsPage() {
           )}
           {selectedAttemptId && (
             <button
-              onClick={() => navigate(`/test-review/${selectedAttemptId}`)}
+              onClick={() => {
+                if (selectedAttemptId) {
+                  api.getAttempt(selectedAttemptId)
+                    .then(({ attempt: raw }) => {
+                      setCurrentAttempt(raw);
+                      setActiveSectionIdx(0);
+                      setCurrentQuestionIdx(0);
+                      setQuestionFilterBy('all');
+                      setFullscreenReportOpen(true);
+                    })
+                    .catch(err => console.error('Failed to load attempt:', err));
+                }
+              }}
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
             >
               <FileSearch size={14} /> Full Review
@@ -487,6 +503,231 @@ export function ReportsPage() {
           </div>
         </>
       )}
+
+      {/* Fullscreen Question Report Modal */}
+      {fullscreenReportOpen && currentAttempt && (() => {
+        const answersMap = new Map(currentAttempt.answers.map((a: any) => [a.questionId, a]));
+        const sectionAttempts = currentAttempt.sectionAttempts || [];
+        const activeSection = sectionAttempts[activeSectionIdx];
+        
+        if (!activeSection) return null;
+
+        // Flatten passage questions
+        const allQuestions = activeSection.section.questions.flatMap((tq: any) => {
+          const q = tq.question;
+          const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+          if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+            return q.childQuestions.map((cq: any) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
+          }
+          return (q as any).parentQuestionId ? [] : [tq];
+        });
+
+        const filteredQuestions = allQuestions.filter((tq: any) => {
+          const ans = answersMap.get(tq.questionId) as any;
+          const isCorrect = ans?.answerGiven ? answersMatchFn(ans.answerGiven, tq.question.correctAnswer) : false;
+          const isOmitted = !ans?.answerGiven;
+          if (questionFilterBy === 'correct') return isCorrect;
+          if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+          if (questionFilterBy === 'omitted') return isOmitted;
+          return true;
+        });
+
+        const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+        const currentTq = filteredQuestions[safeIdx];
+        const hasPrev = safeIdx > 0;
+        const hasNext = safeIdx < filteredQuestions.length - 1;
+
+        const studentAnswer = currentTq ? (answersMap.get(currentTq.questionId) as any) : null;
+        const correct = studentAnswer?.answerGiven ? answersMatchFn(studentAnswer.answerGiven, currentTq.question.correctAnswer) : false;
+        const skipped = !studentAnswer?.answerGiven;
+        const options = currentTq ? optionsToDisplay(currentTq.question.options) : [];
+        const userAnswerDisplay = studentAnswer ? answerToDisplay(studentAnswer.answerGiven) : null;
+        const correctAnswerDisplay = currentTq ? answerToDisplay(currentTq.question.correctAnswer) : null;
+
+        return (
+          <div className="fixed inset-0 bg-white z-[150] overflow-hidden flex flex-col font-sans select-none">
+            <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-16 flex items-center justify-between z-20">
+              <div className="flex items-center gap-4 min-w-0">
+                <span className="font-bold text-slate-800 text-sm hidden sm:inline">Reviewing:</span>
+                <div className="flex flex-wrap gap-1 min-w-0">
+                  {sectionAttempts.map((sa: any, idx: number) => (
+                    <button
+                      key={idx}
+                      onClick={() => { setActiveSectionIdx(idx); setQuestionFilterBy('all'); setCurrentQuestionIdx(0); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${activeSectionIdx === idx ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                    >
+                      {sa.section.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 select-none">
+                Question Analysis - Admin Portal
+              </div>
+              <div className="flex items-center gap-4 z-30">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">Filter</span>
+                  <select
+                    value={questionFilterBy}
+                    onChange={(e) => { setQuestionFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
+                    className="px-2.5 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Questions</option>
+                    <option value="correct">Correct Only</option>
+                    <option value="incorrect">Incorrect Only</option>
+                    <option value="omitted">Omitted Only</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => setFullscreenReportOpen(false)}
+                  className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all cursor-pointer"
+                  title="Close Fullscreen"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </header>
+
+            <div className="flex-shrink-0 bg-[#1e2150] text-white text-center text-[12px] font-semibold tracking-wide py-1.5 z-10 select-none">
+              QUESTION ANALYSIS - ADMIN REVIEW
+            </div>
+
+            <div className="flex-1 overflow-hidden bg-white min-h-0">
+              {filteredQuestions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full p-8">
+                  <p className="text-slate-500 font-semibold text-sm">No questions match the filter</p>
+                </div>
+              ) : !currentTq ? (
+                <div className="flex flex-col items-center justify-center h-full p-8">
+                  <p className="text-slate-500 font-semibold text-sm">Loading question...</p>
+                </div>
+              ) : (currentTq as any).parentPassageText ? (
+                <div className="flex h-full min-h-full divide-x divide-slate-200">
+                  <div className="w-1/2 overflow-y-auto p-8 bg-white h-full">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Reading Passage</p>
+                    <div className="prose prose-slate max-w-none text-slate-800 text-[15px] leading-relaxed">
+                      <RichContentRenderer content={(currentTq as any).parentPassageText || ''} variant="passage" />
+                    </div>
+                  </div>
+                  <div className="w-1/2 overflow-y-auto p-8 bg-white h-full flex flex-col gap-6 select-text">
+                    <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-7 h-7 text-white text-sm font-bold flex items-center justify-center rounded ${correct ? 'bg-emerald-600' : skipped ? 'bg-slate-400' : 'bg-red-600'}`}>
+                          {allQuestions.findIndex((q: any) => q.questionId === currentTq.questionId) + 1}
+                        </span>
+                        <span className={`text-sm font-bold ${correct ? 'text-emerald-700' : skipped ? 'text-slate-600' : 'text-red-700'}`}>
+                          {correct ? 'Correct' : skipped ? 'Omitted' : 'Incorrect'}
+                        </span>
+                      </div>
+                      {studentAnswer?.timeSpentSeconds ? (
+                        <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {studentAnswer.timeSpentSeconds}s</span>
+                      ) : null}
+                    </div>
+                    <div className="text-[15px] text-slate-900 leading-relaxed font-normal">
+                      <RichContentRenderer content={currentTq.question.content.text || ''} variant="question" />
+                    </div>
+                    {options.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {options.map((opt: any) => {
+                          const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                          const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                          return (
+                            <OptionRenderer key={opt.id} label={opt.id.toUpperCase()} text={opt.text} isSelected={isUserAnswer && !isCorrectOption} isCorrect={isCorrectOption} isIncorrect={isUserAnswer && !isCorrectOption} showFeedback={true} colorTheme="blue" />
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full overflow-y-auto p-8 flex flex-col">
+                  <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5 mb-5">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-7 h-7 text-white text-sm font-bold flex items-center justify-center rounded ${correct ? 'bg-emerald-600' : skipped ? 'bg-slate-400' : 'bg-red-600'}`}>
+                        {allQuestions.findIndex((q: any) => q.questionId === currentTq.questionId) + 1}
+                      </span>
+                      <span className={`text-sm font-bold ${correct ? 'text-emerald-700' : skipped ? 'text-slate-600' : 'text-red-700'}`}>
+                        {correct ? 'Correct' : skipped ? 'Omitted' : 'Incorrect'}
+                      </span>
+                    </div>
+                    {studentAnswer?.timeSpentSeconds ? (
+                      <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {studentAnswer.timeSpentSeconds}s</span>
+                    ) : null}
+                  </div>
+                  <div className="text-[16px] text-slate-900 leading-relaxed font-normal mb-8">
+                    <RichContentRenderer content={currentTq.question.content.text || ''} variant="question" />
+                  </div>
+                  {options.length > 0 ? (
+                    <div className="space-y-2.5 flex-1 max-w-3xl">
+                      {options.map((opt: any) => {
+                        const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
+                        const isCorrectOption = Array.isArray(correctAnswerDisplay) ? correctAnswerDisplay.includes(opt.id) : correctAnswerDisplay === opt.id;
+                        return (
+                          <OptionRenderer key={opt.id} label={opt.id.toUpperCase()} text={opt.text} isSelected={isUserAnswer && !isCorrectOption} isCorrect={isCorrectOption} isIncorrect={isUserAnswer && !isCorrectOption} showFeedback={true} colorTheme="blue" />
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            {/* Bottom navigation */}
+            <footer className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-14 flex items-center justify-between z-20">
+              <button
+                onClick={() => setCurrentQuestionIdx(Math.max(safeIdx - 1, 0))}
+                disabled={!hasPrev}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+              <span className="text-xs font-semibold text-slate-500">
+                Question {safeIdx + 1} of {filteredQuestions.length}
+              </span>
+              <button
+                onClick={() => setCurrentQuestionIdx(Math.min(safeIdx + 1, filteredQuestions.length - 1))}
+                disabled={!hasNext}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            </footer>
+          </div>
+        );
+      })()}
     </div>
   );
+}
+
+// Helper functions
+function answersMatchFn(given: any, correct: any): boolean {
+  if (!given || !correct) return false;
+  if (correct.value !== undefined) {
+    if (given.value === undefined) return false;
+    return Number(given.value) === Number(correct.value) || String(given.value).trim() === String(correct.value).trim();
+  }
+  if (correct.keys) {
+    if (!given.keys) return false;
+    const gKeys = given.keys.map((k: any) => String(k).toUpperCase().trim()).sort();
+    const cKeys = correct.keys.map((k: any) => String(k).toUpperCase().trim()).sort();
+    return JSON.stringify(gKeys) === JSON.stringify(cKeys);
+  }
+  if (correct.key !== undefined) {
+    if (given.key === undefined) return false;
+    return String(given.key).toUpperCase().trim() === String(correct.key).toUpperCase().trim();
+  }
+  return false;
+}
+
+function optionsToDisplay(options: Record<string, string> | null): Array<{ id: string; text: string }> {
+  if (!options) return [];
+  return Object.entries(options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }));
+}
+
+function answerToDisplay(ans: any): string | string[] | null {
+  if (!ans) return null;
+  if (ans.value !== undefined) return ans.value;
+  if (ans.keys) return ans.keys.map((k: any) => k.toLowerCase());
+  if (ans.key) return ans.key.toLowerCase();
+  return null;
 }

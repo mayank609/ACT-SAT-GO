@@ -488,7 +488,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
   studentAnswer: DbAttemptAnswer | undefined;
   attemptId: string;
 }) {
-  const [showAnswer, setShowAnswer] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(true);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showAiTip, setShowAiTip] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(studentAnswer?.isFlagged ?? false);
@@ -501,7 +501,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
   const options = dbOptionsToDisplay(q.options);
   const userAnswerDisplay = dbAnswerToDisplay(studentAnswer?.answerGiven ?? null);
   const correctAnswerDisplay = dbAnswerToDisplay(q.correctAnswer);
-  const parentQuestionText = (q as any).parentQuestionText;
+  const parentPassageText = (tq as any).parentPassageText;
   
   const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
   const topicLabel = q.topic?.name ?? 'General Review';
@@ -584,13 +584,13 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
       </div>
 
       {/* Card Content Area */}
-      {parentQuestionText ? (
+      {parentPassageText ? (
         <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100/80">
           {/* Left Column: Passage */}
           <div className="p-6 overflow-y-auto h-[520px] space-y-2">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Passage</div>
             <div className="prose prose-slate max-w-none text-slate-800 text-sm leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100">
-              <RichContentRenderer content={parentQuestionText} variant="question" className="prose-sm" />
+              <RichContentRenderer content={parentPassageText} variant="question" className="prose-sm" />
             </div>
           </div>
 
@@ -1529,6 +1529,7 @@ export function TestReviewPage() {
               const currentTq = filteredQuestions[safeIdx];
               const studentAnswer = currentTq ? answersMap.get(currentTq.questionId) : null;
               const answerDisplay = studentAnswer ? dbAnswerToDisplay(studentAnswer.answerGiven) : null;
+              const correctAnswerDisplay = currentTq ? dbAnswerToDisplay(currentTq.question.correctAnswer) : null;
 
               if (filteredQuestions.length === 0) {
                 return (
@@ -1582,18 +1583,31 @@ export function TestReviewPage() {
                               const isSelected = Array.isArray(answerDisplay) 
                                 ? answerDisplay.includes(optId.toLowerCase())
                                 : answerDisplay === optId.toLowerCase();
+                              const isCorrectOption = Array.isArray(correctAnswerDisplay)
+                                ? correctAnswerDisplay.includes(optId.toLowerCase())
+                                : correctAnswerDisplay === optId.toLowerCase();
+                              const isIncorrect = isSelected && !isCorrectOption;
+                              
                               return (
                                 <div
                                   key={optId}
                                   className={`p-3 rounded-lg border-2 transition-all ${
-                                    isSelected
+                                    isCorrectOption
+                                      ? 'border-emerald-500 bg-emerald-50'
+                                      : isIncorrect
+                                      ? 'border-red-500 bg-red-50'
+                                      : isSelected
                                       ? 'border-blue-600 bg-blue-50'
                                       : 'border-slate-300 bg-white'
                                   }`}
                                 >
                                   <div className="flex items-start gap-3">
                                     <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
-                                      isSelected
+                                      isCorrectOption
+                                        ? 'bg-emerald-500 border-emerald-500 text-white'
+                                        : isIncorrect
+                                        ? 'bg-red-500 border-red-500 text-white'
+                                        : isSelected
                                         ? 'bg-blue-600 border-blue-600 text-white'
                                         : 'border-slate-400 text-slate-600'
                                     }`}>
@@ -1602,6 +1616,12 @@ export function TestReviewPage() {
                                     <div className="flex-1 text-sm text-slate-700 pt-0.5">
                                       <RichContentRenderer content={optText} variant="option" />
                                     </div>
+                                    {isCorrectOption && (
+                                      <div className="flex-shrink-0 text-emerald-600 font-bold text-xs">✓ Correct</div>
+                                    )}
+                                    {isIncorrect && (
+                                      <div className="flex-shrink-0 text-red-600 font-bold text-xs">✗ Wrong</div>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -1633,18 +1653,31 @@ export function TestReviewPage() {
                             const isSelected = Array.isArray(answerDisplay)
                               ? answerDisplay.includes(optId.toLowerCase())
                               : answerDisplay === optId.toLowerCase();
+                            const isCorrectOption = Array.isArray(correctAnswerDisplay)
+                              ? correctAnswerDisplay.includes(optId.toLowerCase())
+                              : correctAnswerDisplay === optId.toLowerCase();
+                            const isIncorrect = isSelected && !isCorrectOption;
+                            
                             return (
                               <div
                                 key={optId}
                                 className={`p-3 rounded-lg border-2 transition-all ${
-                                  isSelected
+                                  isCorrectOption
+                                    ? 'border-emerald-500 bg-emerald-50'
+                                    : isIncorrect
+                                    ? 'border-red-500 bg-red-50'
+                                    : isSelected
                                     ? 'border-blue-600 bg-blue-50'
                                     : 'border-slate-300 bg-white hover:border-slate-400'
                                 }`}
                               >
                                 <div className="flex items-start gap-3">
                                   <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
-                                    isSelected
+                                    isCorrectOption
+                                      ? 'bg-emerald-500 border-emerald-500 text-white'
+                                      : isIncorrect
+                                      ? 'bg-red-500 border-red-500 text-white'
+                                      : isSelected
                                       ? 'bg-blue-600 border-blue-600 text-white'
                                       : 'border-slate-400 text-slate-600'
                                   }`}>
@@ -1653,6 +1686,12 @@ export function TestReviewPage() {
                                   <div className="flex-1 text-sm text-slate-700 pt-0.5">
                                     <RichContentRenderer content={optText} variant="option" />
                                   </div>
+                                  {isCorrectOption && (
+                                    <div className="flex-shrink-0 text-emerald-600 font-bold text-xs">✓ Correct</div>
+                                  )}
+                                  {isIncorrect && (
+                                    <div className="flex-shrink-0 text-red-600 font-bold text-xs">✗ Wrong</div>
+                                  )}
                                 </div>
                               </div>
                             );
