@@ -801,6 +801,7 @@ export function TestReviewPage() {
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [filterBy, setFilterBy] = useState<string>('all');
   const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
+  const [questionNavigatorOpen, setQuestionNavigatorOpen] = useState(false);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1211,59 +1212,39 @@ export function TestReviewPage() {
                     attemptId={attempt.id}
                   />
 
-                  {/* Previous / Next Navigation */}
-                  <div className="flex items-center justify-between pt-2">
+                  {/* Navigation Bar with Previous, Question Navigator, and Next */}
+                  <div className="flex items-center justify-between gap-3 px-2 py-3 bg-slate-50 rounded-b-xl border border-t-0 border-slate-200 shadow-sm">
                     <button
                       onClick={() => { setCurrentQuestionIdx(safeIdx - 1); }}
                       disabled={!hasPrev}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
                         hasPrev
                           ? 'bg-blue-600 text-white hover:bg-blue-700'
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       }`}
                     >
                       <ChevronLeft size={18} />
-                      Previous Question
+                      Previous
                     </button>
 
-                    {/* Quick jump — numbered buttons */}
-                    <div className="hidden md:flex items-center gap-1 flex-wrap justify-center max-w-[55vw] overflow-x-auto px-1 py-0.5">
-                      {filteredQuestions.map((fq, dotIdx) => {
-                        const ans = answersMap.get(fq.questionId);
-                        const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
-                        const isOmitted = !ans?.answerGiven;
-                        const isActive = dotIdx === safeIdx;
-                        const globalNum = activeQuestions.findIndex(q => q.questionId === fq.questionId) + 1;
-                        const colorClass = isActive
-                          ? 'bg-blue-600 text-white ring-2 ring-blue-300 ring-offset-1'
-                          : isOmitted
-                          ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          : isCorrect
-                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                          : 'bg-red-100 text-red-700 hover:bg-red-200';
-                        return (
-                          <button
-                            key={dotIdx}
-                            onClick={() => setCurrentQuestionIdx(dotIdx)}
-                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex-shrink-0 ${colorClass}`}
-                            title={`Q${globalNum} — ${isOmitted ? 'Omitted' : isCorrect ? 'Correct' : 'Incorrect'}`}
-                          >
-                            {globalNum}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <button
+                      onClick={() => setQuestionNavigatorOpen(true)}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg"
+                    >
+                      Question {safeIdx + 1} of {filteredQuestions.length}
+                      <ChevronDown size={18} />
+                    </button>
 
                     <button
                       onClick={() => { setCurrentQuestionIdx(safeIdx + 1); }}
                       disabled={!hasNext}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
                         hasNext
                           ? 'bg-blue-600 text-white hover:bg-blue-700'
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       }`}
                     >
-                      Next Question
+                      Next
                       <ChevronRight size={18} />
                     </button>
                   </div>
@@ -1319,6 +1300,102 @@ export function TestReviewPage() {
           </div>
           <div className="flex justify-end pt-2">
             <Button variant="secondary" onClick={() => setTimeAnalyticsOpen(false)}>Close</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Question Navigator Modal */}
+      <Modal
+        isOpen={questionNavigatorOpen}
+        onClose={() => setQuestionNavigatorOpen(false)}
+        title=""
+        size="md"
+      >
+        <div className="space-y-6">
+          {/* Title */}
+          <div className="text-center border-b border-slate-200 pb-4">
+            <h3 className="text-lg md:text-xl font-bold text-slate-900">{getSectionModuleLabel(sections[activeSectionIdx]?.section.name ?? '')}</h3>
+            <p className="text-sm text-slate-500 mt-1">Questions</p>
+          </div>
+
+          {/* Status Legend */}
+          <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-slate-300" />
+              <span className="text-xs font-semibold text-slate-600">Unanswered</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-emerald-500" />
+              <span className="text-xs font-semibold text-slate-600">Correct</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-red-500" />
+              <span className="text-xs font-semibold text-slate-600">Wrong</span>
+            </div>
+          </div>
+
+          {/* Question Grid */}
+          {(() => {
+            const activeSection = sections[activeSectionIdx];
+            const activeQuestions = activeSection?.section.questions ?? [];
+            
+            return (
+              <div className="flex justify-center">
+                <div className="grid grid-cols-9 gap-2 md:gap-3">
+                  {activeQuestions.map((tq, idx) => {
+                    const ans = answersMap.get(tq.questionId);
+                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                    const isOmitted = !ans?.answerGiven;
+                    const globalNum = idx + 1;
+                    
+                    const bgColor = isOmitted
+                      ? 'bg-slate-200'
+                      : isCorrect
+                      ? 'bg-emerald-100 border-emerald-500'
+                      : 'bg-red-100 border-red-500';
+                    
+                    const textColor = isOmitted
+                      ? 'text-slate-600'
+                      : isCorrect
+                      ? 'text-emerald-700'
+                      : 'text-red-700';
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          const filteredIdx = activeQuestions.findIndex((q) => q.questionId === tq.questionId);
+                          setCurrentQuestionIdx(filteredIdx);
+                          setQuestionNavigatorOpen(false);
+                        }}
+                        className={`w-10 h-10 md:w-11 md:h-11 rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                        title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
+                      >
+                        {globalNum}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Bottom Section - Question Counter */}
+          <div className="border-t border-slate-200 pt-4 text-center">
+            {(() => {
+              const activeSection = sections[activeSectionIdx];
+              const activeQuestions = activeSection?.section.questions ?? [];
+              const safeIdx = Math.min(currentQuestionIdx, Math.max(activeQuestions.length - 1, 0));
+              return (
+                <button
+                  onClick={() => setQuestionNavigatorOpen(false)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 transition-all"
+                >
+                  Question {safeIdx + 1} of {activeQuestions.length}
+                  <ChevronDown size={16} />
+                </button>
+              );
+            })()}
           </div>
         </div>
       </Modal>
