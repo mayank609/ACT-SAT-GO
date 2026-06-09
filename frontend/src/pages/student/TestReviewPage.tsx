@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle, Maximize2, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -802,6 +802,7 @@ export function TestReviewPage() {
   const [filterBy, setFilterBy] = useState<string>('all');
   const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
   const [questionNavigatorOpen, setQuestionNavigatorOpen] = useState(false);
+  const [fullscreenReportOpen, setFullscreenReportOpen] = useState(false);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1111,8 +1112,16 @@ export function TestReviewPage() {
 
       {/* ── QUESTION WISE REPORT ───────────────────────────────────────────────── */}
       <div className="space-y-6">
-        <div id="question-report-anchor">
+        <div id="question-report-anchor" className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-slate-900">Question wise report</h2>
+          <button
+            onClick={() => setFullscreenReportOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all font-semibold text-sm shadow-sm"
+            title="View in fullscreen"
+          >
+            <Maximize2 size={18} />
+            Fullscreen
+          </button>
         </div>
 
         {/* Tabs & Filters bar */}
@@ -1399,6 +1408,161 @@ export function TestReviewPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Fullscreen Question Report Modal */}
+      {fullscreenReportOpen && (
+        <div className="fixed inset-0 bg-white z-50 overflow-auto">
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between shadow-sm">
+            <h2 className="text-2xl font-bold text-slate-900">Question wise report</h2>
+            <button
+              onClick={() => setFullscreenReportOpen(false)}
+              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+            {/* Tabs & Filters bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-3 gap-4">
+              <div className="flex flex-wrap gap-2">
+                {sections.map((sa, idx) => (
+                  <button
+                    key={sa.id}
+                    onClick={() => {
+                      setActiveSectionIdx(idx);
+                      setFilterBy('all');
+                      setCurrentQuestionIdx(0);
+                    }}
+                    className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                      activeSectionIdx === idx
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                    }`}
+                  >
+                    {getSectionModuleLabel(sa.section.name)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 self-end md:self-auto">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter By</span>
+                <select
+                  value={filterBy}
+                  onChange={(e) => { setFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                >
+                  <option value="all">All</option>
+                  <option value="correct">Correct</option>
+                  <option value="incorrect">Incorrect</option>
+                  <option value="omitted">Omitted</option>
+                  <option value="flagged">Bookmarked</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Single Question View */}
+            {(() => {
+              const activeSection = sections[activeSectionIdx];
+              const activeQuestions = activeSection?.section.questions ?? [];
+              const filteredQuestions = activeQuestions.filter((tq) => {
+                const ans = answersMap.get(tq.questionId);
+                const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                const isOmitted = !ans?.answerGiven;
+                const isFlagged = ans?.isFlagged ?? false;
+                
+                if (filterBy === 'correct') return isCorrect;
+                if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                if (filterBy === 'omitted') return isOmitted;
+                if (filterBy === 'flagged') return isFlagged;
+                return true;
+              });
+
+              const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+              const currentTq = filteredQuestions[safeIdx];
+              const hasPrev = safeIdx > 0;
+              const hasNext = safeIdx < filteredQuestions.length - 1;
+
+              return (
+                <div className="space-y-6">
+                  {/* Question counter & info */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold text-slate-700">
+                      Total Questions: {activeQuestions.length}
+                      {filterBy !== 'all' && (
+                        <span className="text-slate-500 font-medium ml-2">
+                          (Showing {filteredQuestions.length} matching filter)
+                        </span>
+                      )}
+                    </div>
+                    {filteredQuestions.length > 0 && (
+                      <div className="text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg">
+                        Question {safeIdx + 1} of {filteredQuestions.length}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Current Question Card */}
+                  {filteredQuestions.length > 0 && currentTq ? (
+                    <>
+                      <QuestionDetailedReviewCard
+                        key={currentTq.id}
+                        tq={currentTq}
+                        localIndex={activeQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
+                        studentAnswer={answersMap.get(currentTq.questionId)}
+                        attemptId={attempt.id}
+                      />
+
+                      {/* Navigation Bar with Previous, Question Navigator, and Next */}
+                      <div className="flex items-center justify-between gap-3 px-2 py-3 bg-slate-50 rounded-b-xl border border-t-0 border-slate-200 shadow-sm">
+                        <button
+                          onClick={() => { setCurrentQuestionIdx(safeIdx - 1); }}
+                          disabled={!hasPrev}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                            hasPrev
+                              ? 'bg-blue-600 text-white hover:bg-blue-700'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <ChevronLeft size={18} />
+                          Previous
+                        </button>
+
+                        <button
+                          onClick={() => setQuestionNavigatorOpen(true)}
+                          className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg"
+                        >
+                          Question {safeIdx + 1} of {filteredQuestions.length}
+                          <ChevronDown size={18} />
+                        </button>
+
+                        <button
+                          onClick={() => { setCurrentQuestionIdx(safeIdx + 1); }}
+                          disabled={!hasNext}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                            hasNext
+                              ? 'bg-blue-600 text-white hover:bg-blue-700'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          }`}
+                        >
+                          Next
+                          <ChevronRight size={18} />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-16 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+                      <p className="text-slate-500 font-semibold">No questions match the active filter.</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Score Calculator */}
       <div className="mt-8">
