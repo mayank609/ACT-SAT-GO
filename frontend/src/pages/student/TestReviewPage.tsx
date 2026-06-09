@@ -803,6 +803,7 @@ export function TestReviewPage() {
   const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
   const [questionNavigatorOpen, setQuestionNavigatorOpen] = useState(false);
   const [fullscreenReportOpen, setFullscreenReportOpen] = useState(false);
+  const [knowledgeSkillsOpen, setKnowledgeSkillsOpen] = useState(false);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1060,54 +1061,67 @@ export function TestReviewPage() {
 
       {/* ── KNOWLEDGE AND SKILLS ─────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 md:p-7">
-        <div className="flex items-center gap-2 mb-1">
-          <h2 className="text-2xl font-bold text-slate-900">Knowledge and Skills</h2>
-          <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold"><Info size={15} /> New!</span>
-        </div>
-        <p className="text-slate-500 text-sm mb-7">View your performance across the 8 content domains — and their subdomains — measured on the SAT.</p>
-
-        {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
-          <div key={group} className="mb-7 last:mb-0">
-            <h3 className="text-lg font-bold text-slate-900 mb-5">{group}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-7">
-              {KS_DOMAINS[group].map((d) => {
-                const stat = domainStats[d.name];
-                const segs = stat.total > 0 ? stat.total : 8;
-                return (
-                  <div key={d.name}>
-                    <p className="font-bold text-slate-900">{d.name}</p>
-                    <p className="text-sm text-slate-500 mb-2.5">({d.pct}% of test section, {d.range} questions)</p>
-                    <div className="flex gap-1 mb-2">
-                      {Array.from({ length: segs }).map((_, i) => (
-                        <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
-                      ))}
-                    </div>
-                    <p className="text-sm text-slate-600">
-                      Difficulty level:{' '}
-                      <span className="text-blue-600 font-semibold border-b border-dotted border-blue-400">{modeDiff(stat.diff)}</span>
-                    </p>
-                    {d.subs.length > 0 && (
-                      <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
-                        {d.subs.map((sub) => {
-                          const s = subStats[sub] ?? { correct: 0, total: 0 };
-                          const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : null;
-                          return (
-                            <li key={sub} className="flex items-center justify-between gap-3 text-xs">
-                              <span className={s.total > 0 ? 'text-slate-700' : 'text-slate-400'}>{sub}</span>
-                              <span className={`font-semibold tabular-nums whitespace-nowrap ${s.total > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
-                                {s.total > 0 ? `${s.correct}/${s.total} · ${pct}%` : '—'}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+        <button
+          onClick={() => setKnowledgeSkillsOpen(!knowledgeSkillsOpen)}
+          className="w-full text-left flex items-center justify-between hover:opacity-80 transition-opacity"
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-slate-900">Knowledge and Skills</h2>
+            <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold"><Info size={15} /> New!</span>
           </div>
-        ))}
+          <div className="text-slate-600">
+            {knowledgeSkillsOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+          </div>
+        </button>
+
+        {knowledgeSkillsOpen && (
+          <>
+            <p className="text-slate-500 text-sm mb-7 mt-3">View your performance across the 8 content domains — and their subdomains — measured on the SAT.</p>
+
+            {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
+              <div key={group} className="mb-7 last:mb-0">
+                <h3 className="text-lg font-bold text-slate-900 mb-5">{group}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-7">
+                  {KS_DOMAINS[group].map((d) => {
+                    const stat = domainStats[d.name];
+                    const segs = stat.total > 0 ? stat.total : 8;
+                    return (
+                      <div key={d.name}>
+                        <p className="font-bold text-slate-900">{d.name}</p>
+                        <p className="text-sm text-slate-500 mb-2.5">({d.pct}% of test section, {d.range} questions)</p>
+                        <div className="flex gap-1 mb-2">
+                          {Array.from({ length: segs }).map((_, i) => (
+                            <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
+                          ))}
+                        </div>
+                        <p className="text-sm text-slate-600">
+                          Difficulty level:{' '}
+                          <span className="text-blue-600 font-semibold border-b border-dotted border-blue-400">{modeDiff(stat.diff)}</span>
+                        </p>
+                        {d.subs.length > 0 && (
+                          <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+                            {d.subs.map((sub) => {
+                              const s = subStats[sub] ?? { correct: 0, total: 0 };
+                              const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : null;
+                              return (
+                                <li key={sub} className="flex items-center justify-between gap-3 text-xs">
+                                  <span className={s.total > 0 ? 'text-slate-700' : 'text-slate-400'}>{sub}</span>
+                                  <span className={`font-semibold tabular-nums whitespace-nowrap ${s.total > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
+                                    {s.total > 0 ? `${s.correct}/${s.total} · ${pct}%` : '—'}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* ── QUESTION WISE REPORT ───────────────────────────────────────────────── */}
