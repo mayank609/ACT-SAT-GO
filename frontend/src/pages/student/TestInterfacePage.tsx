@@ -177,6 +177,7 @@ export function TestInterfacePage() {
   const [timerHidden, setTimerHidden] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
   const [showSectionDirections, setShowSectionDirections] = useState(!searchParams.get('attemptId'));
+  const [showSectionReview, setShowSectionReview] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
@@ -1350,14 +1351,14 @@ export function TestInterfacePage() {
           </button>
           {isLastQuestion && isLastSection ? (
             <button
-              onClick={() => setShowSubmitModal(true)}
+              onClick={() => setShowSectionReview(true)}
               className="flex items-center gap-1.5 px-7 py-2.5 text-sm font-semibold bg-[#1b3d6e] text-white rounded-full hover:bg-[#15305a] transition-colors"
             >
               <Send size={13} /> Submit
             </button>
           ) : (
             <button
-              onClick={() => isLastQuestion ? saveAndNavigate(0, currentSectionIdx + 1) : saveAndNavigate(currentQIdx + 1)}
+              onClick={() => isLastQuestion ? setShowSectionReview(true) : saveAndNavigate(currentQIdx + 1)}
               className="px-9 py-2.5 text-sm font-semibold bg-[#1b3d6e] text-white rounded-full hover:bg-[#15305a] transition-colors"
             >
               Next
@@ -1884,6 +1885,70 @@ export function TestInterfacePage() {
           </div>
         </div>
       )}
+
+      {/* ── SECTION REVIEW POPUP ─────────────────────────────────────────────── */}
+      {showSectionReview && (() => {
+        const liveAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
+        const liveHasAnswer = liveAns !== null && liveAns !== '' && !(Array.isArray(liveAns) && liveAns.length === 0);
+        const liveIsMarked = currentQAttempt?.state === 'marked_review' || currentQAttempt?.state === 'answered_marked';
+        const otherQs = Object.entries(currentSectionAttempt?.questions ?? {}).filter(([qId]) => qId !== currentQuestion.id);
+        const reviewAnswered = otherQs.filter(([, q]) => q.state === 'answered' || q.state === 'answered_marked').length + (liveHasAnswer ? 1 : 0);
+        const reviewMarked = otherQs.filter(([, q]) => q.state === 'marked_review' || q.state === 'answered_marked').length + (liveIsMarked ? 1 : 0);
+        const reviewUnanswered = totalQInSection - reviewAnswered;
+        return (
+          <div className="fixed inset-0 z-[290] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden">
+              {/* Header */}
+              <div className="bg-[#1b3d6e] px-6 py-5">
+                <p className="text-xs text-blue-200 uppercase tracking-widest mb-1 font-medium">Section Complete</p>
+                <h2 className="text-xl font-bold text-white">{currentSection.name}</h2>
+              </div>
+              {/* Stats grid */}
+              <div className="px-6 py-6">
+                <p className="text-sm text-gray-500 mb-4">Review your progress before continuing.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Total Questions', value: totalQInSection, bg: 'bg-gray-50', text: 'text-gray-700' },
+                    { label: 'Answered', value: reviewAnswered, bg: 'bg-blue-50', text: 'text-[#1b3d6e]' },
+                    { label: 'Unanswered', value: reviewUnanswered, bg: 'bg-red-50', text: 'text-red-600' },
+                    { label: 'Marked for Review', value: reviewMarked, bg: 'bg-yellow-50', text: 'text-yellow-700' },
+                  ].map((s) => (
+                    <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3 flex items-center gap-3`}>
+                      <span className={`text-2xl font-bold ${s.text}`}>{s.value}</span>
+                      <span className="text-xs text-gray-500 leading-tight">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Actions */}
+              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row gap-2 justify-between">
+                <button
+                  onClick={() => { setShowSectionReview(false); saveAndNavigate(0); }}
+                  className="px-5 py-2.5 text-sm font-semibold text-[#1b3d6e] border-2 border-[#1b3d6e] rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  Go to Previous Section
+                </button>
+                {isLastSection ? (
+                  <button
+                    onClick={() => { setShowSectionReview(false); setShowSubmitModal(true); }}
+                    className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-sm font-semibold bg-[#1b3d6e] text-white rounded-lg hover:bg-[#15305a] transition-colors"
+                  >
+                    <Send size={13} /> Submit Test
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setShowSectionReview(false); saveAndNavigate(0, currentSectionIdx + 1); }}
+                    className="px-5 py-2.5 text-sm font-semibold bg-[#1b3d6e] text-white rounded-lg hover:bg-[#15305a] transition-colors"
+                  >
+                    Proceed to Next Section
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── AUTO DIRECTIONS POPUP ────────────────────────────────────────────── */}
       {showSectionDirections && (
