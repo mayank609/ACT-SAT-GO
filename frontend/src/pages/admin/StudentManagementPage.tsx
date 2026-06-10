@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -313,7 +313,6 @@ export function StudentManagementPage() {
   const [questionFilterBy, setQuestionFilterBy] = useState('all');
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [fullscreenQuestionReportOpen, setFullscreenQuestionReportOpen] = useState(false);
-  const [showFullscreenPalette, setShowFullscreenPalette] = useState(false);
   const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
 
   useEffect(() => {
@@ -1904,8 +1903,6 @@ export function StudentManagementPage() {
 
         const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
         const currentTq = filteredQuestions[safeIdx];
-        const hasPrev = safeIdx > 0;
-        const hasNext = safeIdx < filteredQuestions.length - 1;
 
         const studentAnswer = currentTq ? answersMap.get(currentTq.questionId) : null;
         const correct = studentAnswer?.answerGiven ? taAnswersMatch(studentAnswer.answerGiven, currentTq.question.correctAnswer) : false;

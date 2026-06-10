@@ -36,6 +36,7 @@ yarn-error.log*
 
 # local DB diagnostic backups
 diagnostic1-backup.json
+students-backup.json
 
 # vercel
 .vercel

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
-import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, ChevronLeft, ChevronRight, X, Clock, ChevronDown } from 'lucide-react';
+import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, X, Clock, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Modal } from '../../components/common/Modal';
 import { type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
@@ -536,8 +536,6 @@ export function ReportsPage() {
 
         const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
         const currentTq = filteredQuestions[safeIdx];
-        const hasPrev = safeIdx > 0;
-        const hasNext = safeIdx < filteredQuestions.length - 1;
 
         const studentAnswer = currentTq ? (answersMap.get(currentTq.questionId) as any) : null;
         const correct = studentAnswer?.answerGiven ? answersMatchFn(studentAnswer.answerGiven, currentTq.question.correctAnswer) : false;
