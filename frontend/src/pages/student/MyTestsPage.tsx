@@ -23,6 +23,25 @@ interface ApiTest {
 const CATEGORY_PILLS = ['ACT', 'SAT', 'Mock', 'Diagnostic', 'Sectional', 'Practice Sheet'] as const;
 type CategoryPill = typeof CATEGORY_PILLS[number];
 
+const CAT_COLORS: Record<string, string> = {
+  Mock:             'bg-blue-100 text-blue-700',
+  Diagnostic:       'bg-amber-100 text-amber-700',
+  Sectional:        'bg-emerald-100 text-emerald-700',
+  'Practice Sheet': 'bg-purple-100 text-purple-700',
+  ACT:              'bg-[#1b3d6e]/10 text-[#1b3d6e]',
+  SAT:              'bg-rose-100 text-rose-700',
+};
+
+function TestCategoryBadges({ category, subCategory }: { category?: string; subCategory?: string }) {
+  const subject = subCategory?.split('-')[0];
+  return (
+    <>
+      {subject && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${CAT_COLORS[subject] ?? 'bg-gray-100 text-gray-600'}`}>{subject}</span>}
+      {category && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${CAT_COLORS[category] ?? 'bg-gray-100 text-gray-600'}`}>{category}</span>}
+    </>
+  );
+}
+
 function matchesPill(test: ApiTest, pill: CategoryPill): boolean {
   const subject = test.subCategory?.split('-')[0]?.toUpperCase();
   if (pill === 'ACT' || pill === 'SAT') return subject === pill;
@@ -146,6 +165,7 @@ export function MyTestsPage() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${isInProgress ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#1b3d6e]'}`}>
                           {isInProgress ? 'In Progress' : isRetake ? 'Retake Available' : 'Not Started'}
                         </span>
+                        <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
                         {test.maxAttempts > 1 && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                             {test.remainingAttempts} of {test.maxAttempts} attempts left
@@ -209,9 +229,10 @@ export function MyTestsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{test.title}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {test.sections.length} sections · {totalQ} questions
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
+                        <span className="text-xs text-gray-400">{test.sections.length} sections · {totalQ} questions</span>
+                      </div>
                     </div>
                     <button
                       onClick={() => test.submittedAttemptId && navigate(`/test-review/${test.submittedAttemptId}`)}
@@ -236,8 +257,13 @@ export function MyTestsPage() {
             {expired.map((test) => (
               <div key={test.assignmentId} className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 opacity-60">
                 <Target size={14} className="text-gray-400 flex-shrink-0" />
-                <p className="text-sm text-gray-500 flex-1 truncate">{test.title}</p>
-                <span className="text-xs text-gray-400 font-medium">Expired</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-500 truncate">{test.title}</p>
+                  <div className="flex gap-1 mt-0.5 flex-wrap">
+                    <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
+                  </div>
+                </div>
+                <span className="text-xs text-gray-400 font-medium flex-shrink-0">Expired</span>
               </div>
             ))}
           </div>
