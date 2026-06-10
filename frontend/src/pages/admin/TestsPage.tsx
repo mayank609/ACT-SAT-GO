@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2, Search } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -235,10 +235,32 @@ export function TestsPage() {
   const [assignModal, setAssignModal] = useState<ApiTest | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState<string | null>(null);
 
-  const filtered = tests.filter(
-    (t) => filter === 'all' || t.status.toLowerCase() === filter
-  );
+  const availableCats = useMemo(() => {
+    const cats = new Set<string>();
+    for (const t of tests) {
+      if (t.category) cats.add(t.category);
+      const subj = t.subCategory?.split('-')[0];
+      if (subj) cats.add(subj);
+    }
+    return [...cats];
+  }, [tests]);
+
+  const filtered = useMemo(() => {
+    return tests.filter((t) => {
+      if (filter !== 'all' && t.status.toLowerCase() !== filter) return false;
+      if (search.trim() && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (catFilter) {
+        const subj = t.subCategory?.split('-')[0];
+        const matchesCat = t.category === catFilter;
+        const matchesSubj = subj === catFilter;
+        if (!matchesCat && !matchesSubj) return false;
+      }
+      return true;
+    });
+  }, [tests, filter, search, catFilter]);
 
   const handleStatusChange = (test: ApiTest, status: string) => {
     updateTestStatus(test.id, status);
@@ -258,19 +280,55 @@ export function TestsPage() {
         </Link>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-1">
-        {(['all', 'published', 'draft', 'archived'] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all capitalize ${
-              filter === f ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}>
-            {f}
-            <span className={`ml-1.5 text-xs ${filter === f ? 'text-blue-200' : 'text-slate-400'}`}>
-              ({f === 'all' ? tests.length : tests.filter((t) => t.status.toLowerCase() === f).length})
-            </span>
-          </button>
-        ))}
+      {/* Filter tabs + search */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1">
+            {(['all', 'published', 'draft', 'archived'] as const).map((f) => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all capitalize ${
+                  filter === f ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}>
+                {f}
+                <span className={`ml-1.5 text-xs ${filter === f ? 'text-blue-200' : 'text-slate-400'}`}>
+                  ({f === 'all' ? tests.length : tests.filter((t) => t.status.toLowerCase() === f).length})
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="relative ml-auto">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search tests…"
+              className="pl-8 pr-7 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-52"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {availableCats.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {availableCats.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setCatFilter(catFilter === cat ? null : cat)}
+                className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
+                  catFilter === cat
+                    ? 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-800'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Test rows — loading skeleton */}

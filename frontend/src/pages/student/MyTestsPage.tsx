@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, FileSearch, CheckCircle, Clock, Target, Loader2, BookOpen } from 'lucide-react';
+import { Play, FileSearch, CheckCircle, Clock, Target, Loader2, BookOpen, Search, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -9,6 +9,8 @@ interface ApiTest {
   testId: string;
   title: string;
   description?: string;
+  category?: string;
+  subCategory?: string;
   status: 'Not Started' | 'In Progress' | 'Completed' | 'Expired';
   remainingAttempts: number;
   maxAttempts: number;
@@ -18,11 +20,22 @@ interface ApiTest {
   sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }>;
 }
 
+const CATEGORY_PILLS = ['ACT', 'SAT', 'Mock', 'Diagnostic', 'Sectional', 'Practice Sheet'] as const;
+type CategoryPill = typeof CATEGORY_PILLS[number];
+
+function matchesPill(test: ApiTest, pill: CategoryPill): boolean {
+  const subject = test.subCategory?.split('-')[0]?.toUpperCase();
+  if (pill === 'ACT' || pill === 'SAT') return subject === pill;
+  return test.category?.toLowerCase() === pill.toLowerCase();
+}
+
 export function MyTestsPage() {
   const navigate = useNavigate();
   const { dbId } = useAuthStore();
   const [tests, setTests] = useState<ApiTest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [activePill, setActivePill] = useState<CategoryPill | null>(null);
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
@@ -32,6 +45,18 @@ export function MyTestsPage() {
       .finally(() => setLoading(false));
   }, [dbId]);
 
+  const availablePills = useMemo(
+    () => CATEGORY_PILLS.filter(p => tests.some(t => matchesPill(t, p))),
+    [tests]
+  );
+
+  const visible = useMemo(() => {
+    let list = tests;
+    if (search.trim()) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
+    if (activePill) list = list.filter(t => matchesPill(t, activePill));
+    return list;
+  }, [tests, search, activePill]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-40">
@@ -40,9 +65,9 @@ export function MyTestsPage() {
     );
   }
 
-  const pending = tests.filter(t => t.status === 'Not Started' || t.status === 'In Progress');
-  const completed = tests.filter(t => t.status === 'Completed');
-  const expired = tests.filter(t => t.status === 'Expired');
+  const pending = visible.filter(t => t.status === 'Not Started' || t.status === 'In Progress');
+  const completed = visible.filter(t => t.status === 'Completed');
+  const expired = visible.filter(t => t.status === 'Expired');
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -50,6 +75,50 @@ export function MyTestsPage() {
         <h1 className="text-xl font-semibold text-gray-900">My Tests</h1>
         <p className="text-gray-500 text-sm mt-0.5">{tests.length} test{tests.length !== 1 ? 's' : ''} assigned</p>
       </div>
+
+      {/* Search + filter */}
+      {tests.length > 0 && (
+        <div className="space-y-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search tests…"
+              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1b3d6e]/30 bg-white"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          {availablePills.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {availablePills.map(pill => (
+                <button
+                  key={pill}
+                  onClick={() => setActivePill(activePill === pill ? null : pill)}
+                  className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
+                    activePill === pill
+                      ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-[#1b3d6e]/40 hover:text-[#1b3d6e]'
+                  }`}
+                >
+                  {pill}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {visible.length === 0 && tests.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl py-10 text-center">
+          <p className="text-gray-400 text-sm">No tests match your filters</p>
+          <button onClick={() => { setSearch(''); setActivePill(null); }} className="text-xs text-[#1b3d6e] mt-1 hover:underline">Clear filters</button>
+        </div>
+      )}
 
       {tests.length === 0 && (
         <div className="bg-white border border-gray-100 rounded-xl py-16 text-center">
