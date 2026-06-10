@@ -168,6 +168,10 @@ export function TestInterfacePage() {
   const [numericInput, setNumericInput] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
+  const [showBreak, setShowBreak] = useState(false);
+  const [breakSeconds, setBreakSeconds] = useState(600);
+  const pendingNextSectionIdxRef = useRef<number | null>(null);
+  const breakEndHandlerRef = useRef<() => void>(() => {});
   const [finished, setFinished] = useState(false);
   const [finishedAttemptId, setFinishedAttemptId] = useState<string | null>(null);
   const [timerHidden, setTimerHidden] = useState(false);
@@ -388,6 +392,23 @@ export function TestInterfacePage() {
 
   const doSectionTransition = async (fromSectionId: string, toSectionIdx: number) => {
     if (!attempt || !test) return;
+
+    // Show a 10-minute break when crossing from a non-Math section into a Math section
+    const prevName = test.sections[toSectionIdx - 1]?.name ?? '';
+    const nextName = test.sections[toSectionIdx]?.name ?? '';
+    const needsBreak = !/math/i.test(prevName) && /math/i.test(nextName);
+
+    if (needsBreak) {
+      pendingNextSectionIdxRef.current = toSectionIdx;
+      setBreakSeconds(600);
+      setShowBreak(true);
+      // Submit the finished section in the background so it's ready when break ends
+      if (!isPreview) {
+        api.submitSection(attempt.id, fromSectionId).catch(() => {});
+      }
+      return;
+    }
+
     // Show the "This Module Is Over" interstitial while we save the finished
     // module and start the next one. Keep it up for a brief minimum so the
     // message is readable even when the network round-trip is instant.
@@ -505,6 +526,27 @@ export function TestInterfacePage() {
       doFinalSubmit();
     }
   };
+
+  breakEndHandlerRef.current = () => {
+    setShowBreak(false);
+    const toSectionIdx = pendingNextSectionIdxRef.current;
+    if (toSectionIdx === null || !attempt || !test) return;
+    pendingNextSectionIdxRef.current = null;
+    setTransitioning(true);
+    const fullTime = (test.sections[toSectionIdx]?.timeLimit ?? 45) * 60;
+    resetTimerRef.current(fullTime);
+    if (!isPreview) {
+      api.startSection(attempt.id, test.sections[toSectionIdx].id)
+        .then((result: any) => {
+          resetTimerRef.current(Math.max(10, Math.floor((result.endTime - Date.now()) / 1000)));
+        })
+        .catch(() => {})
+        .finally(() => setTransitioning(false));
+    } else {
+      setTransitioning(false);
+    }
+  };
+
   // Refs for tracking mutable states in event listeners without re-binding
   const attemptRef = useRef(attempt);
   useEffect(() => {
@@ -518,6 +560,22 @@ export function TestInterfacePage() {
 
   // Gate ref to prevent the exit warning modal from being triggered twice
   const exitWarningShownRef = useRef(false);
+
+  // Break countdown
+  useEffect(() => {
+    if (!showBreak) return;
+    const id = setInterval(() => {
+      setBreakSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(id);
+          breakEndHandlerRef.current();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [showBreak]);
 
   // ── Side effects ─────────────────────────────────────────────────────────────
 
@@ -913,6 +971,53 @@ export function TestInterfacePage() {
         >
           View Your Score
         </button>
+      </div>
+    );
+  }
+
+  // ── Break screen (between R&W and Math) ─────────────────────────────────────
+  if (showBreak) {
+    const bm = Math.floor(breakSeconds / 60);
+    const bs = breakSeconds % 60;
+    const breakDisplay = `${bm}:${bs.toString().padStart(2, '0')}`;
+    return (
+      <div className="fixed inset-0 z-[200] bg-white flex overflow-hidden">
+        {/* Left panel — timer */}
+        <div className="w-56 flex-shrink-0 bg-[#1a1a1a] flex flex-col items-center justify-center gap-6 px-4">
+          <div className="text-center">
+            <p className="text-[11px] text-gray-400 uppercase tracking-widest mb-3">Remaining Break Time:</p>
+            <p className="text-5xl font-bold text-white font-mono tabular-nums">{breakDisplay}</p>
+          </div>
+          <button
+            onClick={() => breakEndHandlerRef.current()}
+            className="w-full py-2.5 rounded-full bg-[#f6c945] hover:bg-[#e5b930] text-black text-sm font-bold transition-colors"
+          >
+            Resume Testing
+          </button>
+        </div>
+
+        {/* Right panel — instructions */}
+        <div className="flex-1 overflow-y-auto px-10 py-8 max-w-2xl">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Practice Test Break</h1>
+          <p className="text-sm text-gray-500 mb-5">
+            You can resume this practice test as soon as you're ready to move on. On test day, you'll
+            wait until the clock counts down. Read below to see how breaks work on test day.
+          </p>
+          <hr className="border-gray-300 mb-6" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Take a Break: Do Not Close Your Device</h2>
+          <p className="text-sm text-gray-600 mb-5">
+            After the break, a <strong>Resume Testing Now</strong> button will appear and you'll start
+            the next section.
+          </p>
+          <p className="text-sm font-bold text-gray-900 mb-3">Follow these rules during the break:</p>
+          <ol className="space-y-2 text-sm text-gray-700 list-decimal list-inside">
+            <li>Do not disturb students who are still testing.</li>
+            <li>Do not exit the app or close your laptop.</li>
+            <li>Do not access phones, smartwatches, textbooks, notes, or the internet.</li>
+            <li>Do not eat or drink near any testing device.</li>
+            <li>Do not speak in the testing room; outside the room, do not discuss the exam with anyone.</li>
+          </ol>
+        </div>
       </div>
     );
   }
@@ -1404,107 +1509,177 @@ export function TestInterfacePage() {
       {showReference && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowReference(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2"><BookOpen size={16} /> Math Reference Sheet</h2>
-              <button onClick={() => setShowReference(false)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500"><X size={18} /></button>
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 max-h-[92vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-300 flex-shrink-0">
+              <h2 className="text-sm font-bold text-gray-900 tracking-wide">Reference</h2>
+              <button onClick={() => setShowReference(false)} className="p-1.5 rounded hover:bg-gray-100 text-gray-600"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto p-6 space-y-6">
-              {/* Area & Perimeter */}
-              <section>
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Area & Perimeter</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {[
-                    { shape: 'Circle', formulas: ['A = πr²', 'C = 2πr'] },
-                    { shape: 'Triangle', formulas: ['A = ½bh'] },
-                    { shape: 'Rectangle', formulas: ['A = lw', 'P = 2(l + w)'] },
-                    { shape: 'Parallelogram', formulas: ['A = bh'] },
-                    { shape: 'Trapezoid', formulas: ['A = ½(b₁ + b₂)h'] },
-                  ].map(({ shape, formulas }) => (
-                    <div key={shape} className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{shape}</p>
-                      {formulas.map((f) => <p key={f} className="text-sm font-mono text-gray-800">{f}</p>)}
-                    </div>
-                  ))}
-                </div>
-              </section>
 
-              {/* Volume */}
-              <section>
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Volume</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {[
-                    { shape: 'Rectangular Prism', formulas: ['V = lwh'] },
-                    { shape: 'Cylinder', formulas: ['V = πr²h'] },
-                    { shape: 'Sphere', formulas: ['V = (4/3)πr³'] },
-                    { shape: 'Cone', formulas: ['V = (1/3)πr²h'] },
-                    { shape: 'Pyramid', formulas: ['V = (1/3)lwh'] },
-                  ].map(({ shape, formulas }) => (
-                    <div key={shape} className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{shape}</p>
-                      {formulas.map((f) => <p key={f} className="text-sm font-mono text-gray-800">{f}</p>)}
-                    </div>
-                  ))}
-                </div>
-              </section>
+            <div className="overflow-y-auto px-5 py-4 space-y-4">
 
-              {/* Pythagorean & Special Triangles */}
-              <section>
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Right Triangles</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Pythagorean Theorem</p>
-                    <p className="text-sm font-mono text-gray-800">a² + b² = c²</p>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                    <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide mb-1.5">30° – 60° – 90°</p>
-                    <p className="text-sm font-mono text-gray-800">x : x√3 : 2x</p>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                    <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide mb-1.5">45° – 45° – 90°</p>
-                    <p className="text-sm font-mono text-gray-800">x : x : x√2</p>
-                  </div>
+              {/* ── Row 1: 2D Area shapes ── */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Circle */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
+                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
+                    <circle cx="40" cy="33" r="26" fill="none" stroke="#111" strokeWidth="1.6"/>
+                    <line x1="40" y1="33" x2="66" y2="33" stroke="#111" strokeWidth="1.4"/>
+                    <circle cx="40" cy="33" r="2" fill="#111"/>
+                    <text x="50" y="28" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">r</text>
+                  </svg>
+                  <p className="text-sm text-gray-900 leading-snug">A = πr²</p>
+                  <p className="text-sm text-gray-900 leading-snug">C = 2πr</p>
                 </div>
-              </section>
 
-              {/* Key constants */}
-              <section>
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Key Facts</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {[
-                    'A circle has 360°',
-                    'A circle has 2π radians',
-                    'Triangle angles sum to 180°',
-                    'Straight angle = 180°',
-                    'π ≈ 3.14159',
-                    '√2 ≈ 1.414  √3 ≈ 1.732',
-                  ].map((fact) => (
-                    <div key={fact} className="bg-amber-50 rounded-lg p-3 border border-amber-100">
-                      <p className="text-sm text-gray-700 font-medium">{fact}</p>
-                    </div>
-                  ))}
+                {/* Rectangle */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
+                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
+                    <rect x="8" y="15" width="60" height="36" fill="none" stroke="#111" strokeWidth="1.6"/>
+                    <text x="33" y="62" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">l</text>
+                    <text x="0" y="36" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">w</text>
+                  </svg>
+                  <p className="text-sm text-gray-900">A = lw</p>
                 </div>
-              </section>
 
-              {/* Algebra */}
-              <section>
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Algebra</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {[
-                    { name: 'Quadratic Formula', formula: 'x = (−b ± √(b²−4ac)) / 2a' },
-                    { name: 'Slope', formula: 'm = (y₂ − y₁) / (x₂ − x₁)' },
-                    { name: 'Slope-Intercept', formula: 'y = mx + b' },
-                    { name: 'Point-Slope', formula: 'y − y₁ = m(x − x₁)' },
-                    { name: 'Distance', formula: 'd = √((x₂−x₁)² + (y₂−y₁)²)' },
-                    { name: 'Midpoint', formula: 'M = ((x₁+x₂)/2 , (y₁+y₂)/2)' },
-                  ].map(({ name, formula }) => (
-                    <div key={name} className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{name}</p>
-                      <p className="text-xs font-mono text-gray-800 leading-relaxed">{formula}</p>
-                    </div>
-                  ))}
+                {/* Triangle */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
+                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
+                    <polygon points="8,58 72,58 40,10" fill="none" stroke="#111" strokeWidth="1.6"/>
+                    <line x1="40" y1="10" x2="40" y2="58" stroke="#111" strokeWidth="1.2" strokeDasharray="4,3"/>
+                    <polyline points="40,50 48,50 48,58" fill="none" stroke="#111" strokeWidth="1.2"/>
+                    <text x="42" y="38" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">h</text>
+                    <text x="52" y="66" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">b</text>
+                  </svg>
+                  <p className="text-sm text-gray-900">A = ½bh</p>
                 </div>
-              </section>
+              </div>
+
+              {/* ── Row 2: Right triangles ── */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Pythagorean theorem */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
+                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
+                    <polygon points="8,58 60,58 8,14" fill="none" stroke="#111" strokeWidth="1.6"/>
+                    <polyline points="8,46 20,46 20,58" fill="none" stroke="#111" strokeWidth="1.2"/>
+                    <text x="10" y="38" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">a</text>
+                    <text x="32" y="66" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">b</text>
+                    <text x="38" y="33" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">c</text>
+                  </svg>
+                  <p className="text-sm text-gray-900">c² = a² + b²</p>
+                </div>
+
+                {/* 30-60-90 */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
+                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
+                    <polygon points="8,58 72,58 8,14" fill="none" stroke="#111" strokeWidth="1.6"/>
+                    <polyline points="8,46 20,46 20,58" fill="none" stroke="#111" strokeWidth="1.2"/>
+                    <text x="9" y="40" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x√3</text>
+                    <text x="36" y="66" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x</text>
+                    <text x="42" y="34" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">2x</text>
+                    <text x="22" y="57" fontSize="8" fill="#555" fontFamily="sans-serif">60°</text>
+                    <text x="10" y="57" fontSize="7.5" fill="#555" fontFamily="sans-serif">30°</text>
+                  </svg>
+                  <p className="text-[11px] text-gray-500 mb-0.5">30°– 60°– 90°</p>
+                  <p className="text-sm text-gray-900">x : x√3 : 2x</p>
+                </div>
+
+                {/* 45-45-90 */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
+                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
+                    <polygon points="8,58 56,58 8,10" fill="none" stroke="#111" strokeWidth="1.6"/>
+                    <polyline points="8,46 20,46 20,58" fill="none" stroke="#111" strokeWidth="1.2"/>
+                    <text x="10" y="36" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x</text>
+                    <text x="29" y="66" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x</text>
+                    <text x="32" y="30" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x√2</text>
+                    <text x="22" y="57" fontSize="8" fill="#555" fontFamily="sans-serif">45°</text>
+                    <text x="10" y="57" fontSize="7.5" fill="#555" fontFamily="sans-serif">45°</text>
+                  </svg>
+                  <p className="text-[11px] text-gray-500 mb-0.5">45°– 45°– 90°</p>
+                  <p className="text-sm text-gray-900">x : x : x√2</p>
+                </div>
+              </div>
+
+              {/* ── Row 3: Volume shapes ── */}
+              <div className="grid grid-cols-5 gap-2">
+                {/* Rectangular Solid */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
+                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
+                    <rect x="12" y="22" width="36" height="26" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <polygon points="12,22 26,10 62,10 48,22" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <polygon points="48,22 62,10 62,36 48,48" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="12" y1="48" x2="48" y2="48" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="48" y1="48" x2="48" y2="22" stroke="#111" strokeWidth="1.4"/>
+                    <text x="25" y="55" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">l</text>
+                    <text x="51" y="46" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">w</text>
+                    <text x="3" y="37" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">h</text>
+                  </svg>
+                  <p className="text-[11px] text-gray-900 font-medium">V = lwh</p>
+                </div>
+
+                {/* Cylinder */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
+                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
+                    <ellipse cx="36" cy="13" rx="22" ry="7" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <ellipse cx="36" cy="45" rx="22" ry="7" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="14" y1="13" x2="14" y2="45" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="58" y1="13" x2="58" y2="45" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="13" x2="58" y2="13" stroke="#111" strokeWidth="1.2"/>
+                    <text x="43" y="9" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">r</text>
+                    <text x="60" y="32" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">h</text>
+                  </svg>
+                  <p className="text-[11px] text-gray-900 font-medium">V = πr²h</p>
+                </div>
+
+                {/* Sphere */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
+                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
+                    <circle cx="36" cy="29" r="23" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <ellipse cx="36" cy="29" rx="23" ry="7" fill="none" stroke="#111" strokeWidth="1.1" strokeDasharray="4,3"/>
+                    <line x1="36" y1="29" x2="59" y2="29" stroke="#111" strokeWidth="1.2"/>
+                    <circle cx="36" cy="29" r="1.8" fill="#111"/>
+                    <text x="44" y="25" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">r</text>
+                  </svg>
+                  <p className="text-[11px] text-gray-900 font-medium">V = 4/3 πr³</p>
+                </div>
+
+                {/* Cone */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
+                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
+                    <line x1="36" y1="5" x2="12" y2="49" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="5" x2="60" y2="49" stroke="#111" strokeWidth="1.4"/>
+                    <ellipse cx="36" cy="49" rx="24" ry="7" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="5" x2="36" y2="49" stroke="#111" strokeWidth="1.1" strokeDasharray="3,3"/>
+                    <line x1="36" y1="49" x2="60" y2="49" stroke="#111" strokeWidth="1.2"/>
+                    <text x="43" y="47" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">r</text>
+                    <text x="38" y="30" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">h</text>
+                  </svg>
+                  <p className="text-[11px] text-gray-900 font-medium">V = 1/3 πr²h</p>
+                </div>
+
+                {/* Pyramid */}
+                <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
+                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
+                    <polygon points="16,48 56,48 64,36 24,36" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="7" x2="16" y2="48" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="7" x2="56" y2="48" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="7" x2="64" y2="36" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="7" x2="24" y2="36" stroke="#111" strokeWidth="1.1" strokeDasharray="3,3"/>
+                    <line x1="16" y1="48" x2="24" y2="36" stroke="#111" strokeWidth="1.1" strokeDasharray="3,3"/>
+                    <text x="32" y="56" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">l</text>
+                    <text x="57" y="45" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">w</text>
+                  </svg>
+                  <p className="text-[11px] text-gray-900 font-medium">V = 1/3 lwh</p>
+                </div>
+              </div>
+
+              {/* ── Key Facts ── */}
+              <div className="border-t border-gray-300 pt-3 space-y-1.5">
+                <p className="text-[13px] text-gray-800">The number of degrees of arc in a circle is 360.</p>
+                <p className="text-[13px] text-gray-800">The number of radians of arc in a circle is 2π.</p>
+                <p className="text-[13px] text-gray-800">The sum of the measures in degrees of the angles of a triangle is 180.</p>
+              </div>
+
             </div>
           </div>
         </div>
