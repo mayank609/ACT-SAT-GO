@@ -147,6 +147,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  // Mark a reviewed question as still-a-doubt or cleared. Persists durably on
+  // the AttemptAnswer DB row (NOT Redis) so the "My Doubts" page can list them
+  // long after the attempt's Redis cache has expired.
+  setDoubtStatus: (attemptId: string, questionId: string, doubtStatus: 'doubt' | 'cleared' | null) =>
+    request<{ success: boolean }>(`/api/attempts/${attemptId}/doubt`, {
+      method: 'POST',
+      body: JSON.stringify({ questionId, doubtStatus }),
+    }),
   getAutosaveState: (attemptId: string) =>
     request<{ state: unknown; answers: Record<string, unknown> }>(`/api/attempts/${attemptId}/autosave`),
   getSectionTimer: (attemptId: string, sectionId: string) =>

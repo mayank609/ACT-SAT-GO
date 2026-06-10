@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle, Maximize2, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle, Maximize2, X, HelpCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -59,6 +59,7 @@ interface DbAttemptAnswer {
   answerGiven: DbAnswer | null
   timeSpentSeconds: number
   isFlagged: boolean
+  doubtStatus?: 'doubt' | 'cleared' | null
 }
 
 export interface DbAttempt {
@@ -432,55 +433,6 @@ function formatSeconds(sec: number | undefined): string {
   return s > 0 ? `${m}m ${s}s` : `${m} Minute${m > 1 ? 's' : ''}`;
 }
 
-function getAiCoachingTip(topic: string, _difficulty: string, correct: boolean, timeSpent: number): string {
-  const timeLimit = 75; // SAT recommended avg is ~75s for RW, ~84s for Math
-  const pacingStatus = timeSpent > timeLimit ? 'slow' : 'good';
-  
-  const tips: Record<string, string[]> = {
-    algebra: [
-      "Isolate variables first before performing operations. Substitution with simple values can help verify results.",
-      "Check linear equation signs and constants. A common pitfall is forgetting to distribute negative signs."
-    ],
-    advanced_math: [
-      "For quadratics, recall the quadratic formula and vertex form. Factoring quickly saves time.",
-      "Identify the relationships between graph translations and algebraic manipulations."
-    ],
-    geometry: [
-      "Always sketch the figure if not provided. Recall key trigonometric ratios (SOHCAHTOA) and theorem rules.",
-      "Watch for units conversions and reference angles in circle theorems."
-    ],
-    ideas: [
-      "Identify the central claim of the passage first. Avoid options that introduce outside details not in the text.",
-      "Rely only on direct evidence. If an option requires a multi-step assumption, it is likely incorrect."
-    ],
-    structure: [
-      "Examine how paragraphs connect and the function of sentences in context. Look for structural transition words.",
-      "Pay attention to tone and author perspective when analyzing cross-texts."
-    ],
-    conventions: [
-      "Focus on subject-verb agreement and punctuation rules (commas, semicolons, dashes). Look for independent clauses.",
-      "Ensure modifiers are placed adjacent to the nouns they describe to avoid dangling modifiers."
-    ]
-  };
-
-  let key = 'algebra';
-  const tLower = topic.toLowerCase();
-  if (tLower.includes('algebra')) key = 'algebra';
-  else if (tLower.includes('math') || tLower.includes('quadratic') || tLower.includes('function')) key = 'advanced_math';
-  else if (tLower.includes('geometry') || tLower.includes('trig')) key = 'geometry';
-  else if (tLower.includes('ideas') || tLower.includes('information') || tLower.includes('evidence')) key = 'ideas';
-  else if (tLower.includes('structure') || tLower.includes('craft') || tLower.includes('vocabulary')) key = 'structure';
-  else if (tLower.includes('conventions') || tLower.includes('grammar') || tLower.includes('punctuation') || tLower.includes('sentence')) key = 'conventions';
-
-  const defaultTips = tips[key] || tips['algebra'];
-  const tipText = defaultTips[correct ? 0 : 1] || defaultTips[0];
-  
-  const pacingText = pacingStatus === 'slow' 
-    ? `You spent ${timeSpent}s here, which is above the optimal pacing. Try to eliminate wrong choices faster.`
-    : `Great pacing! You spent ${timeSpent}s, leaving you buffer time for harder questions.`;
-    
-  return `[AI Recommendation] ${tipText} ${pacingText}`;
-}
 
 export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, attemptId }: {
   tq: DbTestQuestion;
@@ -490,8 +442,9 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
 }) {
   const [showAnswer, setShowAnswer] = useState(true);
   const [showAnalysis, setShowAnalysis] = useState(false);
-  const [showAiTip, setShowAiTip] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(studentAnswer?.isFlagged ?? false);
+  const [doubtStatus, setDoubtStatus] = useState<'doubt' | 'cleared' | null>(studentAnswer?.doubtStatus ?? null);
+  const [savingDoubt, setSavingDoubt] = useState(false);
 
   const q = tq.question;
   const correct = answersMatch(studentAnswer?.answerGiven ?? null, q.correctAnswer);
@@ -518,6 +471,20 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
       });
     } catch (err) {
       console.error('Failed to toggle bookmark', err);
+    }
+  };
+
+  const handleSetDoubt = async (next: 'doubt' | 'cleared') => {
+    const prev = doubtStatus;
+    setDoubtStatus(next);
+    setSavingDoubt(true);
+    try {
+      await api.setDoubtStatus(attemptId, q.id, next);
+    } catch (err) {
+      console.error('Failed to set doubt status', err);
+      setDoubtStatus(prev); // revert on failure
+    } finally {
+      setSavingDoubt(false);
     }
   };
 
@@ -728,7 +695,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
       {/* Expandable Analysis Footer */}
       <div className="border-t border-slate-100 bg-slate-50/50">
         <div className="px-6 py-3 flex items-center justify-between">
-          <button 
+          <button
             onClick={() => setShowAnalysis(!showAnalysis)}
             className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
           >
@@ -742,16 +709,18 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
               <AlertCircle size={16} className="text-blue-300" />
             )}
           </button>
-          
-          <button
-            onClick={() => {
-              setShowAnalysis(true);
-              setShowAiTip(!showAiTip);
-            }}
-            className="text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-md shadow-sm transition-colors"
-          >
-            Analyze
-          </button>
+
+          {/* Doubt status pill — visible once a choice has been made */}
+          {doubtStatus === 'doubt' && (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-md">
+              <HelpCircle size={14} /> Marked as doubt
+            </span>
+          )}
+          {doubtStatus === 'cleared' && (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-md">
+              <CheckCircle size={14} /> Cleared
+            </span>
+          )}
         </div>
 
         {showAnalysis && (
@@ -779,11 +748,6 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
               )}
             </div>
 
-            {showAiTip && (
-              <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100 text-sm text-blue-950 font-medium">
-                {getAiCoachingTip(topicLabel, q.difficultyLevel, correct, studentAnswer?.timeSpentSeconds ?? 0)}
-              </div>
-            )}
 
             {q.content.explanation ? (
               <div className="space-y-2">
@@ -795,6 +759,41 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
             ) : (
               <div className="text-sm text-slate-500 italic">No explanation available for this question.</div>
             )}
+
+            {/* Doubt CTAs — after reading the explanation, did it clear the doubt? */}
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              <p className="text-sm font-medium text-slate-600">
+                {doubtStatus === 'cleared'
+                  ? 'Great — glad this one is cleared!'
+                  : doubtStatus === 'doubt'
+                  ? "Saved to My Doubts. We'll keep it handy for revision."
+                  : 'After reading the explanation, is your doubt cleared?'}
+              </p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => handleSetDoubt('doubt')}
+                  disabled={savingDoubt}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
+                    doubtStatus === 'doubt'
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                  }`}
+                >
+                  <HelpCircle size={14} /> Still Doubt
+                </button>
+                <button
+                  onClick={() => handleSetDoubt('cleared')}
+                  disabled={savingDoubt}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
+                    doubtStatus === 'cleared'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                  }`}
+                >
+                  <CheckCircle size={14} /> Cleared
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

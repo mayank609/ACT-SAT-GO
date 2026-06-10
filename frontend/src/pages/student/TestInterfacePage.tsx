@@ -814,40 +814,23 @@ export function TestInterfacePage() {
     if (!pending) return;
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) { setHighlightTooltip(null); return; }
-    const range = sel.getRangeAt(0);
-
-    const wrapTextNode = (textNode: Text, start: number, end: number) => {
-      const mark = document.createElement('mark');
-      mark.style.cssText = 'background:#fef08a;border-radius:2px;padding:0 1px;';
-      const nodeRange = document.createRange();
-      nodeRange.setStart(textNode, start);
-      nodeRange.setEnd(textNode, end);
-      try { nodeRange.surroundContents(mark); } catch { /* skip partial */ }
-    };
 
     try {
+      const range = sel.getRangeAt(0);
+      if (!pending.container.contains(range.commonAncestorContainer)) {
+        setHighlightTooltip(null);
+        return;
+      }
       const mark = document.createElement('mark');
       mark.style.cssText = 'background:#fef08a;border-radius:2px;padding:0 1px;';
-      range.surroundContents(mark);
-    } catch {
-      // Selection spans multiple elements — walk text nodes
-      const root = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
-        ? range.commonAncestorContainer.parentElement!
-        : (range.commonAncestorContainer as Element);
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      const textNodes: Text[] = [];
-      let n: Node | null;
-      while ((n = walker.nextNode())) {
-        if (range.intersectsNode(n)) textNodes.push(n as Text);
-      }
-      for (const tn of textNodes) {
-        const start = tn === range.startContainer ? range.startOffset : 0;
-        const end = tn === range.endContainer ? range.endOffset : tn.length;
-        wrapTextNode(tn, start, end);
-      }
-    }
+      // extractContents + insertNode reliably handles selections spanning multiple elements
+      mark.appendChild(range.extractContents());
+      range.insertNode(mark);
+      // Merge adjacent text nodes to keep the DOM clean
+      pending.container.normalize();
+      setQuestionHighlights(prev => ({ ...prev, [pending.key]: pending.container.innerHTML }));
+    } catch { /* ignore — e.g. selection in non-text node */ }
 
-    setQuestionHighlights(prev => ({ ...prev, [pending.key]: pending.container.innerHTML }));
     sel.removeAllRanges();
     setHighlightTooltip(null);
     highlightPendingRef.current = null;
@@ -1221,9 +1204,11 @@ export function TestInterfacePage() {
               </button>
             </>
           )}
-          <button onClick={() => setShowHighlightsNotes(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]" title="Highlights & Notes">
-            <PencilLine size={18} /> Highlights & Notes
-          </button>
+          {!isMath && (
+            <button onClick={() => setShowHighlightsNotes(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]" title="Highlights & Notes">
+              <PencilLine size={18} /> Highlights & Notes
+            </button>
+          )}
           <div className="relative">
             <button onClick={() => setShowMore((v) => !v)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
               <MoreVertical size={18} /> More
@@ -1260,14 +1245,14 @@ export function TestInterfacePage() {
                   <div
                     ref={passageRef}
                     className="prose prose-gray max-w-none text-gray-800 text-[15px] leading-relaxed"
-                    onMouseUp={(e) => handleContentMouseUp(e, passageRef, `passage:${currentQuestion.id}`)}
+                    onMouseUp={!isMath ? (e) => handleContentMouseUp(e, passageRef, `passage:${currentQuestion.id}`) : undefined}
                     dangerouslySetInnerHTML={{ __html: questionHighlights[`passage:${currentQuestion.id}`] }}
                   />
                 ) : (
                   <div
                     ref={passageRef}
                     className="prose prose-gray max-w-none text-gray-800 text-[15px] leading-relaxed"
-                    onMouseUp={(e) => handleContentMouseUp(e, passageRef, `passage:${currentQuestion.id}`)}
+                    onMouseUp={!isMath ? (e) => handleContentMouseUp(e, passageRef, `passage:${currentQuestion.id}`) : undefined}
                   >
                     <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
                   </div>
@@ -1281,14 +1266,14 @@ export function TestInterfacePage() {
                 <div
                   ref={questionTextRef}
                   className="text-[15px] text-gray-900 leading-relaxed mb-6"
-                  onMouseUp={(e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`)}
+                  onMouseUp={!isMath ? (e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`) : undefined}
                   dangerouslySetInnerHTML={{ __html: questionHighlights[`text:${currentQuestion.id}`] }}
                 />
               ) : (
                 <div
                   ref={questionTextRef}
                   className="text-[15px] text-gray-900 leading-relaxed mb-6"
-                  onMouseUp={(e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`)}
+                  onMouseUp={!isMath ? (e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`) : undefined}
                 >
                   <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
                 </div>
@@ -1313,14 +1298,14 @@ export function TestInterfacePage() {
               <div
                 ref={questionTextRef}
                 className="text-[16px] text-gray-900 leading-relaxed mb-8 font-normal"
-                onMouseUp={(e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`)}
+                onMouseUp={!isMath ? (e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`) : undefined}
                 dangerouslySetInnerHTML={{ __html: questionHighlights[`text:${currentQuestion.id}`] }}
               />
             ) : (
               <div
                 ref={questionTextRef}
                 className="text-[16px] text-gray-900 leading-relaxed mb-8 font-normal"
-                onMouseUp={(e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`)}
+                onMouseUp={!isMath ? (e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`) : undefined}
               >
                 <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
               </div>
@@ -1686,32 +1671,40 @@ export function TestInterfacePage() {
       )}
 
       {/* ── FLOATING HIGHLIGHT TOOLTIP ──────────────────────────────────────── */}
-      {highlightTooltip && (
+      {highlightTooltip && !isMath && (
         <div
           data-highlight-tooltip
-          className="fixed z-[60] flex items-center gap-0.5 bg-gray-900 rounded-lg shadow-xl px-1 py-1 -translate-x-1/2"
-          style={{ left: highlightTooltip.x, top: highlightTooltip.y - 44 }}
+          className="fixed z-[60] -translate-x-1/2 -translate-y-full"
+          style={{ left: highlightTooltip.x, top: highlightTooltip.y - 8 }}
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
         >
-          <button
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); applyHighlight(); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 rounded-md transition-colors"
-          >
-            <span className="w-3 h-3 rounded-sm bg-yellow-300 inline-block flex-shrink-0" />
-            Highlight
-          </button>
-          <div className="w-px h-4 bg-gray-600 mx-0.5" />
-          <button
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setHighlightTooltip(null); window.getSelection()?.removeAllRanges(); }}
-            className="px-2 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
-          >
-            <X size={12} />
-          </button>
+          {/* Arrow */}
+          <div className="flex flex-col items-center">
+            <div className="flex items-center bg-white border border-gray-300 rounded-md shadow-lg overflow-hidden">
+              <button
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); applyHighlight(); }}
+                className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-gray-800 hover:bg-gray-50 transition-colors border-r border-gray-200"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <rect x="1" y="8" width="12" height="4" rx="1" fill="#fef08a" stroke="#d4b700" strokeWidth="0.8"/>
+                  <rect x="3.5" y="1" width="7" height="8" rx="1" fill="#fef08a" stroke="#d4b700" strokeWidth="0.8"/>
+                </svg>
+                Highlight
+              </button>
+              <button
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setHighlightTooltip(null); window.getSelection()?.removeAllRanges(); }}
+                className="px-2.5 py-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors text-[11px]"
+              >
+                <X size={11} />
+              </button>
+            </div>
+            <div className="w-2 h-2 bg-white border-r border-b border-gray-300 rotate-45 -mt-1 shadow-sm" />
+          </div>
         </div>
       )}
 
       {/* ── HIGHLIGHTS & NOTES ──────────────────────────────────────────────── */}
-      {showHighlightsNotes && currentQuestion && (
+      {showHighlightsNotes && currentQuestion && !isMath && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowHighlightsNotes(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[80vh]">
