@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useParams, useBlocker } from 'react-router-dom';
-import { Bookmark, ChevronUp, ChevronDown, Send, AlertTriangle, X, Loader2, Calculator, BookOpen, PencilLine, MoreVertical } from 'lucide-react';
+import { Bookmark, ChevronUp, ChevronDown, Send, AlertTriangle, X, Loader2, Calculator, BookOpen, PencilLine, MoreVertical, Highlighter } from 'lucide-react';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
@@ -78,7 +78,7 @@ const stateColors: Record<QuestionState, string> = {
   not_visited:    'bg-white border border-[#1b3d6e] text-[#1b3d6e]',
   not_answered:   'bg-white border border-dashed border-[#1b3d6e] text-[#1b3d6e]',
   answered:       'bg-[#1b3d6e] text-white border border-[#1b3d6e]',
-  marked_review:  'bg-white border border-[#1b3d6e] text-[#1b3d6e]',
+  marked_review:  'bg-white border-2 border-red-500 text-red-600',
   answered_marked:'bg-[#1b3d6e] text-white border border-[#1b3d6e]',
 };
 
@@ -181,6 +181,8 @@ export function TestInterfacePage() {
   const [showReference, setShowReference] = useState(false);
   const [showHighlightsNotes, setShowHighlightsNotes] = useState(false);
   const [questionNotes, setQuestionNotes] = useState<Record<string, string>>({});
+  const [questionHighlights, setQuestionHighlights] = useState<Record<string, string>>({});
+  const [highlightTooltip, setHighlightTooltip] = useState<{ x: number; y: number } | null>(null);
   const [calcPos, setCalcPos] = useState(() => {
     const width = 800;
     const x = Math.max(20, window.innerWidth - width - 40);
@@ -192,6 +194,9 @@ export function TestInterfacePage() {
   const calcDragOffset = useRef({ x: 0, y: 0 });
   const calcResizing = useRef(false);
   const calcResizeStart = useRef({ x: 0, y: 0, width: 800, height: 550 });
+  const passageRef = useRef<HTMLDivElement>(null);
+  const questionTextRef = useRef<HTMLDivElement>(null);
+  const highlightPendingRef = useRef<{ container: HTMLDivElement; key: string } | null>(null);
   const [restoring, setRestoring] = useState(Boolean(searchParams.get('attemptId')));
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
@@ -731,6 +736,75 @@ export function TestInterfacePage() {
     };
   }, []);
 
+  // ── Text highlight helpers ──────────────────────────────────────────────────
+  const handleContentMouseUp = useCallback((
+    _e: React.MouseEvent,
+    ref: React.RefObject<HTMLDivElement | null>,
+    key: string,
+  ) => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) return;
+    const range = sel.getRangeAt(0);
+    if (!ref.current?.contains(range.commonAncestorContainer)) return;
+    highlightPendingRef.current = { container: ref.current, key };
+    const rect = range.getBoundingClientRect();
+    setHighlightTooltip({ x: rect.left + rect.width / 2, y: rect.top });
+  }, []);
+
+  const applyHighlight = useCallback(() => {
+    const pending = highlightPendingRef.current;
+    if (!pending) return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) { setHighlightTooltip(null); return; }
+    const range = sel.getRangeAt(0);
+
+    const wrapTextNode = (textNode: Text, start: number, end: number) => {
+      const mark = document.createElement('mark');
+      mark.style.cssText = 'background:#fef08a;border-radius:2px;padding:0 1px;';
+      const nodeRange = document.createRange();
+      nodeRange.setStart(textNode, start);
+      nodeRange.setEnd(textNode, end);
+      try { nodeRange.surroundContents(mark); } catch { /* skip partial */ }
+    };
+
+    try {
+      const mark = document.createElement('mark');
+      mark.style.cssText = 'background:#fef08a;border-radius:2px;padding:0 1px;';
+      range.surroundContents(mark);
+    } catch {
+      // Selection spans multiple elements — walk text nodes
+      const root = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentElement!
+        : (range.commonAncestorContainer as Element);
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const textNodes: Text[] = [];
+      let n: Node | null;
+      while ((n = walker.nextNode())) {
+        if (range.intersectsNode(n)) textNodes.push(n as Text);
+      }
+      for (const tn of textNodes) {
+        const start = tn === range.startContainer ? range.startOffset : 0;
+        const end = tn === range.endContainer ? range.endOffset : tn.length;
+        wrapTextNode(tn, start, end);
+      }
+    }
+
+    setQuestionHighlights(prev => ({ ...prev, [pending.key]: pending.container.innerHTML }));
+    sel.removeAllRanges();
+    setHighlightTooltip(null);
+    highlightPendingRef.current = null;
+  }, []);
+
+  // Dismiss tooltip when clicking outside
+  useEffect(() => {
+    const dismiss = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (!target.closest('[data-highlight-tooltip]')) setHighlightTooltip(null);
+    };
+    document.addEventListener('mousedown', dismiss);
+    return () => document.removeEventListener('mousedown', dismiss);
+  }, []);
+
   // Accumulate time spent on the active question, one second at a time.
   // Re-binds whenever the active question changes so the elapsed seconds are
   // credited to the right question.
@@ -941,7 +1015,7 @@ export function TestInterfacePage() {
       <div className="flex items-center gap-3">
         <span className="w-7 h-7 bg-gray-900 text-white text-sm font-bold flex items-center justify-center rounded">{currentQIdx + 1}</span>
         <button onClick={markForReview} className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900">
-          <Bookmark size={15} className={isMarked ? 'text-[#1b3d6e]' : ''} fill={isMarked ? '#1b3d6e' : 'none'} />
+          <Bookmark size={15} className={isMarked ? 'text-red-500' : ''} fill={isMarked ? '#ef4444' : 'none'} />
           Mark for Review
         </button>
       </div>
@@ -1077,17 +1151,43 @@ export function TestInterfacePage() {
               {/* Scrollable passage content */}
               <div className="flex-1 overflow-y-auto p-8">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Reading Passage</p>
-                <div className="prose prose-gray max-w-none text-gray-800 text-[15px] leading-relaxed">
-                  <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
-                </div>
+                {questionHighlights[`passage:${currentQuestion.id}`] ? (
+                  <div
+                    ref={passageRef}
+                    className="prose prose-gray max-w-none text-gray-800 text-[15px] leading-relaxed"
+                    onMouseUp={(e) => handleContentMouseUp(e, passageRef, `passage:${currentQuestion.id}`)}
+                    dangerouslySetInnerHTML={{ __html: questionHighlights[`passage:${currentQuestion.id}`] }}
+                  />
+                ) : (
+                  <div
+                    ref={passageRef}
+                    className="prose prose-gray max-w-none text-gray-800 text-[15px] leading-relaxed"
+                    onMouseUp={(e) => handleContentMouseUp(e, passageRef, `passage:${currentQuestion.id}`)}
+                  >
+                    <RichContentRenderer content={currentQuestion.parentQuestionText} variant="question" />
+                  </div>
+                )}
               </div>
             </div>
             {/* Right: Question */}
             <div className="w-1/2 overflow-y-auto p-8 bg-white">
               {questionHeaderBar}
-              <div className="text-[15px] text-gray-900 leading-relaxed mb-6">
-                <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
-              </div>
+              {questionHighlights[`text:${currentQuestion.id}`] ? (
+                <div
+                  ref={questionTextRef}
+                  className="text-[15px] text-gray-900 leading-relaxed mb-6"
+                  onMouseUp={(e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`)}
+                  dangerouslySetInnerHTML={{ __html: questionHighlights[`text:${currentQuestion.id}`] }}
+                />
+              ) : (
+                <div
+                  ref={questionTextRef}
+                  className="text-[15px] text-gray-900 leading-relaxed mb-6"
+                  onMouseUp={(e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`)}
+                >
+                  <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
+                </div>
+              )}
               {(currentQuestion.type === 'mcq_single' || currentQuestion.type === 'mcq_multi') &&
                 renderOptions(currentQuestion.options, currentQuestion.type, selectedAnswer)}
               {currentQuestion.type === 'numeric' && (
@@ -1104,9 +1204,22 @@ export function TestInterfacePage() {
           /* Standard layout */
           <div className="max-w-3xl mx-auto px-6 py-10">
             {questionHeaderBar}
-            <div className="text-[16px] text-gray-900 leading-relaxed mb-8 font-normal">
-              <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
-            </div>
+            {questionHighlights[`text:${currentQuestion.id}`] ? (
+              <div
+                ref={questionTextRef}
+                className="text-[16px] text-gray-900 leading-relaxed mb-8 font-normal"
+                onMouseUp={(e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`)}
+                dangerouslySetInnerHTML={{ __html: questionHighlights[`text:${currentQuestion.id}`] }}
+              />
+            ) : (
+              <div
+                ref={questionTextRef}
+                className="text-[16px] text-gray-900 leading-relaxed mb-8 font-normal"
+                onMouseUp={(e) => handleContentMouseUp(e, questionTextRef, `text:${currentQuestion.id}`)}
+              >
+                <RichContentRenderer content={currentQuestion.text || `Question ${currentQIdx + 1}`} variant="question" />
+              </div>
+            )}
             {(currentQuestion.type === 'mcq_single' || currentQuestion.type === 'mcq_multi') &&
               renderOptions(currentQuestion.options, currentQuestion.type, selectedAnswer)}
             {currentQuestion.type === 'numeric' && (
@@ -1397,6 +1510,31 @@ export function TestInterfacePage() {
         </div>
       )}
 
+      {/* ── FLOATING HIGHLIGHT TOOLTIP ──────────────────────────────────────── */}
+      {highlightTooltip && (
+        <div
+          data-highlight-tooltip
+          className="fixed z-[60] flex items-center gap-0.5 bg-gray-900 rounded-lg shadow-xl px-1 py-1 -translate-x-1/2"
+          style={{ left: highlightTooltip.x, top: highlightTooltip.y - 44 }}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        >
+          <button
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); applyHighlight(); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 rounded-md transition-colors"
+          >
+            <span className="w-3 h-3 rounded-sm bg-yellow-300 inline-block flex-shrink-0" />
+            Highlight
+          </button>
+          <div className="w-px h-4 bg-gray-600 mx-0.5" />
+          <button
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setHighlightTooltip(null); window.getSelection()?.removeAllRanges(); }}
+            className="px-2 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
       {/* ── HIGHLIGHTS & NOTES ──────────────────────────────────────────────── */}
       {showHighlightsNotes && currentQuestion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1433,11 +1571,26 @@ export function TestInterfacePage() {
                 />
               </div>
 
-              {/* Info Text */}
-              <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0">
+              {/* Info Text + Clear highlights */}
+              <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0 flex items-center justify-between gap-2">
                 <p className="text-xs text-gray-500">
-                  💡 Notes are saved locally and available for this attempt only.
+                  Notes & highlights are saved locally for this attempt only.
                 </p>
+                {(questionHighlights[`passage:${currentQuestion.id}`] || questionHighlights[`text:${currentQuestion.id}`]) && (
+                  <button
+                    onClick={() => {
+                      setQuestionHighlights(prev => {
+                        const next = { ...prev };
+                        delete next[`passage:${currentQuestion.id}`];
+                        delete next[`text:${currentQuestion.id}`];
+                        return next;
+                      });
+                    }}
+                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium flex-shrink-0"
+                  >
+                    <Highlighter size={11} /> Clear highlights
+                  </button>
+                )}
               </div>
 
               {/* Close Button */}
@@ -1485,7 +1638,7 @@ export function TestInterfacePage() {
               </div>
               {/* For Review */}
               <div className="flex items-center gap-2 text-xs text-gray-700 font-medium">
-                <Bookmark size={14} fill="#1b3d6e" className="text-[#1b3d6e] flex-shrink-0" />
+                <Bookmark size={14} fill="#ef4444" className="text-red-500 flex-shrink-0" />
                 For Review
               </div>
             </div>
@@ -1520,12 +1673,12 @@ export function TestInterfacePage() {
                         {/* Bookmark badge for review */}
                         {isReview && !isActive && (
                           <span className="absolute -top-1 -right-1">
-                            <Bookmark size={9} fill="#1b3d6e" className="text-[#1b3d6e]" />
+                            <Bookmark size={9} fill="#ef4444" className="text-red-500" />
                           </span>
                         )}
                         {isReview && isActive && (
                           <span className="absolute -top-1 -right-1">
-                            <Bookmark size={9} fill="white" className="text-white" />
+                            <Bookmark size={9} fill="#ef4444" className="text-red-500" />
                           </span>
                         )}
                       </button>
@@ -1539,7 +1692,7 @@ export function TestInterfacePage() {
             <div className="px-6 py-3 border-t border-gray-200 grid grid-cols-4 gap-2 text-center">
               {[
                 { label: 'Answered', count: answeredCount, color: 'text-[#1b3d6e]' },
-                { label: 'For Review', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'marked_review' || q.state === 'answered_marked').length, color: 'text-[#1b3d6e]' },
+                { label: 'For Review', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'marked_review' || q.state === 'answered_marked').length, color: 'text-red-500' },
                 { label: 'Unanswered', count: Object.values(currentSectionAttempt?.questions ?? {}).filter((q) => q.state === 'not_answered' || q.state === 'not_visited').length, color: 'text-gray-500' },
                 { label: 'Total', count: totalQInSection, color: 'text-gray-400' },
               ].map((s) => (
