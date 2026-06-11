@@ -1954,7 +1954,7 @@ export function TestInterfacePage() {
       {showSectionDirections && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="bg-[#1b3d6e] px-6 py-5">
               <p className="text-xs text-blue-200 uppercase tracking-widest mb-1 font-medium">{currentSection.name}</p>
@@ -1966,8 +1966,83 @@ export function TestInterfacePage() {
                 <>
                   <p>The questions in this section address a number of important math skills.</p>
                   <p>Use of a calculator is permitted for all questions. A reference sheet, calculator, and these directions can be accessed throughout the test.</p>
-                  <p>Unless otherwise indicated: all variables and expressions represent real numbers, figures are drawn to scale, all figures lie in a plane, and the domain of a given function is the set of all real numbers for which the function is defined.</p>
-                  <p>For <strong>multiple-choice questions</strong>, solve each problem and choose the correct answer from the choices provided. For <strong>student-produced response questions</strong>, solve each problem and enter your answer as directed.</p>
+                  <p className="font-semibold">Unless otherwise indicated:</p>
+                  <ul className="list-disc pl-5 space-y-0.5">
+                    <li>All variables and expressions represent real numbers.</li>
+                    <li>Figures provided are drawn to scale.</li>
+                    <li>All figures lie in a plane.</li>
+                    <li>The domain of a given function <em>f</em> is the set of all real numbers <em>x</em> for which <em>f</em>(<em>x</em>) is a real number.</li>
+                  </ul>
+                  <p className="font-semibold">For multiple-choice questions:</p>
+                  <ul className="list-disc pl-5 space-y-0.5">
+                    <li>Solve each problem and choose the correct answer from the choices provided.</li>
+                    <li>Each multiple-choice question has a single correct answer.</li>
+                  </ul>
+                  <p className="font-semibold">For student-produced response questions:</p>
+                  <ul className="list-disc pl-5 space-y-0.5">
+                    <li>Solve each problem and enter your answer as described below.</li>
+                    <li>If you find more than one correct answer, enter only one answer.</li>
+                    <li>You can enter up to 5 characters for a positive answer and up to 6 characters (including the negative sign) for a negative answer.</li>
+                    <li>If your answer is a fraction that doesn't fit in the provided space, enter the decimal equivalent.</li>
+                    <li>If your answer is a decimal that doesn't fit in the provided space, enter it by truncating or rounding at the fourth digit.</li>
+                    <li>If your answer is a mixed number (such as 3&#160;1/2), enter it as an improper fraction (7/2) or its decimal equivalent (3.5).</li>
+                    <li>Don't enter symbols such as a percent sign, comma, or dollar sign.</li>
+                  </ul>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse border border-gray-300">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold">Answer</th>
+                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold">Acceptable ways to<br />enter answer</th>
+                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold">Unacceptable: will<br />NOT receive credit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="border border-gray-300 px-2 py-3 text-center font-medium">3.5</td>
+                          <td className="border border-gray-300 px-2 py-3 text-center">
+                            <div>3.5</div><div>3.50</div><div>7/2</div>
+                          </td>
+                          <td className="border border-gray-300 px-2 py-3 text-center text-gray-500">
+                            <div>31/2</div><div>3&#160;1/2</div>
+                          </td>
+                        </tr>
+                        <tr className="bg-gray-50">
+                          <td className="border border-gray-300 px-2 py-3 text-center font-medium">
+                            <span className="inline-flex flex-col items-center leading-none">
+                              <span>2</span>
+                              <span className="block border-t border-gray-700 w-3 my-0.5" />
+                              <span>3</span>
+                            </span>
+                          </td>
+                          <td className="border border-gray-300 px-2 py-3 text-center">
+                            <div>2/3</div><div>.6666</div><div>.6667</div><div>0.666</div><div>0.667</div>
+                          </td>
+                          <td className="border border-gray-300 px-2 py-3 text-center text-gray-500">
+                            <div>0.66</div><div>.66</div><div>0.67</div><div>.67</div>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="border border-gray-300 px-2 py-3 text-center font-medium">
+                            <span className="inline-flex items-center gap-0.5">
+                              <span>&#8722;</span>
+                              <span className="inline-flex flex-col items-center leading-none">
+                                <span>1</span>
+                                <span className="block border-t border-gray-700 w-3 my-0.5" />
+                                <span>3</span>
+                              </span>
+                            </span>
+                          </td>
+                          <td className="border border-gray-300 px-2 py-3 text-center">
+                            <div>-1/3</div><div>-.3333</div><div>-0.333</div>
+                          </td>
+                          <td className="border border-gray-300 px-2 py-3 text-center text-gray-500">
+                            <div>-.33</div><div>-0.33</div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </>
               ) : (
                 <>
@@ -1992,14 +2067,89 @@ export function TestInterfacePage() {
       )}
 
       {/* ── DIRECTIONS MODAL ─────────────────────────────────────────────────── */}
-      <Modal isOpen={showDirections} onClose={() => setShowDirections(false)} title="Directions" size="md">
+      <Modal isOpen={showDirections} onClose={() => setShowDirections(false)} title="Directions" size="xl">
         <div className="text-sm text-gray-700 leading-relaxed space-y-3">
           {isMath ? (
             <>
               <p>The questions in this section address a number of important math skills.</p>
               <p>Use of a calculator is permitted for all questions. A reference sheet, calculator, and these directions can be accessed throughout the test.</p>
-              <p>Unless otherwise indicated: all variables and expressions represent real numbers, figures are drawn to scale, all figures lie in a plane, and the domain of a given function is the set of all real numbers for which the function is defined.</p>
-              <p>For multiple-choice questions, solve each problem and choose the correct answer from the choices provided. For student-produced response questions, solve each problem and enter your answer.</p>
+              <p className="font-semibold">Unless otherwise indicated:</p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                <li>All variables and expressions represent real numbers.</li>
+                <li>Figures provided are drawn to scale.</li>
+                <li>All figures lie in a plane.</li>
+                <li>The domain of a given function <em>f</em> is the set of all real numbers <em>x</em> for which <em>f</em>(<em>x</em>) is a real number.</li>
+              </ul>
+              <p className="font-semibold">For multiple-choice questions:</p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                <li>Solve each problem and choose the correct answer from the choices provided.</li>
+                <li>Each multiple-choice question has a single correct answer.</li>
+              </ul>
+              <p className="font-semibold">For student-produced response questions:</p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                <li>Solve each problem and enter your answer as described below.</li>
+                <li>If you find more than one correct answer, enter only one answer.</li>
+                <li>You can enter up to 5 characters for a positive answer and up to 6 characters (including the negative sign) for a negative answer.</li>
+                <li>If your answer is a fraction that doesn't fit in the provided space, enter the decimal equivalent.</li>
+                <li>If your answer is a decimal that doesn't fit in the provided space, enter it by truncating or rounding at the fourth digit.</li>
+                <li>If your answer is a mixed number (such as 3&#160;1/2), enter it as an improper fraction (7/2) or its decimal equivalent (3.5).</li>
+                <li>Don't enter symbols such as a percent sign, comma, or dollar sign.</li>
+              </ul>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Answer</th>
+                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Acceptable ways to<br />enter answer</th>
+                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Unacceptable: will<br />NOT receive credit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border border-gray-300 px-3 py-3 text-center font-medium">3.5</td>
+                      <td className="border border-gray-300 px-3 py-3 text-center">
+                        <div>3.5</div><div>3.50</div><div>7/2</div>
+                      </td>
+                      <td className="border border-gray-300 px-3 py-3 text-center text-gray-500">
+                        <div>31/2</div><div>3&#160;1/2</div>
+                      </td>
+                    </tr>
+                    <tr className="bg-gray-50">
+                      <td className="border border-gray-300 px-3 py-3 text-center font-medium">
+                        <span className="inline-flex flex-col items-center leading-none">
+                          <span>2</span>
+                          <span className="block border-t border-gray-700 w-3 my-0.5" />
+                          <span>3</span>
+                        </span>
+                      </td>
+                      <td className="border border-gray-300 px-3 py-3 text-center">
+                        <div>2/3</div><div>.6666</div><div>.6667</div><div>0.666</div><div>0.667</div>
+                      </td>
+                      <td className="border border-gray-300 px-3 py-3 text-center text-gray-500">
+                        <div>0.66</div><div>.66</div><div>0.67</div><div>.67</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="border border-gray-300 px-3 py-3 text-center font-medium">
+                        <span className="inline-flex items-center gap-0.5">
+                          <span>&#8722;</span>
+                          <span className="inline-flex flex-col items-center leading-none">
+                            <span>1</span>
+                            <span className="block border-t border-gray-700 w-3 my-0.5" />
+                            <span>3</span>
+                          </span>
+                        </span>
+                      </td>
+                      <td className="border border-gray-300 px-3 py-3 text-center">
+                        <div>-1/3</div><div>-.3333</div><div>-0.333</div>
+                      </td>
+                      <td className="border border-gray-300 px-3 py-3 text-center text-gray-500">
+                        <div>-.33</div><div>-0.33</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </>
           ) : (
             <>
