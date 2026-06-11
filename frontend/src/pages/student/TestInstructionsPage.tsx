@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Clock, FileText, AlertTriangle, Play, Loader2 } from 'lucide-react';
+import { Timer, BarChart3, LifeBuoy, Laptop, CheckCircle2, Play, Loader2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
-import { Badge } from '../../components/common/Badge';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
@@ -63,9 +62,6 @@ export function transformDbTest(raw: DbTest): Test {
       name: sec.name,
       timeLimit: sec.durationMinutes,
       questions: sec.questions
-        // Skip child question rows: passage children are reached via the parent's
-        // childQuestions (expanded by flattenTest). Mapping their own rows too would
-        // show every passage sub-question twice during the test.
         .filter((tq) => !(tq.question as any).parentQuestionId)
         .slice().sort((a, b) => a.orderIndex - b.orderIndex).map((tq): Question => {
         const q = tq.question
@@ -128,11 +124,6 @@ export function transformDbTest(raw: DbTest): Test {
   }
 }
 
-/**
- * flattenTest: expands each "passage" question into individual sub-questions
- * that carry `parentQuestionText` so the renderer can show the SAT split-screen.
- * Non-passage questions are kept as-is. The test is mutated in-place per section.
- */
 export function flattenTest(test: import('../../types').Test): import('../../types').Test {
   return {
     ...test,
@@ -140,22 +131,115 @@ export function flattenTest(test: import('../../types').Test): import('../../typ
       ...sec,
       questions: sec.questions.flatMap((q) => {
         if (q.type !== 'passage' || !q.linkedQuestions?.length) return [q];
-        // Expand each linked sub-question and tag it with the passage text
         return q.linkedQuestions.map((lq, idx) => ({
           ...lq,
-          type: lq.type, // keeps mcq_single / mcq_multi / numeric
+          type: lq.type,
           parentQuestionId: q.id,
           parentQuestionText: q.text,
-          // Carry marks from the parent if not individually set
           marks: lq.marks ?? q.marks,
           marksNegative: lq.marksNegative ?? q.marksNegative,
-          // give a stable UI label
           _passageSubIndex: idx,
         }));
       }),
     })),
   };
 }
+
+// ─── Instruction sections config ─────────────────────────────────────────────
+
+const SECTIONS = [
+  {
+    icon: Timer,
+    iconBg: 'bg-blue-50',
+    iconColor: 'text-blue-600',
+    title: 'Timing',
+    content: (
+      <ul className="space-y-2 text-sm text-gray-600">
+        <li className="flex gap-2.5">
+          <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
+          The test must be completed in one sitting. Closing it midway may result in data loss.
+        </li>
+        <li className="flex gap-2.5">
+          <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
+          Once you move to the next module, you cannot return to the previous module.
+        </li>
+      </ul>
+    ),
+  },
+  {
+    icon: BarChart3,
+    iconBg: 'bg-emerald-50',
+    iconColor: 'text-emerald-600',
+    title: 'Score & Performance Analysis',
+    content: (
+      <div className="text-sm text-gray-600 space-y-3">
+        <p>Once you complete the mock test, you will receive:</p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0" />
+            <span className="font-medium text-gray-700">Tentative Scaled Score</span>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="font-medium text-gray-700">Detailed Performance Analysis</span>
+              <span className="text-gray-500">, including:</span>
+              <ul className="mt-2 space-y-1.5 pl-2">
+                {[
+                  'Time spent on each question',
+                  'Topic-wise performance breakdown',
+                  'Identification of weak areas and concepts that need more focus',
+                  'Accuracy analysis across different question types',
+                ].map((item) => (
+                  <li key={item} className="flex gap-2.5">
+                    <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8722;</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    icon: LifeBuoy,
+    iconBg: 'bg-violet-50',
+    iconColor: 'text-violet-600',
+    title: 'Assistive Technology',
+    content: (
+      <ul className="space-y-2 text-sm text-gray-600">
+        <li className="flex gap-2.5">
+          <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
+          For any issues, contact the Mock Helpline (not your WhatsApp group).
+        </li>
+        <li className="flex gap-2.5">
+          <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
+          If the test gets stuck, do not log out of the application. This may cause data loss.
+        </li>
+      </ul>
+    ),
+  },
+  {
+    icon: Laptop,
+    iconBg: 'bg-amber-50',
+    iconColor: 'text-amber-600',
+    title: 'Device Check',
+    content: (
+      <ul className="space-y-2 text-sm text-gray-600">
+        <li className="flex gap-2.5">
+          <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
+          Some features of the test may not work properly on tablets or touchscreen devices.
+        </li>
+        <li className="flex gap-2.5">
+          <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
+          Use only a laptop or desktop with a keyboard to take the test.
+        </li>
+      </ul>
+    ),
+  },
+];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -184,22 +268,19 @@ export function TestInstructionsPage() {
   }, [testId]);
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <Loader2 size={24} className="text-blue-500 animate-spin" />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <Loader2 size={28} className="text-[#1b3d6e] animate-spin" />
     </div>
   );
 
   if (error || !test) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <p className="text-red-500 font-medium">{error ?? 'Test not found'}</p>
         <button onClick={() => navigate(-1)} className="mt-3 text-sm text-blue-600 hover:underline">Go back</button>
       </div>
     </div>
   );
-
-  const totalQ = test.sections.reduce((a, s) => a + s.questions.length, 0);
-  const totalTime = test.sections.reduce((a, s) => a + s.timeLimit, 0);
 
   const handleStart = async () => {
     if (!agreed || !dbId || !testId) return;
@@ -209,17 +290,13 @@ export function TestInstructionsPage() {
       let attemptId = 'preview';
 
       if (!isPreview) {
-        // 1. Create attempt in DB
         const res = await api.startAttempt(testId, dbId) as { attemptId: string };
         attemptId = res.attemptId;
-        // 2. Start first section in DB + Redis
         await api.startSection(attemptId, test.sections[0].id);
       }
 
-      // 3. Flatten passage questions so fresh-start and resume use the same structure
       const flatTest = flattenTest(test);
 
-      // 4. Build local attempt state keyed by flattened section/question UUIDs
       const sections: Record<string, SectionAttempt> = {};
       flatTest.sections.forEach((sec) => {
         const questions: SectionAttempt['questions'] = {};
@@ -257,147 +334,77 @@ export function TestInstructionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Top bar */}
-      <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm">A</span>
-          </div>
-          <div className="min-w-0">
-            <h1 className="font-semibold text-slate-900 text-sm md:text-base truncate">{test.title}</h1>
-            <p className="text-xs text-slate-500">Instructions & Exam Agreement</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-slate-600 flex-shrink-0">
-          <span className="flex items-center gap-1.5"><FileText size={13} /> {totalQ} questions</span>
-          <span className="flex items-center gap-1.5"><Clock size={13} /> {totalTime} min</span>
-        </div>
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+      {/* Page header */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-[#1b3d6e]">{test.title}</h1>
+        <p className="mt-2 text-gray-500 text-base">
+          Please read the instructions carefully before starting the test.
+        </p>
       </div>
 
-      <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-6 md:py-8 space-y-4 md:space-y-6">
-        {/* Section overview */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-6">
-          <h2 className="font-bold text-slate-900 text-base md:text-lg mb-4">Test Overview</h2>
-          <div className="divide-y divide-slate-100">
-            {test.sections.map((sec, idx) => (
-              <div key={sec.id} className="flex items-center gap-3 py-3">
-                <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 text-sm font-bold flex-shrink-0">{idx + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-900 text-sm">{sec.name}</p>
-                  <p className="text-xs text-slate-500">{sec.questions.length} questions</p>
+      {/* Main card */}
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {SECTIONS.map((sec, idx) => {
+            const Icon = sec.icon;
+            return (
+              <div key={sec.title}>
+                <div className="px-8 py-7">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-11 h-11 rounded-full ${sec.iconBg} flex items-center justify-center flex-shrink-0`}>
+                      <Icon size={20} className={sec.iconColor} />
+                    </div>
+                    <h2 className="text-base font-bold text-gray-900">{sec.title}</h2>
+                  </div>
+                  <div className="pl-14">
+                    {sec.content}
+                  </div>
                 </div>
-                <Badge variant="info" size="sm"><Clock size={9} className="mr-1" />{sec.timeLimit} min</Badge>
+                {idx < SECTIONS.length - 1 && (
+                  <div className="border-t border-gray-100 mx-8" />
+                )}
               </div>
-            ))}
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-medium">
-            <span className="text-slate-600">Total</span>
-            <div className="flex gap-4 text-slate-900">
-              <span>{totalQ} questions</span>
-              <span>{totalTime} minutes</span>
-            </div>
-          </div>
+            );
+          })}
         </div>
 
-        {/* Instructions */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-6">
-          <h2 className="font-bold text-slate-900 text-base md:text-lg mb-4 flex items-center gap-2">
-            <FileText size={16} className="text-blue-600" /> Important Instructions
-          </h2>
-          <div className="space-y-4 text-sm text-slate-700">
-            {[
-              {
-                title: 'Saving Your Answers:',
-                items: [
-                  'Click Save & Next to save your answer and go to the next question.',
-                  'Click Mark for Review & Next to flag the question and move on.',
-                  'Your answers are auto-saved every time you click Save & Next.',
-                ],
-              },
-              {
-                title: 'Answering a Question:',
-                items: [
-                  'For MCQ: click an option to select. Click again or use Clear Response to deselect.',
-                  'For Numeric: type your answer in the input field.',
-                  'You MUST click Save & Next to record your answer.',
-                ],
-              },
-              {
-                title: 'Navigating Sections:',
-                items: [
-                  'Sections are shown at the top. Click to view questions in that section.',
-                  'After Save & Next on the last question, you move to the next section automatically.',
-                  ...(!test.allowBackNavigation ? ['⚠ Backward navigation between sections is NOT allowed.'] : []),
-                ],
-              },
-            ].map((group) => (
-              <div key={group.title}>
-                <h3 className="font-semibold text-slate-900 mb-1.5">{group.title}</h3>
-                <ul className="space-y-1 text-slate-600">
-                  {group.items.map((item, i) => (
-                    <li key={i} className={`flex gap-2 ${item.startsWith('⚠') ? 'text-red-600 font-medium' : ''}`}>
-                      <span className="text-blue-500 font-bold flex-shrink-0">{String.fromCharCode(96 + i + 1)}.</span>
-                      {item.replace('⚠ ', '')}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Anti-cheating notice */}
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 md:p-5 flex gap-3">
-          <AlertTriangle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-amber-900">
-            <p className="font-semibold mb-1">Academic Integrity Notice</p>
-            <p className="text-xs md:text-sm">This test is monitored. Tab switching is tracked and logged. Ensure you are in a quiet, distraction-free environment with no prohibited materials.</p>
-          </div>
-        </div>
-
-        {/* Palette legend */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5">
-          <h3 className="font-semibold text-slate-900 mb-3">Question Palette Legend</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-            {[
-              { color: 'bg-slate-200', label: 'Not Visited' },
-              { color: 'bg-red-500', label: 'Not Answered' },
-              { color: 'bg-emerald-500', label: 'Answered' },
-              { color: 'bg-purple-500', label: 'Marked for Review' },
-              { color: 'bg-blue-500', label: 'Answered & Marked' },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full ${item.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>1</div>
-                <span className="text-slate-600 text-xs md:text-sm">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Agreement */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5">
-          {error && <p className="text-red-500 text-sm mb-3 bg-red-50 p-2 rounded-lg">{error}</p>}
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-0.5 w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0" />
-            <p className="text-sm text-slate-700 leading-relaxed">
-              I have read and understood the instructions. All computer hardware allotted to me is in proper working condition. I declare that I am not in possession of any prohibited materials. I agree that any violation shall make me liable for disciplinary action.
+        {/* Agreement checkbox */}
+        <div className="mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
+          {error && (
+            <p className="text-red-500 text-sm mb-4 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          )}
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-0.5 w-4.5 h-4.5 rounded border-gray-300 text-[#1b3d6e] focus:ring-[#1b3d6e] cursor-pointer flex-shrink-0 accent-[#1b3d6e]"
+            />
+            <p className="text-sm text-gray-600 leading-relaxed">
+              I have read and understood all the instructions above. I declare that I am not in
+              possession of any prohibited materials and agree that any violation shall make me
+              liable for disciplinary action.
             </p>
           </label>
         </div>
 
         {/* Start button */}
-        <div className="flex justify-center pb-4">
-          <Button
-            size="lg"
+        <div className="mt-6 flex justify-center pb-4">
+          <button
             disabled={!agreed || starting}
             onClick={handleStart}
-            icon={starting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-            className="px-8 md:px-12 py-3 text-sm md:text-base w-full sm:w-auto"
+            className={`inline-flex items-center gap-2.5 px-10 py-3 rounded-xl text-sm font-semibold transition-all
+              ${agreed && !starting
+                ? 'bg-[#1b3d6e] hover:bg-[#15305a] text-white shadow-md hover:shadow-lg'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
           >
-            {starting ? 'Starting…' : 'Proceed to Start Test'}
-          </Button>
+            {starting
+              ? <><Loader2 size={16} className="animate-spin" /> Starting…</>
+              : <><Play size={16} /> Proceed to Start Test</>
+            }
+          </button>
         </div>
       </div>
     </div>
