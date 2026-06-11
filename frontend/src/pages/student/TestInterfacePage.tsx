@@ -1507,36 +1507,36 @@ export function TestInterfacePage() {
 
               {/* ── Row 1: 2D Area shapes ── */}
               <div className="grid grid-cols-3 gap-3">
-                {/* Circle */}
+                {/* Circle — viewBox has 8px padding on all sides so labels never clip */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
-                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
-                    <circle cx="40" cy="33" r="26" fill="none" stroke="#111" strokeWidth="1.6"/>
-                    <line x1="40" y1="33" x2="66" y2="33" stroke="#111" strokeWidth="1.4"/>
-                    <circle cx="40" cy="33" r="2" fill="#111"/>
-                    <text x="50" y="28" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">r</text>
+                  <svg viewBox="0 0 96 84" className="w-20 h-16 mb-2" aria-hidden>
+                    <circle cx="48" cy="40" r="30" fill="none" stroke="#111" strokeWidth="1.8"/>
+                    <circle cx="48" cy="40" r="2.4" fill="#111"/>
+                    <line x1="48" y1="40" x2="78" y2="40" stroke="#111" strokeWidth="1.4"/>
+                    <text x="60" y="35" fontSize="14" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">r</text>
                   </svg>
                   <p className="text-sm text-gray-900 leading-snug">A = πr²</p>
                   <p className="text-sm text-gray-900 leading-snug">C = 2πr</p>
                 </div>
 
-                {/* Rectangle */}
+                {/* Rectangle — l below bottom edge, w right of right edge, both safely within viewBox */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
-                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
-                    <rect x="8" y="15" width="60" height="36" fill="none" stroke="#111" strokeWidth="1.6"/>
-                    <text x="33" y="62" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">l</text>
-                    <text x="0" y="36" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">w</text>
+                  <svg viewBox="0 0 96 84" className="w-20 h-16 mb-2" aria-hidden>
+                    <rect x="10" y="14" width="60" height="42" fill="none" stroke="#111" strokeWidth="1.8"/>
+                    <text x="36" y="72" fontSize="14" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">l</text>
+                    <text x="74" y="38" fontSize="14" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">w</text>
                   </svg>
                   <p className="text-sm text-gray-900">A = lw</p>
                 </div>
 
-                {/* Triangle */}
+                {/* Triangle — b moved to y=74 so it sits inside the viewBox */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
-                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
-                    <polygon points="8,58 72,58 40,10" fill="none" stroke="#111" strokeWidth="1.6"/>
-                    <line x1="40" y1="10" x2="40" y2="58" stroke="#111" strokeWidth="1.2" strokeDasharray="4,3"/>
-                    <polyline points="40,50 48,50 48,58" fill="none" stroke="#111" strokeWidth="1.2"/>
-                    <text x="42" y="38" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">h</text>
-                    <text x="52" y="66" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">b</text>
+                  <svg viewBox="0 0 96 84" className="w-20 h-16 mb-2" aria-hidden>
+                    <polygon points="8,70 88,70 48,12" fill="none" stroke="#111" strokeWidth="1.8"/>
+                    <line x1="48" y1="12" x2="48" y2="70" stroke="#111" strokeWidth="1.3" strokeDasharray="4,3"/>
+                    <polyline points="42,63 42,70 48,70" fill="none" stroke="#111" strokeWidth="1.3"/>
+                    <text x="51" y="44" fontSize="14" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">h</text>
+                    <text x="60" y="80" fontSize="14" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">b</text>
                   </svg>
                   <p className="text-sm text-gray-900">A = ½bh</p>
                 </div>
@@ -1544,43 +1544,52 @@ export function TestInterfacePage() {
 
               {/* ── Row 2: Right triangles ── */}
               <div className="grid grid-cols-3 gap-3">
-                {/* Pythagorean theorem */}
+                {/* Pythagorean — right angle bottom-left; b moved to y=78 (inside viewBox 84 tall) */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
-                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
-                    <polygon points="8,58 60,58 8,14" fill="none" stroke="#111" strokeWidth="1.6"/>
-                    <polyline points="8,46 20,46 20,58" fill="none" stroke="#111" strokeWidth="1.2"/>
-                    <text x="10" y="38" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">a</text>
-                    <text x="32" y="66" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">b</text>
-                    <text x="38" y="33" fontSize="11" fill="#111" fontStyle="italic" fontFamily="serif">c</text>
+                  <svg viewBox="0 0 96 84" className="w-20 h-16 mb-2" aria-hidden>
+                    <polygon points="12,70 74,70 12,14" fill="none" stroke="#111" strokeWidth="1.8"/>
+                    <polyline points="12,58 24,58 24,70" fill="none" stroke="#111" strokeWidth="1.3"/>
+                    <text x="14" y="46" fontSize="14" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">a</text>
+                    <text x="39" y="79" fontSize="14" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">b</text>
+                    <text x="49" y="40" fontSize="14" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">c</text>
                   </svg>
                   <p className="text-sm text-gray-900">c² = a² + b²</p>
                 </div>
 
-                {/* 30-60-90 */}
+                {/*
+                  30-60-90 — right angle at BOTTOM-RIGHT so the x√3 label sits on the right
+                  side with plenty of room (no left-edge clip).
+                  Vertices: (14,70)=60°  (68,70)=90°  (68,12)=30°
+                  Bottom leg = x, right leg = x√3, hypotenuse = 2x
+                */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
-                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
-                    <polygon points="8,58 72,58 8,14" fill="none" stroke="#111" strokeWidth="1.6"/>
-                    <polyline points="8,46 20,46 20,58" fill="none" stroke="#111" strokeWidth="1.2"/>
-                    <text x="9" y="40" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x√3</text>
-                    <text x="36" y="66" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x</text>
-                    <text x="42" y="34" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">2x</text>
-                    <text x="22" y="57" fontSize="8" fill="#555" fontFamily="sans-serif">60°</text>
-                    <text x="10" y="57" fontSize="7.5" fill="#555" fontFamily="sans-serif">30°</text>
+                  <svg viewBox="0 0 96 84" className="w-20 h-16 mb-2" aria-hidden>
+                    <polygon points="14,70 68,70 68,12" fill="none" stroke="#111" strokeWidth="1.8"/>
+                    <polyline points="56,70 56,58 68,58" fill="none" stroke="#111" strokeWidth="1.3"/>
+                    <text x="36" y="79" fontSize="10" fill="#111" fontFamily="Arial,sans-serif" fontWeight="600">x</text>
+                    <text x="70" y="45" fontSize="10" fill="#111" fontFamily="Arial,sans-serif" fontWeight="600">x√3</text>
+                    <text x="26" y="36" fontSize="10" fill="#111" fontFamily="Arial,sans-serif" fontWeight="600">2x</text>
+                    <text x="50" y="28" fontSize="9" fill="#555" fontFamily="Arial,sans-serif">30°</text>
+                    <text x="20" y="65" fontSize="9" fill="#555" fontFamily="Arial,sans-serif">60°</text>
                   </svg>
                   <p className="text-[11px] text-gray-500 mb-0.5">30°– 60°– 90°</p>
                   <p className="text-sm text-gray-900">x : x√3 : 2x</p>
                 </div>
 
-                {/* 45-45-90 */}
+                {/*
+                  45-45-90 — right angle at BOTTOM-RIGHT, two equal legs.
+                  Vertices: (12,70)=45°  (70,70)=90°  (70,12)=45°
+                  Both legs = x (58 units each ≈ equal), hypotenuse = x√2
+                */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-2">
-                  <svg viewBox="0 0 80 66" className="w-16 h-14 mb-2" aria-hidden>
-                    <polygon points="8,58 56,58 8,10" fill="none" stroke="#111" strokeWidth="1.6"/>
-                    <polyline points="8,46 20,46 20,58" fill="none" stroke="#111" strokeWidth="1.2"/>
-                    <text x="10" y="36" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x</text>
-                    <text x="29" y="66" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x</text>
-                    <text x="32" y="30" fontSize="9" fill="#111" fontFamily="serif" fontStyle="italic">x√2</text>
-                    <text x="22" y="57" fontSize="8" fill="#555" fontFamily="sans-serif">45°</text>
-                    <text x="10" y="57" fontSize="7.5" fill="#555" fontFamily="sans-serif">45°</text>
+                  <svg viewBox="0 0 96 84" className="w-20 h-16 mb-2" aria-hidden>
+                    <polygon points="12,70 70,70 70,12" fill="none" stroke="#111" strokeWidth="1.8"/>
+                    <polyline points="58,70 58,58 70,58" fill="none" stroke="#111" strokeWidth="1.3"/>
+                    <text x="36" y="79" fontSize="10" fill="#111" fontFamily="Arial,sans-serif" fontWeight="600">x</text>
+                    <text x="72" y="45" fontSize="10" fill="#111" fontFamily="Arial,sans-serif" fontWeight="600">x</text>
+                    <text x="22" y="34" fontSize="10" fill="#111" fontFamily="Arial,sans-serif" fontWeight="600">x√2</text>
+                    <text x="18" y="65" fontSize="9" fill="#555" fontFamily="Arial,sans-serif">45°</text>
+                    <text x="52" y="26" fontSize="9" fill="#555" fontFamily="Arial,sans-serif">45°</text>
                   </svg>
                   <p className="text-[11px] text-gray-500 mb-0.5">45°– 45°– 90°</p>
                   <p className="text-sm text-gray-900">x : x : x√2</p>
@@ -1589,72 +1598,76 @@ export function TestInterfacePage() {
 
               {/* ── Row 3: Volume shapes ── */}
               <div className="grid grid-cols-5 gap-2">
-                {/* Rectangular Solid */}
+                {/* Rectangular Solid — box shifted right so h label at x=5 is fully visible */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
-                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
-                    <rect x="12" y="22" width="36" height="26" fill="none" stroke="#111" strokeWidth="1.4"/>
-                    <polygon points="12,22 26,10 62,10 48,22" fill="none" stroke="#111" strokeWidth="1.4"/>
-                    <polygon points="48,22 62,10 62,36 48,48" fill="none" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="12" y1="48" x2="48" y2="48" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="48" y1="48" x2="48" y2="22" stroke="#111" strokeWidth="1.4"/>
-                    <text x="25" y="55" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">l</text>
-                    <text x="51" y="46" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">w</text>
-                    <text x="3" y="37" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">h</text>
+                  <svg viewBox="0 0 84 70" className="w-14 h-12 mb-2" aria-hidden>
+                    <rect x="18" y="24" width="34" height="26" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <polygon points="18,24 30,14 64,14 52,24" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <polygon points="52,24 64,14 64,38 52,50" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="30" y1="14" x2="30" y2="40" stroke="#111" strokeWidth="1" strokeDasharray="3,3"/>
+                    <line x1="30" y1="40" x2="64" y2="40" stroke="#111" strokeWidth="1" strokeDasharray="3,3"/>
+                    <line x1="18" y1="50" x2="30" y2="40" stroke="#111" strokeWidth="1" strokeDasharray="3,3"/>
+                    <text x="31" y="62" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">l</text>
+                    <text x="55" y="54" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">w</text>
+                    <text x="5" y="39" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">h</text>
                   </svg>
                   <p className="text-[11px] text-gray-900 font-medium">V = lwh</p>
                 </div>
 
                 {/* Cylinder */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
-                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
-                    <ellipse cx="36" cy="13" rx="22" ry="7" fill="none" stroke="#111" strokeWidth="1.4"/>
-                    <ellipse cx="36" cy="45" rx="22" ry="7" fill="none" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="14" y1="13" x2="14" y2="45" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="58" y1="13" x2="58" y2="45" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="36" y1="13" x2="58" y2="13" stroke="#111" strokeWidth="1.2"/>
-                    <text x="43" y="9" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">r</text>
-                    <text x="60" y="32" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">h</text>
+                  <svg viewBox="0 0 84 70" className="w-14 h-12 mb-2" aria-hidden>
+                    <ellipse cx="40" cy="14" rx="24" ry="8" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <ellipse cx="40" cy="54" rx="24" ry="8" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="16" y1="14" x2="16" y2="54" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="64" y1="14" x2="64" y2="54" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="40" y1="14" x2="64" y2="14" stroke="#111" strokeWidth="1.3"/>
+                    <circle cx="40" cy="14" r="2" fill="#111"/>
+                    <text x="49" y="10" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">r</text>
+                    <text x="66" y="37" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">h</text>
                   </svg>
                   <p className="text-[11px] text-gray-900 font-medium">V = πr²h</p>
                 </div>
 
                 {/* Sphere */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
-                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
-                    <circle cx="36" cy="29" r="23" fill="none" stroke="#111" strokeWidth="1.4"/>
-                    <ellipse cx="36" cy="29" rx="23" ry="7" fill="none" stroke="#111" strokeWidth="1.1" strokeDasharray="4,3"/>
-                    <line x1="36" y1="29" x2="59" y2="29" stroke="#111" strokeWidth="1.2"/>
-                    <circle cx="36" cy="29" r="1.8" fill="#111"/>
-                    <text x="44" y="25" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">r</text>
+                  <svg viewBox="0 0 84 70" className="w-14 h-12 mb-2" aria-hidden>
+                    <circle cx="42" cy="35" r="27" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <ellipse cx="42" cy="35" rx="27" ry="9" fill="none" stroke="#111" strokeWidth="1.1" strokeDasharray="5,3"/>
+                    <line x1="42" y1="35" x2="69" y2="35" stroke="#111" strokeWidth="1.3"/>
+                    <circle cx="42" cy="35" r="2" fill="#111"/>
+                    <text x="52" y="30" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">r</text>
                   </svg>
                   <p className="text-[11px] text-gray-900 font-medium">V = 4/3 πr³</p>
                 </div>
 
                 {/* Cone */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
-                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
-                    <line x1="36" y1="5" x2="12" y2="49" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="36" y1="5" x2="60" y2="49" stroke="#111" strokeWidth="1.4"/>
-                    <ellipse cx="36" cy="49" rx="24" ry="7" fill="none" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="36" y1="5" x2="36" y2="49" stroke="#111" strokeWidth="1.1" strokeDasharray="3,3"/>
-                    <line x1="36" y1="49" x2="60" y2="49" stroke="#111" strokeWidth="1.2"/>
-                    <text x="43" y="47" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">r</text>
-                    <text x="38" y="30" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">h</text>
+                  <svg viewBox="0 0 84 70" className="w-14 h-12 mb-2" aria-hidden>
+                    <line x1="42" y1="4" x2="12" y2="58" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="42" y1="4" x2="72" y2="58" stroke="#111" strokeWidth="1.4"/>
+                    <ellipse cx="42" cy="58" rx="30" ry="9" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="42" y1="4" x2="42" y2="58" stroke="#111" strokeWidth="1.1" strokeDasharray="3,3"/>
+                    <line x1="42" y1="58" x2="72" y2="58" stroke="#111" strokeWidth="1.2"/>
+                    <text x="44" y="33" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">h</text>
+                    <text x="54" y="55" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">r</text>
                   </svg>
                   <p className="text-[11px] text-gray-900 font-medium">V = 1/3 πr²h</p>
                 </div>
 
                 {/* Pyramid */}
                 <div className="flex flex-col items-center text-center border border-gray-200 rounded-lg py-3 px-1">
-                  <svg viewBox="0 0 72 58" className="w-14 h-11 mb-2" aria-hidden>
-                    <polygon points="16,48 56,48 64,36 24,36" fill="none" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="36" y1="7" x2="16" y2="48" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="36" y1="7" x2="56" y2="48" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="36" y1="7" x2="64" y2="36" stroke="#111" strokeWidth="1.4"/>
-                    <line x1="36" y1="7" x2="24" y2="36" stroke="#111" strokeWidth="1.1" strokeDasharray="3,3"/>
-                    <line x1="16" y1="48" x2="24" y2="36" stroke="#111" strokeWidth="1.1" strokeDasharray="3,3"/>
-                    <text x="32" y="56" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">l</text>
-                    <text x="57" y="45" fontSize="9" fill="#111" fontStyle="italic" fontFamily="serif">w</text>
+                  <svg viewBox="0 0 84 70" className="w-14 h-12 mb-2" aria-hidden>
+                    <polygon points="10,56 54,56 62,44 18,44" fill="none" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="8" x2="10" y2="56" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="8" x2="54" y2="56" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="8" x2="62" y2="44" stroke="#111" strokeWidth="1.4"/>
+                    <line x1="36" y1="8" x2="18" y2="44" stroke="#111" strokeWidth="1" strokeDasharray="3,3"/>
+                    <line x1="10" y1="56" x2="18" y2="44" stroke="#111" strokeWidth="1" strokeDasharray="3,3"/>
+                    <line x1="36" y1="8" x2="36" y2="50" stroke="#111" strokeWidth="1" strokeDasharray="3,3"/>
+                    <text x="28" y="65" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">l</text>
+                    <text x="55" y="55" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">w</text>
+                    <text x="38" y="30" fontSize="9.5" fill="#111" fontStyle="italic" fontFamily="Georgia,serif">h</text>
                   </svg>
                   <p className="text-[11px] text-gray-900 font-medium">V = 1/3 lwh</p>
                 </div>
