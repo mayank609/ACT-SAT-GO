@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
@@ -133,5 +133,17 @@ const router = createBrowserRouter(
 );
 
 export default function App() {
+  const initAuth = useAuthStore((s) => s.initAuth);
+  const bootstrapping = useAuthStore((s) => s.bootstrapping);
+
+  // Reconcile persisted auth with the real Supabase session before rendering
+  // any route — prevents a flash of protected content (or a wrong redirect)
+  // when a persisted session has actually expired or been revoked.
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
+
+  if (bootstrapping) return <PageFallback />;
+
   return <RouterProvider router={router} />;
 }

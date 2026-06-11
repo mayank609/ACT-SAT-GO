@@ -1,63 +1,114 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, Role } from '../types';
+import { supabase } from '../lib/supabase';
+import { api, type DbUser } from '../lib/api';
+
+// Maps a database user row to the in-app User shape.
+export function dbUserToAuthUser(u: DbUser): User {
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role as Role,
+    assignedTutorId: u.tutorId ?? undefined,
+    assignedStudentIds: u.studentIds ?? [],
+  };
+}
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   dbId: string | null;
   isAuthenticated: boolean;
-  login: (user: User, token: string) => void;
+  // True until the initial Supabase session check completes on app load.
+  bootstrapping: boolean;
+  setSession: (user: User, dbId: string) => void;
   logout: () => void;
-  updateUser: (user: Partial<User>) => void;
+  updateUser: (updates: Partial<User>) => void;
   setDbId: (id: string | null) => void;
+  initAuth: () => Promise<void>;
 }
 
-// Mock users for demo — names match seeded DB users for display consistency
-export const MOCK_USERS: Record<Role, User> = {
-  super_admin: {
-    id: 'sa-1',
-    name: 'Super Admin',
-    email: 'admin@actsat.com',
-    role: 'super_admin',
-  },
-  admin: {
-    id: 'admin-1',
-    name: 'Staff Admin',
-    email: 'staff@actsat.com',
-    role: 'admin',
-  },
-  tutor: {
-    id: 'tutor-1',
-    name: 'Emily Rodriguez',
-    email: 'emily.rodriguez@actsat.com',
-    role: 'tutor',
-    assignedStudentIds: [],
-  },
-  student: {
-    id: 's-1',
-    name: 'Alex Thompson',
-    email: 'alex.thompson@student.com',
-    role: 'student',
-    assignedTutorId: 'tutor-1',
-  },
-};
+// Guard so the onAuthStateChange listener is only ever attached once.
+let authListenerAttached = false;
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
-      token: null,
       dbId: null,
       isAuthenticated: false,
-      login: (user, token) => set({ user, token, isAuthenticated: true }),
-      logout: () => set({ user: null, token: null, dbId: null, isAuthenticated: false }),
+      bootstrapping: true,
+
+      setSession: (user, dbId) => set({ user, dbId, isAuthenticated: true }),
+
+      logout: () => {
+        // Clear local state immediately; revoke the Supabase session in the
+        // background (callers navigate away synchronously).
+        set({ user: null, dbId: null, isAuthenticated: false });
+        supabase.auth.signOut().catch(() => {});
+      },
+
       updateUser: (updates) =>
-        set((state) => ({
-          user: state.user ? { ...state.user, ...updates } : null,
-        })),
+        set((state) => ({ user: state.user ? { ...state.user, ...updates } : null })),
+
       setDbId: (id) => set({ dbId: id }),
+
+      // Reconcile persisted state with the real Supabase session. Source of
+      // truth is the session: if there's no valid session, the user is logged
+      // out regardless of what was persisted in localStorage.
+      initAuth: async () => {
+        // Attach the session listener once (handles refresh + sign-out across tabs).
+        if (!authListenerAttached) {
+          authListenerAttached = true;
+          supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || !session) {
+              set({ user: null, dbId: null, isAuthenticated: false });
+            }
+          });
+        }
+
+        try {
+          const { data } = await supabase.auth.getSession();
+          const session = data.session;
+          if (!session) {
+            set({ user: null, dbId: null, isAuthenticated: false, bootstrapping: false });
+            return;
+          }
+
+          // The DB user id equals the Supabase auth user id (set at creation).
+          const existing = get().user;
+          if (existing && existing.id === session.user.id) {
+            set({ isAuthenticated: true, bootstrapping: false });
+            // Refresh role/relations in the background without blocking paint.
+            api.getUser(session.user.id)
+              .then(({ user }) => set({ user: dbUserToAuthUser(user), dbId: user.id }))
+              .catch(() => {});
+            return;
+          }
+
+          const { user: dbUser } = await api.getUser(session.user.id);
+          set({
+            user: dbUserToAuthUser(dbUser),
+            dbId: dbUser.id,
+            isAuthenticated: true,
+            bootstrapping: false,
+          });
+        } catch {
+          // Session exists but we couldn't resolve the DB profile — treat as
+          // logged out to avoid a half-authenticated state.
+          set({ user: null, dbId: null, isAuthenticated: false, bootstrapping: false });
+        }
+      },
     }),
-    { name: 'auth-storage' }
+    {
+      name: 'auth-storage',
+      // Don't persist bootstrapping; it must start true on every load.
+      partialize: (state) => ({
+        user: state.user,
+        dbId: state.dbId,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
   )
 );

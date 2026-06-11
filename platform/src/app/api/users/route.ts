@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,6 +84,10 @@ function generateTempPassword(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Only staff admins may create users.
+    const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+    if (auth instanceof NextResponse) return auth
+
     const body = await request.json()
     const { name, email, role, grade, targetScore, tutorId, specialization, phone, parentPhone, dob, schoolName } = body as {
       name: string

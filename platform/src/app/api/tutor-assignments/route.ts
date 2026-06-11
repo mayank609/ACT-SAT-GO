@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,6 +73,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+  if (auth instanceof NextResponse) return auth
   try {
     const { tutorId, studentId } = await request.json() as { tutorId: string; studentId: string }
     if (!tutorId || !studentId) {
@@ -91,6 +94,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+  if (auth instanceof NextResponse) return auth
+
   const { searchParams } = new URL(request.url)
   const tutorId = searchParams.get('tutorId')
   const studentId = searchParams.get('studentId')

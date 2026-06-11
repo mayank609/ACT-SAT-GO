@@ -1,13 +1,25 @@
+import { getAccessToken } from './supabase'
+
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
+// Build the Authorization header from the current Supabase session, if any.
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const auth = await authHeaders()
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...auth, ...options?.headers },
     ...options,
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error ?? 'Request failed')
+    const message = err.error ?? 'Request failed'
+    const e = new Error(message) as Error & { status?: number }
+    e.status = res.status
+    throw e
   }
   return res.json()
 }
@@ -324,6 +336,7 @@ export const api = {
     formData.append('context', context)
     const res = await fetch(`${BASE}/api/images/upload`, {
       method: 'POST',
+      headers: { ...(await authHeaders()) },
       body: formData,
     })
     if (!res.ok) {
@@ -351,7 +364,7 @@ export const api = {
   deleteImage: async (path: string) => {
     const res = await fetch(`${BASE}/api/images/delete`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({ path }),
     })
     if (!res.ok) {

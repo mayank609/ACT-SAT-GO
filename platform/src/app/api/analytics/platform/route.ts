@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+  if (auth instanceof NextResponse) return auth
   try {
     // Last 7 days daily activity
     const days: { date: string; attempts: number; completions: number }[] = []

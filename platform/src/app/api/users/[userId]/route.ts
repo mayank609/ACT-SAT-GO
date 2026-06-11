@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireRole, getCurrentUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,9 +64,12 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+  if (auth instanceof NextResponse) return auth
+
   const { userId } = await params
   try {
     await prisma.user.delete({ where: { id: userId } })
@@ -81,6 +85,17 @@ export async function PATCH(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const { userId } = await params
+
+  // Users may edit their own profile; staff admins may edit anyone.
+  const requester = await getCurrentUser(request)
+  if (!requester) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  }
+  const isAdmin = requester.role === 'ADMIN' || requester.role === 'SUPER_ADMIN'
+  if (requester.id !== userId && !isAdmin) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  }
+
   try {
     const body = await request.json()
     const { name, grade, targetScore, specialization, tutorId, notifications, phone, parentPhone, dob, schoolName } = body as {

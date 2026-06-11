@@ -8,6 +8,83 @@ gracefully until the backend pieces below are in place.
 
 ---
 
+## 2026-06-11 — Real authentication (Supabase) + API protection
+
+The frontend now performs **real Supabase Auth login** and sends
+`Authorization: Bearer <jwt>` on every API call. The API is no longer open.
+
+### What changed (already implemented, both repos)
+
+**Frontend**
+- `frontend/src/lib/supabase.ts` — new browser Supabase client.
+- `frontend/.env` — added `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+  (public values, copied from the backend's `NEXT_PUBLIC_SUPABASE_*`).
+- `frontend/src/lib/api.ts` — attaches the Supabase access token as a Bearer
+  header on all requests (incl. image upload/delete).
+- `frontend/src/store/useAuthStore.ts` — session-backed; `initAuth()` reconciles
+  the persisted user with the real Supabase session on load; real `logout()`.
+- `LoginPage` — real `signInWithPassword`; **removed** the pre-auth user listing
+  and one-click "demo login" (those leaked every user's email to anonymous
+  visitors and bypassed auth).
+- `App.tsx` — calls `initAuth()` on mount and shows a loader until the session
+  check completes (prevents a flash of protected content).
+
+**Backend**
+- `platform/src/proxy.ts` — now **verifies the Supabase JWT for every `/api/`
+  request** (except `/api/health`). Anonymous/invalid → 401. On success it
+  forwards a trusted `x-user-id` header (and strips any client-supplied one).
+- `platform/src/lib/auth.ts` — new helpers `getCurrentUser`, `requireRole`,
+  `requireUser` for route-level authorization (read `x-user-id`, load DB user).
+- Role gates applied to: `POST /api/users`, `DELETE/PATCH /api/users/[userId]`
+  (PATCH = self-or-admin), `GET/POST /api/permissions`, `POST/DELETE
+  /api/tutor-assignments`, `GET /api/analytics/platform`.
+
+### ⚠️ Deployment / env actions for you (Sunanda)
+
+1. **Hosted frontend env:** set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+   in the frontend host (Vercel/Netlify/etc.) — same public values as the
+   backend's `NEXT_PUBLIC_SUPABASE_*`. (Already in local `frontend/.env`.)
+2. **`CORS_ORIGIN`:** set it on the backend to the SPA's exact origin instead of
+   the `*` default (we use bearer tokens, not cookies, so this is hardening, not
+   strictly required). Note `next.config.js` sends `Allow-Credentials: true`
+   with the origin — fine for bearer auth; if you ever switch to cookie auth,
+   `*` + credentials is invalid and must be a concrete origin.
+3. **Temp passwords:** `POST /api/users` creates the Supabase account with a
+   generated temp password (`email_confirm: true`). Confirm that password is
+   surfaced to the admin (or an invite/reset email is sent) so invited users can
+   actually log in. Password reset was intentionally out of scope this pass.
+4. **Server-to-server callers** (seed scripts, cron, health pingers other than
+   `/api/health`) must now send a valid bearer token, or be added to
+   `PUBLIC_API_PREFIXES` in `proxy.ts`.
+
+### Bootstrap admin (done)
+
+Because real auth replaced the fake login, the seed users (DB-only, no Supabase
+account) can no longer log in. Added `platform/scripts/create-admin.ts` which
+provisions a Supabase Auth account + matching DB row (id = auth id). Already run
+once to create a default **SUPER_ADMIN**: `admin@actsat.com` / `Admin@12345`
+(please change this). The seed's old `admin@actsat.com` DB row was renamed to
+`legacy+721a8d04_admin@actsat.com` (non-destructive). Run with Node 22:
+`PATH="$HOME/.nvm/versions/node/v22.18.0/bin:$PATH" npx tsx scripts/create-admin.ts [email] [password] [name]`.
+
+### Recommended follow-ups (not done — your call)
+
+- **Finish role gates** on the remaining write endpoints: `POST/PATCH/DELETE`
+  on `tests`, `tests/[testId]`, `questions`, `test-assignments`, `notes`
+  (staff-only), and `GET /api/users` (list — staff-only; currently any
+  authenticated user).
+- **Ownership checks** (a student can only read their own data) on
+  `attempts/[attemptId]`, `students/[studentId]/*`, `analytics/student/[studentId]`.
+  The proxy guarantees *authentication*; these need per-resource *authorization*.
+- **Perf:** the proxy calls `supabase.auth.getUser()` (network) per request. To
+  cut that latency, verify the JWT locally with `SUPABASE_JWT_SECRET` + `jose`
+  (needs the dep + env var). Matters most for test autosave traffic.
+- **SSE:** `notifications/stream` is now behind the auth gate; `EventSource`
+  can't send a bearer header. The frontend doesn't use it today — switch to a
+  fetch-based stream or a query-param token if you wire it up.
+
+---
+
 ## 2026-06-10 — "My Doubts" feature (test review)
 
 **What the student sees:** On the test-review page, each question's *Explanation*
