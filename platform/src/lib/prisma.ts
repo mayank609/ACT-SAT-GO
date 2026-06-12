@@ -9,7 +9,12 @@ function createPrismaClient() {
     connectionString: process.env.DATABASE_URL,
   })
   const adapter = new PrismaPg(pool)
-  return new PrismaClient({ adapter })
+  return new PrismaClient({
+    adapter,
+    // Default is 5s, which large test saves (~100 statements in one
+    // transaction) exceed on high-latency connections to the remote DB.
+    transactionOptions: { maxWait: 10000, timeout: 60000 },
+  })
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()

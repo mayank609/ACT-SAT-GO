@@ -170,11 +170,31 @@ export async function PATCH(
         }
       }
     }
-    const existingIds = new Set(
-      candidateIds.length
-        ? (await prisma.question.findMany({ where: { id: { in: candidateIds } }, select: { id: true } })).map((r) => r.id)
-        : []
-    )
+    // Full rows so unchanged questions can skip their UPDATE statement entirely
+    // — for a typical edit this collapses ~100 statements down to a handful.
+    const existingRows = candidateIds.length
+      ? await prisma.question.findMany({
+          where: { id: { in: candidateIds } },
+          select: { id: true, type: true, content: true, options: true, correctAnswer: true, difficultyLevel: true, topicId: true, parentQuestionId: true },
+        })
+      : []
+    const existingById = new Map(existingRows.map((r) => [r.id, r]))
+    const existingIds = new Set(existingRows.map((r) => r.id))
+
+    const isUnchanged = (id: string, data: { type: any; content: unknown; options: unknown; correctAnswer: unknown; difficultyLevel: any; topicId: string | null; parentQuestionId: string | null }) => {
+      const row = existingById.get(id)
+      if (!row) return false
+      const newOptions = data.options === Prisma.DbNull ? null : data.options
+      return (
+        row.type === data.type &&
+        row.difficultyLevel === data.difficultyLevel &&
+        row.topicId === data.topicId &&
+        row.parentQuestionId === data.parentQuestionId &&
+        JSON.stringify(row.content) === JSON.stringify(data.content) &&
+        JSON.stringify(row.options) === JSON.stringify(newOptions) &&
+        JSON.stringify(row.correctAnswer) === JSON.stringify(data.correctAnswer)
+      )
+    }
 
     const buildQuestionData = (q: FrontendQuestion, parentQuestionId: string | null) => {
       const dbType = TYPE_MAP[q.type]
@@ -226,7 +246,7 @@ export async function PATCH(
         const parentId = reuse ? q.id! : randomUUID()
         const parentData = buildQuestionData(q, null)
         if (reuse) {
-          updates.push({ id: parentId, data: parentData })
+          if (!isUnchanged(parentId, parentData)) updates.push({ id: parentId, data: parentData })
           reusedParentIds.push(parentId)
           keptChildIdsByParent.set(parentId, [])
         } else {
@@ -244,7 +264,7 @@ export async function PATCH(
             // No TestQuestion row for child questions — they belong to the test via
             // the passage parent's childQuestions relation; a row would double-count.
             if (childReuse) {
-              updates.push({ id: childId, data: childData })
+              if (!isUnchanged(childId, childData)) updates.push({ id: childId, data: childData })
             } else {
               childCreates.push({ id: childId, ...childData, options: childData.options === Prisma.DbNull ? undefined : childData.options })
             }
