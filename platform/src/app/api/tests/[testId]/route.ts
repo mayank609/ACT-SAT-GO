@@ -307,7 +307,7 @@ export async function PATCH(
           })]
         : []),
       prisma.testQuestion.createMany({ data: testQuestionRows }),
-    ])
+    ], { maxWait: 10000, timeout: 60000 })
 
     const test = await prisma.test.findUnique({
       where: { id: testId },

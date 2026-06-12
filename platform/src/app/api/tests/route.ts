@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
       ...(parentRows.length ? [prisma.question.createMany({ data: parentRows })] : []),
       ...(childRows.length ? [prisma.question.createMany({ data: childRows })] : []),
       ...(testQuestionRows.length ? [prisma.testQuestion.createMany({ data: testQuestionRows })] : []),
-    ])
+    ], { maxWait: 10000, timeout: 60000 })
 
     const test = await prisma.test.findUnique({
       where: { id: testId },
