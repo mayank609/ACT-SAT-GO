@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Link, Trash2, Eye, Check, Loader2, Image as ImageIcon } from 'lucide-react';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 
 interface UploadedImage {
   url: string;
@@ -81,65 +82,116 @@ export function ImageUploader({
     return true;
   };
 
-  const handleUpload = (file: File) => {
+  const handleUpload = async (file: File) => {
     if (!validateFile(file)) return;
 
     setUploading(true);
     setUploadProgress(0);
     setError(null);
 
-    // Create a local preview before upload finishes
-    const localUrl = URL.createObjectURL(file);
-    setUploadPreview(localUrl);
+    const localPreviewUrl = URL.createObjectURL(file);
+    setUploadPreview(localPreviewUrl);
 
-    // Use XMLHttpRequest for real upload progress
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('context', context);
-
-    const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-    xhr.open('POST', `${apiBase}/api/images/upload`);
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percentComplete = Math.round((event.loaded / event.total) * 100);
-        setUploadProgress(percentComplete);
-      }
-    };
-
-    xhr.onload = () => {
-      URL.revokeObjectURL(localUrl);
+    const cleanup = () => {
+      URL.revokeObjectURL(localPreviewUrl);
       setUploadPreview(null);
       setUploading(false);
+    };
 
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const result = JSON.parse(xhr.responseText) as UploadedImage;
-          setImages((prev) => [result, ...prev]);
-          // Automatically insert the uploaded image
-          onInsertImage(result.url);
-        } catch (e) {
-          setError('Failed to parse upload response.');
-        }
+    try {
+      // ── 1. Resolve a fresh access token ─────────────────────────────────────
+      let token: string | null = null;
+      const { data: refreshData } = await supabase.auth.refreshSession();
+      if (refreshData.session) {
+        token = refreshData.session.access_token;
       } else {
-        try {
-          const errResponse = JSON.parse(xhr.responseText);
-          setError(errResponse.error || 'Failed to upload image.');
-        } catch {
-          setError('Failed to upload image.');
-        }
+        const { data: sessionData } = await supabase.auth.getSession();
+        token = sessionData.session?.access_token ?? null;
       }
-    };
 
-    xhr.onerror = () => {
-      URL.revokeObjectURL(localUrl);
-      setUploadPreview(null);
-      setUploading(false);
-      setError('Network error occurred during upload.');
-    };
+      if (!token) {
+        cleanup();
+        setError('Session expired — please log out and log in again.');
+        return;
+      }
 
-    xhr.send(formData);
+      // ── 2. Try direct Supabase Storage upload (no backend proxy needed) ─────
+      const uniqueId = crypto.randomUUID();
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const storagePath = `${context}/${uniqueId}_${cleanName}`;
+
+      const { error: storageError } = await supabase.storage
+        .from('images')
+        .upload(storagePath, file, {
+          contentType: file.type,
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (!storageError) {
+        const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(storagePath);
+        const result: UploadedImage = { url: publicUrl, path: storagePath, fileName: file.name, size: file.size };
+        setImages((prev) => [result, ...prev]);
+        onInsertImage(publicUrl);
+        setUploadProgress(100);
+        cleanup();
+        return;
+      }
+
+      // Log the Supabase storage error so the user can set up the bucket if needed
+      console.warn(
+        '[ImageUploader] Direct Supabase upload failed:', storageError.message,
+        '\nIf the bucket does not exist, run in Supabase SQL Editor:\n',
+        'INSERT INTO storage.buckets (id,name,public) VALUES (\'images\',\'images\',true) ON CONFLICT DO NOTHING;\n',
+        'CREATE POLICY "auth_upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id=\'images\');\n',
+        'CREATE POLICY "public_read"  ON storage.objects FOR SELECT  TO public        USING  (bucket_id=\'images\');'
+      );
+
+      // ── 3. Fallback: backend proxy route (saves to local filesystem if no Supabase) ──
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('context', context);
+
+        const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+        xhr.open('POST', `${apiBase}/api/images/upload`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            setUploadProgress(Math.round((event.loaded / event.total) * 100));
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const result = JSON.parse(xhr.responseText) as UploadedImage;
+              setImages((prev) => [result, ...prev]);
+              onInsertImage(result.url);
+              resolve();
+            } catch {
+              reject(new Error('Failed to parse upload response.'));
+            }
+          } else {
+            try {
+              const errBody = JSON.parse(xhr.responseText);
+              reject(new Error(errBody.error || `Upload failed (${xhr.status})`));
+            } catch {
+              reject(new Error(`Upload failed (${xhr.status})`));
+            }
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error — is the platform server running on port 3000?'));
+        xhr.send(formData);
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      cleanup();
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {

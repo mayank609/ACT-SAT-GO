@@ -1,19 +1,24 @@
-import { getAccessToken } from './supabase'
+import { getAccessToken, supabase } from './supabase'
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-// Build the Authorization header from the current Supabase session, if any.
-async function authHeaders(): Promise<Record<string, string>> {
-  const token = await getAccessToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const auth = await authHeaders()
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...auth, ...options?.headers },
-    ...options,
+  const buildHeaders = (token: string | null): Record<string, string> => ({
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options?.headers as Record<string, string> | undefined),
   })
+
+  const token = await getAccessToken()
+  let res = await fetch(`${BASE}${path}`, { ...options, headers: buildHeaders(token) })
+
+  // On 401, force a session refresh and retry once — handles stale cached tokens.
+  if (res.status === 401) {
+    const { data } = await supabase.auth.refreshSession()
+    const freshToken = data.session?.access_token ?? null
+    res = await fetch(`${BASE}${path}`, { ...options, headers: buildHeaders(freshToken) })
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
     const message = err.error ?? 'Request failed'

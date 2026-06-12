@@ -671,12 +671,17 @@ const SECTION_PATTERNS = [
   /^section\s+\d+\s*(?:[:\-–]\s*(.+))?$/i,
   /^part\s+\d+\s*(?:[:\-–]\s*(.+))?$/i,
   /^module\s+\d+\s*(?:[:\-–]\s*(.+))?$/i,
-  /^(english|mathematics?|math|reading|science|writing)\s*(?:test|section|module)?\s*\d*$/i,
-  /^\d+\s*[:\-–]\s*(english|mathematics?|math|reading|science|writing)\s*(?:test|section)?$/i,
+  // Plain subject names with optional qualifier/number: "English", "Math 2", "Reading Test"
+  /^(english|mathematics?|math(?:s|ematics)?|reading|science|writing)\s*(?:test|section|module)?\s*\d*$/i,
+  /^\d+\s*[:\-–]\s*(english|mathematics?|math(?:s|ematics)?|reading|science|writing)\s*(?:test|section)?$/i,
+  // "Maths S2 M1", "English S1 M2", "Math S1", "Reading S2 M1", "R&W S1 M2", etc.
+  /^(?:english|math(?:s|ematics)?|reading(?:\s+and\s+writing)?|r\s*[&\/]?\s*w|science|writing|grammar|vocab(?:ulary)?)\s+s\d+(?:\s+m\d+)?$/i,
+  // Fallback: any short all-caps or title-case line that looks like a label (e.g. "MATH MODULE 2")
+  /^(?:english|math(?:s|ematics)?|reading|science|writing)\s+(?:module|section)\s+\d+$/i,
 ];
 
 function isSectionHeader(line: string): boolean {
-  if (line.length > 80) return false;
+  if (line.length > 60) return false;
   if (/^(\d{1,3})[.)]\s+/.test(line)) return false;
   return SECTION_PATTERNS.some(p => p.test(line));
 }

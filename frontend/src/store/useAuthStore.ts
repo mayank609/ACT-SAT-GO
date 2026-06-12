@@ -65,6 +65,10 @@ export const useAuthStore = create<AuthState>()(
             if (event === 'SIGNED_OUT' || !session) {
               set({ user: null, dbId: null, isAuthenticated: false });
             }
+            // Keep isAuthenticated in sync when the token is silently refreshed
+            if (event === 'TOKEN_REFRESHED' && session) {
+              set({ isAuthenticated: true });
+            }
           });
         }
 

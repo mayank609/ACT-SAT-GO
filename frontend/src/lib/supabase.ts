@@ -20,8 +20,22 @@ export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '', {
   },
 });
 
-// Returns the current access token (JWT) for Authorization headers, or null.
+// Returns a valid access token (JWT) for Authorization headers, or null.
+// getSession() returns the cached session without verifying freshness — if the
+// access_token has expired or is about to, we force a refresh so the backend
+// proxy never receives a stale JWT.
 export async function getAccessToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+
+  const nowSecs = Math.floor(Date.now() / 1000);
+  const expiresAt = session.expires_at ?? 0;
+
+  // Refresh when within 60 seconds of expiry or already expired
+  if (expiresAt < nowSecs + 60) {
+    const { data } = await supabase.auth.refreshSession();
+    return data.session?.access_token ?? null;
+  }
+
+  return session.access_token;
 }

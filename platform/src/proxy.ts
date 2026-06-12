@@ -116,6 +116,9 @@ export async function proxy(request: NextRequest) {
   return supabaseResponse
 }
 
+// Next.js middleware requires a default export.
+export default proxy
+
 export const config = {
   matcher: [
     /*
