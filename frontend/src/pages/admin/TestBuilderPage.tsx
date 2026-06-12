@@ -657,6 +657,7 @@ interface ParsedPDFQuestion {
   options: { id: string; text: string }[];
   detectedType: QuestionType;
   selected: boolean;
+  linkedQuestions?: ParsedPDFQuestion[]; // internal questions for passage type
 }
 
 interface ParsedPDFSection {
@@ -704,6 +705,38 @@ function expandInlineOptions(line: string): string[] {
   return parts.filter(Boolean);
 }
 
+// Format A: standalone passage header lines (e.g. "Questions 1-5 are based on the following passage")
+// Pattern 3 also matches "Passage: [text]" so a bare "Passage: ..." line on its own triggers a flush.
+const PASSAGE_INTRO_PATTERNS = [
+  /^questions?\s+\d+\s*(?:[-–—to]+\s*\d+)?\s+(?:are based|refer|pertain|relate)/i,
+  /^(?:read the following|the following)\s+(?:passage|excerpt|text|article)/i,
+  /^passage\s*(?:[IVXivx\d]+)?\s*[:.]/i,
+  /^use the following\s+(?:passage|excerpt|information|text)/i,
+  /^(?:directions?|instructions?)[:\s].*passage/i,
+];
+
+function isPassageIntro(line: string): boolean {
+  // Don't let a very long line (e.g. actual passage content) trigger this
+  if (line.length > 200) return false;
+  return PASSAGE_INTRO_PATTERNS.some(p => p.test(line));
+}
+
+// Format B: numbered question text that begins with a passage body
+// e.g. "1. Passage: The following text is adapted from..."
+const PASSAGE_MARKER_RE = /^(?:passage[:\s]|the following (?:text|passage|excerpt)|this (?:text|passage|excerpt))/i;
+
+function startsWithPassageMarker(text: string): boolean {
+  return PASSAGE_MARKER_RE.test(text);
+}
+
+// Lines that look like the actual MCQ question within a passage body
+const QUESTION_STEM_RE = /^(?:which|what|why|how|where|when|who|according|as used|the word|the author|the main|based on|the passage|the text|it can be inferred|the central|the narrator|the speaker)/i;
+
+function looksLikeQuestion(line: string): boolean {
+  const t = line.trim();
+  return t.endsWith('?') || t.endsWith(':') || QUESTION_STEM_RE.test(t);
+}
+
 function parsePDFText(fullText: string): ParsedPDFSection[] {
   // Pre-process: expand inline options before splitting into lines
   const rawLines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
@@ -720,29 +753,86 @@ function parsePDFText(fullText: string): ParsedPDFSection[] {
 
   let current: { num: number; textLines: string[]; optMap: Record<string, string> } | null = null;
 
-  const flushQuestion = () => {
-    if (!current || !current.textLines.length) return;
-    const text = current.textLines.join(' ').replace(/\s{2,}/g, ' ').trim();
-    const optCount = Object.keys(current.optMap).length;
+  // Passage state
+  let passageMode = false;
+  // 'header' = entered via standalone header (Format A) → numbered questions inside are sub-questions
+  // 'numbered' = entered via "N. Passage: ..." (Format B) → each numbered question starts a new unit
+  let passageSource: 'header' | 'numbered' = 'header';
+  let passageNum = 0;
+  let passageBodyLines: string[] = [];
+  let internalCurrent: { num: number; textLines: string[]; optMap: Record<string, string> } | null = null;
+  let internalRaw: Array<{ num: number; textLines: string[]; optMap: Record<string, string> }> = [];
+
+  const buildParsedQ = (num: number, textLines: string[], optMap: Record<string, string>): ParsedPDFQuestion => {
+    const text = textLines.join(' ').replace(/\s{2,}/g, ' ').trim();
+    const optCount = Object.keys(optMap).length;
     const options = optCount >= 2
-      ? Object.entries(current.optMap).slice(0, 4).map(([id, t]) => ({ id, text: t }))
+      ? Object.entries(optMap).slice(0, 4).map(([id, t]) => ({ id, text: t }))
       : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
-    currentQuestions.push({
+    return {
       id: Math.random().toString(36).substr(2, 9),
-      num: current.num,
+      num,
       text,
       options,
       detectedType: optCount >= 2 ? 'mcq_single' : 'numeric',
       selected: true,
-    });
+    };
+  };
+
+  const flushQuestion = () => {
+    if (!current || !current.textLines.length) return;
+    currentQuestions.push(buildParsedQ(current.num, current.textLines, current.optMap));
     current = null;
   };
 
+  // Flush an internal question even if textLines is empty (it may still have options)
+  const flushInternalQuestion = () => {
+    if (!internalCurrent) return;
+    if (!internalCurrent.textLines.length && Object.keys(internalCurrent.optMap).length === 0) return;
+    internalRaw.push(internalCurrent);
+    internalCurrent = null;
+  };
+
+  const flushPassage = () => {
+    flushInternalQuestion();
+    const passageText = passageBodyLines.join(' ').replace(/\s{2,}/g, ' ').trim();
+    if (passageText || internalRaw.length > 0) {
+      const linked = internalRaw.map(iq => buildParsedQ(iq.num, iq.textLines, iq.optMap));
+      currentQuestions.push({
+        id: Math.random().toString(36).substr(2, 9),
+        num: passageNum || (linked.length > 0 ? linked[0].num : 0),
+        text: passageText,
+        options: [],
+        detectedType: 'passage',
+        selected: true,
+        linkedQuestions: linked,
+      });
+    }
+    passageMode = false;
+    passageSource = 'header';
+    passageNum = 0;
+    passageBodyLines = [];
+    internalCurrent = null;
+    internalRaw = [];
+  };
+
   const flushSection = () => {
+    if (passageMode) flushPassage();
     if (currentQuestions.length > 0) {
       sections.push({ id: Math.random().toString(36).substr(2, 9), name: currentName, questions: currentQuestions, collapsed: false });
     }
     currentQuestions = [];
+  };
+
+  // Enter Format B passage mode from a numbered question
+  const enterNumberedPassage = (num: number, textAfterNum: string) => {
+    passageMode = true;
+    passageSource = 'numbered';
+    passageNum = num;
+    const rest = textAfterNum.replace(/^passage[:\s]*/i, '').trim();
+    passageBodyLines = rest ? [rest] : [];
+    internalRaw = [];
+    internalCurrent = null;
   };
 
   for (const line of lines) {
@@ -752,12 +842,85 @@ function parsePDFText(fullText: string): ParsedPDFSection[] {
       currentName = line.replace(/\s+/g, ' ').trim();
       continue;
     }
-    const qm = line.match(qStartPat);
-    if (qm) {
+
+    // Format A: standalone passage header (also catches bare "Passage: [text]" lines)
+    if (isPassageIntro(line)) {
       flushQuestion();
-      current = { num: parseInt(qm[1]), textLines: [qm[2]], optMap: {} };
+      if (passageMode) flushPassage();
+      passageMode = true;
+      passageSource = 'header';
+      passageNum = 0;
+      passageBodyLines = [];
+      internalRaw = [];
+      internalCurrent = null;
       continue;
     }
+
+    const qm = line.match(qStartPat);
+
+    if (passageMode) {
+      if (qm) {
+        if (startsWithPassageMarker(qm[2])) {
+          // "N. Passage: ..." → always start a new Format B passage (flush current)
+          flushPassage();
+          enterNumberedPassage(parseInt(qm[1]), qm[2]);
+        } else if (passageSource === 'numbered') {
+          // Format B: this numbered question is NOT a new passage → it's the next standalone question.
+          // Flush the completed passage and switch to regular question mode.
+          flushPassage();
+          current = { num: parseInt(qm[1]), textLines: [qm[2]], optMap: {} };
+        } else {
+          // Format A: numbered questions inside a header-introduced passage = internal questions
+          flushInternalQuestion();
+          internalCurrent = { num: parseInt(qm[1]), textLines: [qm[2]], optMap: {} };
+        }
+      } else if (internalCurrent) {
+        // Collecting lines for the active internal question
+        const om = line.match(optPat);
+        if (om) {
+          const letter = (om[1] ?? om[2]).toLowerCase();
+          if (['a','b','c','d','e','f','g','h','j'].includes(letter)) {
+            internalCurrent.optMap[letter] = (om[3] ?? '').trim();
+          }
+        } else {
+          if (Object.keys(internalCurrent.optMap).length === 0) internalCurrent.textLines.push(line);
+        }
+      } else {
+        // Still in passage body — no internal question opened yet
+        const om = line.match(optPat);
+        if (om) {
+          // Options arrived before an explicit question line:
+          // pop the last body line as the question text if it looks like a question
+          const lastLine = passageBodyLines.length > 0 && looksLikeQuestion(passageBodyLines[passageBodyLines.length - 1])
+            ? passageBodyLines.pop()!
+            : '';
+          internalCurrent = { num: passageNum, textLines: lastLine ? [lastLine] : [], optMap: {} };
+          const letter = (om[1] ?? om[2]).toLowerCase();
+          if (['a','b','c','d','e','f','g','h','j'].includes(letter)) {
+            internalCurrent.optMap[letter] = (om[3] ?? '').trim();
+          }
+        } else if (looksLikeQuestion(line)) {
+          // Detected the question sentence within the passage body
+          internalCurrent = { num: passageNum, textLines: [line], optMap: {} };
+        } else {
+          passageBodyLines.push(line);
+        }
+      }
+      continue;
+    }
+
+    if (qm) {
+      if (startsWithPassageMarker(qm[2])) {
+        // Format B: numbered question that IS a passage
+        flushQuestion();
+        enterNumberedPassage(parseInt(qm[1]), qm[2]);
+      } else {
+        flushQuestion();
+        current = { num: parseInt(qm[1]), textLines: [qm[2]], optMap: {} };
+      }
+      continue;
+    }
+
     if (current) {
       const om = line.match(optPat);
       if (om) {
@@ -772,6 +935,7 @@ function parsePDFText(fullText: string): ParsedPDFSection[] {
     }
   }
   flushQuestion();
+  if (passageMode) flushPassage();
   flushSection();
   return sections;
 }
@@ -849,21 +1013,49 @@ function PDFQuestionUploader({ onImport, onClose }: { onImport: (sections: { nam
   const totalSelected = sections.reduce((a, s) => a + s.questions.filter(q => q.selected).length, 0);
   const totalQuestions = sections.reduce((a, s) => a + s.questions.length, 0);
 
-  const handleImport = () => {
-    const toImport = sections
-      .map(s => ({
-        name: s.name,
-        questions: s.questions.filter(q => q.selected).map(q => ({
-          id: q.id,
-          text: q.text,
-          type: q.detectedType,
-          options: q.options,
-          correctAnswer: q.detectedType === 'mcq_single' ? 'a' : 0,
+  const toQuestion = (q: ParsedPDFQuestion): Question => {
+    if (q.detectedType === 'passage') {
+      return {
+        id: q.id,
+        text: q.text,
+        type: 'passage',
+        options: [],
+        correctAnswer: 'a',
+        difficulty: 'medium' as Difficulty,
+        topic: '',
+        marks: 1,
+        marksNegative: 0,
+        linkedQuestions: (q.linkedQuestions ?? []).map(lq => ({
+          id: lq.id,
+          text: lq.text,
+          type: lq.detectedType,
+          options: lq.options,
+          correctAnswer: lq.detectedType === 'mcq_single' ? 'a' : 0,
           difficulty: 'medium' as Difficulty,
           topic: '',
           marks: 1,
           marksNegative: 0,
         } as Question)),
+      } as Question;
+    }
+    return {
+      id: q.id,
+      text: q.text,
+      type: q.detectedType,
+      options: q.options,
+      correctAnswer: q.detectedType === 'mcq_single' ? 'a' : 0,
+      difficulty: 'medium' as Difficulty,
+      topic: '',
+      marks: 1,
+      marksNegative: 0,
+    } as Question;
+  };
+
+  const handleImport = () => {
+    const toImport = sections
+      .map(s => ({
+        name: s.name,
+        questions: s.questions.filter(q => q.selected).map(toQuestion),
       }))
       .filter(s => s.questions.length > 0);
     onImport(toImport);
@@ -949,22 +1141,44 @@ function PDFQuestionUploader({ onImport, onClose }: { onImport: (sections: { nam
                             onChange={() => toggleQuestion(sec.id, q.id)}
                             className="rounded text-blue-600 mt-0.5 flex-shrink-0" />
                           <span className="flex-1 min-w-0 flex flex-col">
-                            <span className="flex items-start gap-2">
-                              <span className="text-xs font-bold text-slate-400 flex-shrink-0 mt-0.5">Q{q.num}</span>
-                              <span className="text-sm text-slate-800 line-clamp-2">{q.text || <span className="text-slate-400 italic">Empty</span>}</span>
-                            </span>
-                            {q.options.some(o => o.text) && (
-                              <span className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 ml-5">
-                                {q.options.filter(o => o.text).map(o => (
-                                  <span key={o.id} className="text-xs text-slate-500">
-                                    <span className="font-semibold text-slate-600">{o.id.toUpperCase()}.</span> {o.text.length > 25 ? o.text.slice(0, 25) + '…' : o.text}
+                            {q.detectedType === 'passage' ? (
+                              <>
+                                <span className="flex items-start gap-2">
+                                  <span className="text-xs font-bold text-amber-500 flex-shrink-0 mt-0.5">PASSAGE</span>
+                                  <span className="text-sm text-slate-700 line-clamp-2 italic">
+                                    {q.text ? q.text : <span className="text-slate-400">No passage body detected</span>}
                                   </span>
-                                ))}
-                              </span>
+                                </span>
+                                {(q.linkedQuestions ?? []).length > 0 && (
+                                  <span className="ml-14 mt-1 text-xs text-slate-500">
+                                    {(q.linkedQuestions ?? []).length} internal question{(q.linkedQuestions ?? []).length !== 1 ? 's' : ''}: {(q.linkedQuestions ?? []).map(lq => `Q${lq.num}`).join(', ')}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className="flex items-start gap-2">
+                                  <span className="text-xs font-bold text-slate-400 flex-shrink-0 mt-0.5">Q{q.num}</span>
+                                  <span className="text-sm text-slate-800 line-clamp-2">{q.text || <span className="text-slate-400 italic">Empty</span>}</span>
+                                </span>
+                                {q.options.some(o => o.text) && (
+                                  <span className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 ml-5">
+                                    {q.options.filter(o => o.text).map(o => (
+                                      <span key={o.id} className="text-xs text-slate-500">
+                                        <span className="font-semibold text-slate-600">{o.id.toUpperCase()}.</span> {o.text.length > 25 ? o.text.slice(0, 25) + '…' : o.text}
+                                      </span>
+                                    ))}
+                                  </span>
+                                )}
+                              </>
                             )}
                           </span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${q.detectedType === 'mcq_single' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                            {q.detectedType === 'mcq_single' ? 'MCQ' : 'NUM'}
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${
+                            q.detectedType === 'passage' ? 'bg-amber-100 text-amber-700' :
+                            q.detectedType === 'mcq_single' ? 'bg-blue-100 text-blue-700' :
+                            'bg-purple-100 text-purple-700'
+                          }`}>
+                            {q.detectedType === 'passage' ? 'PASSAGE' : q.detectedType === 'mcq_single' ? 'MCQ' : 'NUM'}
                           </span>
                         </label>
                       ))}
