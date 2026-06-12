@@ -2,6 +2,13 @@ import { getAccessToken, supabase } from './supabase'
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
+// Authorization header from the current Supabase session (for non-JSON
+// requests like FormData uploads that bypass request()).
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const buildHeaders = (token: string | null): Record<string, string> => ({
     'Content-Type': 'application/json',

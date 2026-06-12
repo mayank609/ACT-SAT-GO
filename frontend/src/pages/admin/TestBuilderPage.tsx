@@ -869,7 +869,8 @@ function parsePDFText(fullText: string): ParsedPDFSection[] {
           // "N. Passage: ..." → always start a new Format B passage (flush current)
           flushPassage();
           enterNumberedPassage(parseInt(qm[1]), qm[2]);
-        } else if (passageSource === 'numbered') {
+        } else if ((passageSource as 'header' | 'numbered') === 'numbered') {
+          // (cast: TS can't see the 'numbered' assignment inside enterNumberedPassage)
           // Format B: this numbered question is NOT a new passage → it's the next standalone question.
           // Flush the completed passage and switch to regular question mode.
           flushPassage();

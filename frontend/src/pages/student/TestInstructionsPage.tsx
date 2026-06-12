@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Timer, BarChart3, LifeBuoy, Laptop, CheckCircle2, Play, Loader2 } from 'lucide-react';
-import { Button } from '../../components/common/Button';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
