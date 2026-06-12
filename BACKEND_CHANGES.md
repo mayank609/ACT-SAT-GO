@@ -8,6 +8,38 @@ gracefully until the backend pieces below are in place.
 
 ---
 
+## 2026-06-12 — Stability fixes for shipping (already implemented)
+
+1. **Test save timeout fixed** (`PATCH /api/tests/[testId]`): the save ran 4-5
+   sequential queries *per question* inside one interactive transaction → 30s
+   timeout on ~100-question tests (the "Transaction API error" in Test Builder).
+   Rewritten to precompute all rows + one batched `$transaction([...])` pipeline
+   with `createMany`. Same semantics (question UUID reuse, passage children,
+   stale-child cleanup) — ~10x fewer round-trips.
+2. **Test create timeout fixed** (`POST /api/tests`): same pattern, worse — it
+   used Prisma's default 5s interactive timeout, so creating a large test from
+   a PDF import always failed. Same batched rewrite.
+3. **Question-count inflation repaired**: "Diagnostic Test 1" had 55 stale
+   `TestQuestion` rows pointing at passage *child* questions (old bug's data),
+   so students saw 154 questions instead of 99. Deleted those rows (children
+   are served via their parent's `childQuestions` relation). Verified 0 remain.
+   Current create/save code no longer produces such rows.
+4. **SAT module scoring bug fixed** (submit route): section names like
+   "Section 1 : RW (Module 2)" matched `includes('1')` and were counted as
+   Module 1, skewing the scaled-score curve. Now matches explicit "Module N"
+   first.
+5. **Removed `src/middleware.ts`** (one-line re-export of proxy) — Next 16
+   errors when both `middleware.ts` and `proxy.ts` exist; `proxy.ts` is the
+   convention.
+6. Frontend: PDF re-import into a same-named section now skips questions whose
+   text already exists (prevents duplicates from repeated imports).
+
+Note: there are ~3,500 orphaned questions in the bank (no test, no parent) from
+old save churn. Harmless but clutters the Question Bank — worth a cleanup pass
+someday; left untouched because bank questions can legitimately be testless.
+
+---
+
 ## 2026-06-11 — Real authentication (Supabase) + API protection
 
 The frontend now performs **real Supabase Auth login** and sends

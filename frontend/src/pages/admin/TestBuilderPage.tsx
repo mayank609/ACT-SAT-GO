@@ -2576,7 +2576,11 @@ export function TestBuilderPage() {
               for (const sec of importedSections) {
                 const existingIdx = updated.findIndex(s => s.name.toLowerCase() === sec.name.toLowerCase());
                 if (existingIdx >= 0) {
-                  updated[existingIdx] = { ...updated[existingIdx], questions: [...updated[existingIdx].questions, ...sec.questions] };
+                  // Skip questions whose text already exists in the section —
+                  // re-importing the same PDF must not duplicate questions.
+                  const existingTexts = new Set(updated[existingIdx].questions.map(q => q.text.trim()));
+                  const fresh = sec.questions.filter(q => !existingTexts.has(q.text.trim()));
+                  updated[existingIdx] = { ...updated[existingIdx], questions: [...updated[existingIdx].questions, ...fresh] };
                 } else {
                   updated.push({ id: generateId(), name: sec.name, timeLimit: 45, questions: sec.questions });
                 }

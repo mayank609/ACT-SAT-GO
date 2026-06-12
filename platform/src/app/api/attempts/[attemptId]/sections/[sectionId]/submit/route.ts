@@ -185,45 +185,40 @@ export async function POST(
           let rw1Correct = 0, rw2Correct = 0, math1Correct = 0, math2Correct = 0
           let rw1Total = 0, rw2Total = 0, math1Total = 0, math2Total = 0
 
+          // Names like "Section 1 : Reading & Writing (Module 2)" contain both
+          // digits, so prefer an explicit "Module N" marker over bare digits.
+          const moduleOf = (name: string): 1 | 2 | null => {
+            const m = name.match(/module\s*([12])\b/)
+            if (m) return m[1] === '1' ? 1 : 2
+            if (/\b(?:1|one)\b/.test(name)) return 1
+            if (/\b(?:2|two)\b/.test(name)) return 2
+            return null
+          }
+
           for (const sec of allSections) {
             const secName = sec.name.toLowerCase()
             const isMath = secName.includes('math')
             const isRW = secName.includes('reading') || secName.includes('writing') || secName.includes('rw')
-            
+
             const correct = sectionCorrectMap.get(sec.id) || 0
             const total = sectionQuestionsMap.get(sec.id)?.length || 0
+            const mod = moduleOf(secName)
 
             if (isMath) {
-              if (secName.includes('1') || secName.includes('one')) {
+              if (mod === 1 || (mod === null && math1Total === 0)) {
                 math1Correct += correct
                 math1Total += total
-              } else if (secName.includes('2') || secName.includes('two')) {
+              } else {
                 math2Correct += correct
                 math2Total += total
-              } else {
-                if (math1Total === 0) {
-                  math1Correct += correct
-                  math1Total += total
-                } else {
-                  math2Correct += correct
-                  math2Total += total
-                }
               }
             } else if (isRW) {
-              if (secName.includes('1') || secName.includes('one')) {
+              if (mod === 1 || (mod === null && rw1Total === 0)) {
                 rw1Correct += correct
                 rw1Total += total
-              } else if (secName.includes('2') || secName.includes('two')) {
+              } else {
                 rw2Correct += correct
                 rw2Total += total
-              } else {
-                if (rw1Total === 0) {
-                  rw1Correct += correct
-                  rw1Total += total
-                } else {
-                  rw2Correct += correct
-                  rw2Total += total
-                }
               }
             }
           }

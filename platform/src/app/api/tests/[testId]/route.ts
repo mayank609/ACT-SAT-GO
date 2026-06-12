@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { randomUUID } from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
@@ -152,133 +153,152 @@ export async function PATCH(
     }
 
     // ── Full sections + questions replacement ─────────────────────────────────
+    // Everything is precomputed up front (one topic fetch + one existence check
+    // for all reusable UUIDs), then executed as a single batched transaction
+    // pipeline. The previous interactive-transaction version issued 4-5
+    // sequential round-trips per question and timed out on large tests.
     const allTopics = await prisma.topic.findMany({ select: { id: true, name: true } })
     const topicMap = new Map(allTopics.map((t) => [t.name.toLowerCase(), t.id]))
 
-    const test = await prisma.$transaction(async (tx) => {
-      if (Object.keys(scalarData).length > 0) {
-        await tx.test.update({ where: { id: testId }, data: scalarData })
-      }
-
-      // Delete existing sections (cascades to TestQuestion join rows)
-      await tx.testSection.deleteMany({ where: { testId } })
-
-      // Recreate sections and questions
-      for (let sIdx = 0; sIdx < body.sections!.length; sIdx++) {
-        const sec = body.sections![sIdx]
-        const newSection = await tx.testSection.create({
-          data: { testId, name: sec.name, durationMinutes: sec.timeLimit, orderIndex: sIdx },
-        })
-
-        for (let qIdx = 0; qIdx < sec.questions.length; qIdx++) {
-          const q = sec.questions[qIdx]
-          const dbType = TYPE_MAP[q.type]
-          if (!dbType) throw new Error(`Invalid question type: ${q.type}`)
-          const dbDiff = DIFF_MAP[q.difficulty]
-          if (!dbDiff) throw new Error(`Invalid difficulty: ${q.difficulty}`)
-          const topicId = q.topic ? (topicMap.get(q.topic.toLowerCase()) ?? null) : null
-
-          // Temporary fallback: if DB doesn't accept PASSAGE enum, store as MCQ and mark content.meta.isPassage
-          const isPassage = dbType === 'PASSAGE'
-          const writeType = isPassage ? 'MCQ' : dbType
-          const contentJson = {
-            text: q.text,
-            explanation: q.explanation ?? null,
-            meta: {
-              ...(isPassage ? { isPassage: true } : {}),
-              domain: q.topic ?? null,
-              subTopic: q.subTopic ?? null,
-              skill: q.skill ?? null,
-            }
-          } as Prisma.InputJsonValue
-
-          // Reuse the existing Question row when the editor sent a real UUID, so
-          // prior attempt answers stay linked; otherwise create a new one.
-          const reuseId = q.id && UUID_RE.test(q.id)
-            ? (await tx.question.findUnique({ where: { id: q.id }, select: { id: true } }))?.id ?? null
-            : null
-          const questionData = {
-            type: writeType as any,
-            content: contentJson,
-            options: q.options ? transformOptions(q.options) : Prisma.DbNull,
-            correctAnswer: transformCorrectAnswer(q.correctAnswer),
-            difficultyLevel: dbDiff,
-            topicId,
-          }
-          const parentId = reuseId
-            ? (await tx.question.update({ where: { id: reuseId }, data: { ...questionData, parentQuestionId: null } })).id
-            : (await tx.question.create({ data: questionData })).id
-
-          // Track which child questions survive so stale ones (removed in the editor)
-          // can be deleted from the reused parent below.
-          const keptChildIds: string[] = []
-          if (isPassage && q.linkedQuestions && Array.isArray(q.linkedQuestions)) {
-            for (let childIdx = 0; childIdx < q.linkedQuestions.length; childIdx++) {
-              const child = q.linkedQuestions[childIdx]
-              const childDbType = TYPE_MAP[child.type] || 'MCQ'
-              const childDbDiff = DIFF_MAP[child.difficulty] || 'MEDIUM'
-              const childTopicId = child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null
-              const childContentJson = {
-                text: child.text,
-                explanation: child.explanation ?? null,
-                meta: {
-                  domain: child.topic ?? null,
-                  subTopic: child.subTopic ?? null,
-                  skill: child.skill ?? null,
-                }
-              } as Prisma.InputJsonValue
-
-              const childData = {
-                type: childDbType as any,
-                content: childContentJson,
-                options: child.options ? transformOptions(child.options) : Prisma.DbNull,
-                correctAnswer: transformCorrectAnswer(child.correctAnswer),
-                difficultyLevel: childDbDiff as any,
-                topicId: childTopicId,
-                parentQuestionId: parentId,
-              }
-              const childReuseId = child.id && UUID_RE.test(child.id)
-                ? (await tx.question.findUnique({ where: { id: child.id }, select: { id: true } }))?.id ?? null
-                : null
-              // No TestQuestion row for child questions — they belong to the test via
-              // the passage parent's childQuestions relation; a row would double-count.
-              if (childReuseId) {
-                await tx.question.update({ where: { id: childReuseId }, data: childData })
-                keptChildIds.push(childReuseId)
-              } else {
-                keptChildIds.push((await tx.question.create({ data: childData })).id)
-              }
-            }
-          }
-          // Remove children that were detached from this (reused) passage in the editor.
-          await tx.question.deleteMany({
-            where: { parentQuestionId: parentId, id: { notIn: keptChildIds.length ? keptChildIds : ['__none__'] } },
-          })
-
-          await tx.testQuestion.create({
-            data: {
-              testId,
-              sectionId: newSection.id,
-              questionId: parentId,
-              orderIndex: qIdx,
-              marksPositive: q.marks ?? 1,
-              marksNegative: q.marksNegative ?? 0,
-            },
-          })
+    // One query to learn which editor-sent UUIDs actually exist in the DB.
+    const candidateIds: string[] = []
+    for (const sec of body.sections!) {
+      for (const q of sec.questions) {
+        if (q.id && UUID_RE.test(q.id)) candidateIds.push(q.id)
+        for (const child of q.linkedQuestions ?? []) {
+          if (child.id && UUID_RE.test(child.id)) candidateIds.push(child.id)
         }
       }
+    }
+    const existingIds = new Set(
+      candidateIds.length
+        ? (await prisma.question.findMany({ where: { id: { in: candidateIds } }, select: { id: true } })).map((r) => r.id)
+        : []
+    )
 
-      return tx.test.findUnique({
-        where: { id: testId },
-        include: {
-          sections: {
-            orderBy: { orderIndex: 'asc' },
-            include: { _count: { select: { questions: true } } },
+    const buildQuestionData = (q: FrontendQuestion, parentQuestionId: string | null) => {
+      const dbType = TYPE_MAP[q.type]
+      if (!dbType) throw new Error(`Invalid question type: ${q.type}`)
+      const dbDiff = DIFF_MAP[q.difficulty]
+      if (!dbDiff) throw new Error(`Invalid difficulty: ${q.difficulty}`)
+      // Temporary fallback: if DB doesn't accept PASSAGE enum, store as MCQ and mark content.meta.isPassage
+      const isPassage = dbType === 'PASSAGE'
+      return {
+        type: (isPassage ? 'MCQ' : dbType) as any,
+        content: {
+          text: q.text,
+          explanation: q.explanation ?? null,
+          meta: {
+            ...(isPassage ? { isPassage: true } : {}),
+            domain: q.topic ?? null,
+            subTopic: q.subTopic ?? null,
+            skill: q.skill ?? null,
           },
-          _count: { select: { attempts: true } },
+        } as Prisma.InputJsonValue,
+        options: q.options ? transformOptions(q.options) : Prisma.DbNull,
+        correctAnswer: transformCorrectAnswer(q.correctAnswer),
+        difficultyLevel: dbDiff as any,
+        topicId: q.topic ? (topicMap.get(q.topic.toLowerCase()) ?? null) : null,
+        parentQuestionId,
+      }
+    }
+
+    // Pre-assign every id so creates can be batched with createMany.
+    const sectionRows: Prisma.TestSectionCreateManyInput[] = []
+    const parentCreates: Prisma.QuestionCreateManyInput[] = []
+    const childCreates: Prisma.QuestionCreateManyInput[] = []
+    const updates: Array<{ id: string; data: ReturnType<typeof buildQuestionData> }> = []
+    const testQuestionRows: Prisma.TestQuestionCreateManyInput[] = []
+    const reusedParentIds: string[] = []
+    const keptChildIdsByParent = new Map<string, string[]>()
+
+    for (let sIdx = 0; sIdx < body.sections!.length; sIdx++) {
+      const sec = body.sections![sIdx]
+      const sectionId = randomUUID()
+      sectionRows.push({ id: sectionId, testId, name: sec.name, durationMinutes: sec.timeLimit, orderIndex: sIdx })
+
+      for (let qIdx = 0; qIdx < sec.questions.length; qIdx++) {
+        const q = sec.questions[qIdx]
+        const isPassage = TYPE_MAP[q.type] === 'PASSAGE'
+        // Reuse the existing Question row when the editor sent a real UUID, so
+        // prior attempt answers stay linked; otherwise create a new one.
+        const reuse = !!(q.id && UUID_RE.test(q.id) && existingIds.has(q.id))
+        const parentId = reuse ? q.id! : randomUUID()
+        const parentData = buildQuestionData(q, null)
+        if (reuse) {
+          updates.push({ id: parentId, data: parentData })
+          reusedParentIds.push(parentId)
+          keptChildIdsByParent.set(parentId, [])
+        } else {
+          parentCreates.push({ id: parentId, ...parentData, options: parentData.options === Prisma.DbNull ? undefined : parentData.options })
+        }
+
+        if (isPassage && Array.isArray(q.linkedQuestions)) {
+          for (const child of q.linkedQuestions) {
+            const childReuse = !!(child.id && UUID_RE.test(child.id) && existingIds.has(child.id))
+            const childId = childReuse ? child.id! : randomUUID()
+            const childData = buildQuestionData(
+              { ...child, type: TYPE_MAP[child.type] ? child.type : 'mcq_single', difficulty: DIFF_MAP[child.difficulty] ? child.difficulty : 'medium' },
+              parentId
+            )
+            // No TestQuestion row for child questions — they belong to the test via
+            // the passage parent's childQuestions relation; a row would double-count.
+            if (childReuse) {
+              updates.push({ id: childId, data: childData })
+            } else {
+              childCreates.push({ id: childId, ...childData, options: childData.options === Prisma.DbNull ? undefined : childData.options })
+            }
+            if (reuse) keptChildIdsByParent.get(parentId)!.push(childId)
+          }
+        }
+
+        testQuestionRows.push({
+          testId,
+          sectionId,
+          questionId: parentId,
+          orderIndex: qIdx,
+          marksPositive: q.marks ?? 1,
+          marksNegative: q.marksNegative ?? 0,
+        })
+      }
+    }
+
+    // All kept child ids across reused parents (a child may have moved between parents).
+    const allKeptChildIds = Array.from(keptChildIdsByParent.values()).flat()
+
+    await prisma.$transaction([
+      ...(Object.keys(scalarData).length > 0
+        ? [prisma.test.update({ where: { id: testId }, data: scalarData })]
+        : []),
+      // Delete existing sections (cascades to TestQuestion join rows)
+      prisma.testSection.deleteMany({ where: { testId } }),
+      prisma.testSection.createMany({ data: sectionRows }),
+      // Parents first so child FK references resolve.
+      ...(parentCreates.length ? [prisma.question.createMany({ data: parentCreates })] : []),
+      ...updates.map(({ id, data }) => prisma.question.update({ where: { id }, data })),
+      ...(childCreates.length ? [prisma.question.createMany({ data: childCreates })] : []),
+      // Remove children that were detached from reused passages in the editor.
+      ...(reusedParentIds.length
+        ? [prisma.question.deleteMany({
+            where: {
+              parentQuestionId: { in: reusedParentIds },
+              id: { notIn: allKeptChildIds.length ? allKeptChildIds : ['__none__'] },
+            },
+          })]
+        : []),
+      prisma.testQuestion.createMany({ data: testQuestionRows }),
+    ])
+
+    const test = await prisma.test.findUnique({
+      where: { id: testId },
+      include: {
+        sections: {
+          orderBy: { orderIndex: 'asc' },
+          include: { _count: { select: { questions: true } } },
         },
-      })
-    }, { timeout: 30000 })
+        _count: { select: { attempts: true } },
+      },
+    })
 
     return NextResponse.json({ test })
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { randomUUID } from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
@@ -138,48 +139,38 @@ export async function POST(request: NextRequest) {
     const allTopics = await prisma.topic.findMany({ select: { id: true, name: true } })
     const topicMap = new Map(allTopics.map((t) => [t.name.toLowerCase(), t.id]))
 
-    const test = await prisma.$transaction(async (tx) => {
-      // 1. Create the test
-      const newTest = await tx.test.create({
-        data: {
-          title,
-          description: description ?? null,
-          status: dbStatus,
-          category: category ?? null,
-          subCategory: subCategory ?? null,
-          createdById,
-        },
-      })
+    // Precompute every row with explicit ids so the whole create is a short
+    // batched transaction (createMany), instead of 2-3 sequential queries per
+    // question — which blew Prisma's interactive-transaction timeout on large
+    // (e.g. PDF-imported) tests.
+    const testId = randomUUID()
+    const sectionRows: Prisma.TestSectionCreateManyInput[] = []
+    const parentRows: Prisma.QuestionCreateManyInput[] = []
+    const childRows: Prisma.QuestionCreateManyInput[] = []
+    const testQuestionRows: Prisma.TestQuestionCreateManyInput[] = []
 
-      // 2. Create sections, questions, and TestQuestion join rows
-      for (let sIdx = 0; sIdx < sections.length; sIdx++) {
-        const sec = sections[sIdx]
+    for (let sIdx = 0; sIdx < sections.length; sIdx++) {
+      const sec = sections[sIdx]
+      const sectionId = randomUUID()
+      sectionRows.push({ id: sectionId, testId, name: sec.name, durationMinutes: sec.timeLimit, orderIndex: sIdx })
 
-        const newSection = await tx.testSection.create({
-          data: {
-            testId: newTest.id,
-            name: sec.name,
-            durationMinutes: sec.timeLimit,
-            orderIndex: sIdx,
-          },
-        })
+      for (let qIdx = 0; qIdx < sec.questions.length; qIdx++) {
+        const q = sec.questions[qIdx]
 
-        for (let qIdx = 0; qIdx < sec.questions.length; qIdx++) {
-          const q = sec.questions[qIdx]
+        const dbType = TYPE_MAP[q.type]
+        if (!dbType) throw new Error(`Invalid question type: ${q.type}`)
+        const dbDiff = DIFF_MAP[q.difficulty]
+        if (!dbDiff) throw new Error(`Invalid difficulty: ${q.difficulty}`)
+        const topicId = q.topic ? (topicMap.get(q.topic.toLowerCase()) ?? null) : null
 
-          const dbType = TYPE_MAP[q.type]
-          if (!dbType) throw new Error(`Invalid question type: ${q.type}`)
-
-          const dbDiff = DIFF_MAP[q.difficulty]
-          if (!dbDiff) throw new Error(`Invalid difficulty: ${q.difficulty}`)
-
-          const topicId = q.topic ? (topicMap.get(q.topic.toLowerCase()) ?? null) : null
-
-          // Temporary fallback: some DBs may not have PASSAGE in enum yet.
-          // Store passage items as MCQ and mark in content.meta.isPassage to avoid Prisma enum errors.
-          const isPassage = dbType === 'PASSAGE'
-          const writeType = isPassage ? 'MCQ' : dbType
-          const contentJson = {
+        // Temporary fallback: some DBs may not have PASSAGE in enum yet.
+        // Store passage items as MCQ and mark in content.meta.isPassage to avoid Prisma enum errors.
+        const isPassage = dbType === 'PASSAGE'
+        const questionId = randomUUID()
+        parentRows.push({
+          id: questionId,
+          type: (isPassage ? 'MCQ' : dbType) as any,
+          content: {
             text: q.text,
             explanation: q.explanation ?? null,
             meta: {
@@ -187,77 +178,79 @@ export async function POST(request: NextRequest) {
               domain: q.topic ?? null,
               subTopic: q.subTopic ?? null,
               skill: q.skill ?? null,
-            }
-          } as Prisma.InputJsonValue
-
-          const newQuestion = await tx.question.create({
-            data: {
-              type: writeType as any,
-              content: contentJson,
-              options: q.options ? transformOptions(q.options) : Prisma.DbNull,
-              correctAnswer: transformCorrectAnswer(q.correctAnswer),
-              difficultyLevel: dbDiff,
-              topicId,
             },
-          })
+          } as Prisma.InputJsonValue,
+          options: q.options ? transformOptions(q.options) : undefined,
+          correctAnswer: transformCorrectAnswer(q.correctAnswer),
+          difficultyLevel: dbDiff,
+          topicId,
+        })
 
-          if (isPassage && q.linkedQuestions && Array.isArray(q.linkedQuestions)) {
-            for (let childIdx = 0; childIdx < q.linkedQuestions.length; childIdx++) {
-              const child = q.linkedQuestions[childIdx]
-              const childDbType = TYPE_MAP[child.type] || 'MCQ'
-              const childDbDiff = DIFF_MAP[child.difficulty] || 'MEDIUM'
-              const childTopicId = child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null
-              const childContentJson = {
+        if (isPassage && q.linkedQuestions && Array.isArray(q.linkedQuestions)) {
+          for (const child of q.linkedQuestions) {
+            // No TestQuestion row for child questions — they belong to the test
+            // via their passage parent's childQuestions relation. Creating a row
+            // here would double-count the passage everywhere it's read.
+            childRows.push({
+              id: randomUUID(),
+              type: (TYPE_MAP[child.type] || 'MCQ') as any,
+              content: {
                 text: child.text,
                 explanation: child.explanation ?? null,
                 meta: {
                   domain: child.topic ?? null,
                   subTopic: child.subTopic ?? null,
                   skill: child.skill ?? null,
-                }
-              } as Prisma.InputJsonValue
-
-              // No TestQuestion row for child questions — they belong to the test
-              // via their passage parent's childQuestions relation. Creating a row
-              // here would double-count the passage everywhere it's read.
-              await tx.question.create({
-                data: {
-                  type: childDbType as any,
-                  content: childContentJson,
-                  options: child.options ? transformOptions(child.options) : Prisma.DbNull,
-                  correctAnswer: transformCorrectAnswer(child.correctAnswer),
-                  difficultyLevel: childDbDiff as any,
-                  topicId: childTopicId,
-                  parentQuestionId: newQuestion.id,
                 },
-              })
-            }
+              } as Prisma.InputJsonValue,
+              options: child.options ? transformOptions(child.options) : undefined,
+              correctAnswer: transformCorrectAnswer(child.correctAnswer),
+              difficultyLevel: (DIFF_MAP[child.difficulty] || 'MEDIUM') as any,
+              topicId: child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null,
+              parentQuestionId: questionId,
+            })
           }
-
-          await tx.testQuestion.create({
-            data: {
-              testId: newTest.id,
-              sectionId: newSection.id,
-              questionId: newQuestion.id,
-              orderIndex: qIdx,
-              marksPositive: q.marks ?? 1,
-              marksNegative: q.marksNegative ?? 0,
-            },
-          })
         }
-      }
 
-      // 3. Return the full test with sections
-      return tx.test.findUnique({
-        where: { id: newTest.id },
-        include: {
-          sections: {
-            orderBy: { orderIndex: 'asc' },
-            include: { _count: { select: { questions: true } } },
-          },
-          _count: { select: { attempts: true } },
+        testQuestionRows.push({
+          testId,
+          sectionId,
+          questionId,
+          orderIndex: qIdx,
+          marksPositive: q.marks ?? 1,
+          marksNegative: q.marksNegative ?? 0,
+        })
+      }
+    }
+
+    await prisma.$transaction([
+      prisma.test.create({
+        data: {
+          id: testId,
+          title,
+          description: description ?? null,
+          status: dbStatus,
+          category: category ?? null,
+          subCategory: subCategory ?? null,
+          createdById,
         },
-      })
+      }),
+      ...(sectionRows.length ? [prisma.testSection.createMany({ data: sectionRows })] : []),
+      // Parents before children so parentQuestionId FK references resolve.
+      ...(parentRows.length ? [prisma.question.createMany({ data: parentRows })] : []),
+      ...(childRows.length ? [prisma.question.createMany({ data: childRows })] : []),
+      ...(testQuestionRows.length ? [prisma.testQuestion.createMany({ data: testQuestionRows })] : []),
+    ])
+
+    const test = await prisma.test.findUnique({
+      where: { id: testId },
+      include: {
+        sections: {
+          orderBy: { orderIndex: 'asc' },
+          include: { _count: { select: { questions: true } } },
+        },
+        _count: { select: { attempts: true } },
+      },
     })
 
     return NextResponse.json({ test }, { status: 201 })
