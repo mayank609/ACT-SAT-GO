@@ -1050,107 +1050,75 @@ export function TestReviewPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 flex-shrink-0">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="min-w-0">
-          <h1 className="text-lg md:text-xl font-bold text-slate-900 truncate">Test Review: {attempt.test.title}</h1>
-          <p className="text-sm text-slate-500">
-            {attempt.status === 'SUBMITTED' || attempt.status === 'EVALUATED' ? 'Completed' : attempt.status}
-            {attempt.completedAt ? ` · ${new Date(attempt.completedAt).toLocaleDateString()}` : ''}
-          </p>
+      {/* ── Hero score card ──────────────────────────────────────────────────── */}
+      <div className="bg-[#1b3d6e] rounded-2xl p-5 text-white">
+        {/* Top row: back + title + score */}
+        <div className="flex items-start gap-3 mb-5">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex-shrink-0 mt-0.5 p-1.5 rounded-lg text-blue-300 hover:bg-white/10 transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-blue-300 text-xs font-medium uppercase tracking-wide">Test Review</p>
+            <h1 className="text-xl font-bold mt-0.5 truncate">{attempt.test.title}</h1>
+            {attempt.completedAt && (
+              <p className="text-blue-300 text-xs mt-0.5">
+                Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            )}
+          </div>
+          <div className="flex-shrink-0 text-right">
+            <p className="text-4xl font-black">{isSAT ? finalScaledScore : rawScore}</p>
+            <p className="text-blue-300 text-xs">{isSAT ? 'total score' : 'raw score'}</p>
+          </div>
         </div>
-      </div>
 
-      {/* Score summary — admin-style marks table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          {isSAT ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
-                  <th className="px-3 py-3 text-left font-semibold">Test Name</th>
-                  <th className="px-3 py-3 text-center font-semibold">Started At</th>
-                  <th className="px-3 py-3 text-center font-semibold">Completed At</th>
-                  <th className="px-3 py-3 text-center font-semibold">
-                    RW MD1<span className="text-slate-400 font-normal">/{rwDen1}</span>
-                  </th>
-                  <th className="px-3 py-3 text-center font-semibold">
-                    RW MD2<span className="text-slate-400 font-normal">/{rwDen2}</span>
-                  </th>
-                  <th className="px-3 py-3 text-center font-semibold">
-                    Math MD1<span className="text-slate-400 font-normal">/{mathDen1}</span>
-                  </th>
-                  <th className="px-3 py-3 text-center font-semibold">
-                    Math MD2<span className="text-slate-400 font-normal">/{mathDen2}</span>
-                  </th>
-                  <th className="px-3 py-3 text-center font-semibold">
-                    Total<span className="text-slate-400 font-normal">/{totalQ}</span>
-                  </th>
-                  <th className="px-3 py-3 text-center font-semibold">RW SS</th>
-                  <th className="px-3 py-3 text-center font-semibold">Math SS</th>
-                  <th className="px-3 py-3 text-center font-semibold">Total SS</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-slate-50">
-                  <td className="px-3 py-3 font-semibold text-purple-700">{attempt.test.title}</td>
-                  <td className="px-3 py-3 text-center text-xs text-slate-500">
-                    {attempt.startedAt ? new Date(attempt.startedAt).toLocaleString() : '—'}
-                  </td>
-                  <td className="px-3 py-3 text-center text-xs text-slate-500">
-                    {attempt.completedAt ? new Date(attempt.completedAt).toLocaleString() : '—'}
-                  </td>
-                  <td className="px-3 py-3 text-center text-purple-700 font-medium">{rw1}</td>
-                  <td className="px-3 py-3 text-center text-purple-700 font-medium">{rw2}</td>
-                  <td className="px-3 py-3 text-center text-purple-700 font-medium">{math1}</td>
-                  <td className="px-3 py-3 text-center text-purple-700 font-medium">{math2}</td>
-                  <td className="px-3 py-3 text-center font-bold text-slate-900">{totalCorrect}</td>
-                  <td className="px-3 py-3 text-center text-slate-600">{rwScaled}</td>
-                  <td className="px-3 py-3 text-center text-slate-600">{mathScaled}</td>
-                  <td className="px-3 py-3 text-center font-semibold text-slate-800">{finalScaledScore}</td>
-                </tr>
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
-                  <th className="px-3 py-3 text-left font-semibold">Test Name</th>
-                  <th className="px-3 py-3 text-center font-semibold">Started At</th>
-                  <th className="px-3 py-3 text-center font-semibold">Completed At</th>
-                  {sectionStats.map((s) => (
-                    <th key={s.name} className="px-3 py-3 text-center font-semibold">
-                      {s.name}<span className="text-slate-400 font-normal">/{s.total}</span>
-                    </th>
-                  ))}
-                  <th className="px-3 py-3 text-center font-semibold">
-                    Total<span className="text-slate-400 font-normal">/{totalQ}</span>
-                  </th>
-                  <th className="px-3 py-3 text-center font-semibold">Accuracy</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-slate-50">
-                  <td className="px-3 py-3 font-semibold text-purple-700">{attempt.test.title}</td>
-                  <td className="px-3 py-3 text-center text-xs text-slate-500">
-                    {attempt.startedAt ? new Date(attempt.startedAt).toLocaleString() : '—'}
-                  </td>
-                  <td className="px-3 py-3 text-center text-xs text-slate-500">
-                    {attempt.completedAt ? new Date(attempt.completedAt).toLocaleString() : '—'}
-                  </td>
-                  {sectionStats.map((s) => (
-                    <td key={s.name} className="px-3 py-3 text-center text-purple-700 font-medium">{s.correct}</td>
-                  ))}
-                  <td className="px-3 py-3 text-center font-bold text-slate-900">{totalCorrect}</td>
-                  <td className="px-3 py-3 text-center text-slate-600">{overallAccuracy}%</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-        </div>
+        {/* Module score tiles */}
+        {isSAT ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+              {[
+                { label: 'RW Mod 1', val: rw1, den: rwDen1 },
+                { label: 'RW Mod 2', val: rw2, den: rwDen2 },
+                { label: 'Math Mod 1', val: math1, den: mathDen1 },
+                { label: 'Math Mod 2', val: math2, den: mathDen2 },
+              ].map(({ label, val, den }) => (
+                <div key={label} className="bg-white/10 rounded-xl px-3 py-2.5 text-center">
+                  <p className="text-lg font-bold">{val}<span className="text-blue-300 text-sm font-normal">/{den}</span></p>
+                  <p className="text-blue-200 text-[11px] mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
+            {/* Scaled score row */}
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {[
+                { label: 'RW Scaled', val: rwScaled, highlight: false },
+                { label: 'Math Scaled', val: mathScaled, highlight: false },
+                { label: 'Total Score', val: finalScaledScore, highlight: true },
+              ].map(({ label, val, highlight }) => (
+                <div key={label} className={`rounded-xl px-3 py-2.5 text-center ${highlight ? 'bg-white/20 ring-1 ring-white/30' : 'bg-white/10'}`}>
+                  <p className={`text-xl font-black ${highlight ? 'text-white' : 'text-blue-100'}`}>{val}</p>
+                  <p className="text-blue-300 text-[11px] mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {sectionStats.map((s) => (
+              <div key={s.name} className="bg-white/10 rounded-xl px-3 py-2.5 text-center">
+                <p className="text-lg font-bold">{s.correct}<span className="text-blue-300 text-sm font-normal">/{s.total}</span></p>
+                <p className="text-blue-200 text-[11px] truncate mt-0.5">{s.name}</p>
+              </div>
+            ))}
+            <div className="bg-white/20 rounded-xl px-3 py-2.5 text-center ring-1 ring-white/30">
+              <p className="text-xl font-black">{overallAccuracy}%</p>
+              <p className="text-blue-300 text-[11px] mt-0.5">Accuracy</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── KNOWLEDGE AND SKILLS ─────────────────────────────────────────────── */}
