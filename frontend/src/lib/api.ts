@@ -138,6 +138,8 @@ export const api = {
     request<{ test: unknown }>(`/api/tests/${testId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteTest: (testId: string) =>
     request<{ success: boolean }>(`/api/tests/${testId}`, { method: 'DELETE' }),
+  cloneTest: (testId: string) =>
+    request<{ test: { id: string } }>(`/api/tests/${testId}/clone`, { method: 'POST', body: '{}' }),
 
   // Attempts
   startAttempt: (testId: string, studentId: string) =>

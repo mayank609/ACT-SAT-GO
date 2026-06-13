@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2, Search } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2, Search, Copy } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -234,6 +234,7 @@ export function TestsPage() {
   const [deleteModal, setDeleteModal] = useState<ApiTest | null>(null);
   const [assignModal, setAssignModal] = useState<ApiTest | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [cloningId, setCloningId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<string | null>(null);
@@ -265,6 +266,21 @@ export function TestsPage() {
   const handleStatusChange = (test: ApiTest, status: string) => {
     updateTestStatus(test.id, status);
     setMenuOpen(null);
+  };
+
+  const handleCloneTest = async (test: ApiTest) => {
+    setMenuOpen(null);
+    setCloningId(test.id);
+    try {
+      const { test: newTest } = await api.cloneTest(test.id);
+      toast.success(`"Copy of ${test.title}" created`);
+      fetchTests();
+      navigate(`/test-builder?testId=${newTest.id}`);
+    } catch {
+      toast.error('Failed to clone test');
+    } finally {
+      setCloningId(null);
+    }
   };
 
   return (
@@ -434,6 +450,15 @@ export function TestsPage() {
                             <Archive size={13} /> Archive
                           </button>
                         )}
+                        <div className="border-t border-slate-100 my-1" />
+                        <button
+                          onClick={() => handleCloneTest(test)}
+                          disabled={cloningId === test.id}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+                        >
+                          {cloningId === test.id ? <Loader2 size={13} className="animate-spin" /> : <Copy size={13} />}
+                          {cloningId === test.id ? 'Cloning…' : 'Clone'}
+                        </button>
                         <div className="border-t border-slate-100 my-1" />
                         <button onClick={() => { setDeleteModal(test); setMenuOpen(null); }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50">
