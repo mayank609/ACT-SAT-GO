@@ -1447,6 +1447,26 @@ export function StudentManagementPage() {
                         <Clock size={12} />
                         Time Analysis
                       </button>
+                      <button
+                        onClick={() => { setQuestionFilterBy(questionFilterBy === 'doubt' ? 'all' : 'doubt'); setCurrentQuestionIdx(0); }}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                          questionFilterBy === 'doubt'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                        }`}
+                      >
+                        Still Doubt
+                      </button>
+                      <button
+                        onClick={() => { setQuestionFilterBy(questionFilterBy === 'cleared' ? 'all' : 'cleared'); setCurrentQuestionIdx(0); }}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                          questionFilterBy === 'cleared'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        }`}
+                      >
+                        Cleared
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1460,8 +1480,6 @@ export function StudentManagementPage() {
                         <option value="correct">Correct</option>
                         <option value="incorrect">Incorrect</option>
                         <option value="omitted">Omitted</option>
-                        <option value="doubt">Still Doubt</option>
-                        <option value="cleared">Cleared</option>
                       </select>
                     </div>
                   </div>
@@ -1575,10 +1593,10 @@ export function StudentManagementPage() {
                                       <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
                                     )}
                                     {studentAnswer?.doubtStatus === 'doubt' && (
-                                      <Badge variant="info" className="bg-amber-100 text-amber-700 border-none font-semibold">Still Doubt</Badge>
+                                      <Badge variant="info" className="bg-amber-400 text-white border-none font-bold">Still Doubt</Badge>
                                     )}
                                     {studentAnswer?.doubtStatus === 'cleared' && (
-                                      <Badge variant="info" className="bg-green-100 text-green-700 border-none font-semibold">Cleared</Badge>
+                                      <Badge variant="info" className="bg-green-500 text-white border-none font-bold">Cleared</Badge>
                                     )}
                                   </div>
                                 </div>
