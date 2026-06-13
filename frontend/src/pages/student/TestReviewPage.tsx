@@ -1877,7 +1877,7 @@ export function TestReviewPage() {
 
                 {/* Question Grid */}
                 <div className="flex justify-center">
-                  <div className="grid grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
+                  <div className="grid grid-cols-9 gap-3 p-1">
                     {navFiltered.map((fq, idx) => {
                       const ans = answersMap.get(fq.questionId);
                       const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, fq.question.correctAnswer) : false;

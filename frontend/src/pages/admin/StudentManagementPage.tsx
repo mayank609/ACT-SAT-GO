@@ -2114,7 +2114,7 @@ export function StudentManagementPage() {
                       <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
                     </div>
                     <div className="flex justify-center">
-                      <div className="grid grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
+                      <div className="grid grid-cols-9 gap-3 p-1">
                         {navFiltered.map((fq, idx) => {
                           const ans = navAnswersMap.get(fq.questionId);
                           const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
