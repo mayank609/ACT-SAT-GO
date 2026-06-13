@@ -1841,7 +1841,6 @@ export function TestReviewPage() {
               </div>
             );
           })()}
-        </div>
 
         {/* Question Navigator — inline overlay inside fullscreen so it renders above z-50 */}
         {showFullscreenQuestionNavigator && (() => {
