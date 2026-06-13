@@ -249,15 +249,28 @@ export function TestsPage() {
     return [...cats];
   }, [tests]);
 
+  const matchesTitleFilter = (title: string, cf: string) => {
+    const t = title.toLowerCase();
+    if (cf === 'HW') return t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+    if (cf === 'CW') return t.includes('classwork') || t.includes(' cw') || t.endsWith('cw') || /\bcw\b/.test(t);
+    return false;
+  };
+
   const filtered = useMemo(() => {
     return tests.filter((t) => {
       if (filter !== 'all' && t.status.toLowerCase() !== filter) return false;
       if (search.trim() && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
       if (catFilter) {
-        const subj = t.subCategory?.split('-')[0];
-        const matchesCat = t.category === catFilter;
-        const matchesSubj = subj === catFilter;
-        if (!matchesCat && !matchesSubj) return false;
+        if (catFilter === 'HW' || catFilter === 'CW') {
+          const subParts = t.subCategory?.split('-') ?? [];
+          const assignType = subParts[1]?.toUpperCase();
+          if (assignType !== catFilter && !matchesTitleFilter(t.title, catFilter)) return false;
+        } else {
+          const subj = t.subCategory?.split('-')[0];
+          const matchesCat = t.category === catFilter;
+          const matchesSubj = subj === catFilter;
+          if (!matchesCat && !matchesSubj) return false;
+        }
       }
       return true;
     });
@@ -328,23 +341,34 @@ export function TestsPage() {
           </div>
         </div>
 
-        {availableCats.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {availableCats.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCatFilter(catFilter === cat ? null : cat)}
-                className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
-                  catFilter === cat
-                    ? 'bg-slate-800 text-white border-slate-800'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-800'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1.5">
+          {availableCats.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setCatFilter(catFilter === cat ? null : cat)}
+              className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
+                catFilter === cat
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-800'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+          {['HW', 'CW'].map(label => (
+            <button
+              key={label}
+              onClick={() => setCatFilter(catFilter === label ? null : label)}
+              className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
+                catFilter === label
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-800'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Test rows — loading skeleton */}
