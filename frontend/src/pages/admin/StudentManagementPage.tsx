@@ -1593,10 +1593,10 @@ export function StudentManagementPage() {
                                       <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
                                     )}
                                     {studentAnswer?.doubtStatus === 'doubt' && (
-                                      <Badge variant="info" className="bg-amber-400 text-white border-none font-bold">Still Doubt</Badge>
+                                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-md bg-amber-400 text-white">Still Doubt</span>
                                     )}
                                     {studentAnswer?.doubtStatus === 'cleared' && (
-                                      <Badge variant="info" className="bg-green-500 text-white border-none font-bold">Cleared</Badge>
+                                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-md bg-green-500 text-white">Cleared</span>
                                     )}
                                   </div>
                                 </div>
