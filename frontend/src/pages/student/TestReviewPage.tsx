@@ -828,14 +828,19 @@ export function TestReviewPage() {
       .finally(() => setLoading(false));
   }, [attemptId]);
 
-  // Lock body scroll when fullscreen review is open
+  // Lock scroll on both html and body when fullscreen review is open
   useEffect(() => {
     if (fullscreenReportOpen) {
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   }, [fullscreenReportOpen]);
 
   if (loading) return (
@@ -1526,7 +1531,7 @@ export function TestReviewPage() {
 
       {/* Fullscreen Question Report Modal - Test-like Interface */}
       {fullscreenReportOpen && (
-        <div className="fixed inset-0 bg-white z-50 overflow-hidden flex flex-col font-sans">
+        <div className="fixed inset-0 h-[100dvh] bg-white z-50 overflow-hidden flex flex-col font-sans">
           {/* ── TOP HEADER BAR ───────────────────────────────────────────────── */}
           <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-16 flex items-center justify-between z-20">
             {/* Left: Section tabs */}
