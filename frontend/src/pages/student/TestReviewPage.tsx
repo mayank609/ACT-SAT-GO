@@ -1527,6 +1527,58 @@ export function TestReviewPage() {
       {/* Fullscreen Question Report Modal - Test-like Interface */}
       {fullscreenReportOpen && (
         <div className="fixed inset-0 bg-white z-50 overflow-hidden flex flex-col font-sans">
+          {/* ── TOP HEADER BAR ───────────────────────────────────────────────── */}
+          <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-16 flex items-center justify-between z-20">
+            {/* Left: Section tabs */}
+            <div className="flex items-center gap-4 min-w-0">
+              <span className="font-bold text-slate-800 text-sm hidden sm:inline">Reviewing:</span>
+              <div className="flex flex-wrap gap-1 min-w-0">
+                {sections.map((sa, idx) => (
+                  <button
+                    key={sa.id}
+                    onClick={() => {
+                      setActiveSectionIdx(idx);
+                      setFilterBy('all');
+                      setCurrentQuestionIdx(0);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                      activeSectionIdx === idx
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                    }`}
+                  >
+                    {getSectionModuleLabel(sa.section.name)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Filter and close */}
+            <div className="flex items-center gap-4 z-30">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">Filter</span>
+                <select
+                  value={filterBy}
+                  onChange={(e) => { setFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
+                  className="px-2.5 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Questions</option>
+                  <option value="correct">Correct Only</option>
+                  <option value="incorrect">Incorrect Only</option>
+                  <option value="omitted">Omitted Only</option>
+                  <option value="flagged">Bookmarked Only</option>
+                </select>
+              </div>
+              <button
+                onClick={() => setFullscreenReportOpen(false)}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all cursor-pointer"
+                title="Close Fullscreen"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </header>
+
           {/* Main Content Area */}
           <div className="flex-1 overflow-hidden bg-white">
             {(() => {
@@ -1758,44 +1810,22 @@ export function TestReviewPage() {
                 </button>
 
                 {/* Center: navigator pill + filter */}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowFullscreenQuestionNavigator(true)}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer shadow-md"
-                  >
-                    Question {safeIdx + 1} of {fsFiltered.length}
-                    <ChevronDown size={16} />
-                  </button>
-                  <select
-                    value={filterBy}
-                    onChange={(e) => { setFilterBy(e.target.value); setCurrentQuestionIdx(0); }}
-                    className="px-2.5 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All Questions</option>
-                    <option value="correct">Correct Only</option>
-                    <option value="incorrect">Incorrect Only</option>
-                    <option value="omitted">Omitted Only</option>
-                    <option value="flagged">Bookmarked Only</option>
-                  </select>
-                </div>
+                <button
+                  onClick={() => setShowFullscreenQuestionNavigator(true)}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer shadow-md"
+                >
+                  Question {safeIdx + 1} of {fsFiltered.length}
+                  <ChevronDown size={16} />
+                </button>
 
-                {/* Next + Close */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentQuestionIdx(Math.min(fsFiltered.length - 1, safeIdx + 1))}
-                    disabled={safeIdx >= fsFiltered.length - 1}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                  >
-                    Next <ChevronRight size={16} />
-                  </button>
-                  <button
-                    onClick={() => setFullscreenReportOpen(false)}
-                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
-                    title="Close"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
+                {/* Next */}
+                <button
+                  onClick={() => setCurrentQuestionIdx(Math.min(fsFiltered.length - 1, safeIdx + 1))}
+                  disabled={safeIdx >= fsFiltered.length - 1}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
               </div>
             );
           })()}
