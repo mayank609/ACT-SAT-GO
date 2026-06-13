@@ -2050,6 +2050,8 @@ export function TestBuilderPage() {
 
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [secDragSrcIdx, setSecDragSrcIdx] = useState<number | null>(null);
+  const [secDragOverIdx, setSecDragOverIdx] = useState<number | null>(null);
 
   const updateSection = (idx: number, updates: Partial<Section>) =>
     setSections((prev) => prev.map((s, i) => i === idx ? { ...s, ...updates } : s));
@@ -2074,6 +2076,20 @@ export function TestBuilderPage() {
   };
   const addSection = () => { setSections((prev) => [...prev, newSection()]); setActiveSectionIdx(sections.length); };
   const deleteSection = (idx: number) => { setSections((prev) => prev.filter((_, i) => i !== idx)); setActiveSectionIdx(Math.max(0, idx - 1)); };
+
+  const handleSectionDrop = (targetIdx: number) => {
+    if (secDragSrcIdx === null || secDragSrcIdx === targetIdx) {
+      setSecDragSrcIdx(null); setSecDragOverIdx(null); return;
+    }
+    const updated = [...sections];
+    const [moved] = updated.splice(secDragSrcIdx, 1);
+    updated.splice(targetIdx, 0, moved);
+    setSections(updated);
+    if (activeSectionIdx === secDragSrcIdx) setActiveSectionIdx(targetIdx);
+    else if (activeSectionIdx > secDragSrcIdx && activeSectionIdx <= targetIdx) setActiveSectionIdx(activeSectionIdx - 1);
+    else if (activeSectionIdx < secDragSrcIdx && activeSectionIdx >= targetIdx) setActiveSectionIdx(activeSectionIdx + 1);
+    setSecDragSrcIdx(null); setSecDragOverIdx(null);
+  };
 
   // Confirm the chosen test type: build its module structure and open the builder.
   const startBuilding = () => {
@@ -2354,9 +2370,20 @@ export function TestBuilderPage() {
               <div className={`${showSectionNav ? 'block' : 'hidden'} lg:block lg:w-60 xl:w-64 flex-shrink-0 space-y-1`}>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-2 mb-2 hidden lg:block">Sections</p>
                 {sections.map((sec, idx) => (
-                  <div key={sec.id} className="group flex items-center gap-1">
+                  <div
+                    key={sec.id}
+                    draggable
+                    onDragStart={() => setSecDragSrcIdx(idx)}
+                    onDragOver={(e) => { e.preventDefault(); setSecDragOverIdx(idx); }}
+                    onDrop={(e) => { e.preventDefault(); handleSectionDrop(idx); }}
+                    onDragEnd={() => { setSecDragSrcIdx(null); setSecDragOverIdx(null); }}
+                    className={`group flex items-center gap-1 rounded-lg transition-all ${
+                      secDragOverIdx === idx && secDragSrcIdx !== idx ? 'ring-2 ring-blue-400 bg-blue-50' : ''
+                    } ${secDragSrcIdx === idx ? 'opacity-40' : ''}`}
+                  >
+                    <GripVertical size={13} className="flex-shrink-0 text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors ml-0.5" />
                     <button onClick={() => { setActiveSectionIdx(idx); setShowSectionNav(false); }}
-                      className={`flex-1 text-left px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      className={`flex-1 text-left px-2 py-2.5 rounded-lg text-sm transition-all ${
                         activeSectionIdx === idx ? 'bg-blue-600 text-white font-medium' : 'text-slate-600 hover:bg-slate-100'
                       }`}>
                       <p className="truncate text-xs leading-snug">{sec.name}</p>
