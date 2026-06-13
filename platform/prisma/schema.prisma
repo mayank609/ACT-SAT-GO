@@ -209,6 +209,7 @@ model AttemptAnswer {
   answerGiven        Json?
   timeSpentSeconds   Int      @default(0)
   isFlagged          Boolean  @default(false)
+  doubtStatus        String?
   updatedAt          DateTime @updatedAt
 
   attempt  TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
