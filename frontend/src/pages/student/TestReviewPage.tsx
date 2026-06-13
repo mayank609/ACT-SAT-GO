@@ -1074,7 +1074,7 @@ export function TestReviewPage() {
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-blue-300 text-xs font-medium uppercase tracking-wide">Test Review</p>
-            {!isTutorOrAdmin && allAttempts.length > 1 ? (
+            {!isTutorOrAdmin && allAttempts.length > 0 ? (
               <select
                 value={attemptId}
                 onChange={e => navigate(`/test-review/${e.target.value}`)}
