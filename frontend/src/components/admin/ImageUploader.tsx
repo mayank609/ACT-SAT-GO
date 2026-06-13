@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Link, Trash2, Eye, Check, Loader2, Image as ImageIcon } from 'lucide-react';
 import { api } from '../../lib/api';
-import { supabase } from '../../lib/supabase';
+import { supabase, getAccessToken } from '../../lib/supabase';
 
 interface UploadedImage {
   url: string;
@@ -99,15 +99,13 @@ export function ImageUploader({
     };
 
     try {
-      // ── 1. Resolve a fresh access token ─────────────────────────────────────
-      let token: string | null = null;
-      const { data: refreshData } = await supabase.auth.refreshSession();
-      if (refreshData.session) {
-        token = refreshData.session.access_token;
-      } else {
-        const { data: sessionData } = await supabase.auth.getSession();
-        token = sessionData.session?.access_token ?? null;
-      }
+      // ── 1. Resolve a valid access token ─────────────────────────────────────
+      // Use the shared helper, which only refreshes when the token is actually
+      // near expiry. Calling supabase.auth.refreshSession() unconditionally here
+      // raced with the app's auto-refresh and the request interceptor's refresh —
+      // Supabase rotates refresh tokens, so one consumer would invalidate the
+      // other's token and uploads got 401 even while other API calls worked.
+      const token = await getAccessToken();
 
       if (!token) {
         cleanup();
