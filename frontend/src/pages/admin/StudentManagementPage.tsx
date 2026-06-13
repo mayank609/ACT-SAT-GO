@@ -1762,113 +1762,6 @@ export function StudentManagementPage() {
       </Modal>
 
       {/* ── Question Navigator Modal ── */}
-      {showQuestionNavigator && testAnalysisAttempt && (() => {
-        const analysis = computeTestAnalysis(testAnalysisAttempt);
-        const activeSection = analysis.sections[activeQuestionSectionIdx];
-        if (!activeSection) return null;
-
-        const sectionAttempt = testAnalysisAttempt.sectionAttempts.find(
-          (sa) => sa.section.name === activeSection.name
-        );
-        if (!sectionAttempt) return null;
-
-        const allQuestions = sectionAttempt.section.questions.flatMap((tq) => {
-          const q = tq.question;
-          const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
-          if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
-          }
-          return [tq];
-        });
-        const answersMap = new Map(testAnalysisAttempt.answers.map((a) => [a.questionId, a]));
-
-        const filteredQuestions = allQuestions.filter((tq) => {
-          const ans = answersMap.get(tq.questionId);
-          const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
-          const isOmitted = !ans?.answerGiven;
-
-          if (questionFilterBy === 'correct') return isCorrect;
-          if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
-          if (questionFilterBy === 'omitted') return isOmitted;
-          return true;
-        });
-
-        const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
-
-        return (
-          <Modal isOpen={showQuestionNavigator} onClose={() => setShowQuestionNavigator(false)} title="" size="md">
-            <div className="space-y-6">
-              {/* Title */}
-              <div className="text-center border-b border-slate-200 pb-4">
-                <h3 className="text-lg md:text-xl font-bold text-slate-900">{activeSection.name}</h3>
-                <p className="text-sm text-slate-500 mt-1">Questions</p>
-              </div>
-
-              {/* Status Legend */}
-              <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-slate-300" />
-                  <span className="text-xs font-semibold text-slate-600">Unanswered</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-semibold text-slate-600">Correct</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-red-500" />
-                  <span className="text-xs font-semibold text-slate-600">Wrong</span>
-                </div>
-              </div>
-
-              {/* Question Grid */}
-              <div className="flex justify-center">
-                <div className="grid grid-cols-6 sm:grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
-                  {filteredQuestions.map((fq, idx) => {
-                    const ans = answersMap.get(fq.questionId);
-                    const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
-                    const isOmitted = !ans?.answerGiven;
-                    const isCurrent = idx === safeIdx;
-
-                    let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
-                    let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
-
-                    if (isCurrent) {
-                      bgColor = 'bg-blue-600 border-blue-700';
-                      textColor = 'text-white font-bold ring-2 ring-blue-300';
-                    }
-
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setCurrentQuestionIdx(idx);
-                          setShowQuestionNavigator(false);
-                        }}
-                        className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 cursor-pointer`}
-                        title={`Q${idx + 1} — ${isOmitted ? 'Omitted' : isCorrect ? 'Correct' : 'Incorrect'}`}
-                      >
-                        {idx + 1}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Bottom Section - Question Counter */}
-              <div className="border-t border-slate-200 pt-4 text-center">
-                <button
-                  onClick={() => setShowQuestionNavigator(false)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer"
-                >
-                  Question {safeIdx + 1} of {filteredQuestions.length}
-                  <ChevronDown size={16} />
-                </button>
-              </div>
-            </div>
-          </Modal>
-        );
-      })()}
-
       {/* ── Fullscreen Question Wise Report review mode ── */}
       {fullscreenQuestionReportOpen && testAnalysisAttempt && (() => {
         const analysis = computeTestAnalysis(testAnalysisAttempt);
@@ -2179,6 +2072,81 @@ export function StudentManagementPage() {
 
             </footer>
 
+            {/* Question Navigator — inline overlay so it renders above z-[150] */}
+            {showQuestionNavigator && (() => {
+              const navAnswersMap = new Map(testAnalysisAttempt!.answers.map((a) => [a.questionId, a]));
+              const navSection = testAnalysisAttempt!.sectionAttempts.find(
+                (sa) => sa.section.name === analysis.sections[activeQuestionSectionIdx]?.name
+              );
+              if (!navSection) return null;
+              const navAllQ = navSection.section.questions.flatMap((tq) => {
+                const q = tq.question;
+                const isP = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+                if (isP && q.childQuestions?.length) return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
+                return [tq];
+              });
+              const navFiltered = navAllQ.filter((tq) => {
+                const ans = navAnswersMap.get(tq.questionId);
+                const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                const isOmitted = !ans?.answerGiven;
+                if (questionFilterBy === 'correct') return isCorrect;
+                if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                if (questionFilterBy === 'omitted') return isOmitted;
+                return true;
+              });
+              const navSafeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
+              return (
+                <div
+                  className="absolute inset-0 z-[200] flex items-center justify-center bg-black/40"
+                  onClick={() => setShowQuestionNavigator(false)}
+                >
+                  <div
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="text-center border-b border-slate-200 pb-4">
+                      <h3 className="text-lg font-bold text-slate-900">{analysis.sections[activeQuestionSectionIdx]?.name}</h3>
+                      <p className="text-sm text-slate-500 mt-1">Questions</p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+                      <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
+                      <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
+                      <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
+                    </div>
+                    <div className="flex justify-center">
+                      <div className="grid grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
+                        {navFiltered.map((fq, idx) => {
+                          const ans = navAnswersMap.get(fq.questionId);
+                          const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                          const isOmitted = !ans?.answerGiven;
+                          const isCurrent = idx === navSafeIdx;
+                          let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
+                          let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
+                          if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => { setCurrentQuestionIdx(idx); setShowQuestionNavigator(false); }}
+                              className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                            >
+                              {idx + 1}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="border-t border-slate-200 pt-4 text-center">
+                      <button
+                        onClick={() => setShowQuestionNavigator(false)}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all"
+                      >
+                        Question {navSafeIdx + 1} of {navFiltered.length} <ChevronDown size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         );
       })()}
