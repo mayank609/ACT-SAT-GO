@@ -7,7 +7,6 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ScoreCalculator } from '../../components/calculator/ScoreCalculator';
 import { Modal } from '../../components/common/Modal';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES, ALL_SUBDOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 
@@ -1919,11 +1918,6 @@ export function TestReviewPage() {
         })()}
       </div>
       )}
-
-      {/* Score Calculator */}
-      <div className="mt-8">
-        <ScoreCalculator rw1={rw1} rw2={rw2} math1={math1} math2={math2} isAdaptive={true} />
-      </div>
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-end">
