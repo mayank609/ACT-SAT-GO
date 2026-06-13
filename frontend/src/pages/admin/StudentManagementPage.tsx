@@ -1969,11 +1969,6 @@ export function StudentManagementPage() {
               </div>
             </header>
 
-            {/* Practice Banner */}
-            <div className="flex-shrink-0 bg-[#1e2150] text-white text-center text-[12px] font-semibold tracking-wide py-1.5 z-10 select-none">
-              THIS IS A PRACTICE TEST REVIEW
-            </div>
-
             {/* Main Area */}
             <div className="flex-1 overflow-hidden bg-white min-h-0">
               {filteredQuestions.length === 0 ? (
@@ -2151,7 +2146,16 @@ export function StudentManagementPage() {
             </div>
 
             {/* Bottom Footer Bar */}
-            <footer className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-center z-20">
+            <footer className="flex-shrink-0 bg-[#fcfcfd] border-t border-slate-200 px-5 h-16 flex items-center justify-between z-20">
+
+              {/* Previous */}
+              <button
+                onClick={() => setCurrentQuestionIdx(Math.max(0, safeIdx - 1))}
+                disabled={safeIdx === 0}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
 
               {/* Center: question navigator pill */}
               {filteredQuestions.length > 0 && (
@@ -2164,6 +2168,14 @@ export function StudentManagementPage() {
                 </button>
               )}
 
+              {/* Next */}
+              <button
+                onClick={() => setCurrentQuestionIdx(Math.min(filteredQuestions.length - 1, safeIdx + 1))}
+                disabled={safeIdx >= filteredQuestions.length - 1}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                Next <ChevronRight size={16} />
+              </button>
 
             </footer>
 
