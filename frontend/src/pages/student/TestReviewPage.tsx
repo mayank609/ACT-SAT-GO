@@ -1553,6 +1553,11 @@ export function TestReviewPage() {
               </div>
             </div>
 
+            {/* Center badge */}
+            <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 select-none">
+              Test Review - Question Analysis
+            </div>
+
             {/* Right: Filter and close */}
             <div className="flex items-center gap-4 z-30">
               <div className="flex items-center gap-2">
