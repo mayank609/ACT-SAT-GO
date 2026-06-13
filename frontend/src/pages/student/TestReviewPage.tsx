@@ -1536,28 +1536,32 @@ export function TestReviewPage() {
           style={{ top: 0, left: 0, right: 0, bottom: 0, height: '100dvh' }}
         >
           {/* ── TOP HEADER BAR ───────────────────────────────────────────────── */}
-          <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-14 flex items-center justify-between gap-4 z-20 overflow-hidden">
-            {/* Left: Section tabs — scrollable so they never overlap the right controls */}
-            <div className="flex items-center gap-2 min-w-0 overflow-x-auto flex-shrink-0 max-w-[65%] scrollbar-none">
-              <span className="font-bold text-slate-800 text-sm whitespace-nowrap hidden lg:inline">Reviewing:</span>
-              <div className="flex gap-1">
-                {sections.map((sa, idx) => (
-                  <button
-                    key={sa.id}
-                    onClick={() => {
-                      setActiveSectionIdx(idx);
-                      setFilterBy('all');
-                      setCurrentQuestionIdx(0);
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
-                      activeSectionIdx === idx
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                    }`}
-                  >
-                    {getSectionModuleLabel(sa.section.name)}
-                  </button>
-                ))}
+          <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-4 h-14 flex items-center justify-between gap-3 z-20">
+            {/* Left: Section tabs with short labels */}
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-bold text-slate-800 text-xs whitespace-nowrap hidden md:inline">Reviewing:</span>
+              <div className="flex gap-1 flex-wrap">
+                {sections.map((sa, idx) => {
+                  const n = sa.section.name;
+                  const isMath = /math/i.test(n);
+                  const isMod2 = /2|two/i.test(n);
+                  const shortLabel = isMath
+                    ? `Math Mod ${isMod2 ? 2 : 1}`
+                    : `RW Mod ${isMod2 ? 2 : 1}`;
+                  return (
+                    <button
+                      key={sa.id}
+                      onClick={() => { setActiveSectionIdx(idx); setFilterBy('all'); setCurrentQuestionIdx(0); }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                        activeSectionIdx === idx
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      }`}
+                    >
+                      {shortLabel}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
