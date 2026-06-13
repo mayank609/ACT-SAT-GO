@@ -805,7 +805,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
 export function TestReviewPage() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, dbId } = useAuthStore();
   const isTutorOrAdmin = user?.role === 'tutor' || user?.role === 'admin' || user?.role === 'super_admin';
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [filterBy, setFilterBy] = useState<string>('all');
@@ -818,6 +818,7 @@ export function TestReviewPage() {
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [allAttempts, setAllAttempts] = useState<Array<{ id: string; test: { title: string }; completedAt: string | null }>>([]);
 
   useEffect(() => {
     if (!attemptId) { setError('No attempt ID'); setLoading(false); return; }
@@ -826,6 +827,17 @@ export function TestReviewPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [attemptId]);
+
+  // Load all submitted attempts so student can switch tests from the dropdown
+  useEffect(() => {
+    if (!dbId || isTutorOrAdmin) return;
+    api.getStudentAttempts(dbId)
+      .then(r => {
+        const submitted = ((r.attempts as any[]) ?? []).filter(a => a.status === 'SUBMITTED');
+        setAllAttempts(submitted);
+      })
+      .catch(() => {});
+  }, [dbId, isTutorOrAdmin]);
 
   // Lock scroll on both html and body when fullscreen review is open
   useEffect(() => {
@@ -1062,7 +1074,22 @@ export function TestReviewPage() {
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-blue-300 text-xs font-medium uppercase tracking-wide">Test Review</p>
-            <h1 className="text-xl font-bold mt-0.5 truncate">{attempt.test.title}</h1>
+            {!isTutorOrAdmin && allAttempts.length > 1 ? (
+              <select
+                value={attemptId}
+                onChange={e => navigate(`/test-review/${e.target.value}`)}
+                className="mt-1 w-full max-w-xs bg-white/10 border border-white/20 rounded-lg text-white font-bold text-base px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/30 cursor-pointer appearance-none"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2393c5fd' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '30px' }}
+              >
+                {allAttempts.map(a => (
+                  <option key={a.id} value={a.id} style={{ background: '#1b3d6e', color: 'white' }}>
+                    {a.test.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <h1 className="text-xl font-bold mt-0.5 truncate">{attempt.test.title}</h1>
+            )}
             {attempt.completedAt && (
               <p className="text-blue-300 text-xs mt-0.5">
                 Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
