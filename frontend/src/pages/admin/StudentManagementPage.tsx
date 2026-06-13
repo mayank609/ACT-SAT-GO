@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -11,6 +11,7 @@ import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api, type DbUser } from '../../lib/api';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import toast from 'react-hot-toast';
+import { SAT_CONTENT, ALL_DOMAIN_NAMES, ALL_SUBDOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 
 type MainViewTab = 'analysis' | 'test_analysis';
 
@@ -25,11 +26,12 @@ interface TaAnswer {
 interface TaQuestion {
   id: string;
   type: string;
-  content: { text: string; explanation?: string | null };
+  content: { text: string; explanation?: string | null; meta?: { domain?: string | null; subTopic?: string | null; isPassage?: boolean } | null };
   options: Record<string, string> | null;
   correctAnswer: TaAnswer;
   difficultyLevel: string;
   subject?: string | null;
+  topic?: { name: string; parent?: { name: string } | null } | null;
   childQuestions?: TaQuestion[];
 }
 
@@ -91,6 +93,100 @@ function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
     return String(given.key).toUpperCase().trim() === String(correct.key).toUpperCase().trim();
   }
   return false;
+}
+
+// ── Knowledge & Skills helpers ───────────────────────────────────────────────
+
+const KS_DOMAINS = SAT_CONTENT;
+
+const KS_DOMAIN_SYNONYMS: Record<string, string[]> = {
+  'Information and Ideas': ['information and ideas', 'information', 'main idea', 'central idea', 'inference', 'evidence', 'command of evidence'],
+  'Craft and Structure': ['craft and structure', 'craft', 'structure', 'vocabulary', 'words in context', 'text structure', 'cross-text'],
+  'Expression of Ideas': ['expression of ideas', 'expression', 'rhetoric', 'rhetorical', 'transitions', 'synthesis'],
+  'Standard English Conventions': ['standard english conventions', 'conventions', 'grammar', 'usage', 'punctuation', 'sentence structure', 'english'],
+  'Algebra': ['algebra', 'linear'],
+  'Advanced Math': ['advanced math', 'advanced', 'nonlinear', 'quadratic', 'function', 'exponential'],
+  'Problem-Solving and Data Analysis': ['problem-solving and data analysis', 'problem solving', 'data analysis', 'data interpretation', 'statistics', 'ratio', 'rates', 'percent', 'probability', 'proportion'],
+  'Geometry and Trigonometry': ['geometry and trigonometry', 'geometry', 'trigonometry', 'trig'],
+};
+
+const KS_SUBDOMAIN_SYNONYMS: Record<string, string[]> = {
+  'Command of Evidence': ['command of evidence', 'evidence'],
+  'Inferences': ['inference'],
+  'Central Ideas and Details': ['central idea', 'central ideas and details', 'main idea', 'details'],
+  'Words in Context': ['words in context', 'word in context', 'vocabulary'],
+  'Text Structure and Purpose': ['text structure', 'purpose'],
+  'Cross-Text Connections': ['cross-text', 'cross text'],
+  'Rhetorical Synthesis': ['rhetorical synthesis', 'synthesis'],
+  'Transitions': ['transition'],
+  'Boundaries': ['boundaries', 'punctuation'],
+  'Form, Structure, and Sense': ['form, structure, and sense', 'form structure and sense', 'agreement', 'verb', 'tense'],
+  'Linear equations in one variable': ['linear equations in one variable', 'linear equation in one variable'],
+  'Linear functions': ['linear function'],
+  'Linear equations in two variables': ['linear equations in two variables', 'linear equation in two variables'],
+  'Systems of two linear equations in two variables': ['systems of two linear equations', 'system of two linear equations', 'systems of linear equations'],
+  'Linear inequalities in one or two variables': ['linear inequalit', 'inequalit'],
+  'Nonlinear functions': ['nonlinear function'],
+  'Nonlinear equations in one variable': ['nonlinear equation'],
+  'Systems of equations in two variables': ['systems of equations', 'system of equations'],
+  'Equivalent expressions': ['equivalent expression'],
+  'Ratios, rates, proportional relationships, and units': ['ratio', 'rates', 'proportional', 'proportion'],
+  'Percentages': ['percent'],
+  'One-variable data: Distributions and measures of center and spread': ['one-variable data', 'distribution', 'measures of center', 'spread', 'median', 'mean', 'mode'],
+  'Two-variable data: Models and scatterplots': ['two-variable data', 'scatterplot', 'scatter plot'],
+  'Probability and conditional probability': ['probability'],
+  'Inference from sample statistics and margin of error': ['margin of error', 'sample statistics'],
+  'Evaluating statistical claims: Observational studies and experiments': ['statistical claim', 'observational stud', 'experiment'],
+  'Area and volume': ['area', 'volume'],
+  'Lines, angles, and triangles': ['lines, angles', 'angle'],
+  'Right triangles and trigonometry': ['right triangle', 'trigonometry', 'trig'],
+  'Circles': ['circle'],
+};
+
+function ksDomainCandidates(q: TaQuestion): string[] {
+  return [q.content?.meta?.domain, q.topic?.name, q.topic?.parent?.name, q.subject].filter(Boolean) as string[];
+}
+
+function ksMatchDomain(q: TaQuestion): string | null {
+  const cands = ksDomainCandidates(q).map((c) => c.trim().toLowerCase());
+  if (!cands.length) return null;
+  const direct = ALL_DOMAIN_NAMES.find((d) => cands.includes(d.toLowerCase()));
+  if (direct) return direct;
+  for (const [domain, syns] of Object.entries(KS_DOMAIN_SYNONYMS)) {
+    for (const c of cands) {
+      if (syns.some((s) => c === s || c.includes(s) || s.includes(c))) return domain;
+    }
+  }
+  return null;
+}
+
+function ksMatchSubdomain(q: TaQuestion, domain: string | null): string | null {
+  if (!domain) return null;
+  const subs = SUBDOMAINS_BY_DOMAIN[domain];
+  if (!subs) return null;
+  const tagged = q.content?.meta?.subTopic?.trim();
+  if (tagged) {
+    const exact = subs.find((s) => s.toLowerCase() === tagged.toLowerCase());
+    if (exact) return exact;
+  }
+  const cands = [tagged, ...ksDomainCandidates(q)].filter(Boolean).map((c) => (c as string).trim().toLowerCase());
+  if (!cands.length) return null;
+  for (const sub of subs) {
+    const syns = KS_SUBDOMAIN_SYNONYMS[sub] ?? [sub.toLowerCase()];
+    for (const c of cands) {
+      if (syns.some((s) => c === s || c.includes(s) || s.includes(c))) return sub;
+    }
+  }
+  return null;
+}
+
+function ksModeDiff(diff: Record<string, number>): string {
+  const entries = Object.entries(diff);
+  if (!entries.length) return '—';
+  entries.sort((a, b) => b[1] - a[1]);
+  const d = entries[0][0];
+  const m: Record<string, string> = { EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard' };
+  return m[d.toUpperCase()] ?? d[0].toUpperCase() + d.slice(1).toLowerCase();
 }
 
 function taOptionsToDisplay(options: Record<string, string> | null): Array<{ id: string; text: string }> {
@@ -314,6 +410,7 @@ export function StudentManagementPage() {
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [fullscreenQuestionReportOpen, setFullscreenQuestionReportOpen] = useState(false);
   const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
+  const [knowledgeSkillsOpen, setKnowledgeSkillsOpen] = useState(false);
   const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
 
   useEffect(() => {
@@ -1207,6 +1304,103 @@ export function StudentManagementPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* ── Knowledge and Skills ── */}
+                {analysis.isSAT && (() => {
+                  const answersMap = new Map(testAnalysisAttempt.answers.map((a) => [a.questionId, a]));
+                  const domainStats: Record<string, { correct: number; total: number; diff: Record<string, number> }> = {};
+                  ALL_DOMAIN_NAMES.forEach((n) => { domainStats[n] = { correct: 0, total: 0, diff: {} }; });
+                  const subStats: Record<string, { correct: number; total: number }> = {};
+                  ALL_SUBDOMAIN_NAMES.forEach((n) => { subStats[n] = { correct: 0, total: 0 }; });
+
+                  testAnalysisAttempt.sectionAttempts.forEach((sa) => {
+                    sa.section.questions.forEach((tq) => {
+                      const q = tq.question;
+                      const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
+                      const qs: TaQuestion[] = isPassage && q.childQuestions?.length ? q.childQuestions : [q];
+                      qs.forEach((cq) => {
+                        const domain = ksMatchDomain(cq);
+                        const sub = ksMatchSubdomain(cq, domain);
+                        const ans = answersMap.get(cq.id);
+                        const correct = !!ans?.answerGiven && taAnswersMatch(ans.answerGiven, cq.correctAnswer);
+                        if (domain && domainStats[domain]) {
+                          domainStats[domain].total++;
+                          if (correct) domainStats[domain].correct++;
+                          domainStats[domain].diff[cq.difficultyLevel] = (domainStats[domain].diff[cq.difficultyLevel] ?? 0) + 1;
+                        }
+                        if (sub && subStats[sub]) {
+                          subStats[sub].total++;
+                          if (correct) subStats[sub].correct++;
+                        }
+                      });
+                    });
+                  });
+
+                  return (
+                    <div className="mt-6 bg-white rounded-xl border border-slate-200 p-5">
+                      <button
+                        onClick={() => setKnowledgeSkillsOpen(!knowledgeSkillsOpen)}
+                        className="w-full text-left flex items-center justify-between hover:opacity-80 transition-opacity"
+                      >
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-bold text-slate-900">Knowledge and Skills</h4>
+                          <span className="flex items-center gap-1 text-blue-600 text-xs font-semibold"><Info size={13} /> New!</span>
+                        </div>
+                        <div className="text-slate-500">
+                          {knowledgeSkillsOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
+                      </button>
+
+                      {knowledgeSkillsOpen && (
+                        <>
+                          <p className="text-slate-500 text-xs mb-5 mt-2">Performance across the 8 SAT content domains and their subdomains.</p>
+                          {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
+                            <div key={group} className="mb-6 last:mb-0">
+                              <h5 className="text-sm font-bold text-slate-800 mb-4">{group}</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+                                {KS_DOMAINS[group].map((d) => {
+                                  const stat = domainStats[d.name] ?? { correct: 0, total: 0, diff: {} };
+                                  const segs = stat.total > 0 ? stat.total : 8;
+                                  return (
+                                    <div key={d.name}>
+                                      <p className="font-bold text-slate-900 text-xs">{d.name}</p>
+                                      <p className="text-xs text-slate-400 mb-2">({d.pct}% of test section, {d.range} questions)</p>
+                                      <div className="flex gap-0.5 mb-1.5">
+                                        {Array.from({ length: segs }).map((_, i) => (
+                                          <div key={i} className={`h-2 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
+                                        ))}
+                                      </div>
+                                      <p className="text-xs text-slate-500">
+                                        {stat.total > 0 ? `${stat.correct}/${stat.total} correct · ` : ''}
+                                        Difficulty: <span className="text-blue-600 font-semibold">{ksModeDiff(stat.diff)}</span>
+                                      </p>
+                                      {d.subs.length > 0 && (
+                                        <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2">
+                                          {d.subs.map((sub) => {
+                                            const s = subStats[sub] ?? { correct: 0, total: 0 };
+                                            const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : null;
+                                            return (
+                                              <li key={sub} className="flex items-center justify-between gap-3 text-xs">
+                                                <span className={s.total > 0 ? 'text-slate-700' : 'text-slate-400'}>{sub}</span>
+                                                <span className={`font-semibold tabular-nums whitespace-nowrap ${s.total > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
+                                                  {s.total > 0 ? `${s.correct}/${s.total} · ${pct}%` : '—'}
+                                                </span>
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* ── Question Wise Report ── */}
                 <div className="mt-8 bg-white rounded-xl border-2 border-blue-200 p-4">
