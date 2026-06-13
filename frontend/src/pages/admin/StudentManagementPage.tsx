@@ -62,6 +62,7 @@ interface TaAttemptAnswer {
   answerGiven: TaAnswer | null;
   timeSpentSeconds: number;
   isFlagged: boolean;
+  doubtStatus?: string | null;
 }
 
 interface TaAttempt {
@@ -1459,6 +1460,8 @@ export function StudentManagementPage() {
                         <option value="correct">Correct</option>
                         <option value="incorrect">Incorrect</option>
                         <option value="omitted">Omitted</option>
+                        <option value="doubt">Still Doubt</option>
+                        <option value="cleared">Cleared</option>
                       </select>
                     </div>
                   </div>
@@ -1493,6 +1496,8 @@ export function StudentManagementPage() {
                       if (questionFilterBy === 'correct') return isCorrect;
                       if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
                       if (questionFilterBy === 'omitted') return isOmitted;
+                      if (questionFilterBy === 'doubt') return ans?.doubtStatus === 'doubt';
+                      if (questionFilterBy === 'cleared') return ans?.doubtStatus === 'cleared';
                       return true;
                     });
 
@@ -1558,7 +1563,7 @@ export function StudentManagementPage() {
                                       <RichContentRenderer content={currentTq.question.content.text || `Question`} variant="question" className="prose-sm" />
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
                                     {studentAnswer?.timeSpentSeconds ? (
                                       <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
                                     ) : null}
@@ -1568,6 +1573,12 @@ export function StudentManagementPage() {
                                       <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
                                     ) : (
                                       <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+                                    )}
+                                    {studentAnswer?.doubtStatus === 'doubt' && (
+                                      <Badge variant="info" className="bg-amber-100 text-amber-700 border-none font-semibold">Still Doubt</Badge>
+                                    )}
+                                    {studentAnswer?.doubtStatus === 'cleared' && (
+                                      <Badge variant="info" className="bg-green-100 text-green-700 border-none font-semibold">Cleared</Badge>
                                     )}
                                   </div>
                                 </div>
@@ -1614,7 +1625,7 @@ export function StudentManagementPage() {
                                 <div className="text-sm text-slate-800 flex-1 leading-relaxed text-left font-medium">
                                   <RichContentRenderer content={currentTq.question.content.text || `Question`} variant="question" className="prose-sm" />
                                 </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
                                   {studentAnswer?.timeSpentSeconds ? (
                                     <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
                                   ) : null}
@@ -1624,6 +1635,12 @@ export function StudentManagementPage() {
                                     <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
                                   ) : (
                                     <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+                                  )}
+                                  {studentAnswer?.doubtStatus === 'doubt' && (
+                                    <Badge variant="info" className="bg-amber-100 text-amber-700 border-none font-semibold">Still Doubt</Badge>
+                                  )}
+                                  {studentAnswer?.doubtStatus === 'cleared' && (
+                                    <Badge variant="info" className="bg-green-100 text-green-700 border-none font-semibold">Cleared</Badge>
                                   )}
                                 </div>
                               </div>
