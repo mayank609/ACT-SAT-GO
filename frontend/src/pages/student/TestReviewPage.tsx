@@ -917,16 +917,15 @@ export function TestReviewPage() {
   });
 
   let finalScaledScore = rawScore;
+  let rwScaled = 200;
+  let mathScaled = 200;
   if (isSAT) {
-    let rwScaled = 200;
-    let mathScaled = 200;
-
     if (rw1 >= 18) {
       rwScaled = 400 + Math.round(((rw1 + rw2) / 54) * 400 / 10) * 10;
     } else {
       rwScaled = 200 + Math.round(((rw1 + rw2) / 54) * 450 / 10) * 10;
     }
-    
+
     if (math1 >= 14) {
       mathScaled = 420 + Math.round(((math1 + math2) / 44) * 380 / 10) * 10;
     } else {
@@ -937,6 +936,22 @@ export function TestReviewPage() {
     mathScaled = Math.min(800, Math.max(200, mathScaled));
     finalScaledScore = rwScaled + mathScaled;
   }
+
+  // Total questions per module (denominators for the score breakdown)
+  let rwDen1 = 0, rwDen2 = 0, mathDen1 = 0, mathDen2 = 0;
+  sectionStats.forEach((s) => {
+    const isMathSec = /math/i.test(s.name);
+    const isRWSec = /reading|writing|rw/i.test(s.name);
+    if (isMathSec) {
+      if (/1|one/i.test(s.name)) mathDen1 = s.total;
+      else if (/2|two/i.test(s.name)) mathDen2 = s.total;
+      else mathDen1 = s.total;
+    } else if (isRWSec) {
+      if (/1|one/i.test(s.name)) rwDen1 = s.total;
+      else if (/2|two/i.test(s.name)) rwDen2 = s.total;
+      else rwDen1 = s.total;
+    }
+  });
 
   // Flatten every question across sections into Questions-Overview rows
   const reviewRows = sections.flatMap((sa, secIdx) =>
@@ -1035,39 +1050,92 @@ export function TestReviewPage() {
         </div>
       </div>
 
-      {/* Score summary */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-4 md:p-6 text-white">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-          <div className="col-span-2 sm:col-span-1 text-center bg-white/10 rounded-xl p-3 md:p-4">
-            <p className="text-3xl md:text-5xl font-bold">{isSAT ? finalScaledScore : rawScore}</p>
-            <p className="text-blue-200 text-xs mt-1">{isSAT ? 'Scaled Score' : 'Score'}</p>
-            <p className="text-blue-300 text-xs">{isSAT ? '(estimated)' : '(raw points)'}</p>
-          </div>
-          {sectionStats.map((sec) => (
-            <div key={sec.name} className="text-center bg-white/10 rounded-xl p-3">
-              <p className="text-2xl md:text-3xl font-bold">{sec.accuracy}%</p>
-              <p className="text-blue-200 text-xs mt-1 truncate">{sec.name}</p>
-              <p className="text-blue-300 text-xs">{sec.correct}/{sec.total}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 pt-3 border-t border-blue-500/50 grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p className="text-lg md:text-xl font-bold">{overallAccuracy}%</p>
-            <p className="text-blue-300 text-xs">Accuracy</p>
-          </div>
-          <div>
-            <p className="text-lg md:text-xl font-bold">{totalCorrect}/{totalQ}</p>
-            <p className="text-blue-300 text-xs">Correct</p>
-          </div>
-          <div>
-            <p className="text-lg md:text-xl font-bold">
-              {attempt.completedAt && attempt.startedAt
-                ? `${Math.round((new Date(attempt.completedAt).getTime() - new Date(attempt.startedAt).getTime()) / 60000)}m`
-                : '—'}
-            </p>
-            <p className="text-blue-300 text-xs">Time Used</p>
-          </div>
+      {/* Score summary — admin-style marks table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          {isSAT ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                  <th className="px-3 py-3 text-left font-semibold">Test Name</th>
+                  <th className="px-3 py-3 text-center font-semibold">Started At</th>
+                  <th className="px-3 py-3 text-center font-semibold">Completed At</th>
+                  <th className="px-3 py-3 text-center font-semibold">
+                    RW MD1<span className="text-slate-400 font-normal">/{rwDen1}</span>
+                  </th>
+                  <th className="px-3 py-3 text-center font-semibold">
+                    RW MD2<span className="text-slate-400 font-normal">/{rwDen2}</span>
+                  </th>
+                  <th className="px-3 py-3 text-center font-semibold">
+                    Math MD1<span className="text-slate-400 font-normal">/{mathDen1}</span>
+                  </th>
+                  <th className="px-3 py-3 text-center font-semibold">
+                    Math MD2<span className="text-slate-400 font-normal">/{mathDen2}</span>
+                  </th>
+                  <th className="px-3 py-3 text-center font-semibold">
+                    Total<span className="text-slate-400 font-normal">/{totalQ}</span>
+                  </th>
+                  <th className="px-3 py-3 text-center font-semibold">RW SS</th>
+                  <th className="px-3 py-3 text-center font-semibold">Math SS</th>
+                  <th className="px-3 py-3 text-center font-semibold">Total SS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-slate-50">
+                  <td className="px-3 py-3 font-semibold text-purple-700">{attempt.test.title}</td>
+                  <td className="px-3 py-3 text-center text-xs text-slate-500">
+                    {attempt.startedAt ? new Date(attempt.startedAt).toLocaleString() : '—'}
+                  </td>
+                  <td className="px-3 py-3 text-center text-xs text-slate-500">
+                    {attempt.completedAt ? new Date(attempt.completedAt).toLocaleString() : '—'}
+                  </td>
+                  <td className="px-3 py-3 text-center text-purple-700 font-medium">{rw1}</td>
+                  <td className="px-3 py-3 text-center text-purple-700 font-medium">{rw2}</td>
+                  <td className="px-3 py-3 text-center text-purple-700 font-medium">{math1}</td>
+                  <td className="px-3 py-3 text-center text-purple-700 font-medium">{math2}</td>
+                  <td className="px-3 py-3 text-center font-bold text-slate-900">{totalCorrect}</td>
+                  <td className="px-3 py-3 text-center text-slate-600">{rwScaled}</td>
+                  <td className="px-3 py-3 text-center text-slate-600">{mathScaled}</td>
+                  <td className="px-3 py-3 text-center font-semibold text-slate-800">{finalScaledScore}</td>
+                </tr>
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                  <th className="px-3 py-3 text-left font-semibold">Test Name</th>
+                  <th className="px-3 py-3 text-center font-semibold">Started At</th>
+                  <th className="px-3 py-3 text-center font-semibold">Completed At</th>
+                  {sectionStats.map((s) => (
+                    <th key={s.name} className="px-3 py-3 text-center font-semibold">
+                      {s.name}<span className="text-slate-400 font-normal">/{s.total}</span>
+                    </th>
+                  ))}
+                  <th className="px-3 py-3 text-center font-semibold">
+                    Total<span className="text-slate-400 font-normal">/{totalQ}</span>
+                  </th>
+                  <th className="px-3 py-3 text-center font-semibold">Accuracy</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-slate-50">
+                  <td className="px-3 py-3 font-semibold text-purple-700">{attempt.test.title}</td>
+                  <td className="px-3 py-3 text-center text-xs text-slate-500">
+                    {attempt.startedAt ? new Date(attempt.startedAt).toLocaleString() : '—'}
+                  </td>
+                  <td className="px-3 py-3 text-center text-xs text-slate-500">
+                    {attempt.completedAt ? new Date(attempt.completedAt).toLocaleString() : '—'}
+                  </td>
+                  {sectionStats.map((s) => (
+                    <td key={s.name} className="px-3 py-3 text-center text-purple-700 font-medium">{s.correct}</td>
+                  ))}
+                  <td className="px-3 py-3 text-center font-bold text-slate-900">{totalCorrect}</td>
+                  <td className="px-3 py-3 text-center text-slate-600">{overallAccuracy}%</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
