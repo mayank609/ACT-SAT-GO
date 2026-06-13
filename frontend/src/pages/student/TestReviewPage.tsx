@@ -1531,13 +1531,16 @@ export function TestReviewPage() {
 
       {/* Fullscreen Question Report Modal - Test-like Interface */}
       {fullscreenReportOpen && (
-        <div className="fixed inset-0 h-[100dvh] bg-white z-50 overflow-hidden flex flex-col font-sans">
+        <div
+          className="fixed bg-white z-50 overflow-hidden flex flex-col font-sans"
+          style={{ top: 0, left: 0, right: 0, bottom: 0, height: '100dvh' }}
+        >
           {/* ── TOP HEADER BAR ───────────────────────────────────────────────── */}
-          <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-16 flex items-center justify-between z-20">
-            {/* Left: Section tabs */}
-            <div className="flex items-center gap-4 min-w-0">
-              <span className="font-bold text-slate-800 text-sm hidden sm:inline">Reviewing:</span>
-              <div className="flex flex-wrap gap-1 min-w-0">
+          <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-14 flex items-center justify-between gap-4 z-20 overflow-hidden">
+            {/* Left: Section tabs — scrollable so they never overlap the right controls */}
+            <div className="flex items-center gap-2 min-w-0 overflow-x-auto flex-shrink-0 max-w-[65%] scrollbar-none">
+              <span className="font-bold text-slate-800 text-sm whitespace-nowrap hidden lg:inline">Reviewing:</span>
+              <div className="flex gap-1">
                 {sections.map((sa, idx) => (
                   <button
                     key={sa.id}
@@ -1546,7 +1549,7 @@ export function TestReviewPage() {
                       setFilterBy('all');
                       setCurrentQuestionIdx(0);
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
                       activeSectionIdx === idx
                         ? 'bg-blue-600 text-white'
                         : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
@@ -1558,13 +1561,8 @@ export function TestReviewPage() {
               </div>
             </div>
 
-            {/* Center badge */}
-            <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 select-none">
-              Test Review - Question Analysis
-            </div>
-
             {/* Right: Filter and close */}
-            <div className="flex items-center gap-4 z-30">
+            <div className="flex items-center gap-3 flex-shrink-0 z-30">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">Filter</span>
                 <select
