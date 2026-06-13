@@ -1835,96 +1835,84 @@ export function TestReviewPage() {
             );
           })()}
         </div>
-      )}
 
-      {/* Question Navigator Modal */}
-      <Modal isOpen={showFullscreenQuestionNavigator} onClose={() => setShowFullscreenQuestionNavigator(false)} title="" size="md">
-        {(() => {
+        {/* Question Navigator — inline overlay inside fullscreen so it renders above z-50 */}
+        {showFullscreenQuestionNavigator && (() => {
           const activeSection = sections[activeSectionIdx];
           const activeQuestions = activeSection?.section.questions ?? [];
-          const filteredQuestions = activeQuestions.filter((tq) => {
+          const navFiltered = activeQuestions.filter((tq) => {
             const ans = answersMap.get(tq.questionId);
             const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
             const isOmitted = !ans?.answerGiven;
             const isFlagged = ans?.isFlagged ?? false;
-            
             if (filterBy === 'correct') return isCorrect;
             if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
             if (filterBy === 'omitted') return isOmitted;
             if (filterBy === 'flagged') return isFlagged;
             return true;
           });
-
-          const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+          const safeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
 
           return (
-            <div className="space-y-6">
-              <div className="text-center border-b border-slate-200 pb-4">
-                <h3 className="text-lg md:text-xl font-bold text-slate-900">{getSectionModuleLabel(activeSection?.section.name || '')}</h3>
-                <p className="text-sm text-slate-500 mt-1">Questions</p>
-              </div>
-
-              {/* Legend */}
-              <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-slate-300" />
-                  <span className="text-xs font-semibold text-slate-600">Unanswered</span>
+            <div
+              className="absolute inset-0 z-60 flex items-center justify-center bg-black/40"
+              onClick={() => setShowFullscreenQuestionNavigator(false)}
+            >
+              <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center border-b border-slate-200 pb-4">
+                  <h3 className="text-lg font-bold text-slate-900">{getSectionModuleLabel(activeSection?.section.name || '')}</h3>
+                  <p className="text-sm text-slate-500 mt-1">Questions</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-semibold text-slate-600">Correct</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-red-500" />
-                  <span className="text-xs font-semibold text-slate-600">Wrong</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full border-2 border-blue-600 bg-blue-50" />
-                  <span className="text-xs font-semibold text-slate-600">Current</span>
-                </div>
-              </div>
 
-              {/* Question Grid */}
-              <div className="flex justify-center">
-                <div className="grid grid-cols-6 sm:grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
-                  {filteredQuestions.map((fq, idx) => {
-                    const ans = answersMap.get(fq.questionId);
-                    const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
-                    const isOmitted = !ans?.answerGiven;
-                    const isCurrent = idx === safeIdx;
-
-                    let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
-                    let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
-                    if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
-
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => { setCurrentQuestionIdx(idx); setShowFullscreenQuestionNavigator(false); }}
-                        className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 cursor-pointer`}
-                        title={`Q${idx + 1} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Incorrect'}`}
-                      >
-                        {idx + 1}
-                      </button>
-                    );
-                  })}
+                {/* Legend */}
+                <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
+                  <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
+                  <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
+                  <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full border-2 border-blue-600 bg-blue-50" /><span className="text-xs font-semibold text-slate-600">Current</span></div>
                 </div>
-              </div>
 
-              {/* Footer */}
-              <div className="border-t border-slate-200 pt-4 text-center">
-                <button
-                  onClick={() => setShowFullscreenQuestionNavigator(false)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all cursor-pointer"
-                >
-                  Question {safeIdx + 1} of {filteredQuestions.length}
-                  <ChevronDown size={16} />
-                </button>
+                {/* Question Grid */}
+                <div className="flex justify-center">
+                  <div className="grid grid-cols-9 gap-3 max-h-72 overflow-y-auto p-1">
+                    {navFiltered.map((fq, idx) => {
+                      const ans = answersMap.get(fq.questionId);
+                      const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                      const isOmitted = !ans?.answerGiven;
+                      const isCurrent = idx === safeIdx;
+                      let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
+                      let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
+                      if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => { setCurrentQuestionIdx(idx); setShowFullscreenQuestionNavigator(false); }}
+                          className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                        >
+                          {idx + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 pt-4 text-center">
+                  <button
+                    onClick={() => setShowFullscreenQuestionNavigator(false)}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all"
+                  >
+                    Question {safeIdx + 1} of {navFiltered.length} <ChevronDown size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           );
         })()}
-      </Modal>
+      </div>
+      )}
 
       {/* Score Calculator */}
       <div className="mt-8">
