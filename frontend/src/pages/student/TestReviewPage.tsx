@@ -433,6 +433,133 @@ function formatSeconds(sec: number | undefined): string {
 }
 
 
+// ── Explanation + Doubt panel for the fullscreen review ──────────────────────
+function FsExplanationPanel({ tq, studentAnswer, attemptId }: {
+  tq: DbTestQuestion;
+  studentAnswer: DbAttemptAnswer | undefined;
+  attemptId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [doubtStatus, setDoubtStatus] = useState<'doubt' | 'cleared' | null>(studentAnswer?.doubtStatus ?? null);
+  const [saving, setSaving] = useState(false);
+
+  const q = tq.question;
+  const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
+  const topicLabel = q.topic?.name ?? 'General Review';
+  const subTopicLabel = q.content.meta?.subTopic ?? null;
+  const skillLabel = q.content.meta?.skill ?? null;
+
+  const handleDoubt = async (next: 'doubt' | 'cleared') => {
+    const prev = doubtStatus;
+    setDoubtStatus(next);
+    setSaving(true);
+    try {
+      await api.setDoubtStatus(attemptId, q.id, next);
+    } catch {
+      setDoubtStatus(prev);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border-t border-slate-200 mt-6">
+      {/* Toggle row */}
+      <div className="flex items-center justify-between py-3">
+        <button
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+        >
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          Explanation
+        </button>
+        {doubtStatus === 'doubt' && (
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
+            <HelpCircle size={12} /> Marked as doubt
+          </span>
+        )}
+        {doubtStatus === 'cleared' && (
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
+            <CheckCircle size={12} /> Cleared
+          </span>
+        )}
+      </div>
+
+      {open && (
+        <div className="space-y-4 pb-6">
+          {/* Domain / Topic grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm">
+            <div>
+              <span className="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block">Domain</span>
+              <span className="text-slate-800 font-bold">{domainLabel}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block">Topic</span>
+              <span className="text-slate-800 font-bold">{topicLabel}</span>
+            </div>
+            {subTopicLabel && (
+              <div>
+                <span className="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block">Subdomain</span>
+                <span className="text-slate-800 font-bold">{subTopicLabel}</span>
+              </div>
+            )}
+            {skillLabel && (
+              <div>
+                <span className="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block">Skill</span>
+                <span className="text-slate-800 font-bold">{skillLabel}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Explanation text */}
+          {q.content.explanation ? (
+            <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 text-slate-800 text-sm leading-relaxed">
+              <RichContentRenderer content={q.content.explanation} variant="explanation" />
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 italic">No explanation available for this question.</p>
+          )}
+
+          {/* Still Doubt / Cleared */}
+          <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+            <p className="text-sm font-medium text-slate-600">
+              {doubtStatus === 'cleared'
+                ? 'Great — glad this one is cleared!'
+                : doubtStatus === 'doubt'
+                ? "Saved to My Doubts. We'll keep it handy for revision."
+                : 'After reading the explanation, is your doubt cleared?'}
+            </p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => handleDoubt('doubt')}
+                disabled={saving}
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
+                  doubtStatus === 'doubt'
+                    ? 'bg-amber-500 text-white border-amber-500'
+                    : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                }`}
+              >
+                <HelpCircle size={13} /> Still Doubt
+              </button>
+              <button
+                onClick={() => handleDoubt('cleared')}
+                disabled={saving}
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
+                  doubtStatus === 'cleared'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                }`}
+              >
+                <CheckCircle size={13} /> Cleared
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, attemptId }: {
   tq: DbTestQuestion;
   localIndex: number;
@@ -1711,6 +1838,7 @@ export function TestReviewPage() {
                             <span className="text-slate-600">Your answer: <strong className="text-blue-600">{answerDisplay ?? '—'}</strong></span>
                           </div>
                         )}
+                        <FsExplanationPanel key={currentTq.questionId} tq={currentTq} studentAnswer={studentAnswer ?? undefined} attemptId={attemptId!} />
                       </div>
                     </>
                   ) : (
@@ -1781,6 +1909,7 @@ export function TestReviewPage() {
                           <span className="text-slate-600">Your answer: <strong className="text-blue-600">{answerDisplay ?? '—'}</strong></span>
                         </div>
                       )}
+                      <FsExplanationPanel key={currentTq.questionId} tq={currentTq} studentAnswer={studentAnswer ?? undefined} attemptId={attemptId!} />
                     </div>
                   )}
                 </div>
