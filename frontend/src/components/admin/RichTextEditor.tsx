@@ -109,9 +109,15 @@ export function RichTextEditor({
     },
   });
 
+  // Sync external content changes into the editor (e.g. loading a test for
+  // editing, or switching between questions). Crucially, skip this while the
+  // editor is focused: during active editing the parent echoes our own onChange
+  // back as `content`, and a stale echo arriving mid-edit would call setContent
+  // and wipe just-inserted content (notably images). emitUpdate:false avoids a
+  // feedback loop.
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+    if (editor && !editor.isFocused && content !== editor.getHTML()) {
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
 
