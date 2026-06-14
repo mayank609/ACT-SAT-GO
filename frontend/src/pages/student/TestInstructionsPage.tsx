@@ -153,12 +153,12 @@ const SECTIONS = [
     iconColor: 'text-blue-600',
     title: 'Timing',
     content: (
-      <ul className="space-y-2 text-sm text-gray-600">
-        <li className="flex gap-2.5">
+      <ul className="space-y-1.5 text-xs text-gray-600">
+        <li className="flex gap-2">
           <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
           The test must be completed in one sitting. Closing it midway may result in data loss.
         </li>
-        <li className="flex gap-2.5">
+        <li className="flex gap-2">
           <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
           Once you move to the next module, you cannot return to the previous module.
         </li>
@@ -171,26 +171,26 @@ const SECTIONS = [
     iconColor: 'text-emerald-600',
     title: 'Score & Performance Analysis',
     content: (
-      <div className="text-sm text-gray-600 space-y-3">
-        <p>Once you complete the mock test, you will receive:</p>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0" />
+      <div className="text-xs text-gray-600 space-y-2">
+        <p>Once you complete the test, you will receive:</p>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
             <span className="font-medium text-gray-700">Tentative Scaled Score</span>
           </div>
-          <div className="flex items-start gap-2.5">
-            <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2">
+            <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0 mt-0.5" />
             <div>
               <span className="font-medium text-gray-700">Detailed Performance Analysis</span>
               <span className="text-gray-500">, including:</span>
-              <ul className="mt-2 space-y-1.5 pl-2">
+              <ul className="mt-1 space-y-1 pl-1.5">
                 {[
                   'Time spent on each question',
                   'Topic-wise performance breakdown',
-                  'Identification of weak areas and concepts that need more focus',
-                  'Accuracy analysis across different question types',
+                  'Identification of weak areas',
+                  'Accuracy analysis across question types',
                 ].map((item) => (
-                  <li key={item} className="flex gap-2.5">
+                  <li key={item} className="flex gap-2">
                     <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8722;</span>
                     {item}
                   </li>
@@ -208,12 +208,12 @@ const SECTIONS = [
     iconColor: 'text-violet-600',
     title: 'Assistive Technology',
     content: (
-      <ul className="space-y-2 text-sm text-gray-600">
-        <li className="flex gap-2.5">
+      <ul className="space-y-1.5 text-xs text-gray-600">
+        <li className="flex gap-2">
           <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
           For any issues, contact the Mock Helpline (not your WhatsApp group).
         </li>
-        <li className="flex gap-2.5">
+        <li className="flex gap-2">
           <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
           If the test gets stuck, do not log out of the application. This may cause data loss.
         </li>
@@ -226,12 +226,12 @@ const SECTIONS = [
     iconColor: 'text-amber-600',
     title: 'Device Check',
     content: (
-      <ul className="space-y-2 text-sm text-gray-600">
-        <li className="flex gap-2.5">
+      <ul className="space-y-1.5 text-xs text-gray-600">
+        <li className="flex gap-2">
           <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
-          Some features of the test may not work properly on tablets or touchscreen devices.
+          Some features may not work properly on tablets or touchscreen devices.
         </li>
-        <li className="flex gap-2.5">
+        <li className="flex gap-2">
           <span className="text-gray-300 mt-0.5 flex-shrink-0">&#8226;</span>
           Use only a laptop or desktop with a keyboard to take the test.
         </li>
@@ -333,78 +333,67 @@ export function TestInstructionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="h-screen bg-gray-50 flex flex-col px-4 py-4 overflow-hidden">
       {/* Page header */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-[#1b3d6e]">{test.title}</h1>
-        <p className="mt-2 text-gray-500 text-base">
+      <div className="text-center mb-3 flex-shrink-0">
+        <h1 className="text-2xl font-bold text-[#1b3d6e]">{test.title}</h1>
+        <p className="mt-1 text-gray-500 text-sm">
           Please read the instructions carefully before starting the test.
         </p>
       </div>
 
-      {/* Main card */}
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {SECTIONS.map((sec, idx) => {
-            const Icon = sec.icon;
-            return (
-              <div key={sec.title}>
-                <div className="px-8 py-7">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-11 h-11 rounded-full ${sec.iconBg} flex items-center justify-center flex-shrink-0`}>
-                      <Icon size={20} className={sec.iconColor} />
-                    </div>
-                    <h2 className="text-base font-bold text-gray-900">{sec.title}</h2>
-                  </div>
-                  <div className="pl-14">
-                    {sec.content}
-                  </div>
+      {/* 2×2 grid of instruction cards */}
+      <div className="max-w-3xl w-full mx-auto grid grid-cols-2 gap-3 flex-shrink-0">
+        {SECTIONS.map((sec) => {
+          const Icon = sec.icon;
+          return (
+            <div key={sec.title} className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4">
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <div className={`w-8 h-8 rounded-full ${sec.iconBg} flex items-center justify-center flex-shrink-0`}>
+                  <Icon size={16} className={sec.iconColor} />
                 </div>
-                {idx < SECTIONS.length - 1 && (
-                  <div className="border-t border-gray-100 mx-8" />
-                )}
+                <h2 className="text-sm font-bold text-gray-900">{sec.title}</h2>
               </div>
-            );
-          })}
-        </div>
+              <div className="pl-10">
+                {sec.content}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-        {/* Agreement checkbox */}
-        <div className="mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
-          {error && (
-            <p className="text-red-500 text-sm mb-4 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-          )}
-          <label className="flex items-start gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-0.5 w-4.5 h-4.5 rounded border-gray-300 text-[#1b3d6e] focus:ring-[#1b3d6e] cursor-pointer flex-shrink-0 accent-[#1b3d6e]"
-            />
-            <p className="text-sm text-gray-600 leading-relaxed">
-              I have read and understood all the instructions above. I declare that I am not in
-              possession of any prohibited materials and agree that any violation shall make me
-              liable for disciplinary action.
-            </p>
-          </label>
-        </div>
-
-        {/* Start button */}
-        <div className="mt-6 flex justify-center pb-4">
-          <button
-            disabled={!agreed || starting}
-            onClick={handleStart}
-            className={`inline-flex items-center gap-2.5 px-10 py-3 rounded-xl text-sm font-semibold transition-all
-              ${agreed && !starting
-                ? 'bg-[#1b3d6e] hover:bg-[#15305a] text-white shadow-md hover:shadow-lg'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-          >
-            {starting
-              ? <><Loader2 size={16} className="animate-spin" /> Starting…</>
-              : <><Play size={16} /> Proceed to Start Test</>
-            }
-          </button>
-        </div>
+      {/* Agreement + Start button in one row */}
+      <div className="max-w-3xl w-full mx-auto mt-3 bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-3 flex items-center gap-4 flex-shrink-0">
+        {error && (
+          <p className="text-red-500 text-xs bg-red-50 px-3 py-1.5 rounded-lg">{error}</p>
+        )}
+        <label className="flex items-start gap-2.5 cursor-pointer select-none flex-1">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 rounded border-gray-300 text-[#1b3d6e] focus:ring-[#1b3d6e] cursor-pointer flex-shrink-0 accent-[#1b3d6e]"
+          />
+          <p className="text-xs text-gray-600 leading-relaxed">
+            I have read and understood all the instructions above. I declare that I am not in
+            possession of any prohibited materials and agree that any violation shall make me
+            liable for disciplinary action.
+          </p>
+        </label>
+        <button
+          disabled={!agreed || starting}
+          onClick={handleStart}
+          className={`inline-flex items-center gap-2 px-7 py-2.5 rounded-xl text-sm font-semibold transition-all flex-shrink-0
+            ${agreed && !starting
+              ? 'bg-[#1b3d6e] hover:bg-[#15305a] text-white shadow-md hover:shadow-lg'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }`}
+        >
+          {starting
+            ? <><Loader2 size={15} className="animate-spin" /> Starting…</>
+            : <><Play size={15} /> Start Test</>
+          }
+        </button>
       </div>
     </div>
   );
