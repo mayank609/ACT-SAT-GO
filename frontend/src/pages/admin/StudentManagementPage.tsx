@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -76,6 +77,8 @@ interface TaAttempt {
   sectionAttempts: TaSectionAttempt[];
   answers: TaAttemptAnswer[];
 }
+
+interface DbTest { id: string; title: string; status: string; category?: string; sections: unknown[] }
 
 function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
   if (!given || !correct) return false;
@@ -400,7 +403,7 @@ export function StudentManagementPage() {
     id: string; title: string; startedAt: string; completedAt: string | null;
     rwM1: number; rwM2: number; mathM1: number; mathM2: number;
     rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
-    totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean;
+    totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean; isAnalysed: boolean;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw' | 'cw' | 'practice'>('all');
@@ -415,6 +418,14 @@ export function StudentManagementPage() {
   const [timeChartOpen, setTimeChartOpen] = useState(false);
   const [timeChartSectionIdx, setTimeChartSectionIdx] = useState(0);
   const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
+
+  const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignStudentId, setAssignStudentId] = useState<string | null>(null);
+  const [assignSelectedTestId, setAssignSelectedTestId] = useState('');
+  const [assignFilter, setAssignFilter] = useState('All');
+  const [assignSearch, setAssignSearch] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
 
   useEffect(() => {
     if (mainView !== 'test_analysis' || !selectedStudentId) {
@@ -474,12 +485,22 @@ export function StudentManagementPage() {
         .map((att) => {
           try {
             const an = computeTestAnalysis(att);
+            const totalFlatQs = att.sectionAttempts.reduce((sum, sa) => {
+              return sum + sa.section.questions.reduce((s2, tq) => {
+                const q = tq.question as any;
+                const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
+                return s2 + (isPassage && q.childQuestions?.length > 0 ? q.childQuestions.length : 1);
+              }, 0);
+            }, 0);
+            const reviewedCount = att.answers.filter((a) => a.doubtStatus === 'doubt' || a.doubtStatus === 'cleared').length;
+            const isAnalysed = totalFlatQs > 0 && reviewedCount >= totalFlatQs;
             return {
               id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
               rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
               rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
               totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
-              rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: att.test.category === 'Mock Test',
+              rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: ['Mock Test', 'Diagnostic'].includes(att.test.category ?? ''),
+              isAnalysed,
             };
           } catch (err) {
             console.error(`[TestAnalysis] Error computing analysis for attempt ${att.id}:`, err);
@@ -489,7 +510,7 @@ export function StudentManagementPage() {
               rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0,
               rwM1T: 0, rwM2T: 0, mathM1T: 0, mathM2T: 0,
               totalRaw: att.totalScore ?? 0, totalRawT: 0,
-              rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false, isMockTest: false,
+              rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false, isMockTest: false, isAnalysed: false,
             };
           }
         });
@@ -507,6 +528,9 @@ export function StudentManagementPage() {
     ]);
   };
   useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    api.getPublishedTests().then((r) => setPublishedTests((r.tests as DbTest[]).filter((t) => t.status === 'PUBLISHED'))).catch(() => {});
+  }, []);
 
   // Load comprehensive analysis data
   const loadComprehensiveAnalysis = async () => {
@@ -779,22 +803,6 @@ export function StudentManagementPage() {
   return (
     <div className="space-y-5">
 
-      {/* ── View Switcher ── */}
-      <div className="flex gap-2 border-b border-slate-200 pb-0">
-        <button
-          onClick={() => setMainView('analysis')}
-          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px flex items-center gap-1.5 ${mainView === 'analysis' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          <TrendingUp size={14} /> Comprehensive Analysis
-        </button>
-        <button
-          onClick={() => setMainView('test_analysis')}
-          className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px flex items-center gap-1.5 ${mainView === 'test_analysis' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          <ClipboardList size={14} /> Detailed Test Analysis
-        </button>
-      </div>
-
       {mainView === 'analysis' && (
         <>
       {/* ── Student Management Header (moved from Management tab) ── */}
@@ -946,7 +954,7 @@ export function StudentManagementPage() {
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
-                              onClick={() => navigate(`/students/${row.studentId}`)}
+                              onClick={() => { setAssignStudentId(row.studentId); setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setAssignSelectedTestId(''); }}
                               className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
                             >
                               Assign
@@ -1006,140 +1014,16 @@ export function StudentManagementPage() {
 
       {mainView === 'test_analysis' && (
         <div className="space-y-5 animate-fadeIn">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-slate-900">Detailed Test Analysis</h1>
-              <p className="text-sm text-slate-500 mt-0.5">Select a student and a test to view performance breakdown</p>
-            </div>
-          </div>
-
-          {/* Selector Card */}
-          <Card padding="md">
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Select Student</label>
-                <SearchableSelect
-                  options={students.map(s => ({ id: s.id, label: s.name, searchText: s.name }))}
-                  value={selectedStudentId}
-                  onChange={e => {
-                    setSelectedStudentId(e);
-                    setSelectedAttemptId('');
-                    setTestAnalysisAttempt(null);
-                    setReportFilter('all');
-                  }}
-                  placeholder="Choose student..."
-                  minWidth="min-w-[200px]"
-                />
-              </div>
-
-              {selectedStudentId && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Select Attempt / Test</label>
-                  {studentAttempts.length === 0 ? (
-                    <span className="text-sm text-slate-400 py-2">No completed tests found</span>
-                  ) : (
-                    <select
-                      value={selectedAttemptId}
-                      onChange={e => setSelectedAttemptId(e.target.value)}
-                      className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[240px]"
-                    >
-                      <option value="">Choose an attempt...</option>
-                      {studentAttempts.map(a => (
-                        <option key={a.id} value={a.id}>
-                          {a.test.title} ({a.totalScore ?? '—'} pts) - {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : new Date(a.startedAt).toLocaleDateString()}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
-
-              {/* Score Summary beside the dropdown */}
-              {selectedStudentId && selectedAttemptId && (() => {
-                const selectedAttempt = studentAttempts.find(a => a.id === selectedAttemptId);
-                if (!selectedAttempt) return null;
-                try {
-                  const analysis = computeTestAnalysis(selectedAttempt as any);
-                  const isMockTest = (selectedAttempt as any).test?.category === 'Mock Test';
-                  if (!analysis.isSAT) return null;
-                  if (!isMockTest) {
-                    return (
-                      <div className="flex items-center gap-2 ml-auto flex-wrap">
-                        <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg min-w-[80px]">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Score</span>
-                          <div className="flex items-baseline gap-0.5">
-                            <span className="text-sm font-extrabold text-slate-700">{analysis.totalCorrect}</span>
-                            <span className="text-[9px] text-slate-400">/{analysis.totalQuestions}</span>
-                          </div>
-                          <span className="text-[9px] text-slate-500">correct</span>
-                        </div>
-                        {analysis.rwTotal > 0 && (
-                          <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg min-w-[80px]">
-                            <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider block">R&amp;W</span>
-                            <div className="flex items-baseline gap-0.5">
-                              <span className="text-sm font-extrabold text-emerald-700">{analysis.rwCorrect}</span>
-                              <span className="text-[9px] text-emerald-400">/{analysis.rwTotal}</span>
-                            </div>
-                            <span className="text-[9px] text-emerald-500">correct</span>
-                          </div>
-                        )}
-                        {analysis.mathTotal > 0 && (
-                          <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg min-w-[80px]">
-                            <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider block">Math</span>
-                            <div className="flex items-baseline gap-0.5">
-                              <span className="text-sm font-extrabold text-amber-700">{analysis.mathCorrect}</span>
-                              <span className="text-[9px] text-amber-400">/{analysis.mathTotal}</span>
-                            </div>
-                            <span className="text-[9px] text-amber-500">correct</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="flex items-center gap-2 ml-auto flex-wrap">
-                      <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg min-w-[80px]">
-                        <span className="text-[9px] font-bold text-blue-500 uppercase tracking-wider block">Total</span>
-                        <div className="flex items-baseline gap-0.5">
-                          <span className="text-sm font-extrabold text-blue-700">{analysis.finalScaledScore}</span>
-                          <span className="text-[9px] text-blue-400">/1600</span>
-                        </div>
-                        <span className="text-[9px] text-blue-500">{analysis.totalCorrect}/{analysis.totalQuestions} correct</span>
-                      </div>
-                      <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg min-w-[80px]">
-                        <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider block">R&amp;W</span>
-                        <div className="flex items-baseline gap-0.5">
-                          <span className="text-sm font-extrabold text-emerald-700">{analysis.rwScaled}</span>
-                          <span className="text-[9px] text-emerald-400">/800</span>
-                        </div>
-                        <span className="text-[9px] text-emerald-500">{analysis.rwCorrect}/{analysis.rwTotal} correct</span>
-                      </div>
-                      <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg min-w-[80px]">
-                        <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider block">Math</span>
-                        <div className="flex items-baseline gap-0.5">
-                          <span className="text-sm font-extrabold text-amber-700">{analysis.mathScaled}</span>
-                          <span className="text-[9px] text-amber-400">/800</span>
-                        </div>
-                        <span className="text-[9px] text-amber-500">{analysis.mathCorrect}/{analysis.mathTotal} correct</span>
-                      </div>
-                    </div>
-                  );
-                } catch { return null; }
-              })()}
-            </div>
-          </Card>
+          {/* Back button */}
+          <button
+            onClick={() => { setMainView('analysis'); setSelectedStudentId(''); setSelectedAttemptId(''); setTestAnalysisAttempt(null); }}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
+          >
+            <ChevronLeft size={15} /> Back to Students
+          </button>
 
           {/* Content Pane */}
-          {!selectedStudentId ? (
-            <Card padding="lg">
-              <div className="py-12 text-center">
-                <User2 size={40} className="mx-auto text-slate-300 mb-3 animate-pulse" />
-                <p className="text-slate-500 text-sm font-medium">Please select a student above</p>
-                <p className="text-slate-400 text-xs mt-1">Detailed performance metrics and section scores will appear here</p>
-              </div>
-            </Card>
-          ) : !selectedAttemptId ? (
+          {!selectedAttemptId ? (
             (() => {
               const studentName = students.find((s) => s.id === selectedStudentId)?.name ?? 'Student';
               const dRaw = reportRows.reduce((d, r) => ({
@@ -1156,7 +1040,7 @@ export function StudentManagementPage() {
                   r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
                   r.rwM1, r.rwM2, r.mathM1, r.mathM2, r.totalRaw,
                   (r.isSAT && r.isMockTest) ? r.rwSS : '-', (r.isSAT && r.isMockTest) ? r.mathSS : '-', (r.isSAT && r.isMockTest) ? r.totalSS : '-',
-                  testAnalysisStatus[r.id] === 'submitted' ? 'Analysed' : 'Unanalysed',
+                  r.isAnalysed ? 'Analysed' : 'Unanalysed',
                 ]);
                 const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
                 const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -1193,10 +1077,24 @@ export function StudentManagementPage() {
                       <p className="text-sm font-semibold text-slate-500">Total Session : <span className="text-slate-900 font-bold">{filteredRows.length}</span></p>
                       <h2 className="text-lg font-bold text-purple-800 mt-0.5">{studentName}<span className="text-slate-500 font-medium text-sm ml-2">Test Report</span></h2>
                     </div>
-                    <button onClick={downloadReport} disabled={reportRows.length === 0}
-                      className="px-4 py-2 text-sm font-semibold text-white bg-purple-700 hover:bg-purple-800 disabled:opacity-50 rounded-lg transition-colors self-start">
-                      Download Report
-                    </button>
+                    <div className="flex items-center gap-3 self-start">
+                      <select
+                        value={selectedAttemptId}
+                        onChange={e => setSelectedAttemptId(e.target.value)}
+                        className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white min-w-[220px] max-w-[300px]"
+                      >
+                        <option value="">Search attempt…</option>
+                        {studentAttempts.map(a => (
+                          <option key={a.id} value={a.id}>
+                            {a.test.title} — {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : new Date(a.startedAt).toLocaleDateString()}
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={downloadReport} disabled={reportRows.length === 0}
+                        className="px-4 py-2 text-sm font-semibold text-white bg-purple-700 hover:bg-purple-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap">
+                        Download Report
+                      </button>
+                    </div>
                   </div>
                   {/* Filter tabs */}
                   <div className="flex items-center gap-1.5 px-5 py-3 border-b border-slate-100 flex-wrap">
@@ -1244,7 +1142,7 @@ export function StudentManagementPage() {
                         </thead>
                         <tbody>
                           {filteredRows.map((r, i) => {
-                            const analysed = testAnalysisStatus[r.id] === 'submitted';
+                            const analysed = r.isAnalysed;
                             return (
                               <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
                                 className="border-b border-slate-50 hover:bg-blue-50/50 cursor-pointer transition-colors">
@@ -2492,6 +2390,110 @@ export function StudentManagementPage() {
           </div>
         );
       })()}
+
+      {/* ── Assign Test Modal ── */}
+      {(() => {
+        const assignStudent = students.find((s) => s.id === assignStudentId);
+        const categories = ['All', ...Array.from(new Set(publishedTests.map((t) => t.category ?? 'Other')))];
+        const filtered = publishedTests
+          .filter((t) => assignFilter === 'All' || (t.category ?? 'Other') === assignFilter)
+          .filter((t) => !assignSearch.trim() || t.title.toLowerCase().includes(assignSearch.trim().toLowerCase()));
+        return (
+          <Modal
+            isOpen={assignOpen}
+            onClose={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestId(''); setAssignFilter('All'); setAssignSearch(''); }}
+            title="Assign Test"
+            size="md"
+            footer={
+              <div className="flex gap-2 justify-end">
+                <Button variant="secondary" size="sm" onClick={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestId(''); setAssignFilter('All'); setAssignSearch(''); }}>Cancel</Button>
+                <Button
+                  size="sm"
+                  icon={<BookOpen size={13} />}
+                  disabled={!assignSelectedTestId || assignLoading}
+                  onClick={async () => {
+                    if (!assignStudentId || !assignSelectedTestId) return;
+                    setAssignLoading(true);
+                    try {
+                      await api.createTestAssignments({ testId: assignSelectedTestId, studentIds: [assignStudentId] });
+                      const test = publishedTests.find((t) => t.id === assignSelectedTestId);
+                      toast.success(`"${test?.title}" assigned`);
+                      setAssignOpen(false);
+                      setAssignStudentId(null);
+                      setAssignSelectedTestId('');
+                      setAssignFilter('All');
+                      setAssignSearch('');
+                    } catch {
+                      toast.error('Failed to assign test');
+                    } finally {
+                      setAssignLoading(false);
+                    }
+                  }}
+                >
+                  {assignLoading ? 'Assigning…' : 'Assign'}
+                </Button>
+              </div>
+            }
+          >
+            <div className="space-y-3">
+              <p className="text-sm text-slate-500">
+                Select a published test to assign to <strong>{assignStudent?.name ?? '…'}</strong>.
+              </p>
+              {publishedTests.length === 0 ? (
+                <p className="text-sm text-slate-400 py-2">No published tests available.</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-1.5">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => { setAssignFilter(cat); setAssignSelectedTestId(''); }}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                          assignFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {cat}
+                        <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${assignFilter === cat ? 'bg-blue-500 text-white' : 'bg-slate-300 text-slate-600'}`}>
+                          {cat === 'All' ? publishedTests.length : publishedTests.filter((t) => (t.category ?? 'Other') === cat).length}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={assignSearch}
+                    onChange={(e) => { setAssignSearch(e.target.value); setAssignSelectedTestId(''); }}
+                    placeholder="Search tests by name…"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  />
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {filtered.length === 0 ? (
+                      <p className="text-sm text-slate-400 py-4 text-center">No tests found.</p>
+                    ) : filtered.map((test) => (
+                      <label
+                        key={test.id}
+                        className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                          assignSelectedTestId === test.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input type="radio" name="assign-test" value={test.id} checked={assignSelectedTestId === test.id}
+                          onChange={() => setAssignSelectedTestId(test.id)} className="mt-0.5 accent-blue-600" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
+                        </div>
+                        {assignSelectedTestId === test.id && <CheckCircle size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
+
+      <Toaster position="top-right" />
 
     </div>
   );

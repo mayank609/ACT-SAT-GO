@@ -367,7 +367,7 @@ export function MyStudentsPage() {
             id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
             rwM1, rwM2, mathM1, mathM2, rwM1T, rwM2T, mathM1T, mathM2T,
             totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
-            rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: att.test.category === 'Mock Test',
+            rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: ['Mock Test', 'Diagnostic'].includes(att.test.category ?? ''),
           };
         });
       setReportRows(rows);
@@ -757,7 +757,7 @@ export function MyStudentsPage() {
                 if (!selectedAttempt) return null;
                 try {
                   const analysis = computeTestAnalysis(selectedAttempt as any);
-                  const isMockTest = (selectedAttempt as any).test?.category === 'Mock Test';
+                  const isMockTest = ['Mock Test', 'Diagnostic'].includes((selectedAttempt as any).test?.category ?? '');
                   if (!analysis.isSAT) return null;
                   if (!isMockTest) {
                     return (
@@ -919,7 +919,7 @@ export function MyStudentsPage() {
             </Card>
           ) : testAnalysisAttempt ? (() => {
             const analysis = computeTestAnalysis(testAnalysisAttempt);
-            const isMockTest = testAnalysisAttempt.test.category === 'Mock Test';
+            const isMockTest = ['Mock Test', 'Diagnostic'].includes(testAnalysisAttempt.test.category ?? '');
             const completedDate = testAnalysisAttempt.completedAt
               ? new Date(testAnalysisAttempt.completedAt).toLocaleDateString('en-US', {
                   day: '2-digit', month: '2-digit', year: 'numeric'

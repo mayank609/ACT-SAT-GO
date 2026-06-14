@@ -260,7 +260,7 @@ interface Analytics {
 }
 
 interface Note { id: string; text: string; createdAt: string; author: string }
-interface DbTest { id: string; title: string; status: string; sections: unknown[] }
+interface DbTest { id: string; title: string; status: string; category?: string; sections: unknown[] }
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string | null }) {
   if (!value) return null;
@@ -292,6 +292,8 @@ export function AdminStudentProfilePage() {
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedTestId, setSelectedTestId] = useState('');
+  const [assignFilter, setAssignFilter] = useState('All');
+  const [assignSearch, setAssignSearch] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
 
   const [noteOpen, setNoteOpen] = useState(false);
@@ -455,7 +457,7 @@ export function AdminStudentProfilePage() {
             <>
               <Button variant="secondary" size="sm" icon={<MessageSquare size={13} />} onClick={() => setNoteOpen(true)}>Note</Button>
               <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => setEditing(true)}>Edit</Button>
-              <Button size="sm" icon={<BookOpen size={13} />} onClick={() => setAssignOpen(true)}>Assign Test</Button>
+              <Button size="sm" icon={<BookOpen size={13} />} onClick={() => { setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setSelectedTestId(''); }}>Assign Test</Button>
               <button onClick={() => setDeleteOpen(true)}
                 className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete student">
                 <Trash2 size={15} />
@@ -670,7 +672,7 @@ export function AdminStudentProfilePage() {
           <div className="bg-white rounded-xl border border-slate-100">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
               <p className="font-medium text-slate-900 text-sm">Test History</p>
-              <Button size="sm" variant="secondary" icon={<BookOpen size={12} />} onClick={() => setAssignOpen(true)}>
+              <Button size="sm" variant="secondary" icon={<BookOpen size={12} />} onClick={() => { setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setSelectedTestId(''); }}>
                 Assign Test
               </Button>
             </div>
@@ -739,7 +741,7 @@ export function AdminStudentProfilePage() {
                             </div>
                           ) : expandedAttempt ? (() => {
                             const analysis = computeTestAnalysis(expandedAttempt);
-                            const isMockTest = expandedAttempt.test.category === 'Mock Test';
+                            const isMockTest = ['Mock Test', 'Diagnostic'].includes(expandedAttempt.test.category ?? '');
                             const completedDate = expandedAttempt.completedAt
                               ? new Date(expandedAttempt.completedAt).toLocaleDateString('en-US', {
                                   day: '2-digit', month: '2-digit', year: 'numeric'
@@ -1132,7 +1134,7 @@ export function AdminStudentProfilePage() {
       </div>
 
       {/* Assign Test Modal */}
-      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestId(''); }}
+      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestId(''); setAssignFilter('All'); setAssignSearch(''); }}
         title="Assign Test" size="md"
         footer={
           <div className="flex gap-2 justify-end">
@@ -1158,24 +1160,57 @@ export function AdminStudentProfilePage() {
           <p className="text-sm text-slate-500">Select a published test to assign to <strong>{student.name}</strong>.</p>
           {publishedTests.length === 0 ? (
             <p className="text-sm text-slate-400 py-2">No published tests available.</p>
-          ) : (
-            <div className="space-y-2 max-h-72 overflow-y-auto">
-              {publishedTests.map((test) => (
-                <label key={test.id}
-                  className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                    selectedTestId === test.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
-                  }`}>
-                  <input type="radio" name="test" value={test.id} checked={selectedTestId === test.id}
-                    onChange={() => setSelectedTestId(test.id)} className="mt-0.5 accent-blue-600" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
-                  </div>
-                  {selectedTestId === test.id && <CheckCircle size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />}
-                </label>
-              ))}
-            </div>
-          )}
+          ) : (() => {
+            const categories = ['All', ...Array.from(new Set(publishedTests.map(t => t.category ?? 'Other')))];
+            const filtered = publishedTests
+              .filter(t => assignFilter === 'All' || (t.category ?? 'Other') === assignFilter)
+              .filter(t => !assignSearch.trim() || t.title.toLowerCase().includes(assignSearch.trim().toLowerCase()));
+            return (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => { setAssignFilter(cat); setSelectedTestId(''); }}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                        assignFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat}
+                      <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${assignFilter === cat ? 'bg-blue-500 text-white' : 'bg-slate-300 text-slate-600'}`}>
+                        {cat === 'All' ? publishedTests.length : publishedTests.filter(t => (t.category ?? 'Other') === cat).length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={assignSearch}
+                  onChange={e => { setAssignSearch(e.target.value); setSelectedTestId(''); }}
+                  placeholder="Search tests by name…"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {filtered.length === 0 ? (
+                    <p className="text-sm text-slate-400 py-4 text-center">No tests found.</p>
+                  ) : filtered.map((test) => (
+                    <label key={test.id}
+                      className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedTestId === test.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                      }`}>
+                      <input type="radio" name="test" value={test.id} checked={selectedTestId === test.id}
+                        onChange={() => setSelectedTestId(test.id)} className="mt-0.5 accent-blue-600" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
+                      </div>
+                      {selectedTestId === test.id && <CheckCircle size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />}
+                    </label>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </Modal>
 

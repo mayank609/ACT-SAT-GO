@@ -1,4 +1,4 @@
-import { Bell, Search, Menu, LogOut } from 'lucide-react';
+import { Bell, Menu, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useNavigate } from 'react-router-dom';
@@ -56,10 +56,6 @@ export function Header({ onMenuClick }: HeaderProps) {
         <button onClick={onMenuClick} className="md:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-50 transition-colors">
           <Menu size={18} />
         </button>
-        <div className="relative hidden lg:block">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
-          <input type="text" placeholder="Search..." className="pl-8 pr-4 py-1.5 text-sm bg-slate-50 border-none rounded-lg focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-200 w-44 text-slate-700 placeholder-slate-300" />
-        </div>
       </div>
 
       <div className="flex items-center gap-1">
