@@ -53,7 +53,7 @@ interface TaAttempt {
   totalScore: number | null;
   startedAt: string;
   completedAt: string | null;
-  test: { id: string; title: string };
+  test: { id: string; title: string; category?: string };
   sectionAttempts: Array<{
     id: string;
     sectionId: string;
@@ -507,6 +507,7 @@ export function TutorAnalyticsPage() {
           {/* Test Analysis Panel - Only show when specific student & attempt selected */}
           {selectedStudent !== 'all' && selectedAttemptId && expandedAttempt && !expandedLoading && (() => {
             const analysis = computeTestAnalysis(expandedAttempt);
+            const isMockTest = expandedAttempt.test.category === 'Mock Test';
             const completedDate = expandedAttempt.completedAt
               ? new Date(expandedAttempt.completedAt).toLocaleDateString('en-US', {
                 day: '2-digit', month: '2-digit', year: 'numeric'
@@ -525,8 +526,10 @@ export function TutorAnalyticsPage() {
                     <p className="text-blue-100 text-xs mt-1">Completed on {completedDate}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-6xl font-bold">{analysis.finalScaledScore}</p>
-                    <p className="text-blue-100 text-sm mt-1">Score</p>
+                    <p className="text-6xl font-bold">
+                      {isMockTest ? analysis.finalScaledScore : `${analysis.totalCorrect}/${analysis.totalQuestions}`}
+                    </p>
+                    <p className="text-blue-100 text-sm mt-1">{isMockTest ? 'Scaled Score' : 'Correct'}</p>
                   </div>
                 </div>
 

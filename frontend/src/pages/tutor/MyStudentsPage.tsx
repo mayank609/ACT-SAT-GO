@@ -7,6 +7,7 @@ import { Modal } from '../../components/common/Modal';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
+import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
@@ -68,7 +69,7 @@ interface TaAttempt {
   totalScore: number | null;
   startedAt: string;
   completedAt: string | null;
-  test: { id: string; title: string };
+  test: { id: string; title: string; category?: string };
   sectionAttempts: TaSectionAttempt[];
   answers: TaAttemptAnswer[];
 }
@@ -282,7 +283,7 @@ export function MyStudentsPage() {
     id: string; title: string; startedAt: string; completedAt: string | null;
     rwM1: number; rwM2: number; mathM1: number; mathM2: number;
     rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
-    totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean;
+    totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
 
@@ -293,6 +294,8 @@ export function MyStudentsPage() {
   const [fullscreenQuestionReportOpen, setFullscreenQuestionReportOpen] = useState(false);
   const [showFullscreenPalette, setShowFullscreenPalette] = useState(false);
   const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
+  const [timeChartOpen, setTimeChartOpen] = useState(false);
+  const [timeChartSectionIdx, setTimeChartSectionIdx] = useState(0);
 
   useEffect(() => {
     if (mainView !== 'test_analysis' || !selectedStudentId) {
@@ -364,7 +367,7 @@ export function MyStudentsPage() {
             id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
             rwM1, rwM2, mathM1, mathM2, rwM1T, rwM2T, mathM1T, mathM2T,
             totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
-            rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
+            rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: att.test.category === 'Mock Test',
           };
         });
       setReportRows(rows);
@@ -754,7 +757,30 @@ export function MyStudentsPage() {
                 if (!selectedAttempt) return null;
                 try {
                   const analysis = computeTestAnalysis(selectedAttempt as any);
+                  const isMockTest = (selectedAttempt as any).test?.category === 'Mock Test';
                   if (!analysis.isSAT) return null;
+                  if (!isMockTest) {
+                    return (
+                      <div className="flex items-center gap-2 ml-auto">
+                        <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Score</span>
+                          <span className="text-sm font-extrabold text-slate-700">{analysis.totalCorrect}/{analysis.totalQuestions}</span>
+                        </div>
+                        {analysis.rwTotal > 0 && (
+                          <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                            <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">R&amp;W</span>
+                            <span className="text-sm font-extrabold text-emerald-700">{analysis.rwCorrect}/{analysis.rwTotal}</span>
+                          </div>
+                        )}
+                        {analysis.mathTotal > 0 && (
+                          <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                            <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Math</span>
+                            <span className="text-sm font-extrabold text-amber-700">{analysis.mathCorrect}/{analysis.mathTotal}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
                   return (
                     <div className="flex items-center gap-2 ml-auto">
                       <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -762,7 +788,7 @@ export function MyStudentsPage() {
                         <span className="text-sm font-extrabold text-blue-700">{analysis.finalScaledScore}</span>
                       </div>
                       <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
-                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">R&W</span>
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">R&amp;W</span>
                         <span className="text-sm font-extrabold text-emerald-700">{analysis.rwScaled}</span>
                       </div>
                       <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
@@ -801,7 +827,7 @@ export function MyStudentsPage() {
                   r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
                   r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
                   r.rwM1, r.rwM2, r.mathM1, r.mathM2, r.totalRaw,
-                  r.isSAT ? r.rwSS : '-', r.isSAT ? r.mathSS : '-', r.isSAT ? r.totalSS : '-',
+                  (r.isSAT && r.isMockTest) ? r.rwSS : '-', (r.isSAT && r.isMockTest) ? r.mathSS : '-', (r.isSAT && r.isMockTest) ? r.totalSS : '-',
                   testAnalysisStatus[r.id] === 'submitted' ? 'Analysed' : 'Unanalysed',
                 ]);
                 const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -866,9 +892,9 @@ export function MyStudentsPage() {
                                 <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.mathM1}</td>
                                 <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.mathM2}</td>
                                 <td className="px-3 py-3 text-center font-bold text-slate-900">{r.totalRaw}</td>
-                                <td className="px-3 py-3 text-center text-slate-600">{r.isSAT ? r.rwSS : '—'}</td>
-                                <td className="px-3 py-3 text-center text-slate-600">{r.isSAT ? r.mathSS : '—'}</td>
-                                <td className="px-3 py-3 text-center font-semibold text-slate-800">{r.isSAT ? r.totalSS : '—'}</td>
+                                <td className="px-3 py-3 text-center text-slate-600">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
+                                <td className="px-3 py-3 text-center text-slate-600">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
+                                <td className="px-3 py-3 text-center font-semibold text-slate-800">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
                                 <td className="px-3 py-3 text-center">
                                   <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${analysed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                                     {analysed ? 'ANALYSED' : 'UNANALYSED'}
@@ -893,6 +919,7 @@ export function MyStudentsPage() {
             </Card>
           ) : testAnalysisAttempt ? (() => {
             const analysis = computeTestAnalysis(testAnalysisAttempt);
+            const isMockTest = testAnalysisAttempt.test.category === 'Mock Test';
             const completedDate = testAnalysisAttempt.completedAt
               ? new Date(testAnalysisAttempt.completedAt).toLocaleDateString('en-US', {
                   day: '2-digit', month: '2-digit', year: 'numeric'
@@ -960,8 +987,8 @@ export function MyStudentsPage() {
                 {/* Overall Score */}
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">Overall Score</h4>
-                  <div className={`grid grid-cols-1 ${analysis.isSAT ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm`}>
-                    {analysis.isSAT && (
+                  <div className={`grid grid-cols-1 ${(analysis.isSAT && isMockTest) ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm`}>
+                    {analysis.isSAT && isMockTest && (
                       <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200 bg-blue-50/50">
                         <p className="text-2xl font-bold text-blue-700">
                           {analysis.finalScaledScore} <span className="text-xs text-slate-400 font-normal">/ 1600</span>
@@ -977,24 +1004,24 @@ export function MyStudentsPage() {
                     </div>
                     <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200">
                       <p className="text-2xl font-bold text-emerald-700">
-                        {analysis.isSAT
+                        {(analysis.isSAT && isMockTest)
                           ? <>{analysis.rwScaled} <span className="text-xs text-slate-400 font-normal">/ 800</span></>
                           : <>{analysis.rwCorrect} / {analysis.rwTotal}</>}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5 font-medium">
                         Reading and Writing
-                        {analysis.isSAT && <span className="text-slate-400 font-normal"> · {analysis.rwCorrect}/{analysis.rwTotal} correct</span>}
+                        {analysis.isSAT && isMockTest && <span className="text-slate-400 font-normal"> · {analysis.rwCorrect}/{analysis.rwTotal} correct</span>}
                       </p>
                     </div>
                     <div className="py-3 px-4">
                       <p className="text-2xl font-bold text-amber-700">
-                        {analysis.isSAT
+                        {(analysis.isSAT && isMockTest)
                           ? <>{analysis.mathScaled} <span className="text-xs text-slate-400 font-normal">/ 800</span></>
                           : <>{analysis.mathCorrect} / {analysis.mathTotal}</>}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5 font-medium">
                         Math
-                        {analysis.isSAT && <span className="text-slate-400 font-normal"> · {analysis.mathCorrect}/{analysis.mathTotal} correct</span>}
+                        {analysis.isSAT && isMockTest && <span className="text-slate-400 font-normal"> · {analysis.mathCorrect}/{analysis.mathTotal} correct</span>}
                       </p>
                     </div>
                   </div>
@@ -1336,6 +1363,74 @@ export function MyStudentsPage() {
                     );
                   })()}
                 </div>
+
+                {/* ── Time Spent Per Question ── */}
+                {(() => {
+                  const answersMap = new Map(testAnalysisAttempt.answers.map((a: any) => [a.questionId, a]));
+                  const sectionStats = testAnalysisAttempt.sectionAttempts
+                    .slice()
+                    .sort((a: any, b: any) => a.section.orderIndex - b.section.orderIndex)
+                    .map((sa: any) => {
+                      const allQs = sa.section.questions.flatMap((tq: any) => {
+                        const q = tq.question;
+                        const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
+                        if (isPassage && q.childQuestions?.length > 0) {
+                          return q.childQuestions.map((cq: any) => ({ ...tq, questionId: cq.id, question: cq }));
+                        }
+                        return [tq];
+                      });
+                      const stats: QuestionTimeStat[] = allQs.map((tq: any, idx: number) => {
+                        const ans = answersMap.get(tq.questionId) as any;
+                        const correct = !!ans?.answerGiven && taAnswersMatch(ans.answerGiven, tq.question.correctAnswer);
+                        const skipped = !ans?.answerGiven;
+                        return {
+                          questionIndex: idx + 1,
+                          sectionName: sa.section.name,
+                          timeSpentSeconds: ans?.timeSpentSeconds ?? 0,
+                          status: (skipped ? 'skipped' : correct ? 'correct' : 'incorrect') as 'correct' | 'incorrect' | 'skipped',
+                          difficulty: tq.question.difficultyLevel ?? 'MEDIUM',
+                          topicName: tq.question.topic?.name ?? tq.question.subject ?? '',
+                        };
+                      });
+                      return { name: sa.section.name, stats };
+                    });
+                  return (
+                    <div className="mt-6 bg-white rounded-xl border border-slate-200 p-5">
+                      <button
+                        onClick={() => setTimeChartOpen(!timeChartOpen)}
+                        className="w-full text-left flex items-center justify-between hover:opacity-80 transition-opacity"
+                      >
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-bold text-slate-900">Time Spent Per Question</h4>
+                          <span className="text-xs text-slate-400 font-medium">section-wise breakdown</span>
+                        </div>
+                        <div className="text-slate-500">
+                          {timeChartOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
+                      </button>
+                      {timeChartOpen && (
+                        <>
+                          <div className="flex flex-wrap gap-2 mt-4 mb-5 border-b border-slate-100 pb-4">
+                            {sectionStats.map((sec: any, idx: number) => (
+                              <button
+                                key={idx}
+                                onClick={() => setTimeChartSectionIdx(idx)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                  timeChartSectionIdx === idx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                              >
+                                {sec.name}
+                              </button>
+                            ))}
+                          </div>
+                          {sectionStats[timeChartSectionIdx] && (
+                            <QuestionTimeChart stats={sectionStats[timeChartSectionIdx].stats} />
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })() : (

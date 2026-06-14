@@ -75,7 +75,7 @@ interface TaAttempt {
   totalScore: number | null;
   startedAt: string;
   completedAt: string | null;
-  test: { id: string; title: string };
+  test: { id: string; title: string; category?: string };
   sectionAttempts: TaSectionAttempt[];
   answers: TaAttemptAnswer[];
 }
@@ -739,6 +739,7 @@ export function AdminStudentProfilePage() {
                             </div>
                           ) : expandedAttempt ? (() => {
                             const analysis = computeTestAnalysis(expandedAttempt);
+                            const isMockTest = expandedAttempt.test.category === 'Mock Test';
                             const completedDate = expandedAttempt.completedAt
                               ? new Date(expandedAttempt.completedAt).toLocaleDateString('en-US', {
                                   day: '2-digit', month: '2-digit', year: 'numeric'
@@ -799,8 +800,8 @@ export function AdminStudentProfilePage() {
                                 {/* ── Overall Score ── */}
                                 <div>
                                   <h4 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">Overall Score</h4>
-                                  <div className={`grid grid-cols-1 ${analysis.isSAT ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm`}>
-                                    {analysis.isSAT && (
+                                  <div className={`grid grid-cols-1 ${(analysis.isSAT && isMockTest) ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm`}>
+                                    {analysis.isSAT && isMockTest && (
                                       <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200 bg-blue-50/50">
                                         <p className="text-2xl font-bold text-blue-700">
                                           {analysis.finalScaledScore} <span className="text-xs text-slate-400 font-normal">/ 1600</span>
@@ -816,24 +817,24 @@ export function AdminStudentProfilePage() {
                                     </div>
                                     <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200">
                                       <p className="text-2xl font-bold text-emerald-700">
-                                        {analysis.isSAT
+                                        {(analysis.isSAT && isMockTest)
                                           ? <>{analysis.rwScaled} <span className="text-xs text-slate-400 font-normal">/ 800</span></>
                                           : <>{analysis.rwCorrect} / {analysis.rwTotal}</>}
                                       </p>
                                       <p className="text-xs text-slate-500 mt-0.5">
                                         Reading and Writing
-                                        {analysis.isSAT && <span className="text-slate-400"> · {analysis.rwCorrect}/{analysis.rwTotal} correct</span>}
+                                        {analysis.isSAT && isMockTest && <span className="text-slate-400"> · {analysis.rwCorrect}/{analysis.rwTotal} correct</span>}
                                       </p>
                                     </div>
                                     <div className="py-3 px-4">
                                       <p className="text-2xl font-bold text-amber-700">
-                                        {analysis.isSAT
+                                        {(analysis.isSAT && isMockTest)
                                           ? <>{analysis.mathScaled} <span className="text-xs text-slate-400 font-normal">/ 800</span></>
                                           : <>{analysis.mathCorrect} / {analysis.mathTotal}</>}
                                       </p>
                                       <p className="text-xs text-slate-500 mt-0.5">
                                         Math
-                                        {analysis.isSAT && <span className="text-slate-400"> · {analysis.mathCorrect}/{analysis.mathTotal} correct</span>}
+                                        {analysis.isSAT && isMockTest && <span className="text-slate-400"> · {analysis.mathCorrect}/{analysis.mathTotal} correct</span>}
                                       </p>
                                     </div>
                                   </div>
