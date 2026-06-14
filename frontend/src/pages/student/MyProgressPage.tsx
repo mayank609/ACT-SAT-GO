@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, Target, Clock, CheckCircle, XCircle, Minus, AlertTriangle, FileSearch, Loader2, ChevronRight } from 'lucide-react';
+import { TrendingUp, Target, CheckCircle, XCircle, Minus, AlertTriangle, FileSearch, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';

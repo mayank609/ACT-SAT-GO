@@ -11,7 +11,6 @@ import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser } from '../../lib/api';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
-import toast from 'react-hot-toast';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES, ALL_SUBDOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 
 type MainViewTab = 'analysis' | 'test_analysis';
@@ -394,7 +393,7 @@ export function StudentManagementPage() {
   const [selectedAttemptId, setSelectedAttemptId] = useState('');
   const [testAnalysisLoading, setTestAnalysisLoading] = useState(false);
   const [testAnalysisAttempt, setTestAnalysisAttempt] = useState<TaAttempt | null>(null);
-  const [testAnalysisStatus, setTestAnalysisStatus] = useState<Record<string, 'submitted' | 'not_submitted'>>({});
+  const [testAnalysisStatus] = useState<Record<string, 'submitted' | 'not_submitted'>>({});
 
   // ── Mock Test Report (per-student list of all attempts) ─────────────────────
   const [reportRows, setReportRows] = useState<Array<{
@@ -1285,14 +1284,6 @@ export function StudentManagementPage() {
             </Card>
           ) : testAnalysisAttempt ? (() => {
             const analysis = computeTestAnalysis(testAnalysisAttempt);
-            const completedDate = testAnalysisAttempt.completedAt
-              ? new Date(testAnalysisAttempt.completedAt).toLocaleDateString('en-US', {
-                  day: '2-digit', month: '2-digit', year: 'numeric'
-                }) + ', ' + new Date(testAnalysisAttempt.completedAt).toLocaleTimeString('en-US', {
-                  hour: '2-digit', minute: '2-digit'
-                })
-              : '—';
-            const status = testAnalysisStatus[selectedAttemptId] ?? 'not_submitted';
 
             return (
               <div className="space-y-4">
