@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
+  ChevronLeft, ChevronRight, ChevronDown,
   Maximize2, X, Clock,
 } from 'lucide-react';
 import { Badge } from '../common/Badge';

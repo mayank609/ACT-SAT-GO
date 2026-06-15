@@ -1,7 +1,6 @@
 import { Bell, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
-import { useNavigate } from 'react-router-dom';
 import type { Role } from '../../types';
 import { useState, useRef, useEffect } from 'react';
 
@@ -26,9 +25,8 @@ function relativeTime(iso: string): string {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const { notifications, markRead } = useNotificationStore();
-  const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +42,6 @@ export function Header({ onMenuClick }: HeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => { logout(); navigate('/login'); };
 
   const handleMarkAllRead = () => {
     notifications.filter((n) => !n.read).forEach((n) => markRead(n.id));
