@@ -1628,23 +1628,6 @@ export function TestReviewPage() {
                 );
               })()}
 
-              {/* Bottom Section - Question Counter */}
-              <div className="border-t border-slate-200 pt-4 text-center">
-                {(() => {
-                  const activeSection = sections[activeSectionIdx];
-                  const activeQuestions = activeSection?.section.questions ?? [];
-                  const safeIdx = Math.min(currentQuestionIdx, Math.max(activeQuestions.length - 1, 0));
-                  return (
-                    <button
-                      onClick={() => setQuestionNavigatorOpen(false)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 transition-all"
-                    >
-                      Question {safeIdx + 1} of {activeQuestions.length}
-                      <ChevronDown size={16} />
-                    </button>
-                  );
-                })()}
-              </div>
             </div>
           </div>
         </div>
@@ -1796,7 +1779,7 @@ export function TestReviewPage() {
                               return (
                                 <div
                                   key={optId}
-                                  className={`p-3 rounded-lg border-2 transition-all ${
+                                  className={`p-3 rounded-lg border transition-all ${
                                     isCorrectOption
                                       ? 'border-emerald-500 bg-emerald-50'
                                       : isIncorrect
@@ -1807,7 +1790,7 @@ export function TestReviewPage() {
                                   }`}
                                 >
                                   <div className="flex items-start gap-3">
-                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center text-xs font-bold ${
                                       isCorrectOption
                                         ? 'bg-emerald-500 border-emerald-500 text-white'
                                         : isIncorrect
@@ -1863,11 +1846,11 @@ export function TestReviewPage() {
                               ? correctAnswerDisplay.includes(optId.toLowerCase())
                               : correctAnswerDisplay === optId.toLowerCase();
                             const isIncorrect = isSelected && !isCorrectOption;
-                            
+
                             return (
                               <div
                                 key={optId}
-                                className={`p-3 rounded-lg border-2 transition-all ${
+                                className={`p-3 rounded-lg border transition-all ${
                                   isCorrectOption
                                     ? 'border-emerald-500 bg-emerald-50'
                                     : isIncorrect
@@ -1878,7 +1861,7 @@ export function TestReviewPage() {
                                 }`}
                               >
                                 <div className="flex items-start gap-3">
-                                  <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                                  <div className={`flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center text-xs font-bold ${
                                     isCorrectOption
                                       ? 'bg-emerald-500 border-emerald-500 text-white'
                                       : isIncorrect
@@ -1984,11 +1967,11 @@ export function TestReviewPage() {
 
           return (
             <div
-              className="absolute inset-0 z-60 flex items-center justify-center bg-black/40"
+              className="absolute inset-0 z-60"
               onClick={() => setShowFullscreenQuestionNavigator(false)}
             >
               <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
+                className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="text-center border-b border-slate-200 pb-4">
@@ -2026,15 +2009,6 @@ export function TestReviewPage() {
                       );
                     })}
                   </div>
-                </div>
-
-                <div className="border-t border-slate-200 pt-4 text-center">
-                  <button
-                    onClick={() => setShowFullscreenQuestionNavigator(false)}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all"
-                  >
-                    Question {safeIdx + 1} of {navFiltered.length} <ChevronDown size={16} />
-                  </button>
                 </div>
               </div>
             </div>

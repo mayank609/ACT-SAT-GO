@@ -367,7 +367,7 @@ export function MyStudentsPage() {
             id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
             rwM1, rwM2, mathM1, mathM2, rwM1T, rwM2T, mathM1T, mathM2T,
             totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
-            rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: ['Mock Test', 'Diagnostic'].includes(att.test.category ?? ''),
+            rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: ['Mock Test', 'Diagnostic'].includes(att.test.category ?? '') || /mock|diagnostic/i.test(att.test.title ?? ''),
           };
         });
       setReportRows(rows);
@@ -757,7 +757,7 @@ export function MyStudentsPage() {
                 if (!selectedAttempt) return null;
                 try {
                   const analysis = computeTestAnalysis(selectedAttempt as any);
-                  const isMockTest = ['Mock Test', 'Diagnostic'].includes((selectedAttempt as any).test?.category ?? '');
+                  const isMockTest = ['Mock Test', 'Diagnostic'].includes((selectedAttempt as any).test?.category ?? '') || /mock|diagnostic/i.test((selectedAttempt as any).test?.title ?? '');
                   if (!analysis.isSAT) return null;
                   if (!isMockTest) {
                     return (
@@ -821,7 +821,7 @@ export function MyStudentsPage() {
               }), { rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0, total: 0 });
               const den = { rwM1: dRaw.rwM1 || 27, rwM2: dRaw.rwM2 || 27, mathM1: dRaw.mathM1 || 22, mathM2: dRaw.mathM2 || 22, total: dRaw.total || 98 };
               const downloadReport = () => {
-                const head = ['#', 'Test Name', 'Started At', 'Completed At', `RW MD1/${den.rwM1}`, `RW MD2/${den.rwM2}`, `Math MD1/${den.mathM1}`, `Math MD2/${den.mathM2}`, `Total/${den.total}`, 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
+                const head = ['#', 'Test Name', 'Started At', 'Completed At', `RW1/${den.rwM1}`, `RW2/${den.rwM2}`, `M1/${den.mathM1}`, `M2/${den.mathM2}`, `Total/${den.total}`, 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
                 const lines = reportRows.map((r, i) => [
                   i + 1, r.title,
                   r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
@@ -843,10 +843,10 @@ export function MyStudentsPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
                     <div>
                       <p className="text-sm font-semibold text-slate-500">Total Session : <span className="text-slate-900 font-bold">{reportRows.length}</span></p>
-                      <h2 className="text-lg font-bold text-purple-800 mt-0.5">{studentName}<span className="text-slate-500 font-medium text-sm ml-2">Test Report</span></h2>
+                      <h2 className="text-lg font-bold text-blue-900 mt-0.5">{studentName}<span className="text-slate-500 font-medium text-sm ml-2">Test Report</span></h2>
                     </div>
                     <button onClick={downloadReport} disabled={reportRows.length === 0}
-                      className="px-4 py-2 text-sm font-semibold text-white bg-purple-700 hover:bg-purple-800 disabled:opacity-50 rounded-lg transition-colors self-start">
+                      className="px-4 py-2 text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors self-start">
                       Download Report
                     </button>
                   </div>
@@ -866,10 +866,10 @@ export function MyStudentsPage() {
                             <th className="px-3 py-3 text-left font-semibold">Test Name</th>
                             <th className="px-3 py-3 text-center font-semibold">Started At</th>
                             <th className="px-3 py-3 text-center font-semibold">Completed At</th>
-                            <th className="px-3 py-3 text-center font-semibold">RW MD1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">RW MD2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">Math MD1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">Math MD2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
                             <th className="px-3 py-3 text-center font-semibold">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
                             <th className="px-3 py-3 text-center font-semibold">RW SS</th>
                             <th className="px-3 py-3 text-center font-semibold">Math SS</th>
@@ -884,13 +884,13 @@ export function MyStudentsPage() {
                               <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
                                 className="border-b border-slate-50 hover:bg-blue-50/50 cursor-pointer transition-colors">
                                 <td className="px-3 py-3 text-slate-500">{i + 1}</td>
-                                <td className="px-3 py-3 font-semibold text-purple-700 hover:underline">{r.title}</td>
+                                <td className="px-3 py-3 font-semibold text-blue-700 hover:underline">{r.title}</td>
                                 <td className="px-3 py-3 text-center text-xs text-slate-500">{r.startedAt ? new Date(r.startedAt).toLocaleString() : '—'}</td>
                                 <td className="px-3 py-3 text-center text-xs text-slate-500">{r.completedAt ? new Date(r.completedAt).toLocaleString() : '—'}</td>
-                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.rwM1}</td>
-                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.rwM2}</td>
-                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.mathM1}</td>
-                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.mathM2}</td>
+                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.rwM1}</td>
+                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.rwM2}</td>
+                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.mathM1}</td>
+                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.mathM2}</td>
                                 <td className="px-3 py-3 text-center font-bold text-slate-900">{r.totalRaw}</td>
                                 <td className="px-3 py-3 text-center text-slate-600">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
                                 <td className="px-3 py-3 text-center text-slate-600">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
@@ -919,7 +919,7 @@ export function MyStudentsPage() {
             </Card>
           ) : testAnalysisAttempt ? (() => {
             const analysis = computeTestAnalysis(testAnalysisAttempt);
-            const isMockTest = ['Mock Test', 'Diagnostic'].includes(testAnalysisAttempt.test.category ?? '');
+            const isMockTest = ['Mock Test', 'Diagnostic'].includes(testAnalysisAttempt.test.category ?? '') || /mock|diagnostic/i.test(testAnalysisAttempt.test.title ?? '');
             const completedDate = testAnalysisAttempt.completedAt
               ? new Date(testAnalysisAttempt.completedAt).toLocaleDateString('en-US', {
                   day: '2-digit', month: '2-digit', year: 'numeric'
@@ -1879,9 +1879,8 @@ export function MyStudentsPage() {
 
             {/* Question Palette Modal overlay */}
             {showFullscreenPalette && (
-              <div className="fixed inset-0 z-[200] flex items-center justify-center">
-                <div className="absolute inset-0 bg-black/40" onClick={() => setShowFullscreenPalette(false)} />
-                <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden z-10 border border-slate-200">
+              <div className="absolute inset-0 z-[200]" onClick={() => setShowFullscreenPalette(false)}>
+                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200" onClick={(e) => e.stopPropagation()}>
                   {/* Header */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
                     <h3 className="text-sm font-bold text-slate-900 text-center flex-1">

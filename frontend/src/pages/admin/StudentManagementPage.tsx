@@ -372,6 +372,7 @@ export function StudentManagementPage() {
     diagnosticsEnglish: number | null;
     diagnosticsMath: number | null;
     mockTests: number;
+    diagnosticCount: number;
     sectionalTests: number;
     hwCount: number;
     cwCount: number;
@@ -418,6 +419,7 @@ export function StudentManagementPage() {
   const [timeChartOpen, setTimeChartOpen] = useState(false);
   const [timeChartSectionIdx, setTimeChartSectionIdx] = useState(0);
   const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
+  const [showAnswerFeedback, setShowAnswerFeedback] = useState(false);
 
   const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -499,7 +501,7 @@ export function StudentManagementPage() {
               rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
               rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
               totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
-              rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: ['Mock Test', 'Diagnostic'].includes(att.test.category ?? ''),
+              rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: ['Mock Test', 'Diagnostic'].includes(att.test.category ?? '') || /mock|diagnostic/i.test(att.test.title ?? ''),
               isAnalysed,
             };
           } catch (err) {
@@ -630,6 +632,7 @@ export function StudentManagementPage() {
           
           // Count assessment types by test title from actual attempts list
           const mockCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('mock')).length;
+          const diagnosticCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('diagnostic')).length;
           const sectionalCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('sectional')).length;
           const hwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('homework') || a.test?.title?.toLowerCase().includes('hw')).length;
           const cwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('classwork') || a.test?.title?.toLowerCase().includes('cw')).length;
@@ -644,6 +647,7 @@ export function StudentManagementPage() {
             diagnosticsEnglish,
             diagnosticsMath,
             mockTests: mockCount,
+            diagnosticCount,
             sectionalTests: sectionalCount,
             hwCount,
             cwCount,
@@ -670,6 +674,7 @@ export function StudentManagementPage() {
             diagnosticsEnglish: null,
             diagnosticsMath: null,
             mockTests: 0,
+            diagnosticCount: 0,
             sectionalTests: 0,
             hwCount: 0,
             cwCount: 0,
@@ -875,23 +880,33 @@ export function StudentManagementPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
+                <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
+                  <th className="px-4 py-2 text-left font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Name</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Target Date</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" rowSpan={2}>English</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Math</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={5}>Total Assessment</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Performance</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Actions</th>
+                </tr>
                 <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
-                  <th className="px-4 py-3 text-left font-semibold text-blue-900 whitespace-nowrap">Name</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Target Date</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200">Diagnostic Score</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">English</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Math</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200">Total Assessment</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Test Report</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Performance</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Actions</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Total SS</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Eng SS</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Math SS</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Total</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Mock</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Diagnostic</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Sectional</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Practice</th>
                 </tr>
               </thead>
               <tbody>
                 {analysisLoading ? (
-                  <tr><td colSpan={9} className="py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={15} className="py-8 text-center text-slate-400">Loading...</td></tr>
                 ) : studentAnalysisData.length === 0 ? (
-                  <tr><td colSpan={9} className="py-8 text-center text-slate-400">No students found</td></tr>
+                  <tr><td colSpan={15} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) =>
                       analysisSearchTerm
@@ -921,17 +936,35 @@ export function StudentManagementPage() {
                         <td className="px-4 py-3 text-center text-sm text-slate-600 whitespace-nowrap">
                           {row.targetDate ? new Date(row.targetDate).toLocaleDateString() : '—'}
                         </td>
-                        <td className="px-4 py-3 text-center font-semibold text-blue-900 border-l border-blue-100">
+                        <td className="px-3 py-3 text-center font-semibold text-blue-900 border-l border-blue-100">
                           {row.scaledScoreTotal ?? '—'}
                         </td>
-                        <td className="px-4 py-3 text-center text-sm font-semibold text-blue-700">
+                        <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
+                          {row.scaledScoreEnglish ?? '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
+                          {row.scaledScoreMath ?? '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700 border-l border-blue-100">
                           {row.diagnosticsEnglish ?? '—'}
                         </td>
-                        <td className="px-4 py-3 text-center text-sm font-semibold text-blue-700">
+                        <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
                           {row.diagnosticsMath ?? '—'}
                         </td>
-                        <td className="px-4 py-3 text-center text-sm font-bold text-emerald-700 border-l border-blue-100">
+                        <td className="px-3 py-3 text-center text-sm font-bold text-emerald-700 border-l border-blue-100">
                           {row.totalAssessments ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.mockTests || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.diagnosticCount || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.sectionalTests || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.practiceSheets || '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <button
@@ -1033,7 +1066,7 @@ export function StudentManagementPage() {
               }), { rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0, total: 0 });
               const den = { rwM1: dRaw.rwM1 || 27, rwM2: dRaw.rwM2 || 27, mathM1: dRaw.mathM1 || 22, mathM2: dRaw.mathM2 || 22, total: dRaw.total || 98 };
               const downloadReport = () => {
-                const head = ['#', 'Test Name', 'Started At', 'Completed At', `RW MD1/${den.rwM1}`, `RW MD2/${den.rwM2}`, `Math MD1/${den.mathM1}`, `Math MD2/${den.mathM2}`, `Total/${den.total}`, 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
+                const head = ['#', 'Test Name', 'Started At', 'Completed At', `RW1/${den.rwM1}`, `RW2/${den.rwM2}`, `M1/${den.mathM1}`, `M2/${den.mathM2}`, `Total/${den.total}`, 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
                 const lines = reportRows.map((r, i) => [
                   i + 1, r.title,
                   r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
@@ -1075,13 +1108,13 @@ export function StudentManagementPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
                     <div>
                       <p className="text-sm font-semibold text-slate-500">Total Session : <span className="text-slate-900 font-bold">{filteredRows.length}</span></p>
-                      <h2 className="text-lg font-bold text-purple-800 mt-0.5">{studentName}<span className="text-slate-500 font-medium text-sm ml-2">Test Report</span></h2>
+                      <h2 className="text-lg font-bold text-blue-900 mt-0.5">{studentName}<span className="text-slate-500 font-medium text-sm ml-2">Test Report</span></h2>
                     </div>
                     <div className="flex items-center gap-3 self-start">
                       <select
                         value={selectedAttemptId}
                         onChange={e => setSelectedAttemptId(e.target.value)}
-                        className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white min-w-[220px] max-w-[300px]"
+                        className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[220px] max-w-[300px]"
                       >
                         <option value="">Search attempt…</option>
                         {studentAttempts.map(a => (
@@ -1091,7 +1124,7 @@ export function StudentManagementPage() {
                         ))}
                       </select>
                       <button onClick={downloadReport} disabled={reportRows.length === 0}
-                        className="px-4 py-2 text-sm font-semibold text-white bg-purple-700 hover:bg-purple-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap">
+                        className="px-4 py-2 text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap">
                         Download Report
                       </button>
                     </div>
@@ -1105,10 +1138,10 @@ export function StudentManagementPage() {
                         <button
                           key={key}
                           onClick={() => setReportFilter(key)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${active ? 'bg-purple-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${active ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                         >
                           {label}
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-purple-500 text-white' : 'bg-slate-300 text-slate-600'}`}>{count}</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-blue-500 text-white' : 'bg-slate-300 text-slate-600'}`}>{count}</span>
                         </button>
                       );
                     })}
@@ -1129,10 +1162,10 @@ export function StudentManagementPage() {
                             <th className="px-3 py-3 text-left font-semibold">Test Name</th>
                             <th className="px-3 py-3 text-center font-semibold">Started At</th>
                             <th className="px-3 py-3 text-center font-semibold">Completed At</th>
-                            <th className="px-3 py-3 text-center font-semibold">RW MD1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">RW MD2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">Math MD1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">Math MD2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
+                            <th className="px-3 py-3 text-center font-semibold">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
                             <th className="px-3 py-3 text-center font-semibold">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
                             <th className="px-3 py-3 text-center font-semibold">RW SS</th>
                             <th className="px-3 py-3 text-center font-semibold">Math SS</th>
@@ -1147,13 +1180,13 @@ export function StudentManagementPage() {
                               <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
                                 className="border-b border-slate-50 hover:bg-blue-50/50 cursor-pointer transition-colors">
                                 <td className="px-3 py-3 text-slate-500">{i + 1}</td>
-                                <td className="px-3 py-3 font-semibold text-purple-700 hover:underline">{r.title}</td>
+                                <td className="px-3 py-3 font-semibold text-blue-700 hover:underline">{r.title}</td>
                                 <td className="px-3 py-3 text-center text-xs text-slate-500">{r.startedAt ? new Date(r.startedAt).toLocaleString() : '—'}</td>
                                 <td className="px-3 py-3 text-center text-xs text-slate-500">{r.completedAt ? new Date(r.completedAt).toLocaleString() : '—'}</td>
-                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.rwM1}</td>
-                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.rwM2}</td>
-                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.mathM1}</td>
-                                <td className="px-3 py-3 text-center text-purple-700 font-medium">{r.mathM2}</td>
+                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.rwM1}</td>
+                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.rwM2}</td>
+                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.mathM1}</td>
+                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.mathM2}</td>
                                 <td className="px-3 py-3 text-center font-bold text-slate-900">{r.totalRaw}</td>
                                 <td className="px-3 py-3 text-center text-slate-600">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
                                 <td className="px-3 py-3 text-center text-slate-600">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
@@ -1396,7 +1429,7 @@ export function StudentManagementPage() {
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter</span>
                       <select
                         value={questionFilterBy}
@@ -1528,6 +1561,11 @@ export function StudentManagementPage() {
                                   </div>
                                 </div>
                                 <div className="space-y-2 flex-1 overflow-y-auto">
+                                  <div className="flex justify-start mb-2">
+                                    <button onClick={() => setShowAnswerFeedback(v => !v)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${showAnswerFeedback ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:border-blue-400'}`}>
+                                      {showAnswerFeedback ? 'Hide Answer' : 'Show Answer'}
+                                    </button>
+                                  </div>
                                   {options.length > 0 && (
                                     <div className="space-y-2 max-w-3xl">
                                       {options.map((opt) => {
@@ -1541,7 +1579,7 @@ export function StudentManagementPage() {
                                             isSelected={isUserAnswer && !isCorrectOption}
                                             isCorrect={isCorrectOption}
                                             isIncorrect={isUserAnswer && !isCorrectOption}
-                                            showFeedback={true}
+                                            showFeedback={showAnswerFeedback}
                                             colorTheme="blue"
                                           />
                                         );
@@ -1591,6 +1629,11 @@ export function StudentManagementPage() {
                               </div>
 
                               <div className="px-4 py-3 border-t border-slate-100">
+                                <div className="flex justify-start mb-2">
+                                  <button onClick={() => setShowAnswerFeedback(v => !v)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${showAnswerFeedback ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:border-blue-400'}`}>
+                                    {showAnswerFeedback ? 'Hide Answer' : 'Show Answer'}
+                                  </button>
+                                </div>
                                 {options.length > 0 && (
                                   <div className="space-y-2 mb-3 text-left max-w-3xl">
                                     {options.map((opt) => {
@@ -1604,7 +1647,7 @@ export function StudentManagementPage() {
                                           isSelected={isUserAnswer && !isCorrectOption}
                                           isCorrect={isCorrectOption}
                                           isIncorrect={isUserAnswer && !isCorrectOption}
-                                          showFeedback={true}
+                                          showFeedback={showAnswerFeedback}
                                           colorTheme="blue"
                                         />
                                       );
@@ -2001,7 +2044,69 @@ export function StudentManagementPage() {
         </div>
       </Modal>
 
-      {/* ── Question Navigator Modal ── */}
+      {/* ── Question Navigator Modal (non-fullscreen inline view) ── */}
+      {showQuestionNavigator && !fullscreenQuestionReportOpen && testAnalysisAttempt && (() => {
+        const analysis = computeTestAnalysis(testAnalysisAttempt);
+        const navSection = testAnalysisAttempt.sectionAttempts.find(
+          (sa) => sa.section.name === analysis.sections[activeQuestionSectionIdx]?.name
+        );
+        if (!navSection) return null;
+        const navAnswersMap = new Map(testAnalysisAttempt.answers.map((a) => [a.questionId, a]));
+        const navAllQ = navSection.section.questions.flatMap((tq) => {
+          const q = tq.question;
+          const isP = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+          if (isP && q.childQuestions?.length) return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq }));
+          return [tq];
+        });
+        const navFiltered = navAllQ.filter((tq) => {
+          const ans = navAnswersMap.get(tq.questionId);
+          const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+          const isOmitted = !ans?.answerGiven;
+          if (questionFilterBy === 'correct') return isCorrect;
+          if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+          if (questionFilterBy === 'omitted') return isOmitted;
+          return true;
+        });
+        const navSafeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
+        return (
+          <Modal isOpen={showQuestionNavigator} onClose={() => setShowQuestionNavigator(false)} title="" size="md">
+            <div className="space-y-5">
+              <div className="text-center border-b border-slate-200 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">{analysis.sections[activeQuestionSectionIdx]?.name}</h3>
+                <p className="text-sm text-slate-500 mt-1">Questions</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
+                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
+                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
+              </div>
+              <div className="flex justify-center">
+                <div className="grid grid-cols-9 gap-3 p-1 max-h-72 overflow-y-auto">
+                  {navFiltered.map((fq, idx) => {
+                    const ans = navAnswersMap.get(fq.questionId);
+                    const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                    const isOmitted = !ans?.answerGiven;
+                    const isCurrent = idx === navSafeIdx;
+                    let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
+                    let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
+                    if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => { setCurrentQuestionIdx(idx); setShowQuestionNavigator(false); }}
+                        className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
       {/* ── Fullscreen Question Wise Report review mode ── */}
       {fullscreenQuestionReportOpen && testAnalysisAttempt && (() => {
         const analysis = computeTestAnalysis(testAnalysisAttempt);
@@ -2072,11 +2177,6 @@ export function StudentManagementPage() {
                 </div>
               </div>
 
-              {/* Center Info Banner */}
-              <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 select-none">
-                Review Mode - Admin Portal
-              </div>
-
               {/* Right tools and exit */}
               <div className="flex items-center gap-4 z-30">
                 <div className="flex items-center gap-2">
@@ -2127,17 +2227,14 @@ export function StudentManagementPage() {
                   <div className="w-1/2 overflow-y-auto p-8 bg-white h-full flex flex-col gap-6 select-text">
                     {/* Status header */}
                     <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5">
-                      <div className="flex items-center gap-3">
-                        <span className={`w-7 h-7 text-white text-sm font-bold flex items-center justify-center rounded ${correct ? 'bg-emerald-600' : skipped ? 'bg-slate-400' : 'bg-red-600'}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 bg-slate-900 text-white text-xs font-bold flex items-center justify-center rounded">
                           {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
-                        </span>
-                        <span className={`text-sm font-bold ${correct ? 'text-emerald-700' : skipped ? 'text-slate-600' : 'text-red-700'}`}>
-                          {correct ? 'Correct' : skipped ? 'Omitted' : 'Incorrect'}
                         </span>
                       </div>
                       {studentAnswer?.timeSpentSeconds ? (
-                        <span className="text-xs text-slate-500 flex items-center gap-1">
-                          <Clock size={12} />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
+                          <Clock size={11} />
                           Time Spent: {studentAnswer.timeSpentSeconds}s
                         </span>
                       ) : null}
@@ -2149,6 +2246,11 @@ export function StudentManagementPage() {
                     </div>
 
                     {/* Options / Answer Input */}
+                    <div className="flex justify-start mb-2">
+                      <button onClick={() => setShowAnswerFeedback(v => !v)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${showAnswerFeedback ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:border-blue-400'}`}>
+                        {showAnswerFeedback ? 'Hide Answer' : 'Show Answer'}
+                      </button>
+                    </div>
                     {options.length > 0 ? (
                       <div className="space-y-2.5">
                         {options.map((opt) => {
@@ -2162,8 +2264,8 @@ export function StudentManagementPage() {
                               isSelected={isUserAnswer && !isCorrectOption}
                               isCorrect={isCorrectOption}
                               isIncorrect={isUserAnswer && !isCorrectOption}
-                              showFeedback={true}
-                              colorTheme="blue"
+                              showFeedback={showAnswerFeedback}
+                              colorTheme="classic"
                             />
                           );
                         })}
@@ -2204,17 +2306,14 @@ export function StudentManagementPage() {
                   <div className="max-w-3xl mx-auto flex flex-col gap-6">
                     {/* Status header */}
                     <div className="flex items-center justify-between border-b-2 border-dashed border-slate-200 pb-2.5">
-                      <div className="flex items-center gap-3">
-                        <span className={`w-7 h-7 text-white text-sm font-bold flex items-center justify-center rounded ${correct ? 'bg-emerald-600' : skipped ? 'bg-slate-400' : 'bg-red-600'}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 bg-slate-900 text-white text-xs font-bold flex items-center justify-center rounded">
                           {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
-                        </span>
-                        <span className={`text-sm font-bold ${correct ? 'text-emerald-700' : skipped ? 'text-slate-600' : 'text-red-700'}`}>
-                          {correct ? 'Correct' : skipped ? 'Omitted' : 'Incorrect'}
                         </span>
                       </div>
                       {studentAnswer?.timeSpentSeconds ? (
-                        <span className="text-xs text-slate-500 flex items-center gap-1">
-                          <Clock size={12} />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
+                          <Clock size={11} />
                           Time Spent: {studentAnswer.timeSpentSeconds}s
                         </span>
                       ) : null}
@@ -2226,6 +2325,11 @@ export function StudentManagementPage() {
                     </div>
 
                     {/* Options / Answer Input */}
+                    <div className="flex justify-start mb-2">
+                      <button onClick={() => setShowAnswerFeedback(v => !v)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${showAnswerFeedback ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:border-blue-400'}`}>
+                        {showAnswerFeedback ? 'Hide Answer' : 'Show Answer'}
+                      </button>
+                    </div>
                     {options.length > 0 ? (
                       <div className="space-y-2.5">
                         {options.map((opt) => {
@@ -2239,8 +2343,8 @@ export function StudentManagementPage() {
                               isSelected={isUserAnswer && !isCorrectOption}
                               isCorrect={isCorrectOption}
                               isIncorrect={isUserAnswer && !isCorrectOption}
-                              showFeedback={true}
-                              colorTheme="blue"
+                              showFeedback={showAnswerFeedback}
+                              colorTheme="classic"
                             />
                           );
                         })}
@@ -2337,11 +2441,11 @@ export function StudentManagementPage() {
               const navSafeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
               return (
                 <div
-                  className="absolute inset-0 z-[200] flex items-center justify-center bg-black/40"
+                  className="absolute inset-0 z-[200]"
                   onClick={() => setShowQuestionNavigator(false)}
                 >
                   <div
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
+                    className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="text-center border-b border-slate-200 pb-4">
@@ -2374,14 +2478,6 @@ export function StudentManagementPage() {
                           );
                         })}
                       </div>
-                    </div>
-                    <div className="border-t border-slate-200 pt-4 text-center">
-                      <button
-                        onClick={() => setShowQuestionNavigator(false)}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white font-semibold text-sm hover:bg-gray-800 transition-all"
-                      >
-                        Question {navSafeIdx + 1} of {navFiltered.length} <ChevronDown size={16} />
-                      </button>
                     </div>
                   </div>
                 </div>

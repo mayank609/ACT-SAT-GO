@@ -1,4 +1,4 @@
-import { Bell, Menu, LogOut } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useNavigate } from 'react-router-dom';
@@ -109,9 +109,6 @@ export function Header({ onMenuClick }: HeaderProps) {
               <p className="text-xs font-medium text-slate-800 leading-tight">{user.name.split(' ')[0]}</p>
               <p className="text-xs text-slate-400">{roleLabels[user.role]}</p>
             </div>
-            <button onClick={handleLogout} className="p-1.5 ml-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Sign out">
-              <LogOut size={14} />
-            </button>
           </div>
         )}
       </div>
