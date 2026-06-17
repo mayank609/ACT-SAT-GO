@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Loader2, Target, BookOpen, Calculator, CheckCircle2, XCircle,
-  HelpCircle, ShieldCheck, Clock, Layers, Wrench,
+  Loader2, Target, XCircle, HelpCircle, ShieldCheck, Clock, CheckCircle2, Layers, Wrench,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -79,7 +78,7 @@ interface DbAttempt {
   answers: DbAttemptAnswer[];
 }
 
-type AttemptMeta = { id: string; status: string; completedAt: string | null; test: { title: string } };
+type AttemptMeta = { id: string; status: string; completedAt: string | null; totalScore: number | null; test: { title: string } };
 
 // ─── Per-question record + answer comparison ───────────────────────────────────
 
@@ -88,6 +87,7 @@ type Status = 'correct' | 'incorrect' | 'skipped';
 
 interface QRecord {
   subject: SubjectKey;
+  sectionName: string;
   domain: string;
   subdomain: string;
   status: Status;
@@ -145,6 +145,7 @@ function recordsFromAttempt(attempt: DbAttempt): QRecord[] {
         const { domain, subdomain } = resolveTaxonomy(leaf.topic?.name, leaf.topic?.parent?.name);
         out.push({
           subject: resolveSubject(domain, leaf, sectionName, attempt.test.title),
+          sectionName,
           domain,
           subdomain,
           status,
@@ -156,6 +157,58 @@ function recordsFromAttempt(attempt: DbAttempt): QRecord[] {
     }
   }
   return out;
+}
+
+// ─── Scaled SAT score (mirrors the backend submit-route formula exactly) ───────
+// Backend persists only the summed totalScore, so we recompute the RW / Math
+// split client-side; the two scaled scores add up to the stored total.
+
+interface ScaledScore { rw: number; math: number; total: number }
+
+function computeSatScore(recs: QRecord[]): ScaledScore {
+  const sections = new Map<string, { correct: number; total: number }>();
+  for (const r of recs) {
+    const s = sections.get(r.sectionName) ?? { correct: 0, total: 0 };
+    s.total++;
+    if (r.status === 'correct') s.correct++;
+    sections.set(r.sectionName, s);
+  }
+
+  const moduleOf = (name: string): 1 | 2 | null => {
+    const m = name.match(/module\s*([12])\b/);
+    if (m) return m[1] === '1' ? 1 : 2;
+    if (/\b(?:1|one)\b/.test(name)) return 1;
+    if (/\b(?:2|two)\b/.test(name)) return 2;
+    return null;
+  };
+
+  let rw1C = 0, rw2C = 0, m1C = 0, m2C = 0;
+  let rw1T = 0, rw2T = 0, m1T = 0, m2T = 0;
+  for (const [name, { correct, total }] of sections) {
+    const n = name.toLowerCase();
+    const isMath = n.includes('math');
+    const isRW = n.includes('reading') || n.includes('writing') || n.includes('rw');
+    const mod = moduleOf(n);
+    if (isMath) {
+      if (mod === 1 || (mod === null && m1T === 0)) { m1C += correct; m1T += total; }
+      else { m2C += correct; m2T += total; }
+    } else if (isRW) {
+      if (mod === 1 || (mod === null && rw1T === 0)) { rw1C += correct; rw1T += total; }
+      else { rw2C += correct; rw2T += total; }
+    }
+  }
+
+  const rwTotal = rw1T + rw2T || 54;
+  const mathTotal = m1T + m2T || 44;
+  let rw = rw1C >= 18
+    ? 400 + Math.round(((rw1C + rw2C) / rwTotal) * 400 / 10) * 10
+    : 200 + Math.round(((rw1C + rw2C) / rwTotal) * 450 / 10) * 10;
+  let math = m1C >= 14
+    ? 420 + Math.round(((m1C + m2C) / mathTotal) * 380 / 10) * 10
+    : 200 + Math.round(((m1C + m2C) / mathTotal) * 450 / 10) * 10;
+  rw = Math.min(800, Math.max(200, rw));
+  math = Math.min(800, Math.max(200, math));
+  return { rw, math, total: rw + math };
 }
 
 // ─── Aggregation ───────────────────────────────────────────────────────────────
@@ -193,41 +246,6 @@ function AccuracyBar({ pct }: { pct: number }) {
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className={`text-xs font-bold w-9 text-right ${text}`}>{pct}%</span>
-    </div>
-  );
-}
-
-/** One overall-hierarchy panel (Reading & Writing OR Math). */
-function OverallPanel({ title, icon, agg }: { title: string; icon: ReactNode; agg: Agg }) {
-  const acc = accuracy(agg);
-  const metrics = [
-    { label: 'Correct / Total', value: `${agg.correct}/${agg.total}`, cls: 'text-gray-900', icon: <Target size={13} className="text-gray-400" /> },
-    { label: 'Mistakes', value: agg.incorrect, cls: 'text-red-600', icon: <XCircle size={13} className="text-red-400" /> },
-    { label: 'Doubts', value: agg.doubts, cls: 'text-amber-600', icon: <HelpCircle size={13} className="text-amber-400" /> },
-    { label: 'Cleared', value: agg.cleared, cls: 'text-emerald-600', icon: <ShieldCheck size={13} className="text-emerald-400" /> },
-    { label: 'Time Spent', value: fmtTime(agg.time), cls: 'text-gray-900', icon: <Clock size={13} className="text-gray-400" /> },
-    { label: 'Accuracy', value: `${acc}%`, cls: acc >= 80 ? 'text-emerald-600' : acc >= 60 ? 'text-amber-600' : 'text-red-600', icon: <CheckCircle2 size={13} className="text-gray-400" /> },
-  ];
-  return (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-      <div className="bg-[#1b3d6e] px-4 py-3 flex items-center justify-between text-white">
-        <div className="flex items-center gap-2">
-          <span className="opacity-90">{icon}</span>
-          <h3 className="text-sm font-semibold">{title}</h3>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-black leading-none">{agg.total}</p>
-          <p className="text-blue-300 text-[10px] uppercase tracking-wide">questions</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-gray-100">
-        {metrics.map(m => (
-          <div key={m.label} className="px-3 py-2.5">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide flex items-center gap-1">{m.icon}{m.label}</p>
-            <p className={`text-lg font-bold mt-0.5 ${m.cls}`}>{m.value}</p>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -298,7 +316,7 @@ export function AnalyticsPage() {
   const [attempts, setAttempts] = useState<AttemptMeta[]>([]);
   const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [scope, setScope] = useState<string>('all'); // 'all' or an attempt id
+  const [scope, setScope] = useState<string>('latest'); // 'all', 'latest', or an attempt id
   const [subject, setSubject] = useState<Exclude<SubjectKey, 'other'>>('rw');
 
   useEffect(() => {
@@ -328,17 +346,44 @@ export function AnalyticsPage() {
     return () => { cancelled = true; };
   }, [dbId]);
 
-  // Records in scope (all attempts or a single one).
+  // The single attempt the score header refers to (latest, or an explicit pick).
+  const activeAttemptId = scope === 'all'
+    ? null
+    : scope === 'latest'
+      ? attempts[0]?.id ?? null
+      : scope;
+
+  // Records in scope (all attempts, or one).
   const scoped = useMemo(() => {
     if (scope === 'all') return Array.from(records.values()).flat();
-    return records.get(scope) ?? [];
-  }, [records, scope]);
+    return activeAttemptId ? records.get(activeAttemptId) ?? [] : [];
+  }, [records, scope, activeAttemptId]);
 
-  // Overall hierarchy per subject.
-  const overall = useMemo(() => {
-    const o: Record<'rw' | 'math', Agg> = { rw: emptyAgg(), math: emptyAgg() };
-    for (const r of scoped) { if (r.subject === 'rw' || r.subject === 'math') fold(o[r.subject], r); }
-    return o;
+  // Score card — scaled SAT score (a single attempt) or the average across tests.
+  const scoreCard = useMemo(() => {
+    const round10 = (x: number) => Math.round(x / 10) * 10;
+    if (scope !== 'all' && activeAttemptId) {
+      const s = computeSatScore(records.get(activeAttemptId) ?? []);
+      const meta = attempts.find(a => a.id === activeAttemptId);
+      const sub = meta
+        ? `${meta.test.title}${meta.completedAt ? ` · ${new Date(meta.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
+        : '';
+      return { label: 'Total Score', total: meta?.totalScore ?? s.total, rw: s.rw, math: s.math, sub };
+    }
+    const per = attempts.map(a => computeSatScore(records.get(a.id) ?? []));
+    if (per.length === 0) return { label: 'Avg Score', total: 0, rw: 0, math: 0, sub: '' };
+    const rw = round10(per.reduce((s, p) => s + p.rw, 0) / per.length);
+    const math = round10(per.reduce((s, p) => s + p.math, 0) / per.length);
+    const totals = attempts.map(a => a.totalScore).filter((t): t is number => t != null);
+    const total = totals.length ? round10(totals.reduce((s, t) => s + t, 0) / totals.length) : rw + math;
+    return { label: 'Avg Score', total, rw, math, sub: `Average across ${per.length} test${per.length !== 1 ? 's' : ''}` };
+  }, [scope, activeAttemptId, records, attempts]);
+
+  // Combined summary (RW + Math) for the metric strip.
+  const summary = useMemo(() => {
+    const a = emptyAgg();
+    for (const r of scoped) fold(a, r);
+    return a;
   }, [scoped]);
 
   // Domain + Subdomain breakdown for the active subject.
@@ -381,7 +426,7 @@ export function AnalyticsPage() {
           <Target size={24} className="text-gray-400" />
         </div>
         <h2 className="text-lg font-semibold text-gray-900 mb-1">No tests completed yet</h2>
-        <p className="text-gray-500 text-sm mb-6">Finish a test to unlock your domain &amp; skill analytics.</p>
+        <p className="text-gray-500 text-sm mb-6">Finish a test to unlock your score &amp; analytics.</p>
         <button
           onClick={() => navigate('/my-tests')}
           className="px-5 py-2.5 bg-[#1b3d6e] text-white rounded-lg text-sm font-medium hover:bg-[#15305a] transition-colors"
@@ -392,6 +437,16 @@ export function AnalyticsPage() {
     );
   }
 
+  const acc = accuracy(summary);
+  const metrics = [
+    { label: 'Correct / Total', value: `${summary.correct}/${summary.total}`, cls: 'text-gray-900', icon: <Target size={14} className="text-gray-400" /> },
+    { label: 'Mistakes', value: summary.incorrect, cls: 'text-red-600', icon: <XCircle size={14} className="text-red-400" /> },
+    { label: 'Doubts', value: summary.doubts, cls: 'text-amber-600', icon: <HelpCircle size={14} className="text-amber-400" /> },
+    { label: 'Cleared', value: summary.cleared, cls: 'text-emerald-600', icon: <ShieldCheck size={14} className="text-emerald-400" /> },
+    { label: 'Total Time Spent', value: fmtTime(summary.time), cls: 'text-gray-900', icon: <Clock size={14} className="text-gray-400" /> },
+    { label: 'Accuracy', value: `${acc}%`, cls: acc >= 80 ? 'text-emerald-600' : acc >= 60 ? 'text-amber-600' : 'text-red-600', icon: <CheckCircle2 size={14} className="text-gray-400" /> },
+  ];
+
   const subjectLabel = subject === 'rw' ? 'Reading & Writing' : 'Math';
 
   return (
@@ -400,33 +455,58 @@ export function AnalyticsPage() {
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Analytics</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Overall, domain-wise &amp; skill-wise breakdown</p>
+          <p className="text-gray-500 text-sm mt-0.5">Score, overall summary &amp; domain breakdown</p>
         </div>
         <select
           value={scope}
           onChange={e => setScope(e.target.value)}
           className="ml-auto px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#1b3d6e] min-w-[220px]"
         >
+          <option value="latest">Latest Test</option>
           <option value="all">All Tests ({attempts.length})</option>
-          {attempts.map(a => (
-            <option key={a.id} value={a.id}>
-              {a.test.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
-            </option>
-          ))}
+          <optgroup label="Specific test">
+            {attempts.map(a => (
+              <option key={a.id} value={a.id}>
+                {a.test.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+              </option>
+            ))}
+          </optgroup>
         </select>
       </div>
 
-      {/* ── Overall hierarchy: RW | Math ───────────────────────────────── */}
-      <div>
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Overall</p>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <OverallPanel title="Reading & Writing" icon={<BookOpen size={15} />} agg={overall.rw} />
-          <OverallPanel title="Math" icon={<Calculator size={15} />} agg={overall.math} />
+      {/* ── Total score (RW | Math) ────────────────────────────────────── */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-5 sm:px-7 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            <span className="text-gray-400 text-[11px] font-bold uppercase tracking-widest leading-tight w-16">{scoreCard.label}</span>
+            <span className="text-5xl sm:text-6xl font-black text-[#0f1e3d] tracking-tight tabular-nums">{scoreCard.total}</span>
+          </div>
+          <div className="flex items-center gap-6 sm:gap-10 pr-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-blue-600 font-semibold text-base sm:text-lg">RW</span>
+              <span className="text-2xl sm:text-3xl font-black text-gray-900 tabular-nums">{scoreCard.rw}</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-blue-600 font-semibold text-base sm:text-lg">Math</span>
+              <span className="text-2xl sm:text-3xl font-black text-gray-900 tabular-nums">{scoreCard.math}</span>
+            </div>
+          </div>
         </div>
+        {scoreCard.sub && <p className="text-xs text-gray-400 mt-3 border-t border-gray-50 pt-2.5">{scoreCard.sub}</p>}
+      </div>
+
+      {/* ── Overall summary strip ──────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {metrics.map(m => (
+          <div key={m.label} className="bg-white border border-gray-100 rounded-xl p-4">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide flex items-center gap-1">{m.icon}{m.label}</p>
+            <p className={`text-2xl font-bold mt-1 ${m.cls}`}>{m.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* ── Subject toggle ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pt-1">
         <span className="text-xs text-gray-500 font-medium">Breakdown for:</span>
         {([['rw', 'Reading & Writing'], ['math', 'Math']] as const).map(([key, label]) => (
           <button
