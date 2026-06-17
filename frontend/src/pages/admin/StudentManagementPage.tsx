@@ -899,7 +899,7 @@ export function StudentManagementPage() {
                   <th className="px-4 py-2 text-left font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Name</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Target Date</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={4}>Total Assessment</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Performance</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Actions</th>
@@ -908,9 +908,7 @@ export function StudentManagementPage() {
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Total SS</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">RW SS</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Math SS</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Total</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Mock</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Diagnostic</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Mock</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Sectional</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">HW</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Practice</th>
@@ -918,9 +916,9 @@ export function StudentManagementPage() {
               </thead>
               <tbody>
                 {analysisLoading ? (
-                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={12} className="py-8 text-center text-slate-400">Loading...</td></tr>
                 ) : studentAnalysisData.length === 0 ? (
-                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">No students found</td></tr>
+                  <tr><td colSpan={12} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) =>
                       analysisSearchTerm
@@ -964,14 +962,8 @@ export function StudentManagementPage() {
                         <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
                           {row.scaledScoreMath ?? '—'}
                         </td>
-                        <td className="px-3 py-3 text-center text-sm font-bold text-emerald-700 border-l border-blue-100">
-                          {row.totalAssessments ?? 0}
-                        </td>
-                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                        <td className="px-3 py-3 text-center text-sm text-slate-600 border-l border-blue-100">
                           {row.mockTests || '—'}
-                        </td>
-                        <td className="px-3 py-3 text-center text-sm text-slate-600">
-                          {row.diagnosticCount || '—'}
                         </td>
                         <td className="px-3 py-3 text-center text-sm text-slate-600">
                           {row.sectionalTests || '—'}
