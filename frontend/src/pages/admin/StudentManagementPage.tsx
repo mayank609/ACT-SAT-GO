@@ -367,8 +367,12 @@ export function StudentManagementPage() {
     diagnosticCount: number;
     sectionalTests: number;
     hwCount: number;
+    hwRW: number;
+    hwMath: number;
     cwCount: number;
     practiceSheets: number;
+    practiceRW: number;
+    practiceMath: number;
     totalAssessments: number;
     lastTestName: string | null;
     lastSubmittedAt: string | null;
@@ -625,9 +629,23 @@ export function StudentManagementPage() {
           const mockCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('mock')).length;
           const diagnosticCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('diagnostic')).length;
           const sectionalCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('sectional')).length;
-          const hwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('homework') || a.test?.title?.toLowerCase().includes('hw')).length;
+          // Classify an attempt's subject from its test title (HW/practice are
+          // typically subject-specific assignments).
+          const subjectOf = (a: any): 'rw' | 'math' | 'other' => {
+            const t = (a.test?.title ?? '').toLowerCase();
+            if (/math|algebra|geometry|calc/.test(t)) return 'math';
+            if (/reading|writing|english|verbal|grammar|\brw\b|r&w/.test(t)) return 'rw';
+            return 'other';
+          };
+          const hwAttempts = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('homework') || a.test?.title?.toLowerCase().includes('hw'));
+          const hwCount = hwAttempts.length;
+          const hwRW = hwAttempts.filter((a: any) => subjectOf(a) === 'rw').length;
+          const hwMath = hwAttempts.filter((a: any) => subjectOf(a) === 'math').length;
           const cwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('classwork') || a.test?.title?.toLowerCase().includes('cw')).length;
-          const practiceCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('practice')).length;
+          const practiceAttempts = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('practice'));
+          const practiceCount = practiceAttempts.length;
+          const practiceRW = practiceAttempts.filter((a: any) => subjectOf(a) === 'rw').length;
+          const practiceMath = practiceAttempts.filter((a: any) => subjectOf(a) === 'math').length;
           const totalAssessments = studentAttempts.length;  // Total submitted attempts
           
           allStudentData.push({
@@ -641,8 +659,12 @@ export function StudentManagementPage() {
             diagnosticCount,
             sectionalTests: sectionalCount,
             hwCount,
+            hwRW,
+            hwMath,
             cwCount,
             practiceSheets: practiceCount,
+            practiceRW,
+            practiceMath,
             totalAssessments,
             lastTestName,
             lastSubmittedAt,
@@ -668,8 +690,12 @@ export function StudentManagementPage() {
             diagnosticCount: 0,
             sectionalTests: 0,
             hwCount: 0,
+            hwRW: 0,
+            hwMath: 0,
             cwCount: 0,
             practiceSheets: 0,
+            practiceRW: 0,
+            practiceMath: 0,
             totalAssessments: 0,
             lastTestName: null,
             lastSubmittedAt: null,
@@ -899,7 +925,7 @@ export function StudentManagementPage() {
                   <th className="px-4 py-2 text-left font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Name</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Target Date</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={4}>Total Assessment</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Performance</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Actions</th>
@@ -910,15 +936,17 @@ export function StudentManagementPage() {
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Math SS</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Mock</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Sectional</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">HW</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Practice</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-100">HW R&amp;W</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">HW Math</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-100">Practice R&amp;W</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Practice Math</th>
                 </tr>
               </thead>
               <tbody>
                 {analysisLoading ? (
-                  <tr><td colSpan={12} className="py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">Loading...</td></tr>
                 ) : studentAnalysisData.length === 0 ? (
-                  <tr><td colSpan={12} className="py-8 text-center text-slate-400">No students found</td></tr>
+                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) =>
                       analysisSearchTerm
@@ -968,11 +996,17 @@ export function StudentManagementPage() {
                         <td className="px-3 py-3 text-center text-sm text-slate-600">
                           {row.sectionalTests || '—'}
                         </td>
-                        <td className="px-3 py-3 text-center text-sm text-slate-600">
-                          {row.hwCount || '—'}
+                        <td className="px-3 py-3 text-center text-sm text-slate-600 border-l border-blue-100">
+                          {row.hwRW || '—'}
                         </td>
                         <td className="px-3 py-3 text-center text-sm text-slate-600">
-                          {row.practiceSheets || '—'}
+                          {row.hwMath || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600 border-l border-blue-100">
+                          {row.practiceRW || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.practiceMath || '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <button
