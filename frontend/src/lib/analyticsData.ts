@@ -320,18 +320,22 @@ export interface LoadedAttempt {
   isDiagnostic: boolean;
 }
 
-interface RawAttempt {
-  id: string;
+interface RawAttempt extends DbAttempt {
   status: string;
   completedAt?: string | null;
   totalScore?: number | null;
-  test?: { title?: string; category?: string };
+  test: { title: string; category?: string };
 }
 
 /**
  * Fetch a student's submitted attempts and the scored question records for each.
  * Records are keyed by attempt id so callers can include/exclude attempts
  * (e.g. drop diagnostics) before aggregating.
+ *
+ * The list endpoint already embeds sectionAttempts + answers + questions, so we
+ * score from that directly (one reliable request). We then enrich each attempt
+ * with a full /attempts/:id fetch to expand passages and pull topic tags —
+ * sequentially and best-effort, so a slow/failed enrich never blanks the data.
  */
 export async function loadStudentAnalytics(
   studentId: string
@@ -347,12 +351,23 @@ export async function loadStudentAnalytics(
     isDiagnostic: /diagnostic/i.test(a.test?.title ?? '') || /diagnostic/i.test(a.test?.category ?? ''),
   }));
 
-  const full = await Promise.all(submitted.map(a => api.getAttempt(a.id).catch(() => null)));
   const records = new Map<string, QRecord[]>();
-  for (const f of full) {
-    if (!f) continue;
-    const attempt = (f as { attempt: DbAttempt }).attempt;
-    records.set(attempt.id, recordsFromAttempt(attempt));
+
+  // 1) Baseline from the embedded list payload (always available).
+  for (const a of submitted) {
+    records.set(a.id, recordsFromAttempt(a));
+  }
+
+  // 2) Enrich with the full attempt (passages expanded + topic tags) when it loads.
+  for (const a of submitted) {
+    try {
+      const f = await api.getAttempt(a.id);
+      const attempt = (f as { attempt: DbAttempt }).attempt;
+      const recs = recordsFromAttempt(attempt);
+      if (recs.length) records.set(a.id, recs);
+    } catch {
+      // keep the baseline records for this attempt
+    }
   }
 
   return { attempts, records };

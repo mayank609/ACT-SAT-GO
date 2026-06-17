@@ -8,7 +8,7 @@ import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Modal } from '../../components/common/Modal';
-import { SAT_CONTENT, ALL_DOMAIN_NAMES, ALL_SUBDOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
+import { SAT_CONTENT, ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
 
@@ -1134,16 +1134,6 @@ export function TestReviewPage() {
     }
   });
 
-  // Per-subdomain performance, drilled down beneath each domain
-  const subStats: Record<string, { correct: number; total: number }> = {};
-  ALL_SUBDOMAIN_NAMES.forEach((n) => { subStats[n] = { correct: 0, total: 0 }; });
-  reviewRows.forEach((r) => {
-    if (r.canonicalSubdomain && subStats[r.canonicalSubdomain]) {
-      const s = subStats[r.canonicalSubdomain];
-      s.total++;
-      if (r.status === 'correct') s.correct++;
-    }
-  });
 
   // Precompute pacing stats per section for the View Time Analytics modal
   const pacingStats = sections.map((sa) => {
@@ -1296,27 +1286,11 @@ export function TestReviewPage() {
                       <div key={d.name}>
                         <p className="font-bold text-slate-900">{d.name}</p>
                         <p className="text-sm text-slate-500 mb-2.5">({d.pct}% of test section, {d.range} questions)</p>
-                        <div className="flex gap-1 mb-2">
+                        <div className="flex gap-1">
                           {Array.from({ length: segs }).map((_, i) => (
                             <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
                           ))}
                         </div>
-                        {d.subs.length > 0 && (
-                          <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
-                            {d.subs.map((sub) => {
-                              const s = subStats[sub] ?? { correct: 0, total: 0 };
-                              const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : null;
-                              return (
-                                <li key={sub} className="flex items-center justify-between gap-3 text-xs">
-                                  <span className={s.total > 0 ? 'text-slate-700' : 'text-slate-400'}>{sub}</span>
-                                  <span className={`font-semibold tabular-nums whitespace-nowrap ${s.total > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
-                                    {s.total > 0 ? `${s.correct}/${s.total} · ${pct}%` : '—'}
-                                  </span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
                       </div>
                     );
                   })}

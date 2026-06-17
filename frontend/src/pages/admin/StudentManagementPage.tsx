@@ -11,7 +11,7 @@ import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser } from '../../lib/api';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
-import { SAT_CONTENT, ALL_DOMAIN_NAMES, ALL_SUBDOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
+import { SAT_CONTENT, ALL_DOMAIN_NAMES } from '../../data/satDomains';
 
 type MainViewTab = 'analysis' | 'test_analysis';
 
@@ -113,39 +113,6 @@ const KS_DOMAIN_SYNONYMS: Record<string, string[]> = {
   'Geometry and Trigonometry': ['geometry and trigonometry', 'geometry', 'trigonometry', 'trig'],
 };
 
-const KS_SUBDOMAIN_SYNONYMS: Record<string, string[]> = {
-  'Command of Evidence': ['command of evidence', 'evidence'],
-  'Inferences': ['inference'],
-  'Central Ideas and Details': ['central idea', 'central ideas and details', 'main idea', 'details'],
-  'Words in Context': ['words in context', 'word in context', 'vocabulary'],
-  'Text Structure and Purpose': ['text structure', 'purpose'],
-  'Cross-Text Connections': ['cross-text', 'cross text'],
-  'Rhetorical Synthesis': ['rhetorical synthesis', 'synthesis'],
-  'Transitions': ['transition'],
-  'Boundaries': ['boundaries', 'punctuation'],
-  'Form, Structure, and Sense': ['form, structure, and sense', 'form structure and sense', 'agreement', 'verb', 'tense'],
-  'Linear equations in one variable': ['linear equations in one variable', 'linear equation in one variable'],
-  'Linear functions': ['linear function'],
-  'Linear equations in two variables': ['linear equations in two variables', 'linear equation in two variables'],
-  'Systems of two linear equations in two variables': ['systems of two linear equations', 'system of two linear equations', 'systems of linear equations'],
-  'Linear inequalities in one or two variables': ['linear inequalit', 'inequalit'],
-  'Nonlinear functions': ['nonlinear function'],
-  'Nonlinear equations in one variable': ['nonlinear equation'],
-  'Systems of equations in two variables': ['systems of equations', 'system of equations'],
-  'Equivalent expressions': ['equivalent expression'],
-  'Ratios, rates, proportional relationships, and units': ['ratio', 'rates', 'proportional', 'proportion'],
-  'Percentages': ['percent'],
-  'One-variable data: Distributions and measures of center and spread': ['one-variable data', 'distribution', 'measures of center', 'spread', 'median', 'mean', 'mode'],
-  'Two-variable data: Models and scatterplots': ['two-variable data', 'scatterplot', 'scatter plot'],
-  'Probability and conditional probability': ['probability'],
-  'Inference from sample statistics and margin of error': ['margin of error', 'sample statistics'],
-  'Evaluating statistical claims: Observational studies and experiments': ['statistical claim', 'observational stud', 'experiment'],
-  'Area and volume': ['area', 'volume'],
-  'Lines, angles, and triangles': ['lines, angles', 'angle'],
-  'Right triangles and trigonometry': ['right triangle', 'trigonometry', 'trig'],
-  'Circles': ['circle'],
-};
-
 function ksDomainCandidates(q: TaQuestion): string[] {
   return [q.content?.meta?.domain, q.topic?.name, q.topic?.parent?.name, q.subject].filter(Boolean) as string[];
 }
@@ -158,26 +125,6 @@ function ksMatchDomain(q: TaQuestion): string | null {
   for (const [domain, syns] of Object.entries(KS_DOMAIN_SYNONYMS)) {
     for (const c of cands) {
       if (syns.some((s) => c === s || c.includes(s) || s.includes(c))) return domain;
-    }
-  }
-  return null;
-}
-
-function ksMatchSubdomain(q: TaQuestion, domain: string | null): string | null {
-  if (!domain) return null;
-  const subs = SUBDOMAINS_BY_DOMAIN[domain];
-  if (!subs) return null;
-  const tagged = q.content?.meta?.subTopic?.trim();
-  if (tagged) {
-    const exact = subs.find((s) => s.toLowerCase() === tagged.toLowerCase());
-    if (exact) return exact;
-  }
-  const cands = [tagged, ...ksDomainCandidates(q)].filter(Boolean).map((c) => (c as string).trim().toLowerCase());
-  if (!cands.length) return null;
-  for (const sub of subs) {
-    const syns = KS_SUBDOMAIN_SYNONYMS[sub] ?? [sub.toLowerCase()];
-    for (const c of cands) {
-      if (syns.some((s) => c === s || c.includes(s) || s.includes(c))) return sub;
     }
   }
   return null;
@@ -1258,8 +1205,6 @@ export function StudentManagementPage() {
                   const answersMap = new Map(testAnalysisAttempt.answers.map((a) => [a.questionId, a]));
                   const domainStats: Record<string, { correct: number; total: number; diff: Record<string, number> }> = {};
                   ALL_DOMAIN_NAMES.forEach((n) => { domainStats[n] = { correct: 0, total: 0, diff: {} }; });
-                  const subStats: Record<string, { correct: number; total: number }> = {};
-                  ALL_SUBDOMAIN_NAMES.forEach((n) => { subStats[n] = { correct: 0, total: 0 }; });
 
                   testAnalysisAttempt.sectionAttempts.forEach((sa) => {
                     sa.section.questions.forEach((tq) => {
@@ -1268,17 +1213,12 @@ export function StudentManagementPage() {
                       const qs: TaQuestion[] = isPassage && q.childQuestions?.length ? q.childQuestions : [q];
                       qs.forEach((cq) => {
                         const domain = ksMatchDomain(cq);
-                        const sub = ksMatchSubdomain(cq, domain);
                         const ans = answersMap.get(cq.id);
                         const correct = !!ans?.answerGiven && taAnswersMatch(ans.answerGiven, cq.correctAnswer);
                         if (domain && domainStats[domain]) {
                           domainStats[domain].total++;
                           if (correct) domainStats[domain].correct++;
                           domainStats[domain].diff[cq.difficultyLevel] = (domainStats[domain].diff[cq.difficultyLevel] ?? 0) + 1;
-                        }
-                        if (sub && subStats[sub]) {
-                          subStats[sub].total++;
-                          if (correct) subStats[sub].correct++;
                         }
                       });
                     });
@@ -1312,27 +1252,11 @@ export function StudentManagementPage() {
                                     <div key={d.name}>
                                       <p className="font-bold text-slate-900 text-xs">{d.name}</p>
                                       <p className="text-xs text-slate-400 mb-2">({d.pct}% of test section, {d.range} questions)</p>
-                                      <div className="flex gap-0.5 mb-1.5">
+                                      <div className="flex gap-0.5">
                                         {Array.from({ length: segs }).map((_, i) => (
                                           <div key={i} className={`h-2 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
                                         ))}
                                       </div>
-                                      {d.subs.length > 0 && (
-                                        <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2">
-                                          {d.subs.map((sub) => {
-                                            const s = subStats[sub] ?? { correct: 0, total: 0 };
-                                            const pct = s.total > 0 ? Math.round((s.correct / s.total) * 100) : null;
-                                            return (
-                                              <li key={sub} className="flex items-center justify-between gap-3 text-xs">
-                                                <span className={s.total > 0 ? 'text-slate-700' : 'text-slate-400'}>{sub}</span>
-                                                <span className={`font-semibold tabular-nums whitespace-nowrap ${s.total > 0 ? 'text-slate-900' : 'text-slate-300'}`}>
-                                                  {s.total > 0 ? `${s.correct}/${s.total} · ${pct}%` : '—'}
-                                                </span>
-                                              </li>
-                                            );
-                                          })}
-                                        </ul>
-                                      )}
                                     </div>
                                   );
                                 })}
