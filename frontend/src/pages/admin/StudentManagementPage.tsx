@@ -908,29 +908,28 @@ export function StudentManagementPage() {
                   <th className="px-4 py-2 text-left font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Name</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Target Date</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" rowSpan={2}>English</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Math</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={5}>Total Assessment</th>
+                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Performance</th>
                   <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Actions</th>
                 </tr>
                 <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Total SS</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Eng SS</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">RW SS</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Math SS</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Total</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Mock</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Diagnostic</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Sectional</th>
+                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">HW</th>
                   <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Practice</th>
                 </tr>
               </thead>
               <tbody>
                 {analysisLoading ? (
-                  <tr><td colSpan={15} className="py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">Loading...</td></tr>
                 ) : studentAnalysisData.length === 0 ? (
-                  <tr><td colSpan={15} className="py-8 text-center text-slate-400">No students found</td></tr>
+                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) =>
                       analysisSearchTerm
@@ -947,15 +946,20 @@ export function StudentManagementPage() {
                     .map((row, idx) => (
                       <tr key={row.studentId} className={`border-b border-slate-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/students/${row.studentId}`)}
+                            className="flex items-center gap-2 text-left group"
+                            title="View student details"
+                          >
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                               {row.studentName.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-semibold text-slate-900 text-sm">{row.studentName}</p>
+                              <p className="font-semibold text-slate-900 text-sm group-hover:text-blue-700 group-hover:underline">{row.studentName}</p>
                               <p className="text-xs text-slate-400 truncate">{row.studentEmail}</p>
                             </div>
-                          </div>
+                          </button>
                         </td>
                         <td className="px-4 py-3 text-center text-sm text-slate-600 whitespace-nowrap">
                           {row.targetDate ? new Date(row.targetDate).toLocaleDateString() : '—'}
@@ -969,12 +973,6 @@ export function StudentManagementPage() {
                         <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
                           {row.scaledScoreMath ?? '—'}
                         </td>
-                        <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700 border-l border-blue-100">
-                          {row.diagnosticsEnglish ?? '—'}
-                        </td>
-                        <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
-                          {row.diagnosticsMath ?? '—'}
-                        </td>
                         <td className="px-3 py-3 text-center text-sm font-bold text-emerald-700 border-l border-blue-100">
                           {row.totalAssessments ?? 0}
                         </td>
@@ -986,6 +984,9 @@ export function StudentManagementPage() {
                         </td>
                         <td className="px-3 py-3 text-center text-sm text-slate-600">
                           {row.sectionalTests || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.hwCount || '—'}
                         </td>
                         <td className="px-3 py-3 text-center text-sm text-slate-600">
                           {row.practiceSheets || '—'}
