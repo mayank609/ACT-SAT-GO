@@ -560,30 +560,39 @@ export function StudentManagementPage() {
           // Extract scores from backend analytics
           if (analyticsResp.latestScore !== undefined) {
             rawScoreTotal = analyticsResp.latestScore;
-            scaledScoreTotal = analyticsResp.latestScore;
-            scaledScoreEnglish = analyticsResp.latestScore;
-            scaledScoreMath = analyticsResp.latestScore;
           }
           
-          // Get last test info from trend and get latest attempt for scaled score calculation
-          let latestAttempt = null;
+          // Last test info from trend (most recent attempt of any type)
           if (analyticsResp.trend && analyticsResp.trend.length > 0) {
             const latestTrend = analyticsResp.trend[analyticsResp.trend.length - 1];
             lastTestName = latestTrend.testTitle;
             lastSubmittedAt = latestTrend.date;
             
-            // Fetch the latest attempt to calculate scaled scores
+          }
+
+          // ── Diagnostic Score: derived ONLY from the latest diagnostic test ────
+          const diagnosticAttempts = studentAttempts.filter((a: any) => {
+            const t = (a.test?.title ?? '').toLowerCase();
+            const c = (a.test?.category ?? '').toLowerCase();
+            return t.includes('diagnostic') || c.includes('diagnostic');
+          });
+          const latestDiagnostic = diagnosticAttempts
+            .slice()
+            .sort((a: any, b: any) =>
+              new Date(b.completedAt ?? b.startedAt).getTime() - new Date(a.completedAt ?? a.startedAt).getTime()
+            )[0];
+          if (latestDiagnostic) {
             try {
-              latestAttempt = (await api.getAttempt(latestTrend.attemptId)) as any;
-              if (latestAttempt?.attempt) {
-                const analysis = computeTestAnalysis(latestAttempt.attempt);
+              const diagFull = (await api.getAttempt(latestDiagnostic.id)) as any;
+              if (diagFull?.attempt) {
+                const analysis = computeTestAnalysis(diagFull.attempt);
                 scaledScoreTotal = analysis.finalScaledScore;
                 scaledScoreEnglish = analysis.rwScaled;
                 scaledScoreMath = analysis.mathScaled;
-                console.log(`[Analysis] Scaled scores for ${student.id}: total=${scaledScoreTotal}, rw=${scaledScoreEnglish}, math=${scaledScoreMath}`);
+                console.log(`[Analysis] Diagnostic scaled scores for ${student.id}: total=${scaledScoreTotal}, rw=${scaledScoreEnglish}, math=${scaledScoreMath}`);
               }
             } catch (err) {
-              console.log(`[Analysis] Could not fetch attempt for scaled score calculation: ${err}`);
+              console.log(`[Analysis] Could not fetch diagnostic attempt for ${student.id}: ${err}`);
             }
           }
           
@@ -599,20 +608,12 @@ export function StudentManagementPage() {
             if (engSections.length > 0) {
               diagnosticsEnglish = engSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
               rawScoreEnglish = diagnosticsEnglish;
-              // Only update scaledScoreEnglish if it wasn't set from the full attempt analysis
-              if (scaledScoreEnglish === analyticsResp.latestScore) {
-                scaledScoreEnglish = diagnosticsEnglish;
-              }
               console.log(`[Analysis] English for ${student.id}: ${diagnosticsEnglish} (from ${engSections.length} sections)`);
             }
             
             if (mathSections.length > 0) {
               diagnosticsMath = mathSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
               rawScoreMath = diagnosticsMath;
-              // Only update scaledScoreMath if it wasn't set from the full attempt analysis
-              if (scaledScoreMath === analyticsResp.latestScore) {
-                scaledScoreMath = diagnosticsMath;
-              }
               console.log(`[Analysis] Math for ${student.id}: ${diagnosticsMath} (from ${mathSections.length} sections)`);
             }
           }
