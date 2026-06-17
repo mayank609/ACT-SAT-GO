@@ -1,319 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2, Target, XCircle, HelpCircle, ShieldCheck, Clock, CheckCircle2, Layers, Wrench,
 } from 'lucide-react';
-import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { SAT_CONTENT, SUBDOMAINS_BY_DOMAIN, SKILLS_BY_SUBDOMAIN } from '../../data/satDomains';
-
-// ─── Taxonomy lookup maps (derived once from the canonical blueprint) ──────────
-// The SAT content tree is: Section → Domain → Subdomain → Skill. A question's
-// tagged topic can sit at any level, so we build reverse maps to resolve any
-// topic name back up to its Domain and Subdomain.
-
-type SectionKey = 'Reading and Writing' | 'Math';
-
-const DOMAIN_TO_SECTION: Record<string, SectionKey> = {};
-for (const [section, domains] of Object.entries(SAT_CONTENT)) {
-  for (const d of domains) DOMAIN_TO_SECTION[d.name] = section as SectionKey;
-}
-
-const SUBDOMAIN_TO_DOMAIN: Record<string, string> = {};
-for (const [domain, subs] of Object.entries(SUBDOMAINS_BY_DOMAIN)) {
-  for (const s of subs) SUBDOMAIN_TO_DOMAIN[s] = domain;
-}
-
-const SKILL_TO_SUBDOMAIN: Record<string, string> = {};
-for (const [sub, skills] of Object.entries(SKILLS_BY_SUBDOMAIN)) {
-  for (const sk of skills) SKILL_TO_SUBDOMAIN[sk] = sub;
-}
-
-/** Resolve any tagged topic (+ its DB parent) to a { domain, subdomain } pair. */
-function resolveTaxonomy(topicName?: string, parentName?: string): { domain: string; subdomain: string } {
-  const name = (topicName || '').trim();
-  const parent = (parentName || '').trim();
-
-  if (DOMAIN_TO_SECTION[name]) return { domain: name, subdomain: 'General' };
-  if (SUBDOMAIN_TO_DOMAIN[name]) return { domain: SUBDOMAIN_TO_DOMAIN[name], subdomain: name };
-  if (SKILL_TO_SUBDOMAIN[name]) {
-    const sub = SKILL_TO_SUBDOMAIN[name];
-    return { domain: SUBDOMAIN_TO_DOMAIN[sub] ?? parent ?? 'Other', subdomain: sub };
-  }
-  // Fall back to the DB parent topic if the leaf wasn't recognised.
-  if (parent && DOMAIN_TO_SECTION[parent]) return { domain: parent, subdomain: name || 'General' };
-  if (parent && SUBDOMAIN_TO_DOMAIN[parent]) return { domain: SUBDOMAIN_TO_DOMAIN[parent], subdomain: parent };
-  if (parent) return { domain: parent, subdomain: name || parent };
-  if (name) return { domain: 'Other', subdomain: name };
-  return { domain: 'Other', subdomain: 'Untagged' };
-}
-
-// ─── DB shapes (mirrors the /api/attempts/:id payload) ─────────────────────────
-
-interface DbAnswer { key?: string; keys?: string[]; value?: number }
-interface DbTopic { name: string; parent?: { name: string } | null }
-interface DbQuestion {
-  id: string;
-  type: string;
-  content: { text: string; meta?: { isPassage?: boolean } };
-  correctAnswer: DbAnswer;
-  subject?: string | null;
-  parentQuestionId?: string | null;
-  topic?: DbTopic | null;
-  childQuestions?: DbQuestion[];
-}
-interface DbTestQuestion { question: DbQuestion }
-interface DbSectionAttempt { section: { name: string; questions: DbTestQuestion[] } }
-interface DbAttemptAnswer {
-  questionId: string;
-  answerGiven: DbAnswer | null;
-  timeSpentSeconds: number;
-  doubtStatus?: 'doubt' | 'cleared' | null;
-}
-interface DbAttempt {
-  id: string;
-  test: { title: string };
-  sectionAttempts: DbSectionAttempt[];
-  answers: DbAttemptAnswer[];
-}
-
-type AttemptMeta = { id: string; status: string; completedAt: string | null; totalScore: number | null; test: { title: string } };
-
-// ─── Per-question record + answer comparison ───────────────────────────────────
-
-type SubjectKey = 'rw' | 'math' | 'other';
-type Status = 'correct' | 'incorrect' | 'skipped';
-
-interface QRecord {
-  subject: SubjectKey;
-  sectionName: string;
-  domain: string;
-  subdomain: string;
-  status: Status;
-  doubt: boolean;
-  cleared: boolean;
-  time: number;
-}
-
-function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
-  if (!given) return false;
-  if (correct.value !== undefined) return Number(given.value) === Number(correct.value);
-  if (correct.keys) {
-    return JSON.stringify([...(given.keys ?? [])].map(k => k.toUpperCase()).sort()) ===
-           JSON.stringify([...correct.keys].map(k => k.toUpperCase()).sort());
-  }
-  if (correct.key) return given.key?.toUpperCase() === correct.key.toUpperCase();
-  return false;
-}
-
-/** Decide RW vs Math, preferring the resolved domain, then the usual heuristics. */
-function resolveSubject(domain: string, q: DbQuestion, sectionName: string, testTitle: string): SubjectKey {
-  const section = DOMAIN_TO_SECTION[domain];
-  if (section === 'Reading and Writing') return 'rw';
-  if (section === 'Math') return 'math';
-
-  const hay = `${q.subject ?? ''} ${sectionName} ${testTitle}`.toLowerCase();
-  if (/(math|calc|algebra|geometry)/.test(hay)) return 'math';
-  if (/(english|reading|writing|verbal|grammar|rw)/.test(hay)) return 'rw';
-  return 'other';
-}
-
-/** Flatten one attempt's questions (expanding passages) into scored QRecords. */
-function recordsFromAttempt(attempt: DbAttempt): QRecord[] {
-  const answers = new Map(attempt.answers.map(a => [a.questionId, a]));
-  const out: QRecord[] = [];
-
-  for (const sa of attempt.sectionAttempts ?? []) {
-    const sectionName = sa.section.name;
-
-    for (const tq of sa.section.questions ?? []) {
-      const q = tq.question;
-      if (q.parentQuestionId) continue; // child rows handled via their passage parent
-      const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
-      const leaves: DbQuestion[] =
-        isPassage && q.childQuestions?.length
-          ? q.childQuestions.map(cq => ({ ...cq, topic: cq.topic ?? q.topic }))
-          : [q];
-
-      for (const leaf of leaves) {
-        const ans = answers.get(leaf.id);
-        let status: Status = 'skipped';
-        if (ans && ans.answerGiven != null) {
-          status = answersMatch(ans.answerGiven, leaf.correctAnswer) ? 'correct' : 'incorrect';
-        }
-        const { domain, subdomain } = resolveTaxonomy(leaf.topic?.name, leaf.topic?.parent?.name);
-        out.push({
-          subject: resolveSubject(domain, leaf, sectionName, attempt.test.title),
-          sectionName,
-          domain,
-          subdomain,
-          status,
-          doubt: ans?.doubtStatus === 'doubt',
-          cleared: ans?.doubtStatus === 'cleared',
-          time: ans?.timeSpentSeconds ?? 0,
-        });
-      }
-    }
-  }
-  return out;
-}
-
-// ─── Scaled SAT score (mirrors the backend submit-route formula exactly) ───────
-// Backend persists only the summed totalScore, so we recompute the RW / Math
-// split client-side; the two scaled scores add up to the stored total.
-
-interface ScaledScore { rw: number; math: number; total: number }
-
-function computeSatScore(recs: QRecord[]): ScaledScore {
-  const sections = new Map<string, { correct: number; total: number }>();
-  for (const r of recs) {
-    const s = sections.get(r.sectionName) ?? { correct: 0, total: 0 };
-    s.total++;
-    if (r.status === 'correct') s.correct++;
-    sections.set(r.sectionName, s);
-  }
-
-  const moduleOf = (name: string): 1 | 2 | null => {
-    const m = name.match(/module\s*([12])\b/);
-    if (m) return m[1] === '1' ? 1 : 2;
-    if (/\b(?:1|one)\b/.test(name)) return 1;
-    if (/\b(?:2|two)\b/.test(name)) return 2;
-    return null;
-  };
-
-  let rw1C = 0, rw2C = 0, m1C = 0, m2C = 0;
-  let rw1T = 0, rw2T = 0, m1T = 0, m2T = 0;
-  for (const [name, { correct, total }] of sections) {
-    const n = name.toLowerCase();
-    const isMath = n.includes('math');
-    const isRW = n.includes('reading') || n.includes('writing') || n.includes('rw');
-    const mod = moduleOf(n);
-    if (isMath) {
-      if (mod === 1 || (mod === null && m1T === 0)) { m1C += correct; m1T += total; }
-      else { m2C += correct; m2T += total; }
-    } else if (isRW) {
-      if (mod === 1 || (mod === null && rw1T === 0)) { rw1C += correct; rw1T += total; }
-      else { rw2C += correct; rw2T += total; }
-    }
-  }
-
-  const rwTotal = rw1T + rw2T || 54;
-  const mathTotal = m1T + m2T || 44;
-  let rw = rw1C >= 18
-    ? 400 + Math.round(((rw1C + rw2C) / rwTotal) * 400 / 10) * 10
-    : 200 + Math.round(((rw1C + rw2C) / rwTotal) * 450 / 10) * 10;
-  let math = m1C >= 14
-    ? 420 + Math.round(((m1C + m2C) / mathTotal) * 380 / 10) * 10
-    : 200 + Math.round(((m1C + m2C) / mathTotal) * 450 / 10) * 10;
-  rw = Math.min(800, Math.max(200, rw));
-  math = Math.min(800, Math.max(200, math));
-  return { rw, math, total: rw + math };
-}
-
-// ─── Aggregation ───────────────────────────────────────────────────────────────
-
-interface Agg { total: number; correct: number; incorrect: number; skipped: number; doubts: number; cleared: number; time: number }
-const emptyAgg = (): Agg => ({ total: 0, correct: 0, incorrect: 0, skipped: 0, doubts: 0, cleared: 0, time: 0 });
-function fold(agg: Agg, r: QRecord) {
-  agg.total++;
-  agg[r.status]++;
-  if (r.doubt) agg.doubts++;
-  if (r.cleared) agg.cleared++;
-  agg.time += r.time;
-}
-const accuracy = (a: Agg) => (a.total > 0 ? Math.round((a.correct / a.total) * 100) : 0);
-const avgTime = (a: Agg) => (a.total > 0 ? Math.round(a.time / a.total) : 0);
-
-function fmtTime(sec: number): string {
-  if (!sec) return '0s';
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = Math.round(sec % 60);
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
-
-// ─── Small UI bits ───────────────────────────────────────────────────────────
-
-function AccuracyBar({ pct }: { pct: number }) {
-  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-500';
-  const text = pct >= 80 ? 'text-emerald-700' : pct >= 60 ? 'text-amber-700' : 'text-red-600';
-  return (
-    <div className="flex items-center gap-2 min-w-[96px]">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className={`text-xs font-bold w-9 text-right ${text}`}>{pct}%</span>
-    </div>
-  );
-}
-
-/** A Domain or Skill breakdown table for the selected subject. */
-function BreakdownTable({
-  title, subtitle, icon, firstColLabel, rows,
-}: {
-  title: string; subtitle: string; icon: ReactNode; firstColLabel: string;
-  rows: Array<{ name: string; agg: Agg }>;
-}) {
-  return (
-    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-        <span className="text-[#1b3d6e]">{icon}</span>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/60">
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{firstColLabel}</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Correct / Total</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-red-500 uppercase tracking-wide">Mistakes</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-amber-600 uppercase tracking-wide">Doubts</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-emerald-600 uppercase tracking-wide">Cleared</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Avg Time</th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-36">Accuracy</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">No data yet</td></tr>
-            ) : rows.map(({ name, agg }) => {
-              const acc = accuracy(agg);
-              const empty = agg.total === 0;
-              return (
-                <tr key={name} className={`hover:bg-gray-50 transition-colors ${empty ? 'opacity-50' : acc < 40 ? 'bg-red-50/30' : acc < 60 ? 'bg-amber-50/20' : ''}`}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{name}</td>
-                  <td className="px-3 py-3 text-center font-semibold text-gray-700">
-                    <span className="text-emerald-600">{agg.correct}</span>
-                    <span className="text-gray-300"> / </span>{agg.total}
-                  </td>
-                  <td className="px-3 py-3 text-center font-bold text-red-500">{agg.incorrect}</td>
-                  <td className="px-3 py-3 text-center font-bold text-amber-600">{agg.doubts}</td>
-                  <td className="px-3 py-3 text-center font-bold text-emerald-600">{agg.cleared}</td>
-                  <td className="px-3 py-3 text-center text-xs text-gray-500">{fmtTime(avgTime(agg))}</td>
-                  <td className="px-4 py-3">{empty ? <span className="text-xs text-gray-300">—</span> : <AccuracyBar pct={acc} />}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ─── Page ────────────────────────────────────────────────────────────────────
+import { SAT_CONTENT } from '../../data/satDomains';
+import {
+  loadStudentAnalytics, computeSatScore, aggregate, buildBreakdown, accuracy, fmtTime,
+  type LoadedAttempt, type QRecord, type SubjectKey,
+} from '../../lib/analyticsData';
+import { BreakdownTable } from '../../components/analytics/BreakdownTable';
 
 export function AnalyticsPage() {
   const { dbId } = useAuthStore();
   const navigate = useNavigate();
 
-  const [attempts, setAttempts] = useState<AttemptMeta[]>([]);
+  const [attempts, setAttempts] = useState<LoadedAttempt[]>([]);
   const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<string>('latest'); // 'all', 'latest', or an attempt id
@@ -323,22 +25,11 @@ export function AnalyticsPage() {
     if (!dbId) { setLoading(false); return; }
     let cancelled = false;
 
-    api.getStudentAttempts(dbId)
-      .then(async ({ attempts: raw }) => {
-        const submitted = ((raw as AttemptMeta[]) ?? []).filter(a => a.status === 'SUBMITTED');
+    loadStudentAnalytics(dbId)
+      .then(({ attempts, records }) => {
         if (cancelled) return;
-        setAttempts(submitted);
-
-        const full = await Promise.all(submitted.map(a => api.getAttempt(a.id).catch(() => null)));
-        if (cancelled) return;
-
-        const map = new Map<string, QRecord[]>();
-        for (const f of full) {
-          if (!f) continue;
-          const attempt = (f as { attempt: DbAttempt }).attempt;
-          map.set(attempt.id, recordsFromAttempt(attempt));
-        }
-        setRecords(map);
+        setAttempts(attempts);
+        setRecords(records);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -353,7 +44,6 @@ export function AnalyticsPage() {
       ? attempts[0]?.id ?? null
       : scope;
 
-  // Records in scope (all attempts, or one).
   const scoped = useMemo(() => {
     if (scope === 'all') return Array.from(records.values()).flat();
     return activeAttemptId ? records.get(activeAttemptId) ?? [] : [];
@@ -366,7 +56,7 @@ export function AnalyticsPage() {
       const s = computeSatScore(records.get(activeAttemptId) ?? []);
       const meta = attempts.find(a => a.id === activeAttemptId);
       const sub = meta
-        ? `${meta.test.title}${meta.completedAt ? ` · ${new Date(meta.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
+        ? `${meta.title}${meta.completedAt ? ` · ${new Date(meta.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
         : '';
       return { label: 'Total Score', total: meta?.totalScore ?? s.total, rw: s.rw, math: s.math, sub };
     }
@@ -379,37 +69,8 @@ export function AnalyticsPage() {
     return { label: 'Avg Score', total, rw, math, sub: `Average across ${per.length} test${per.length !== 1 ? 's' : ''}` };
   }, [scope, activeAttemptId, records, attempts]);
 
-  // Combined summary (RW + Math) for the metric strip.
-  const summary = useMemo(() => {
-    const a = emptyAgg();
-    for (const r of scoped) fold(a, r);
-    return a;
-  }, [scoped]);
-
-  // Domain + Subdomain breakdown for the active subject.
-  const { domainRows, skillRows } = useMemo(() => {
-    const subjectRecs = scoped.filter(r => r.subject === subject);
-
-    // Domains: always show the 4 canonical domains in blueprint order.
-    const sectionKey: SectionKey = subject === 'math' ? 'Math' : 'Reading and Writing';
-    const domainAgg = new Map<string, Agg>();
-    for (const d of SAT_CONTENT[sectionKey]) domainAgg.set(d.name, emptyAgg());
-    const subAgg = new Map<string, Agg>();
-
-    for (const r of subjectRecs) {
-      if (!domainAgg.has(r.domain)) domainAgg.set(r.domain, emptyAgg());
-      fold(domainAgg.get(r.domain)!, r);
-      if (!subAgg.has(r.subdomain)) subAgg.set(r.subdomain, emptyAgg());
-      fold(subAgg.get(r.subdomain)!, r);
-    }
-
-    const domainRows = Array.from(domainAgg.entries()).map(([name, agg]) => ({ name, agg }));
-    const skillRows = Array.from(subAgg.entries())
-      .map(([name, agg]) => ({ name, agg }))
-      .sort((a, b) => accuracy(a.agg) - accuracy(b.agg)); // weakest first
-
-    return { domainRows, skillRows };
-  }, [scoped, subject]);
+  const summary = useMemo(() => aggregate(scoped), [scoped]);
+  const { domainRows, skillRows } = useMemo(() => buildBreakdown(scoped, subject), [scoped, subject]);
 
   if (loading) {
     return (
@@ -467,14 +128,14 @@ export function AnalyticsPage() {
           <optgroup label="Specific test">
             {attempts.map(a => (
               <option key={a.id} value={a.id}>
-                {a.test.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                {a.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
               </option>
             ))}
           </optgroup>
         </select>
       </div>
 
-      {/* ── Total score (RW | Math) ────────────────────────────────────── */}
+      {/* ── Total score (RW | Math | Accuracy) ─────────────────────────── */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-5 sm:px-7 py-5">
         <div className="flex flex-wrap items-center justify-between gap-5">
           <div className="flex items-center gap-4">

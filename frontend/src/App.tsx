@@ -21,7 +21,6 @@ const TestsPage = lazy(() => import('./pages/admin/TestsPage').then((m) => ({ de
 const MonitoringPage = lazy(() => import('./pages/admin/MonitoringPage').then((m) => ({ default: m.MonitoringPage })));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const QuestionBankPage = lazy(() => import('./pages/admin/QuestionBankPage').then((m) => ({ default: m.QuestionBankPage })));
-const ReportsPage = lazy(() => import('./pages/admin/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const SupportPage = lazy(() => import('./pages/admin/SupportPage').then((m) => ({ default: m.SupportPage })));
 const StudentDoubtsAdminPage = lazy(() => import('./pages/admin/StudentDoubtsAdminPage').then((m) => ({ default: m.StudentDoubtsAdminPage })));
 
@@ -40,6 +39,7 @@ const SectionReviewPage = lazy(() => import('./pages/student/SectionReviewPage')
 const MyTestsPage = lazy(() => import('./pages/student/MyTestsPage').then((m) => ({ default: m.MyTestsPage })));
 const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage').then((m) => ({ default: m.MyProgressPage })));
 const AnalyticsPage = lazy(() => import('./pages/student/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
+const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })));
 const ReviewAttemptsPage = lazy(() => import('./pages/student/ReviewAttemptsPage').then((m) => ({ default: m.ReviewAttemptsPage })));
 const MistakesPage = lazy(() => import('./pages/student/MistakesPage').then((m) => ({ default: m.MistakesPage })));
 const DoubtsPage = lazy(() => import('./pages/student/DoubtsPage').then((m) => ({ default: m.DoubtsPage })));
@@ -72,7 +72,7 @@ function AnalyticsRouter() {
   if (!user) return null;
   if (user.role === 'student') return <AnalyticsPage />;
   if (user.role === 'tutor') return <TutorAnalyticsPage />;
-  return <ReportsPage />;
+  return <AdminAnalyticsPage />;
 }
 
 const router = createBrowserRouter(
