@@ -1210,45 +1210,26 @@ export function StudentManagementPage() {
                 >
                   <ChevronLeft size={15} /> Back to Test Report
                 </button>
-                {/* Section Overview */}
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">Section Overview</h4>
-                  <div className="space-y-2">
-                    {analysis.sections.map((sec, si) => (
-                      <div key={si} className="bg-white rounded-xl border border-slate-200 py-3 px-4 shadow-sm hover:border-blue-100 transition-colors">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <h5 className="text-xs font-bold text-blue-800">{sec.name}</h5>
-                          <span className="text-[9px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                            {sec.category}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            <span className="text-emerald-700 font-semibold">{sec.correct} Correct</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                            <span className="text-red-600 font-semibold">{sec.incorrect} Incorrect</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-slate-300"></span>
-                            <span>{sec.omitted} Omitted</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-blue-200"></span>
-                            <span>{sec.unvisited} Unvisited</span>
-                          </div>
-                          <div className="text-slate-300 font-light">|</div>
-                          <div className="font-semibold text-slate-800">{sec.total} Questions</div>
-                          <div className="text-slate-300 font-light">|</div>
-                          <div className="font-bold text-blue-600">{sec.accuracy.toFixed(2)}% Accuracy</div>
-                          <div className="text-slate-300 font-light">|</div>
-                          <div className="text-slate-500 italic">{sec.timeTaken}</div>
-                        </div>
-                      </div>
-                    ))}
+                {/* ── Score Header (Total + RW / Math) ── */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-5 flex flex-wrap items-center justify-between gap-x-10 gap-y-4">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-wide">Total Score</span>
+                    <span className="text-6xl font-extrabold text-slate-900 leading-none tabular-nums">
+                      {analysis.isSAT ? analysis.finalScaledScore : analysis.totalCorrect}
+                    </span>
                   </div>
+                  {analysis.isSAT && (
+                    <div className="flex items-center gap-8">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-semibold text-blue-700">RW</span>
+                        <span className="text-3xl font-bold text-slate-900 tabular-nums">{analysis.rwScaled}</span>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-semibold text-blue-700">Math</span>
+                        <span className="text-3xl font-bold text-slate-900 tabular-nums">{analysis.mathScaled}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Knowledge and Skills ── */}
@@ -1347,6 +1328,47 @@ export function StudentManagementPage() {
                     </div>
                   );
                 })()}
+
+                {/* Section Overview */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">Section Overview</h4>
+                  <div className="space-y-2">
+                    {analysis.sections.map((sec, si) => (
+                      <div key={si} className="bg-white rounded-xl border border-slate-200 py-3 px-4 shadow-sm hover:border-blue-100 transition-colors">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <h5 className="text-xs font-bold text-blue-800">{sec.name}</h5>
+                          <span className="text-[9px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                            {sec.category}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span className="text-emerald-700 font-semibold">{sec.correct} Correct</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                            <span className="text-red-600 font-semibold">{sec.incorrect} Incorrect</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-slate-300"></span>
+                            <span>{sec.omitted} Omitted</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-blue-200"></span>
+                            <span>{sec.unvisited} Unvisited</span>
+                          </div>
+                          <div className="text-slate-300 font-light">|</div>
+                          <div className="font-semibold text-slate-800">{sec.total} Questions</div>
+                          <div className="text-slate-300 font-light">|</div>
+                          <div className="font-bold text-blue-600">{sec.accuracy.toFixed(2)}% Accuracy</div>
+                          <div className="text-slate-300 font-light">|</div>
+                          <div className="text-slate-500 italic">{sec.timeTaken}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* ── Question Wise Report ── */}
                 <div className="mt-8 bg-white rounded-xl border-2 border-blue-200 p-4">
