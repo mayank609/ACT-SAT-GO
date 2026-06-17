@@ -1032,13 +1032,23 @@ export function StudentManagementPage() {
 
       {mainView === 'test_analysis' && (
         <div className="space-y-5 animate-fadeIn">
-          {/* Back button */}
-          <button
-            onClick={() => { setMainView('analysis'); setSelectedStudentId(''); setSelectedAttemptId(''); setTestAnalysisAttempt(null); }}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
-          >
-            <ChevronLeft size={15} /> Back to Students
-          </button>
+          {/* Back navigation */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => { setMainView('analysis'); setSelectedStudentId(''); setSelectedAttemptId(''); setTestAnalysisAttempt(null); }}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
+            >
+              <ChevronLeft size={15} /> Back to Students
+            </button>
+            {selectedAttemptId && (
+              <button
+                onClick={() => setSelectedAttemptId('')}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
+              >
+                <ChevronLeft size={15} /> Back to Test Report
+              </button>
+            )}
+          </div>
 
           {/* Content Pane */}
           {!selectedAttemptId ? (
@@ -1203,13 +1213,6 @@ export function StudentManagementPage() {
 
             return (
               <div className="space-y-4">
-                {/* Back to report list */}
-                <button
-                  onClick={() => setSelectedAttemptId('')}
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  <ChevronLeft size={15} /> Back to Test Report
-                </button>
                 {/* ── Score Header (Total + RW / Math) ── */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-5 flex flex-wrap items-center justify-between gap-x-10 gap-y-4">
                   <div className="flex items-baseline gap-3">
