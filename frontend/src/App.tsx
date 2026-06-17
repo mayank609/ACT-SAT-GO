@@ -39,6 +39,7 @@ const TestReviewPage = lazy(() => import('./pages/student/TestReviewPage').then(
 const SectionReviewPage = lazy(() => import('./pages/student/SectionReviewPage').then((m) => ({ default: m.SectionReviewPage })));
 const MyTestsPage = lazy(() => import('./pages/student/MyTestsPage').then((m) => ({ default: m.MyTestsPage })));
 const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage').then((m) => ({ default: m.MyProgressPage })));
+const AnalyticsPage = lazy(() => import('./pages/student/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
 const ReviewAttemptsPage = lazy(() => import('./pages/student/ReviewAttemptsPage').then((m) => ({ default: m.ReviewAttemptsPage })));
 const MistakesPage = lazy(() => import('./pages/student/MistakesPage').then((m) => ({ default: m.MistakesPage })));
 const DoubtsPage = lazy(() => import('./pages/student/DoubtsPage').then((m) => ({ default: m.DoubtsPage })));
@@ -69,6 +70,7 @@ function DashboardRouter() {
 function AnalyticsRouter() {
   const { user } = useAuthStore();
   if (!user) return null;
+  if (user.role === 'student') return <AnalyticsPage />;
   if (user.role === 'tutor') return <TutorAnalyticsPage />;
   return <ReportsPage />;
 }
