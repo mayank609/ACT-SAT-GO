@@ -481,7 +481,7 @@ export function AnalyticsPage() {
             <span className="text-gray-400 text-[11px] font-bold uppercase tracking-widest leading-tight w-16">{scoreCard.label}</span>
             <span className="text-5xl sm:text-6xl font-black text-[#0f1e3d] tracking-tight tabular-nums">{scoreCard.total}</span>
           </div>
-          <div className="flex items-center gap-6 sm:gap-10 pr-1">
+          <div className="flex items-center gap-6 sm:gap-8 pr-1">
             <div className="flex items-baseline gap-2">
               <span className="text-blue-600 font-semibold text-base sm:text-lg">RW</span>
               <span className="text-2xl sm:text-3xl font-black text-gray-900 tabular-nums">{scoreCard.rw}</span>
@@ -489,6 +489,10 @@ export function AnalyticsPage() {
             <div className="flex items-baseline gap-2">
               <span className="text-blue-600 font-semibold text-base sm:text-lg">Math</span>
               <span className="text-2xl sm:text-3xl font-black text-gray-900 tabular-nums">{scoreCard.math}</span>
+            </div>
+            <div className="flex items-baseline gap-2 pl-5 sm:pl-7 border-l border-gray-100">
+              <span className="text-gray-400 font-semibold text-base sm:text-lg">Accuracy</span>
+              <span className={`text-2xl sm:text-3xl font-black tabular-nums ${acc >= 80 ? 'text-emerald-600' : acc >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{acc}%</span>
             </div>
           </div>
         </div>
