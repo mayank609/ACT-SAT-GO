@@ -183,15 +183,6 @@ function ksMatchSubdomain(q: TaQuestion, domain: string | null): string | null {
   return null;
 }
 
-function ksModeDiff(diff: Record<string, number>): string {
-  const entries = Object.entries(diff);
-  if (!entries.length) return '—';
-  entries.sort((a, b) => b[1] - a[1]);
-  const d = entries[0][0];
-  const m: Record<string, string> = { EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard' };
-  return m[d.toUpperCase()] ?? d[0].toUpperCase() + d.slice(1).toLowerCase();
-}
-
 function taOptionsToDisplay(options: Record<string, string> | null): Array<{ id: string; text: string }> {
   if (!options) return [];
   return Object.entries(options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }));
@@ -1283,7 +1274,6 @@ export function StudentManagementPage() {
 
                       {knowledgeSkillsOpen && (
                         <>
-                          <p className="text-slate-500 text-xs mb-5 mt-2">Performance across the 8 SAT content domains and their subdomains.</p>
                           {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
                             <div key={group} className="mb-6 last:mb-0">
                               <h5 className="text-sm font-bold text-slate-800 mb-4">{group}</h5>
@@ -1300,10 +1290,6 @@ export function StudentManagementPage() {
                                           <div key={i} className={`h-2 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
                                         ))}
                                       </div>
-                                      <p className="text-xs text-slate-500">
-                                        {stat.total > 0 ? `${stat.correct}/${stat.total} correct · ` : ''}
-                                        Difficulty: <span className="text-blue-600 font-semibold">{ksModeDiff(stat.diff)}</span>
-                                      </p>
                                       {d.subs.length > 0 && (
                                         <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2">
                                           {d.subs.map((sub) => {

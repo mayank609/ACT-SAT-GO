@@ -212,19 +212,6 @@ function matchCanonicalSubdomain(q: DbQuestion, domain: string | null): string |
   return null
 }
 
-function diffLabel(d: string | undefined): string {
-  if (!d) return '—'
-  const m: Record<string, string> = { EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard' }
-  return m[d.toUpperCase()] ?? d[0].toUpperCase() + d.slice(1).toLowerCase()
-}
-
-function modeDiff(diff: Record<string, number>): string {
-  const entries = Object.entries(diff)
-  if (!entries.length) return '—'
-  entries.sort((a, b) => b[1] - a[1])
-  return diffLabel(entries[0][0])
-}
-
 function formatAnswerKeys(ans: DbAnswer): string {
   if (ans.value !== undefined) return String(ans.value)
   if (ans.keys) return ans.keys.map((k) => k.toUpperCase()).join(', ')
@@ -1298,8 +1285,6 @@ export function TestReviewPage() {
 
         {knowledgeSkillsOpen && (
           <>
-            <p className="text-slate-500 text-sm mb-7 mt-3">View your performance across the 8 content domains — and their subdomains — measured on the SAT.</p>
-
             {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
               <div key={group} className="mb-7 last:mb-0">
                 <h3 className="text-lg font-bold text-slate-900 mb-5">{group}</h3>
@@ -1316,10 +1301,6 @@ export function TestReviewPage() {
                             <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
                           ))}
                         </div>
-                        <p className="text-sm text-slate-600">
-                          Difficulty level:{' '}
-                          <span className="text-blue-600 font-semibold border-b border-dotted border-blue-400">{modeDiff(stat.diff)}</span>
-                        </p>
                         {d.subs.length > 0 && (
                           <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
                             {d.subs.map((sub) => {
