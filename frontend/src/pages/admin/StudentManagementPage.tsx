@@ -348,6 +348,8 @@ export function StudentManagementPage() {
   const [tutors, setTutors] = useState<DbUser[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [manageSearch, setManageSearch] = useState('');
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState(false);
@@ -799,6 +801,33 @@ export function StudentManagementPage() {
     }
   };
 
+  // Open the Add/Edit form pre-filled for an existing student.
+  const startEditStudent = (student: DbUser) => {
+    const parts = student.name.split(' ');
+    setAddForm({
+      firstName: parts[0] || '',
+      lastName: parts.slice(1).join(' ') || '',
+      email: student.email,
+      grade: student.grade || '',
+      targetScore: student.targetScore ? String(student.targetScore) : '',
+      tutorId: student.tutorId || '',
+      phone: student.phone || '',
+      parentPhone: student.parentPhone || '',
+      dob: student.dob || '',
+      schoolName: student.schoolName || '',
+    });
+    setIsEditing(true);
+    setEditingStudentId(student.id);
+    setShowManageModal(false);
+    setShowAddModal(true);
+  };
+
+  const handleDeleteStudent = async (student: DbUser) => {
+    if (!confirm(`Delete ${student.name}? This cannot be undone.`)) return;
+    await api.deleteUser(student.id).catch(() => {});
+    reload();
+  };
+
   // ── Derived data ──────────────────────────────────────────────────────────
   // display variables cleaned up as student list was consolidated
 
@@ -816,6 +845,7 @@ export function StudentManagementPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
+          <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => { setManageSearch(''); setShowManageModal(true); }}>Manage Students</Button>
           <Button size="sm" icon={<Plus size={13} />} onClick={() => { setIsEditing(false); setEditingStudentId(null); setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' }); setShowAddModal(true); }}>Add Student</Button>
         </div>
       </div>
@@ -838,11 +868,7 @@ export function StudentManagementPage() {
       {/* ── COMPREHENSIVE ANALYSIS VIEW ── */}
       <div className="space-y-5">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg md:text-xl font-bold text-slate-900">Student Analysis Dashboard</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Detailed performance metrics for all students</p>
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3">
           <div className="flex gap-2">
             <button
               onClick={() => loadComprehensiveAnalysis()}
@@ -989,46 +1015,6 @@ export function StudentManagementPage() {
                               className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
                             >
                               Assign
-                            </button>
-                            <button
-                              onClick={() => {
-                                const student = students.find(s => s.id === row.studentId);
-                                if (!student) return;
-                                const parts = student.name.split(' ');
-                                setAddForm({
-                                  firstName: parts[0] || '',
-                                  lastName: parts.slice(1).join(' ') || '',
-                                  email: student.email,
-                                  grade: student.grade || '',
-                                  targetScore: student.targetScore ? String(student.targetScore) : '',
-                                  tutorId: student.tutorId || '',
-                                  phone: student.phone || '',
-                                  parentPhone: student.parentPhone || '',
-                                  dob: student.dob || '',
-                                  schoolName: student.schoolName || ''
-                                });
-                                setIsEditing(true);
-                                setEditingStudentId(student.id);
-                                setShowAddModal(true);
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                const student = students.find(s => s.id === row.studentId);
-                                if (!student) return;
-                                if (confirm(`Delete ${student.name}?`)) {
-                                  await api.deleteUser(student.id).catch(() => {});
-                                  reload();
-                                }
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>
@@ -1887,6 +1873,60 @@ export function StudentManagementPage() {
               A temporary password will be generated and shown to you after creation. Share it with the student for first login.
             </p>
           )}
+        </div>
+      </Modal>
+
+      {/* ── Manage Students Modal (edit / delete) ── */}
+      <Modal isOpen={showManageModal} onClose={() => { setShowManageModal(false); setManageSearch(''); }} title="Manage Students" size="md">
+        <div className="space-y-3">
+          <input
+            type="text"
+            placeholder="Search by name or email…"
+            value={manageSearch}
+            onChange={(e) => setManageSearch(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="max-h-[60vh] overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-lg">
+            {students.filter((s) =>
+              manageSearch
+                ? s.name.toLowerCase().includes(manageSearch.toLowerCase()) || s.email.toLowerCase().includes(manageSearch.toLowerCase())
+                : true
+            ).length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-slate-400">No students found</p>
+            ) : (
+              students
+                .filter((s) =>
+                  manageSearch
+                    ? s.name.toLowerCase().includes(manageSearch.toLowerCase()) || s.email.toLowerCase().includes(manageSearch.toLowerCase())
+                    : true
+                )
+                .map((student) => (
+                  <div key={student.id} className="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {student.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900 text-sm truncate">{student.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{student.email}</p>
+                    </div>
+                    <button
+                      onClick={() => startEditStudent(student)}
+                      className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteStudent(student)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))
+            )}
+          </div>
         </div>
       </Modal>
 

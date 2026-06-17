@@ -444,6 +444,8 @@ function FsExplanationPanel({ tq, studentAnswer, attemptId }: {
   const [saving, setSaving] = useState(false);
 
   const q = tq.question;
+  // Doubt CTAs only make sense for skipped or wrong questions (anything not correct).
+  const correct = answersMatch(studentAnswer?.answerGiven ?? null, q.correctAnswer);
   const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
   const topicLabel = q.topic?.name ?? 'General Review';
   const subTopicLabel = q.content.meta?.subTopic ?? null;
@@ -520,40 +522,42 @@ function FsExplanationPanel({ tq, studentAnswer, attemptId }: {
             <p className="text-sm text-slate-500 italic">No explanation available for this question.</p>
           )}
 
-          {/* Still Doubt / Cleared */}
-          <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
-            <p className="text-sm font-medium text-slate-600">
-              {doubtStatus === 'cleared'
-                ? 'Great — glad this one is cleared!'
-                : doubtStatus === 'doubt'
-                ? "Saved to My Doubts. We'll keep it handy for revision."
-                : 'After reading the explanation, is your doubt cleared?'}
-            </p>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => handleDoubt('doubt')}
-                disabled={saving}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
-                  doubtStatus === 'doubt'
-                    ? 'bg-amber-500 text-white border-amber-500'
-                    : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
-                }`}
-              >
-                <HelpCircle size={13} /> Still Doubt
-              </button>
-              <button
-                onClick={() => handleDoubt('cleared')}
-                disabled={saving}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
-                  doubtStatus === 'cleared'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
-                }`}
-              >
-                <CheckCircle size={13} /> Cleared
-              </button>
+          {/* Still Doubt / Cleared — only for skipped or wrong questions */}
+          {!correct && (
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+              <p className="text-sm font-medium text-slate-600">
+                {doubtStatus === 'cleared'
+                  ? 'Great — glad this one is cleared!'
+                  : doubtStatus === 'doubt'
+                  ? "Saved to My Doubts. We'll keep it handy for revision."
+                  : 'After reading the explanation, is your doubt cleared?'}
+              </p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => handleDoubt('doubt')}
+                  disabled={saving}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
+                    doubtStatus === 'doubt'
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                  }`}
+                >
+                  <HelpCircle size={13} /> Still Doubt
+                </button>
+                <button
+                  onClick={() => handleDoubt('cleared')}
+                  disabled={saving}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
+                    doubtStatus === 'cleared'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                  }`}
+                >
+                  <CheckCircle size={13} /> Cleared
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -886,40 +890,42 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
               <div className="text-sm text-slate-500 italic">No explanation available for this question.</div>
             )}
 
-            {/* Doubt CTAs — after reading the explanation, did it clear the doubt? */}
-            <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
-              <p className="text-sm font-medium text-slate-600">
-                {doubtStatus === 'cleared'
-                  ? 'Great — glad this one is cleared!'
-                  : doubtStatus === 'doubt'
-                  ? "Saved to My Doubts. We'll keep it handy for revision."
-                  : 'After reading the explanation, is your doubt cleared?'}
-              </p>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={() => handleSetDoubt('doubt')}
-                  disabled={savingDoubt}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
-                    doubtStatus === 'doubt'
-                      ? 'bg-amber-500 text-white border-amber-500'
-                      : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
-                  }`}
-                >
-                  <HelpCircle size={14} /> Still Doubt
-                </button>
-                <button
-                  onClick={() => handleSetDoubt('cleared')}
-                  disabled={savingDoubt}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
-                    doubtStatus === 'cleared'
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
-                  }`}
-                >
-                  <CheckCircle size={14} /> Cleared
-                </button>
+            {/* Doubt CTAs — only for skipped or wrong questions */}
+            {!correct && (
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                <p className="text-sm font-medium text-slate-600">
+                  {doubtStatus === 'cleared'
+                    ? 'Great — glad this one is cleared!'
+                    : doubtStatus === 'doubt'
+                    ? "Saved to My Doubts. We'll keep it handy for revision."
+                    : 'After reading the explanation, is your doubt cleared?'}
+                </p>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => handleSetDoubt('doubt')}
+                    disabled={savingDoubt}
+                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
+                      doubtStatus === 'doubt'
+                        ? 'bg-amber-500 text-white border-amber-500'
+                        : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                    }`}
+                  >
+                    <HelpCircle size={14} /> Still Doubt
+                  </button>
+                  <button
+                    onClick={() => handleSetDoubt('cleared')}
+                    disabled={savingDoubt}
+                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors disabled:opacity-50 ${
+                      doubtStatus === 'cleared'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <CheckCircle size={14} /> Cleared
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
