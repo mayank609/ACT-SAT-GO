@@ -3,7 +3,7 @@
 // student's submitted attempts into scored, taxonomy-tagged question records.
 
 import { api } from './api';
-import { SAT_CONTENT, SUBDOMAINS_BY_DOMAIN, SKILLS_BY_SUBDOMAIN } from '../data/satDomains';
+import { SAT_CONTENT, SUBDOMAINS_BY_DOMAIN, SKILLS_BY_SUBDOMAIN, ALL_DOMAIN_NAMES } from '../data/satDomains';
 
 // ─── Taxonomy lookup maps (derived once from the canonical blueprint) ──────────
 // The SAT content tree is: Section → Domain → Subdomain → Skill. A question's
@@ -19,32 +19,80 @@ for (const [section, domains] of Object.entries(SAT_CONTENT)) {
   for (const d of domains) DOMAIN_TO_SECTION[d.name] = section as SectionKey;
 }
 
-const SUBDOMAIN_TO_DOMAIN: Record<string, string> = {};
+// Case-insensitive lookups: canonical domain, subdomain → domain, skill → subdomain/domain.
+const DOMAIN_LC = new Map<string, string>();
+for (const d of ALL_DOMAIN_NAMES) DOMAIN_LC.set(d.toLowerCase(), d);
+
+const SUBDOMAIN_LC = new Map<string, { domain: string; sub: string }>();
 for (const [domain, subs] of Object.entries(SUBDOMAINS_BY_DOMAIN)) {
-  for (const s of subs) SUBDOMAIN_TO_DOMAIN[s] = domain;
+  for (const s of subs) SUBDOMAIN_LC.set(s.toLowerCase(), { domain, sub: s });
 }
 
-const SKILL_TO_SUBDOMAIN: Record<string, string> = {};
+const SKILL_LC = new Map<string, { domain: string; sub: string }>();
 for (const [sub, skills] of Object.entries(SKILLS_BY_SUBDOMAIN)) {
-  for (const sk of skills) SKILL_TO_SUBDOMAIN[sk] = sub;
+  const domain = SUBDOMAIN_LC.get(sub.toLowerCase())?.domain ?? 'Other';
+  for (const sk of skills) SKILL_LC.set(sk.toLowerCase(), { domain, sub });
 }
 
-/** Resolve any tagged topic (+ its DB parent) to a { domain, subdomain } pair. */
-function resolveTaxonomy(topicName?: string, parentName?: string): { domain: string; subdomain: string } {
-  const name = (topicName || '').trim();
-  const parent = (parentName || '').trim();
+// Keyword fallback when a tagged name isn't an exact canonical match
+// (mirrors TestReviewPage's resolver), keyed by the canonical SAT domains.
+const DOMAIN_SYNONYMS: Record<string, string[]> = {
+  'Information and Ideas': ['information', 'main idea', 'central idea', 'inference', 'evidence'],
+  'Craft and Structure': ['craft', 'structure', 'vocabulary', 'words in context', 'cross-text'],
+  'Expression of Ideas': ['expression', 'rhetoric', 'transition', 'synthesis'],
+  'Standard English Conventions': ['conventions', 'grammar', 'usage', 'punctuation', 'sentence structure', 'boundaries', 'english'],
+  'Algebra': ['algebra', 'linear'],
+  'Advanced Math': ['advanced math', 'advanced', 'nonlinear', 'quadratic', 'function', 'exponential', 'polynomial', 'radical', 'parabola', 'absolute value'],
+  'Problem-Solving and Data Analysis': ['problem', 'data analysis', 'data interpretation', 'statistics', 'ratio', 'rate', 'percent', 'probability', 'proportion', 'research'],
+  'Geometry': ['geometry', 'trigonometry', 'trig', 'triangle', 'circle', 'angle', 'area', 'volume', 'polygon', 'line'],
+};
 
-  if (DOMAIN_TO_SECTION[name]) return { domain: name, subdomain: 'General' };
-  if (SUBDOMAIN_TO_DOMAIN[name]) return { domain: SUBDOMAIN_TO_DOMAIN[name], subdomain: name };
-  if (SKILL_TO_SUBDOMAIN[name]) {
-    const sub = SKILL_TO_SUBDOMAIN[name];
-    return { domain: SUBDOMAIN_TO_DOMAIN[sub] ?? parent ?? 'Other', subdomain: sub };
+interface TaxonomyInput {
+  content?: { meta?: { domain?: string | null; subTopic?: string | null } | null } | null;
+  topic?: { name: string; parent?: { name: string } | null } | null;
+  subject?: string | null;
+}
+
+/**
+ * Resolve a question's domain + subdomain. Considers the Test-Builder tags
+ * (content.meta.domain / subTopic) first, then the linked topic and its parent,
+ * with an exact-name match and a keyword fallback — same precedence the review
+ * page uses, so analytics buckets match what the rest of the app shows.
+ */
+function resolveTaxonomy(q: TaxonomyInput): { domain: string; subdomain: string } {
+  const meta = q.content?.meta ?? null;
+  const origCands = [meta?.domain, q.topic?.name, q.topic?.parent?.name, q.subject].filter(Boolean) as string[];
+  const cands = origCands.map(c => c.trim().toLowerCase());
+
+  let domain: string | null = null;
+  let subFromCand: string | null = null;
+  for (const c of cands) {
+    if (DOMAIN_LC.has(c)) { domain = DOMAIN_LC.get(c)!; break; }
+    const sd = SUBDOMAIN_LC.get(c);
+    if (sd) { domain = sd.domain; subFromCand = sd.sub; break; }
+    const sk = SKILL_LC.get(c);
+    if (sk) { domain = sk.domain; subFromCand = sk.sub; break; }
   }
-  if (parent && DOMAIN_TO_SECTION[parent]) return { domain: parent, subdomain: name || 'General' };
-  if (parent && SUBDOMAIN_TO_DOMAIN[parent]) return { domain: SUBDOMAIN_TO_DOMAIN[parent], subdomain: parent };
-  if (parent) return { domain: parent, subdomain: name || parent };
-  if (name) return { domain: 'Other', subdomain: name };
-  return { domain: 'Other', subdomain: 'Untagged' };
+  if (!domain) {
+    for (const [d, syns] of Object.entries(DOMAIN_SYNONYMS)) {
+      if (cands.some(c => syns.some(s => c === s || c.includes(s) || s.includes(c)))) { domain = d; break; }
+    }
+  }
+  if (!domain) return { domain: 'Other', subdomain: origCands[0] ?? 'Untagged' };
+
+  const subs = SUBDOMAINS_BY_DOMAIN[domain] ?? [];
+  const tagged = meta?.subTopic?.trim().toLowerCase();
+  let subdomain: string | null = null;
+  if (tagged) subdomain = subs.find(s => s.toLowerCase() === tagged) ?? null;
+  if (!subdomain && subFromCand && subs.includes(subFromCand)) subdomain = subFromCand;
+  if (!subdomain) {
+    const subCands = [meta?.subTopic, ...origCands].filter(Boolean).map(c => (c as string).trim().toLowerCase());
+    for (const s of subs) {
+      const sl = s.toLowerCase();
+      if (subCands.some(c => c === sl || c.includes(sl) || sl.includes(c))) { subdomain = s; break; }
+    }
+  }
+  return { domain, subdomain: subdomain ?? 'General' };
 }
 
 // ─── DB shapes (mirrors the /api/attempts/:id payload) ─────────────────────────
@@ -54,7 +102,7 @@ interface DbTopic { name: string; parent?: { name: string } | null }
 interface DbQuestion {
   id: string;
   type: string;
-  content: { text: string; meta?: { isPassage?: boolean } };
+  content: { text: string; meta?: { isPassage?: boolean; domain?: string | null; subTopic?: string | null } };
   correctAnswer: DbAnswer;
   subject?: string | null;
   parentQuestionId?: string | null;
@@ -89,14 +137,23 @@ export interface QRecord {
   time: number;
 }
 
+// Mirrors `taAnswersMatch` (QuestionWiseReport) — the app-wide correctness check.
 function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
-  if (!given) return false;
-  if (correct.value !== undefined) return Number(given.value) === Number(correct.value);
-  if (correct.keys) {
-    return JSON.stringify([...(given.keys ?? [])].map(k => k.toUpperCase()).sort()) ===
-           JSON.stringify([...correct.keys].map(k => k.toUpperCase()).sort());
+  if (!given || !correct) return false;
+  if (correct.value !== undefined) {
+    if (given.value === undefined) return false;
+    return Number(given.value) === Number(correct.value) || String(given.value).trim() === String(correct.value).trim();
   }
-  if (correct.key) return given.key?.toUpperCase() === correct.key.toUpperCase();
+  if (correct.keys) {
+    if (!given.keys) return false;
+    const g = given.keys.map(k => String(k).toUpperCase().trim()).sort();
+    const c = correct.keys.map(k => String(k).toUpperCase().trim()).sort();
+    return JSON.stringify(g) === JSON.stringify(c);
+  }
+  if (correct.key !== undefined) {
+    if (given.key === undefined) return false;
+    return String(given.key).toUpperCase().trim() === String(correct.key).toUpperCase().trim();
+  }
   return false;
 }
 
@@ -122,7 +179,6 @@ export function recordsFromAttempt(attempt: DbAttempt): QRecord[] {
 
     for (const tq of sa.section.questions ?? []) {
       const q = tq.question;
-      if (q.parentQuestionId) continue; // child rows handled via their passage parent
       const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
       const leaves: DbQuestion[] =
         isPassage && q.childQuestions?.length
@@ -135,7 +191,7 @@ export function recordsFromAttempt(attempt: DbAttempt): QRecord[] {
         if (ans && ans.answerGiven != null) {
           status = answersMatch(ans.answerGiven, leaf.correctAnswer) ? 'correct' : 'incorrect';
         }
-        const { domain, subdomain } = resolveTaxonomy(leaf.topic?.name, leaf.topic?.parent?.name);
+        const { domain, subdomain } = resolveTaxonomy(leaf);
         out.push({
           subject: resolveSubject(domain, leaf, sectionName, attempt.test.title),
           sectionName,
