@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2, KeyRound, Copy, CheckCircle, Trash2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -37,6 +37,10 @@ export function TutorManagementPage() {
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<DbUser | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const reload = () => {
     setLoading(true);
@@ -94,19 +98,35 @@ export function TutorManagementPage() {
     if (!addForm.email) return;
     setAddError(''); setAddLoading(true);
     try {
-      await api.createUser({
-        name: `${addForm.firstName} ${addForm.lastName}`.trim() || addForm.email.split('@')[0],
+      const fullName = `${addForm.firstName} ${addForm.lastName}`.trim() || addForm.email.split('@')[0];
+      const res = await api.createUser({
+        name: fullName,
         email: addForm.email,
         role: 'TUTOR',
         specialization: addForm.specializations.length ? addForm.specializations : undefined,
       });
       setShowAddModal(false);
       setAddForm({ firstName: '', lastName: '', email: '', specializations: [] });
+      if (res.tempPassword) setCreatedPassword({ name: fullName, email: addForm.email, password: res.tempPassword });
       reload();
     } catch (e) {
       setAddError((e as Error).message);
     } finally {
       setAddLoading(false);
+    }
+  };
+
+  const handleDeleteTutor = async () => {
+    if (!confirmDelete) return;
+    setDeleteLoading(true);
+    try {
+      await api.deleteUser(confirmDelete.id);
+      setConfirmDelete(null);
+      reload();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -406,6 +426,9 @@ export function TutorManagementPage() {
                     <button onClick={() => { window.location.href = `mailto:${tutor.email}`; }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200">
                       <Mail size={13} />
                     </button>
+                    <button onClick={() => setConfirmDelete(tutor)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200">
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               </Card>
@@ -440,6 +463,9 @@ export function TutorManagementPage() {
                 </button>
                 <button onClick={() => { window.location.href = `mailto:${(row as unknown as DbUser).email}`; }} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors hidden sm:block">
                   <Mail size={14} />
+                </button>
+                <button onClick={() => setConfirmDelete(row as unknown as DbUser)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete Tutor">
+                  <Trash2 size={14} />
                 </button>
               </div>
             )}
@@ -673,6 +699,56 @@ export function TutorManagementPage() {
           </Modal>
         );
       })()}
+      {/* Temp Password Modal */}
+      <Modal isOpen={!!createdPassword} onClose={() => { setCreatedPassword(null); setCopiedPassword(false); }} title="Tutor Created" size="sm"
+        footer={<Button size="sm" onClick={() => { setCreatedPassword(null); setCopiedPassword(false); }}>Done</Button>}>
+        {createdPassword && (
+          <div className="space-y-4">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+              <p className="text-sm font-semibold text-emerald-900">{createdPassword.name}</p>
+              <p className="text-xs text-emerald-700 truncate">{createdPassword.email}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1"><KeyRound size={12} /> Temporary Password</p>
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                <code className="flex-1 text-base font-mono font-bold text-amber-900 tracking-widest select-all">{createdPassword.password}</code>
+                <button onClick={() => { navigator.clipboard.writeText(createdPassword!.password); setCopiedPassword(true); setTimeout(() => setCopiedPassword(false), 2000); }}
+                  className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors flex-shrink-0" title="Copy password">
+                  {copiedPassword ? <CheckCircle size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-2">Share this password with the tutor. They can change it after first login.</p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete Tutor" size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button size="sm" onClick={handleDeleteTutor} disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white border-red-600">
+              {deleteLoading ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        }>
+        {confirmDelete && (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">Are you sure you want to delete <span className="font-semibold text-slate-900">{confirmDelete.name}</span>? This action cannot be undone.</p>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold text-sm flex-shrink-0">
+                {confirmDelete.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-red-900">{confirmDelete.name}</p>
+                <p className="text-xs text-red-600">{confirmDelete.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
