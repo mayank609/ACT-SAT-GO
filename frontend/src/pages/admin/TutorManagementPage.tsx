@@ -41,6 +41,12 @@ export function TutorManagementPage() {
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<DbUser | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [messageTutor, setMessageTutor] = useState<DbUser | null>(null);
+  const [messageSubject, setMessageSubject] = useState('');
+  const [messageBody, setMessageBody] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageError, setMessageError] = useState('');
+  const [messageSuccess, setMessageSuccess] = useState(false);
 
   const reload = () => {
     setLoading(true);
@@ -127,6 +133,31 @@ export function TutorManagementPage() {
       console.error(e);
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageTutor || !messageSubject.trim() || !messageBody.trim()) return;
+    setMessageSending(true);
+    setMessageError('');
+    try {
+      await api.createNotification({
+        userId: messageTutor.id,
+        type: 'feedback',
+        title: messageSubject.trim(),
+        body: messageBody.trim(),
+      });
+      setMessageSuccess(true);
+      setTimeout(() => {
+        setMessageTutor(null);
+        setMessageSubject('');
+        setMessageBody('');
+        setMessageSuccess(false);
+      }, 1500);
+    } catch (e) {
+      setMessageError((e as Error).message || 'Failed to send message');
+    } finally {
+      setMessageSending(false);
     }
   };
 
@@ -423,7 +454,7 @@ export function TutorManagementPage() {
                       className="flex-1 text-xs py-1.5 px-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1 transition-colors">
                       <TrendingUp size={11} /> Stats
                     </button>
-                    <button onClick={() => { window.location.href = `mailto:${tutor.email}`; }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200">
+                    <button onClick={() => { setMessageTutor(tutor); setMessageSubject('Message from Admin'); setMessageBody(''); }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200" title="Send Notification Message">
                       <Mail size={13} />
                     </button>
                     <button onClick={() => setConfirmDelete(tutor)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200">
@@ -461,7 +492,7 @@ export function TutorManagementPage() {
                   className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="View Analytics">
                   <TrendingUp size={14} />
                 </button>
-                <button onClick={() => { window.location.href = `mailto:${(row as unknown as DbUser).email}`; }} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors hidden sm:block">
+                <button onClick={() => { setMessageTutor(row as unknown as DbUser); setMessageSubject('Message from Admin'); setMessageBody(''); }} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors hidden sm:block" title="Send Notification Message">
                   <Mail size={14} />
                 </button>
                 <button onClick={() => setConfirmDelete(row as unknown as DbUser)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete Tutor">
@@ -743,12 +774,56 @@ export function TutorManagementPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-red-900">{confirmDelete.name}</p>
-                <p className="text-xs text-red-600">{confirmDelete.email}</p>
+                <p className="text-xs text-red-650">{confirmDelete.email}</p>
               </div>
             </div>
           </div>
         )}
       </Modal>
+
+      {/* Send Message Modal */}
+      {messageTutor && (
+        <Modal
+          isOpen={!!messageTutor}
+          onClose={() => { setMessageTutor(null); setMessageSubject(''); setMessageBody(''); setMessageError(''); setMessageSuccess(false); }}
+          title={`Send Message to ${messageTutor.name}`}
+          size="sm"
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => { setMessageTutor(null); setMessageSubject(''); setMessageBody(''); setMessageError(''); setMessageSuccess(false); }}>Cancel</Button>
+              <Button size="sm" onClick={handleSendMessage} disabled={messageSending || !messageBody.trim() || !messageSubject.trim()}>
+                {messageSending ? 'Sending…' : 'Send Message'}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            {messageError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg font-medium">{messageError}</p>}
+            {messageSuccess && <p className="text-sm text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg font-medium">Message sent successfully!</p>}
+            
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Subject</label>
+              <input
+                type="text"
+                value={messageSubject}
+                onChange={(e) => { setMessageError(''); setMessageSubject(e.target.value); }}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800"
+                placeholder="Enter subject"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Message Content</label>
+              <textarea
+                value={messageBody}
+                onChange={(e) => { setMessageError(''); setMessageBody(e.target.value); }}
+                rows={4}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-normal text-slate-700"
+                placeholder="Type your message here..."
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
