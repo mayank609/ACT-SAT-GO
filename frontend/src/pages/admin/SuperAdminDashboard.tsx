@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Shield, Settings, Activity, Plus, Trash2, Server, Database, Zap, Check, X } from 'lucide-react';
+import { Users, Shield, Settings, Activity, Plus, Trash2, Server, Database, Zap, Check, X, KeyRound, Copy, CheckCircle } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
@@ -28,6 +28,8 @@ export function SuperAdminDashboard() {
   const [deleteUser, setDeleteUser] = useState<DbUser | null>(null);
   const [saving, setSaving] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', email: '', role: 'student' as string });
+  const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -48,8 +50,13 @@ export function SuperAdminDashboard() {
     try {
       const res = await api.createUser({ name: addForm.name, email: addForm.email, role: addForm.role });
       setUsers((prev) => [...prev, res.user]);
+      const tempName = addForm.name;
+      const tempEmail = addForm.email;
       setAddForm({ name: '', email: '', role: 'student' });
       setShowAddUser(false);
+      if (res.tempPassword) {
+        setCreatedPassword({ name: tempName, email: tempEmail, password: res.tempPassword });
+      }
     } catch {
       // keep modal open on error
     } finally {
@@ -415,6 +422,30 @@ export function SuperAdminDashboard() {
           </div>
         }>
         <p className="text-sm text-slate-600">Remove <strong>{deleteUser?.name}</strong> from the platform view? Their data in the database will remain.</p>
+      </Modal>
+
+      {/* Temp Password Modal */}
+      <Modal isOpen={!!createdPassword} onClose={() => { setCreatedPassword(null); setCopiedPassword(false); }} title="User Created" size="sm"
+        footer={<Button size="sm" onClick={() => { setCreatedPassword(null); setCopiedPassword(false); }}>Done</Button>}>
+        {createdPassword && (
+          <div className="space-y-4">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+              <p className="text-sm font-semibold text-emerald-900">{createdPassword.name}</p>
+              <p className="text-xs text-emerald-700 truncate">{createdPassword.email}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1"><KeyRound size={12} /> Temporary Password</p>
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                <code className="flex-1 text-base font-mono font-bold text-amber-900 tracking-widest select-all">{createdPassword.password}</code>
+                <button onClick={() => { navigator.clipboard.writeText(createdPassword!.password); setCopiedPassword(true); setTimeout(() => setCopiedPassword(false), 2000); }}
+                  className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors flex-shrink-0" title="Copy password">
+                  {copiedPassword ? <CheckCircle size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-2">Share this password with the user. They can change it after first login.</p>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

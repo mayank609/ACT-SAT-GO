@@ -72,21 +72,10 @@ export function SettingsPage() {
 
     setPasswordUpdating(true);
     try {
-      // First verify the current password by attempting to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: profileForm.currentPassword,
-      });
-
-      if (signInError) {
-        setPasswordError('Current password is incorrect');
-        setPasswordUpdating(false);
-        return;
-      }
-
-      // Update the password via Supabase Auth
+      // Update the password via Supabase Auth (verifies current password automatically)
       const { error: updateError } = await supabase.auth.updateUser({
         password: profileForm.newPassword,
+        current_password: profileForm.currentPassword,
       });
 
       if (updateError) {
