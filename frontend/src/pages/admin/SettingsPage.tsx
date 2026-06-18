@@ -5,6 +5,7 @@ import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 
 type TabKey = 'profile' | 'notifications' | 'platform' | 'security';
 
@@ -12,6 +13,8 @@ export function SettingsPage() {
   const { user, updateUser } = useAuthStore();
   const [tab, setTab] = useState<TabKey>('profile');
   const [saved, setSaved] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: user?.name ?? '',
     email: user?.email ?? '',
@@ -45,13 +48,62 @@ export function SettingsPage() {
     try {
       if (tab === 'notifications') {
         await api.updateUser(user.id, { notifications: notifPrefs });
-      } else {
+      } else if (tab === 'profile') {
         await api.updateUser(user.id, { name: profileForm.name });
         updateUser({ name: profileForm.name });
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch { /* silent */ }
+  };
+
+  const handlePasswordUpdate = async () => {
+    if (!user) return;
+    setPasswordError(null);
+
+    if (profileForm.newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters long');
+      return;
+    }
+    if (profileForm.newPassword !== profileForm.confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    setPasswordUpdating(true);
+    try {
+      // First verify the current password by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: profileForm.currentPassword,
+      });
+
+      if (signInError) {
+        setPasswordError('Current password is incorrect');
+        setPasswordUpdating(false);
+        return;
+      }
+
+      // Update the password via Supabase Auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: profileForm.newPassword,
+      });
+
+      if (updateError) {
+        setPasswordError(updateError.message);
+        setPasswordUpdating(false);
+        return;
+      }
+
+      // Success — clear the form and show confirmation
+      setProfileForm((f) => ({ ...f, currentPassword: '', newPassword: '', confirmPassword: '' }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err: any) {
+      setPasswordError(err?.message || 'Failed to update password');
+    } finally {
+      setPasswordUpdating(false);
+    }
   };
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode; superAdminOnly?: boolean }[] = [
@@ -237,28 +289,31 @@ export function SettingsPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Current Password</label>
                   <input type="password" value={profileForm.currentPassword}
-                    onChange={(e) => setProfileForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                    onChange={(e) => { setPasswordError(null); setProfileForm((f) => ({ ...f, currentPassword: e.target.value })); }}
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter current password" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
                   <input type="password" value={profileForm.newPassword}
-                    onChange={(e) => setProfileForm((f) => ({ ...f, newPassword: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 8 characters" />
+                    onChange={(e) => { setPasswordError(null); setProfileForm((f) => ({ ...f, newPassword: e.target.value })); }}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 characters" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
                   <input type="password" value={profileForm.confirmPassword}
-                    onChange={(e) => setProfileForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                    onChange={(e) => { setPasswordError(null); setProfileForm((f) => ({ ...f, confirmPassword: e.target.value })); }}
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Repeat new password" />
                 </div>
                 {profileForm.newPassword && profileForm.confirmPassword && profileForm.newPassword !== profileForm.confirmPassword && (
                   <p className="text-xs text-red-600">Passwords do not match</p>
                 )}
+                {passwordError && (
+                  <p className="text-xs text-red-600">{passwordError}</p>
+                )}
                 <div className="flex justify-end">
-                  <Button size="sm" disabled={!profileForm.currentPassword || !profileForm.newPassword || profileForm.newPassword !== profileForm.confirmPassword}
-                    onClick={handleSave} variant={saved ? 'success' : 'primary'}>
-                    {saved ? 'Password Updated!' : 'Update Password'}
+                  <Button size="sm" disabled={passwordUpdating || !profileForm.currentPassword || !profileForm.newPassword || profileForm.newPassword !== profileForm.confirmPassword}
+                    onClick={handlePasswordUpdate} variant={saved ? 'success' : 'primary'}>
+                    {saved ? 'Password Updated!' : passwordUpdating ? 'Updating...' : 'Update Password'}
                   </Button>
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-100">
