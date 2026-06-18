@@ -799,46 +799,60 @@ export function AdminStudentProfilePage() {
                                   </div>
                                 </div>
 
-                                {/* ── Overall Score ── */}
-                                <div>
-                                  <h4 className="text-xs font-bold text-slate-900 mb-2 uppercase tracking-wider">Overall Score</h4>
-                                  <div className={`grid grid-cols-1 ${(analysis.isSAT && isMockTest) ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-0 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm`}>
-                                    {analysis.isSAT && isMockTest && (
-                                      <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200 bg-blue-50/50">
-                                        <p className="text-2xl font-bold text-blue-700">
-                                          {analysis.finalScaledScore} <span className="text-xs text-slate-400 font-normal">/ 1600</span>
-                                        </p>
-                                        <p className="text-xs text-blue-600 mt-0.5 font-bold">Estimated Scaled Score</p>
-                                      </div>
-                                    )}
-                                    <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200">
-                                      <p className="text-2xl font-bold text-blue-600">
-                                        {analysis.totalCorrect} / {analysis.totalQuestions}
+                                {/* Score Card */}
+                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+                                  <div className="flex divide-x divide-slate-200">
+                                    <div className="px-6 py-5 shrink-0">
+                                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Total Score</p>
+                                      <p className="text-5xl font-black text-slate-900 leading-none tabular-nums mt-1">
+                                        {(analysis.isSAT && isMockTest) ? analysis.finalScaledScore : analysis.totalCorrect}
                                       </p>
-                                      <p className="text-xs text-blue-500 mt-0.5 font-medium">Total Questions</p>
+                                      {(analysis.isSAT && isMockTest) ? (
+                                        <p className="text-xs text-slate-400 mt-2 border-b border-slate-300 pb-0.5 w-fit">400 - 1600</p>
+                                      ) : (
+                                        <p className="text-xs text-slate-400 mt-2">out of {analysis.totalQuestions}</p>
+                                      )}
                                     </div>
-                                    <div className="py-3 px-4 border-b sm:border-b-0 sm:border-r border-slate-200">
-                                      <p className="text-2xl font-bold text-emerald-700">
-                                        {(analysis.isSAT && isMockTest)
-                                          ? <>{analysis.rwScaled} <span className="text-xs text-slate-400 font-normal">/ 800</span></>
-                                          : <>{analysis.rwCorrect} / {analysis.rwTotal}</>}
-                                      </p>
-                                      <p className="text-xs text-slate-500 mt-0.5">
-                                        Reading and Writing
-                                        {analysis.isSAT && isMockTest && <span className="text-slate-400"> · {analysis.rwCorrect}/{analysis.rwTotal} correct</span>}
+                                    <div className="px-6 py-5 shrink-0">
+                                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Reading &amp; Writing</p>
+                                      <p className="text-5xl font-black text-slate-900 leading-none tabular-nums mt-1">
+                                        {(analysis.isSAT && isMockTest) ? analysis.rwScaled : `${analysis.rwCorrect}/${analysis.rwTotal}`}
                                       </p>
                                     </div>
-                                    <div className="py-3 px-4">
-                                      <p className="text-2xl font-bold text-amber-700">
-                                        {(analysis.isSAT && isMockTest)
-                                          ? <>{analysis.mathScaled} <span className="text-xs text-slate-400 font-normal">/ 800</span></>
-                                          : <>{analysis.mathCorrect} / {analysis.mathTotal}</>}
-                                      </p>
-                                      <p className="text-xs text-slate-500 mt-0.5">
-                                        Math
-                                        {analysis.isSAT && isMockTest && <span className="text-slate-400"> · {analysis.mathCorrect}/{analysis.mathTotal} correct</span>}
+                                    <div className="px-6 py-5 shrink-0">
+                                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Math</p>
+                                      <p className="text-5xl font-black text-slate-900 leading-none tabular-nums mt-1">
+                                        {(analysis.isSAT && isMockTest) ? analysis.mathScaled : `${analysis.mathCorrect}/${analysis.mathTotal}`}
                                       </p>
                                     </div>
+                                    {(analysis.isSAT && isMockTest) && (() => {
+                                      const score = analysis.finalScaledScore;
+                                      const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
+                                      return (
+                                        <div className="flex-1 px-8 py-5 flex flex-col justify-center gap-2.5 min-w-0">
+                                          <div className="flex justify-between text-xs text-slate-500 font-medium">
+                                            <span>400</span><span>800</span><span>1200</span><span>1600</span>
+                                          </div>
+                                          <div className="relative h-3 rounded-full" style={{ background: 'linear-gradient(to right, #ef4444 0%, #ef4444 33.33%, #f59e0b 33.33%, #f59e0b 66.67%, #22c55e 66.67%, #22c55e 100%)' }}>
+                                            <div className="absolute w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-md" style={{ left: `${pct}%`, top: '50%', transform: 'translate(-50%, -50%)' }} />
+                                          </div>
+                                          <div className="flex">
+                                            <div className="flex-1 text-center">
+                                              <p className="text-[10px] font-semibold text-slate-600">Below Average</p>
+                                              <p className="text-[10px] text-slate-400">(400 - 800)</p>
+                                            </div>
+                                            <div className="flex-1 text-center">
+                                              <p className="text-[10px] font-semibold text-slate-600">Average</p>
+                                              <p className="text-[10px] text-slate-400">(800 - 1200)</p>
+                                            </div>
+                                            <div className="flex-1 text-center">
+                                              <p className="text-[10px] font-semibold text-slate-600">Above Average</p>
+                                              <p className="text-[10px] text-slate-400">(1200 - 1600)</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
 
