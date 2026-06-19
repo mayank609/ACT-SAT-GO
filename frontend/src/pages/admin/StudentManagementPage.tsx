@@ -273,6 +273,15 @@ function computeTestAnalysis(attempt: TaAttempt): {
   };
 }
 
+const formatTargetDate = (dateStr: string | null) => {
+  if (!dateStr) return '—';
+  const cleanStr = dateStr.includes('T') ? dateStr : dateStr.replace(/-/g, '/');
+  const date = new Date(cleanStr);
+  return isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 // stage badge helper removed as the student table was consolidated
 
 export function StudentManagementPage() {
@@ -960,7 +969,7 @@ export function StudentManagementPage() {
                           </button>
                         </td>
                         <td className="px-4 py-3 text-center text-sm text-slate-600 whitespace-nowrap">
-                          {row.targetDate ? new Date(row.targetDate).toLocaleDateString() : '—'}
+                          {formatTargetDate(row.targetDate)}
                         </td>
                         <td className="px-3 py-3 text-center font-semibold text-blue-900 border-l border-blue-100">
                           {row.scaledScoreTotal ?? '—'}

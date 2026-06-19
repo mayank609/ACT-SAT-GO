@@ -231,6 +231,15 @@ function computeTestAnalysis(attempt: TaAttempt): {
   return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, isSAT, finalScaledScore, rwScaled, mathScaled };
 }
 
+const formatTargetDate = (dateStr: string | null) => {
+  if (!dateStr) return '—';
+  const cleanStr = dateStr.includes('T') ? dateStr : dateStr.replace(/-/g, '/');
+  const date = new Date(cleanStr);
+  return isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 export function MyStudentsPage() {
   const navigate = useNavigate();
   const { dbId } = useAuthStore();
@@ -659,7 +668,7 @@ export function MyStudentsPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center text-sm text-slate-600 whitespace-nowrap">
-                          {row.targetDate ? new Date(row.targetDate).toLocaleDateString() : '—'}
+                          {formatTargetDate(row.targetDate)}
                         </td>
                         <td className="px-4 py-3 text-center font-semibold text-blue-900 border-l border-blue-100">
                           {row.scaledScoreTotal ?? '—'}
