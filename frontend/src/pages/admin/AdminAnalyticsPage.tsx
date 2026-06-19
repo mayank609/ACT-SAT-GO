@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Loader2, Search, ChevronRight, ArrowLeft, Users, Target, XCircle,
   HelpCircle, ShieldCheck, Clock, CheckCircle2, Layers, Wrench,
@@ -141,6 +142,9 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
 // ─── Student picker list ───────────────────────────────────────────────────────
 
 export function AdminAnalyticsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const studentIdParam = searchParams.get('studentId');
+
   const [students, setStudents] = useState<DbUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -155,8 +159,23 @@ export function AdminAnalyticsPage() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (students.length > 0) {
+      if (studentIdParam) {
+        const found = students.find(s => s.id === studentIdParam);
+        if (found) {
+          setSelected(found);
+        } else {
+          setSelected(null);
+        }
+      } else {
+        setSelected(null);
+      }
+    }
+  }, [studentIdParam, students]);
+
   if (selected) {
-    return <StudentCumulative student={selected} onBack={() => setSelected(null)} />;
+    return <StudentCumulative student={selected} onBack={() => setSearchParams({})} />;
   }
 
   const filtered = students.filter(s => {
@@ -195,7 +214,7 @@ export function AdminAnalyticsPage() {
           {filtered.map(s => (
             <button
               key={s.id}
-              onClick={() => setSelected(s)}
+              onClick={() => setSearchParams({ studentId: s.id })}
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors group"
             >
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">

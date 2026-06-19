@@ -811,7 +811,6 @@ export function StudentManagementPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
           <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => { setManageSearch(''); setShowManageModal(true); }}>Manage Students</Button>
-          <Button size="sm" icon={<Plus size={13} />} onClick={() => { setIsEditing(false); setEditingStudentId(null); setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' }); setShowAddModal(true); }}>Add Student</Button>
         </div>
       </div>
 
@@ -832,17 +831,7 @@ export function StudentManagementPage() {
 
       {/* ── COMPREHENSIVE ANALYSIS VIEW ── */}
       <div className="space-y-5">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3">
-          <div className="flex gap-2">
-            <button
-              onClick={() => loadComprehensiveAnalysis()}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <Filter size={14} /> Refresh Data
-            </button>
-          </div>
-        </div>
+
 
         {/* Search Filter */}
         <div className="flex gap-2">
@@ -970,7 +959,7 @@ export function StudentManagementPage() {
                           </button>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button onClick={() => navigate(`/students/${row.studentId}`)} className="px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
+                          <button onClick={() => navigate(`/analytics?studentId=${row.studentId}`)} className="px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
                             View
                           </button>
                         </td>
@@ -1881,13 +1870,28 @@ export function StudentManagementPage() {
       {/* ── Manage Students Modal (edit / delete) ── */}
       <Modal isOpen={showManageModal} onClose={() => { setShowManageModal(false); setManageSearch(''); }} title="Manage Students" size="md">
         <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Search by name or email…"
-            value={manageSearch}
-            onChange={(e) => setManageSearch(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Search by name or email…"
+              value={manageSearch}
+              onChange={(e) => setManageSearch(e.target.value)}
+              className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <Button
+              size="sm"
+              icon={<Plus size={13} />}
+              onClick={() => {
+                setIsEditing(false);
+                setEditingStudentId(null);
+                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+                setShowManageModal(false);
+                setShowAddModal(true);
+              }}
+            >
+              Add Student
+            </Button>
+          </div>
           <div className="max-h-[60vh] overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-lg">
             {students.filter((s) =>
               manageSearch
