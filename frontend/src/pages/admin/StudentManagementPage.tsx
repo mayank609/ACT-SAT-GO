@@ -292,7 +292,7 @@ export function StudentManagementPage() {
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
@@ -600,7 +600,7 @@ export function StudentManagementPage() {
             studentId: student.id,
             studentName: student.name,
             studentEmail: student.email,
-            targetDate: student.targetScore ? new Date().toISOString().split('T')[0] : null,
+            targetDate: student.targetDate || null,
             diagnosticsEnglish,
             diagnosticsMath,
             mockTests: mockCount,
@@ -631,7 +631,7 @@ export function StudentManagementPage() {
             studentId: student.id,
             studentName: student.name,
             studentEmail: student.email,
-            targetDate: null,
+            targetDate: student.targetDate || null,
             diagnosticsEnglish: null,
             diagnosticsMath: null,
             mockTests: 0,
@@ -734,6 +734,7 @@ export function StudentManagementPage() {
           name: fullName,
           grade: addForm.grade || undefined,
           targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
+          targetDate: addForm.targetDate || undefined,
           tutorId: addForm.tutorId || undefined,
           phone: addForm.phone || undefined,
           parentPhone: addForm.parentPhone || undefined,
@@ -741,13 +742,14 @@ export function StudentManagementPage() {
           schoolName: addForm.schoolName || undefined,
         });
         setShowAddModal(false); setIsEditing(false); setEditingStudentId(null);
-        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
         reload();
       } else {
         const res = await api.createUser({
           name: fullName, email: addForm.email, role: 'STUDENT',
           grade: addForm.grade || undefined,
           targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
+          targetDate: addForm.targetDate || undefined,
           tutorId: addForm.tutorId || undefined,
           phone: addForm.phone || undefined,
           parentPhone: addForm.parentPhone || undefined,
@@ -755,7 +757,7 @@ export function StudentManagementPage() {
           schoolName: addForm.schoolName || undefined,
         });
         setShowAddModal(false);
-        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
         reload();
         if (res.tempPassword) setCreatedPassword({ name: fullName, email: addForm.email, password: res.tempPassword });
       }
@@ -780,6 +782,7 @@ export function StudentManagementPage() {
       parentPhone: student.parentPhone || '',
       dob: student.dob || '',
       schoolName: student.schoolName || '',
+      targetDate: student.targetDate || '',
     });
     setIsEditing(true);
     setEditingStudentId(student.id);
@@ -817,14 +820,24 @@ export function StudentManagementPage() {
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Students', value: students.length, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+          { 
+            label: 'Total Students', 
+            value: students.length, 
+            subValue: `${students.filter(s => (s.testsAttempted ?? 0) > 0).length} Active / ${students.filter(s => (s.testsAttempted ?? 0) === 0).length} Inactive`, 
+            color: 'text-blue-600', 
+            bg: 'bg-blue-50', 
+            border: 'border-blue-100' 
+          },
           { label: 'With Tutors', value: students.filter(s => s.tutorId).length, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
           { label: 'Avg Score', value: students.filter(s => s.avgScore != null).length ? (students.reduce((a, s) => a + (s.avgScore ?? 0), 0) / students.filter(s => s.avgScore != null).length).toFixed(1) : '—', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
           { label: 'Tests Done', value: students.reduce((a, s) => a + (s.testsAttempted || 0), 0), color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl border ${s.border} ${s.bg} px-4 py-3 flex items-center gap-3`}>
             <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-slate-600 font-medium">{s.label}</div>
+            <div className="flex flex-col">
+              <div className="text-xs text-slate-600 font-bold">{s.label}</div>
+              {s.subValue && <div className="text-[10px] text-slate-400 font-medium">{s.subValue}</div>}
+            </div>
           </div>
         ))}
       </div>
@@ -859,24 +872,24 @@ export function StudentManagementPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
-                  <th className="px-4 py-2 text-left font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Name</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Target Date</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Performance</th>
-                  <th className="px-4 py-2 text-center font-semibold text-blue-900 whitespace-nowrap" rowSpan={2}>Actions</th>
+                  <th className="px-4 py-2 text-left text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Name</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Target Date</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Performance</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Actions</th>
                 </tr>
                 <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Total SS</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">RW SS</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Math SS</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-200">Mock</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Sectional</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-100">HW R&amp;W</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">HW Math</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap border-l border-blue-100">Practice R&amp;W</th>
-                  <th className="px-3 py-1.5 text-center text-xs font-semibold text-blue-700 whitespace-nowrap">Practice Math</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap border-l border-blue-200">Total SS</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">RW SS</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">Math SS</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap border-l border-blue-200">Mock</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">Sectional</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap border-l border-blue-100">HW R&amp;W</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">HW Math</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap border-l border-blue-100">Practice R&amp;W</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">Practice Math</th>
                 </tr>
               </thead>
               <tbody>
@@ -1834,7 +1847,7 @@ export function StudentManagementPage() {
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
               <School size={12} /> Academic Info
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Grade</label>
                 <select value={addForm.grade} onChange={(e) => setAddForm(f => ({ ...f, grade: e.target.value }))}
@@ -1855,6 +1868,11 @@ export function StudentManagementPage() {
                   <option value="">No tutor</option>
                   {tutors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Target Date</label>
+                <input type="date" value={addForm.targetDate} onChange={(e) => setAddForm(f => ({ ...f, targetDate: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
           </div>
@@ -1884,7 +1902,7 @@ export function StudentManagementPage() {
               onClick={() => {
                 setIsEditing(false);
                 setEditingStudentId(null);
-                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
                 setShowManageModal(false);
                 setShowAddModal(true);
               }}

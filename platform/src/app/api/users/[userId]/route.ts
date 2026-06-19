@@ -50,6 +50,7 @@ export async function GET(
         lastActive: user.attempts[0]?.completedAt ?? null,
         grade: perms.grade ?? null,
         targetScore: perms.targetScore ?? null,
+        targetDate: perms.targetDate ?? null,
         specialization: perms.specialization ?? [],
         phone: perms.phone ?? null,
         parentPhone: perms.parentPhone ?? null,
@@ -98,10 +99,11 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { name, grade, targetScore, specialization, tutorId, notifications, phone, parentPhone, dob, schoolName } = body as {
+    const { name, grade, targetScore, targetDate, specialization, tutorId, notifications, phone, parentPhone, dob, schoolName } = body as {
       name?: string
       grade?: string
       targetScore?: number
+      targetDate?: string
       specialization?: string[]
       tutorId?: string | null
       notifications?: Record<string, boolean>
@@ -125,6 +127,7 @@ export async function PATCH(
     if (parentPhone !== undefined) permissions.parentPhone = parentPhone
     if (dob !== undefined) permissions.dob = dob
     if (schoolName !== undefined) permissions.schoolName = schoolName
+    if (targetDate !== undefined) permissions.targetDate = targetDate
 
     const updateData: any = { permissions: permissions as any }
     if (name !== undefined) updateData.name = name

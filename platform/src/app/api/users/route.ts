@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
           lastActive: submittedAttempts[0]?.completedAt ?? null,
           grade: perms.grade ?? null,
           targetScore: perms.targetScore ?? null,
+          targetDate: perms.targetDate ?? null,
           specialization: perms.specialization ?? [],
           phone: perms.phone ?? null,
           parentPhone: perms.parentPhone ?? null,
@@ -89,12 +90,13 @@ export async function POST(request: NextRequest) {
     if (auth instanceof NextResponse) return auth
 
     const body = await request.json()
-    const { name, email, role, grade, targetScore, tutorId, specialization, phone, parentPhone, dob, schoolName } = body as {
+    const { name, email, role, grade, targetScore, targetDate, tutorId, specialization, phone, parentPhone, dob, schoolName } = body as {
       name: string
       email: string
       role: string
       grade?: string
       targetScore?: number
+      targetDate?: string
       tutorId?: string
       specialization?: string[]
       phone?: string
@@ -175,6 +177,7 @@ export async function POST(request: NextRequest) {
     if (parentPhone) permissions.parentPhone = parentPhone
     if (dob) permissions.dob = dob
     if (schoolName) permissions.schoolName = schoolName
+    if (targetDate) permissions.targetDate = targetDate
 
     const user = await prisma.user.create({
       data: {

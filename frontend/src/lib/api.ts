@@ -51,6 +51,7 @@ export interface DbUser {
   lastActive?: string | null
   grade?: string | null
   targetScore?: number | null
+  targetDate?: string | null
   specialization?: string[]
   phone?: string | null
   parentPhone?: string | null
@@ -69,6 +70,7 @@ export const api = {
     role: string
     grade?: string
     targetScore?: number
+    targetDate?: string
     tutorId?: string
     specialization?: string[]
     phone?: string
@@ -80,6 +82,7 @@ export const api = {
     name?: string
     grade?: string
     targetScore?: number
+    targetDate?: string
     specialization?: string[]
     tutorId?: string | null
     notifications?: Record<string, boolean>
