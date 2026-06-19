@@ -164,7 +164,7 @@ export function AnalyticsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {metrics.map(m => (
           <div key={m.label} className="bg-white border border-gray-100 rounded-xl p-4">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide flex items-center gap-1">{m.icon}{m.label}</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">{m.icon}{m.label}</p>
             <p className={`text-2xl font-bold mt-1 ${m.cls}`}>{m.value}</p>
           </div>
         ))}
