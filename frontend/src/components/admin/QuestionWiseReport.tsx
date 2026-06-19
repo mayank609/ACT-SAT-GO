@@ -631,11 +631,11 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
           <Clock size={12} /> Time Analysis
         </button>
         <button onClick={() => { setQuestionFilterBy(f => f === 'doubt' ? 'all' : 'doubt'); setCurrentQuestionIdx(0); }}
-          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'doubt' ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}>
+          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'doubt' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>
           Still Doubt
         </button>
         <button onClick={() => { setQuestionFilterBy(f => f === 'cleared' ? 'all' : 'cleared'); setCurrentQuestionIdx(0); }}
-          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'cleared' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'cleared' ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>
           Cleared
         </button>
       </div>
@@ -709,11 +709,11 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
                   </button>
                 ))}
                 <button onClick={() => { setQuestionFilterBy(f => f === 'doubt' ? 'all' : 'doubt'); setCurrentQuestionIdx(0); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'doubt' ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'doubt' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>
                   Still Doubt
                 </button>
                 <button onClick={() => { setQuestionFilterBy(f => f === 'cleared' ? 'all' : 'cleared'); setCurrentQuestionIdx(0); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'cleared' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'cleared' ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>
                   Cleared
                 </button>
               </div>

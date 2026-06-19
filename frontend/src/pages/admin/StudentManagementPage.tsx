@@ -1408,7 +1408,7 @@ export function StudentManagementPage() {
                         className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
                           questionFilterBy === 'doubt'
                             ? 'bg-amber-500 text-white'
-                            : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                         }`}
                       >
                         Still Doubt
@@ -1418,7 +1418,7 @@ export function StudentManagementPage() {
                         className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
                           questionFilterBy === 'cleared'
                             ? 'bg-green-600 text-white'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                         }`}
                       >
                         Cleared
