@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, AlertCircle, HelpCircle } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
@@ -53,6 +53,7 @@ interface DbAttemptAnswer {
   answerGiven: DbAnswer | null
   timeSpentSeconds: number
   isFlagged: boolean
+  doubtStatus?: 'doubt' | 'cleared' | null
 }
 
 interface DbAttempt {
@@ -79,6 +80,7 @@ interface MistakeItem {
   status: 'wrong' | 'unattempted'
   orderIndex: number
   parentQuestionText?: string
+  doubtStatus?: 'doubt' | 'cleared' | null
 }
 
 // ─── Helper functions ──────────────────────────────────────────────────────
@@ -134,18 +136,33 @@ interface MistakeItemComponentProps {
 
 function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
   const [showExplanation, setShowExplanation] = useState(false)
+  const [doubtStatus, setDoubtStatus] = useState<'doubt' | 'cleared' | null>(item.doubtStatus ?? null)
+  const [savingDoubt, setSavingDoubt] = useState(false)
+
   const q = item.question
   const options = dbOptionsToDisplay(q.options)
   const userAnswerDisplay = dbAnswerToDisplay(item.answerGiven)
   const correctAnswerDisplay = dbAnswerToDisplay(q.correctAnswer)
 
-  const borderColor = item.status === 'unattempted' ? 'border-slate-200' : 'border-red-200'
-  const bgColor = item.status === 'unattempted' ? 'bg-slate-50' : 'bg-red-50'
-  const badgeBgColor = item.status === 'unattempted' ? 'bg-slate-400' : 'bg-red-500'
+  const handleSetDoubt = async (next: 'doubt' | 'cleared') => {
+    const prev = doubtStatus
+    setDoubtStatus(next)
+    setSavingDoubt(true)
+    try {
+      await api.setDoubtStatus(item.attemptId, q.id, next)
+    } catch (err) {
+      console.error('Failed to set doubt status', err)
+      setDoubtStatus(prev)
+    } finally {
+      setSavingDoubt(false)
+    }
+  }
+
+  const badgeBgColor = 'bg-slate-600'
 
   if (item.parentQuestionText) {
     return (
-      <div className={`border-2 rounded-xl overflow-hidden ${borderColor}`}>
+      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
         <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white">
           {/* Left Panel: Passage */}
           <div className="p-4 bg-slate-50 text-left overflow-y-auto max-h-[400px]">
@@ -157,7 +174,7 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
 
           {/* Right Panel: Question */}
           <div className="flex flex-col">
-            <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${bgColor}`}>
+            <div className="px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 bg-white">
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${badgeBgColor}`}>
                   {index + 1}
@@ -169,7 +186,10 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {item.timeSpentSeconds ? (
-                  <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{item.timeSpentSeconds}s</span>
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[11px] font-semibold">
+                    <Clock size={11} className="text-amber-600" />
+                    <span>{item.timeSpentSeconds}s</span>
+                  </span>
                 ) : null}
                 <Badge variant={item.status === 'unattempted' ? 'default' : 'danger'} size="sm">
                   {item.status === 'unattempted' ? 'Unattempted' : 'Wrong'}
@@ -200,18 +220,73 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
               <div className="text-xs text-slate-500 mb-3 p-2 bg-slate-50 rounded border border-slate-100">
                 <strong className="text-slate-700">{item.testTitle}</strong> • {item.sectionName}
               </div>
-              {q.content.explanation && (
-                <div className="text-left">
-                  <button onClick={() => setShowExplanation(!showExplanation)}
-                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
-                    {showExplanation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                    {showExplanation ? 'Hide' : 'Show'} Explanation
-                  </button>
-                </div>
-              )}
-              {showExplanation && q.content.explanation && (
-                <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-left">
-                  <RichContentRenderer content={q.content.explanation} variant="explanation" />
+              
+              <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-3">
+                <button
+                  onClick={() => setShowExplanation(!showExplanation)}
+                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+                >
+                  {showExplanation ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  <span>Explanation & Doubt Help</span>
+                </button>
+
+                {/* Doubt Status Pill */}
+                {doubtStatus === 'doubt' && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    <HelpCircle size={10} /> Marked as Doubt
+                  </span>
+                )}
+                {doubtStatus === 'cleared' && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    <CheckCircle size={10} /> Cleared
+                  </span>
+                )}
+              </div>
+
+              {showExplanation && (
+                <div className="mt-3 space-y-3">
+                  {q.content.explanation ? (
+                    <div className="p-3 bg-blue-50/50 rounded-lg border-l-4 border-blue-500 text-left text-xs leading-relaxed text-slate-800">
+                      <RichContentRenderer content={q.content.explanation} variant="explanation" className="prose-xs" />
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-400 italic text-left">No explanation available for this question.</div>
+                  )}
+
+                  {/* Doubt CTAs */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
+                    <p className="text-[11px] font-medium text-slate-500 text-left">
+                      {doubtStatus === 'cleared'
+                        ? 'Great — glad this one is cleared!'
+                        : doubtStatus === 'doubt'
+                        ? "Saved to My Doubts. We'll keep it handy for revision."
+                        : 'Is your doubt cleared after reading the explanation?'}
+                    </p>
+                    <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                      <button
+                        onClick={() => handleSetDoubt('doubt')}
+                        disabled={savingDoubt}
+                        className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border transition-colors disabled:opacity-50 ${
+                          doubtStatus === 'doubt'
+                            ? 'bg-amber-500 text-white border-amber-500'
+                            : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                        }`}
+                      >
+                        <HelpCircle size={10} /> Still Doubt
+                      </button>
+                      <button
+                        onClick={() => handleSetDoubt('cleared')}
+                        disabled={savingDoubt}
+                        className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border transition-colors disabled:opacity-50 ${
+                          doubtStatus === 'cleared'
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                        }`}
+                      >
+                        <CheckCircle size={10} /> Cleared
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -222,8 +297,8 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
   }
 
   return (
-    <div className={`border-2 rounded-xl overflow-hidden ${borderColor}`}>
-      <div className={`px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 ${bgColor}`}>
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+      <div className="px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 bg-white">
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${badgeBgColor}`}>
             {index + 1}
@@ -235,7 +310,10 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {item.timeSpentSeconds ? (
-            <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{item.timeSpentSeconds}s</span>
+            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[11px] font-semibold">
+              <Clock size={11} className="text-amber-600" />
+              <span>{item.timeSpentSeconds}s</span>
+            </span>
           ) : null}
           <Badge variant={item.status === 'unattempted' ? 'default' : 'danger'} size="sm">
             {item.status === 'unattempted' ? 'Unattempted' : 'Wrong'}
@@ -272,18 +350,73 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
         <div className="text-xs text-slate-500 mb-3 p-2 bg-slate-50 rounded border border-slate-100">
           <strong className="text-slate-700">{item.testTitle}</strong> • {item.sectionName}
         </div>
-        {q.content.explanation && (
-          <div className="text-left">
-            <button onClick={() => setShowExplanation(!showExplanation)}
-              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
-              {showExplanation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-              {showExplanation ? 'Hide' : 'Show'} Explanation
-            </button>
-          </div>
-        )}
-        {showExplanation && q.content.explanation && (
-          <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-left">
-            <RichContentRenderer content={q.content.explanation} variant="explanation" />
+
+        <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-3">
+          <button
+            onClick={() => setShowExplanation(!showExplanation)}
+            className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+          >
+            {showExplanation ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <span>Explanation & Doubt Help</span>
+          </button>
+
+          {/* Doubt Status Pill */}
+          {doubtStatus === 'doubt' && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+              <HelpCircle size={10} /> Marked as Doubt
+            </span>
+          )}
+          {doubtStatus === 'cleared' && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+              <CheckCircle size={10} /> Cleared
+            </span>
+          )}
+        </div>
+
+        {showExplanation && (
+          <div className="mt-3 space-y-3">
+            {q.content.explanation ? (
+              <div className="p-3 bg-blue-50/50 rounded-lg border-l-4 border-blue-500 text-left text-xs leading-relaxed text-slate-800">
+                <RichContentRenderer content={q.content.explanation} variant="explanation" className="prose-xs" />
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 italic text-left">No explanation available for this question.</div>
+            )}
+
+            {/* Doubt CTAs */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
+              <p className="text-[11px] font-medium text-slate-500 text-left">
+                {doubtStatus === 'cleared'
+                  ? 'Great — glad this one is cleared!'
+                  : doubtStatus === 'doubt'
+                  ? "Saved to My Doubts. We'll keep it handy for revision."
+                  : 'Is your doubt cleared after reading the explanation?'}
+              </p>
+              <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                <button
+                  onClick={() => handleSetDoubt('doubt')}
+                  disabled={savingDoubt}
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border transition-colors disabled:opacity-50 ${
+                    doubtStatus === 'doubt'
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                  }`}
+                >
+                  <HelpCircle size={10} /> Still Doubt
+                </button>
+                <button
+                  onClick={() => handleSetDoubt('cleared')}
+                  disabled={savingDoubt}
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border transition-colors disabled:opacity-50 ${
+                    doubtStatus === 'cleared'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
+                  }`}
+                >
+                  <CheckCircle size={10} /> Cleared
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -374,6 +507,7 @@ export function MistakesPage() {
                       status: isUnattempted ? 'unattempted' : 'wrong',
                       orderIndex: tq.orderIndex,
                       parentQuestionText: (tq.question as any).parentQuestionText,
+                      doubtStatus: ans?.doubtStatus ?? null,
                     });
                   }
                 });
