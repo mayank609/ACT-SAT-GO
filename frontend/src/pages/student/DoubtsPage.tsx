@@ -369,14 +369,14 @@ export function DoubtsPage() {
                 onClick={() => setSubjectFilter(f.value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                   subjectFilter === f.value
-                    ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 {f.label}
               </button>
             ))}
-            <span className="ml-auto text-xs font-semibold text-amber-600">{filtered.length} open</span>
+            <span className="ml-auto text-xs font-semibold text-blue-600">{filtered.length} open</span>
           </div>
 
           <div className="space-y-4">
