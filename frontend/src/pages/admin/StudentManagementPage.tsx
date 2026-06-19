@@ -1115,22 +1115,22 @@ export function StudentManagementPage() {
                     <p className="py-12 text-center text-slate-400 text-sm">{reportRows.length === 0 ? 'No completed tests found.' : `No ${filterLabels.find(f => f.key === reportFilter)?.label} tests found.`}</p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full text-sm border-l-4 border-l-blue-600 border border-slate-200">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
-                            <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">#</th>
-                            <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Test Name</th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Started At</th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Completed At</th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">RW SS</th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Math SS</th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Total SS</th>
-                            <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Analysis</th>
+                          <tr className="bg-indigo-50 border-b-2 border-slate-200 text-slate-700">
+                            <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">#</th>
+                            <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Started At</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Completed At</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW SS</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Math SS</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total SS</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap">Analysis</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1138,20 +1138,20 @@ export function StudentManagementPage() {
                             const analysed = r.isAnalysed;
                             return (
                               <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
-                                className="border-b border-slate-50 hover:bg-blue-50/50 cursor-pointer transition-colors">
-                                <td className="px-3 py-3 text-slate-500 whitespace-nowrap">{i + 1}</td>
-                                <td className="px-3 py-3 font-semibold text-blue-700 hover:underline whitespace-nowrap">{r.title}</td>
-                                <td className="px-3 py-3 text-center text-xs text-slate-500 whitespace-nowrap">{r.startedAt ? new Date(r.startedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
-                                <td className="px-3 py-3 text-center text-xs text-slate-500 whitespace-nowrap">{r.completedAt ? new Date(r.completedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
-                                <td className="px-3 py-3 text-center text-blue-700 font-medium whitespace-nowrap">{r.rwM1}</td>
-                                <td className="px-3 py-3 text-center text-blue-700 font-medium whitespace-nowrap">{r.rwM2}</td>
-                                <td className="px-3 py-3 text-center text-blue-700 font-medium whitespace-nowrap">{r.mathM1}</td>
-                                <td className="px-3 py-3 text-center text-blue-700 font-medium whitespace-nowrap">{r.mathM2}</td>
-                                <td className="px-3 py-3 text-center font-bold text-slate-900 whitespace-nowrap">{r.totalRaw}</td>
-                                <td className="px-3 py-3 text-center text-slate-600 whitespace-nowrap">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
-                                <td className="px-3 py-3 text-center text-slate-600 whitespace-nowrap">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
-                                <td className="px-3 py-3 text-center font-semibold text-slate-800 whitespace-nowrap">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
-                                <td className="px-3 py-3 text-center whitespace-nowrap">
+                                className={`border-b border-slate-200 hover:bg-blue-50/60 cursor-pointer transition-colors ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
+                                <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
+                                <td className="px-4 py-4 font-semibold text-blue-700 hover:underline whitespace-nowrap border-r border-slate-100">{r.title}</td>
+                                <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">{r.startedAt ? new Date(r.startedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
+                                <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">{r.completedAt ? new Date(r.completedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
+                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.rwM1}</td>
+                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.rwM2}</td>
+                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.mathM1}</td>
+                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.mathM2}</td>
+                                <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRaw}</td>
+                                <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
+                                <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
+                                <td className="px-4 py-4 text-center font-semibold text-slate-800 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
+                                <td className="px-4 py-4 text-center whitespace-nowrap">
                                   <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${analysed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                                     {analysed ? 'ANALYSED' : 'UNANALYSED'}
                                   </span>
