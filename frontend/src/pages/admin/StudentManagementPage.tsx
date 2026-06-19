@@ -333,6 +333,7 @@ export function StudentManagementPage() {
   }>>([]);
   const [analysisSearchTerm, setAnalysisSearchTerm] = useState('');
   const [analysisSortBy, setAnalysisSortBy] = useState<'name' | 'diagnostics' | 'attempts'>('name');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   // ── Detailed Test Analysis state ─────────────────────────────────────────
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -819,16 +820,40 @@ export function StudentManagementPage() {
 
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { 
-            label: 'Total Students', 
-            value: students.length, 
-            subValue: `${students.filter(s => (s.testsAttempted ?? 0) > 0).length} Active / ${students.filter(s => (s.testsAttempted ?? 0) === 0).length} Inactive`, 
-            color: 'text-blue-600', 
-            bg: 'bg-blue-50', 
-            border: 'border-blue-100' 
-          },
-          { label: 'With Tutors', value: students.filter(s => s.tutorId).length, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+        {/* Total Students – with Active / Inactive toggle */}
+        {(() => {
+          const activeCount = students.filter(s => (s.testsAttempted ?? 0) > 0).length;
+          const inactiveCount = students.filter(s => (s.testsAttempted ?? 0) === 0).length;
+          return (
+            <div className={`rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex flex-col gap-1.5`}>
+              <div className="flex items-center gap-2">
+                <div className="text-xl font-bold text-blue-600">
+                  {activityFilter === 'active' ? activeCount : activityFilter === 'inactive' ? inactiveCount : students.length}
+                </div>
+                <div className="text-xs text-slate-600 font-bold">Total Students</div>
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setActivityFilter(f => f === 'active' ? 'all' : 'active')}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                    activityFilter === 'active' ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                  }`}
+                >
+                  {activeCount} Active
+                </button>
+                <button
+                  onClick={() => setActivityFilter(f => f === 'inactive' ? 'all' : 'inactive')}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                    activityFilter === 'inactive' ? 'bg-slate-500 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  }`}
+                >
+                  {inactiveCount} Inactive
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+        { [{ label: 'With Tutors', value: students.filter(s => s.tutorId).length, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
           { label: 'Avg Score', value: students.filter(s => s.avgScore != null).length ? (students.reduce((a, s) => a + (s.avgScore ?? 0), 0) / students.filter(s => s.avgScore != null).length).toFixed(1) : '—', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
           { label: 'Tests Done', value: students.reduce((a, s) => a + (s.testsAttempted || 0), 0), color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
         ].map(s => (
@@ -836,7 +861,6 @@ export function StudentManagementPage() {
             <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
             <div className="flex flex-col">
               <div className="text-xs text-slate-600 font-bold">{s.label}</div>
-              {s.subValue && <div className="text-[10px] text-slate-400 font-medium">{s.subValue}</div>}
             </div>
           </div>
         ))}
@@ -898,12 +922,19 @@ export function StudentManagementPage() {
                 ) : studentAnalysisData.length === 0 ? (
                   <tr><td colSpan={14} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
-                    .filter((s) =>
-                      analysisSearchTerm
+                    .filter((s) => {
+                      if (activityFilter === 'active') {
+                        const stu = students.find(st => st.id === s.studentId);
+                        if (!stu || (stu.testsAttempted ?? 0) === 0) return false;
+                      } else if (activityFilter === 'inactive') {
+                        const stu = students.find(st => st.id === s.studentId);
+                        if (!stu || (stu.testsAttempted ?? 0) > 0) return false;
+                      }
+                      return analysisSearchTerm
                         ? s.studentName.toLowerCase().includes(analysisSearchTerm.toLowerCase()) ||
                           s.studentEmail.toLowerCase().includes(analysisSearchTerm.toLowerCase())
-                        : true
-                    )
+                        : true;
+                    })
                     .sort((a, b) => {
                       if (analysisSortBy === 'name') return a.studentName.localeCompare(b.studentName);
                       if (analysisSortBy === 'diagnostics') return (b.diagnosticsEnglish || 0) - (a.diagnosticsEnglish || 0);
