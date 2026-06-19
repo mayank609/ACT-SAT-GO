@@ -987,15 +987,15 @@ export function MyStudentsPage() {
                 {/* Score Card */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
                   <div className="flex divide-x divide-slate-200">
-                    <div className="px-6 py-5 shrink-0">
-                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Total Score</p>
-                      <p className="text-5xl font-black text-slate-900 leading-none tabular-nums mt-1">
+                    <div className="px-6 py-5 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl">
+                      <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
+                      <p className="text-5xl font-black text-white leading-none tabular-nums mt-1">
                         {(analysis.isSAT && isMockTest) ? analysis.finalScaledScore : analysis.totalCorrect}
                       </p>
                       {(analysis.isSAT && isMockTest) ? (
-                        <p className="text-xs text-slate-400 mt-2 border-b border-slate-300 pb-0.5 w-fit">400 - 1600</p>
+                        <p className="text-xs text-blue-300 mt-2 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 - 1600</p>
                       ) : (
-                        <p className="text-xs text-slate-400 mt-2">out of {analysis.totalQuestions}</p>
+                        <p className="text-xs text-blue-300 mt-2">out of {analysis.totalQuestions}</p>
                       )}
                     </div>
                     <div className="px-6 py-5 shrink-0">
