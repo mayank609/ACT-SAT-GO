@@ -195,7 +195,7 @@ function DoubtItemComponent({ item, index, onCleared }: {
 
   if (item.parentQuestionText) {
     return (
-      <div className="border-2 rounded-xl overflow-hidden border-amber-200">
+      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
         <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white">
           <div className="p-4 bg-slate-50 text-left overflow-y-auto max-h-[400px]">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2 border-b border-slate-200/60 pb-1">Reading Passage</h4>
@@ -204,9 +204,9 @@ function DoubtItemComponent({ item, index, onCleared }: {
             </div>
           </div>
           <div className="flex flex-col">
-            <div className="px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 bg-amber-50">
+            <div className="px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 bg-white">
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-amber-500">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-slate-600">
                   {index + 1}
                 </div>
                 <HelpCircle size={14} className="text-amber-500" />
@@ -224,10 +224,10 @@ function DoubtItemComponent({ item, index, onCleared }: {
   }
 
   return (
-    <div className="border-2 rounded-xl overflow-hidden border-amber-200">
-      <div className="px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 bg-amber-50">
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+      <div className="px-3 md:px-4 py-3 flex items-start gap-2 md:gap-3 bg-white">
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-amber-500">
+          <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-slate-600">
             {index + 1}
           </div>
           <HelpCircle size={14} className="text-amber-500" />
