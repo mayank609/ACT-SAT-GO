@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, FileSearch, CheckCircle, Clock, Target, Loader2, AlertCircle } from 'lucide-react';
+import { Play, FileSearch, CheckCircle, Clock, Target, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 
@@ -27,6 +27,15 @@ interface Attempt {
   test: { title: string };
 }
 
+const quotes = [
+  { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+  { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+  { text: "Strive for progress, not perfection.", author: "Unknown" },
+  { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
+  { text: "The mind is not a vessel to be filled, but a fire to be kindled.", author: "Plutarch" },
+  { text: "Education is the most powerful weapon which you can use to change the world.", author: "Nelson Mandela" }
+];
+
 export function StudentDashboard() {
   const navigate = useNavigate();
   const { user, dbId } = useAuthStore();
@@ -47,6 +56,9 @@ export function StudentDashboard() {
   const pending = tests.filter(t => t.status === 'Not Started' || t.status === 'In Progress');
   const completed = tests.filter(t => t.status === 'Completed');
 
+  const quoteIndex = (dbId ? dbId.length : 0) % quotes.length;
+  const quote = quotes[quoteIndex];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -57,10 +69,32 @@ export function StudentDashboard() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Hello, {firstName}</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Welcome to your diagnostic test portal</p>
+      {/* Welcome Card */}
+      <div className="bg-gradient-to-br from-[#1e3a8a] via-[#1b3d6e] to-[#0f172a] rounded-2xl p-6 text-white shadow-lg border border-blue-900/40 relative overflow-hidden">
+        {/* Subtle decorative circles */}
+        <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-blue-500/10 blur-xl" />
+        <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-emerald-500/10 blur-xl" />
+        
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Hello, {firstName}! 👋</h1>
+              <p className="text-blue-200 text-xs md:text-sm font-medium mt-1">Welcome to your diagnostic test portal. Let's make some progress today!</p>
+            </div>
+            <div className="p-2 rounded-xl bg-white/10 text-amber-300 backdrop-blur-md border border-white/10 hidden sm:block">
+              <Sparkles size={20} />
+            </div>
+          </div>
+          
+          <div className="border-t border-white/10 pt-4 mt-2">
+            <p className="text-xs md:text-sm italic text-blue-100/90 leading-relaxed">
+              "{quote.text}"
+            </p>
+            <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mt-1">
+              — {quote.author}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Stats row */}
