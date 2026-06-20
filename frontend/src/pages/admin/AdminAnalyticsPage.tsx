@@ -1,19 +1,200 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Loader2, Search, ChevronRight, ArrowLeft, Users, Target, XCircle,
-  HelpCircle, ShieldCheck, Clock, CheckCircle2, Layers, Wrench,
+  Loader2, Search, ChevronRight, ArrowLeft, Users, Target,
+  XCircle, HelpCircle, ShieldCheck, Clock, CheckCircle2, Layers, Wrench,
+  TrendingUp, BarChart2,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, Cell,
+  PieChart, Pie,
+  RadialBarChart, RadialBar,
+} from 'recharts';
 import { api, type DbUser } from '../../lib/api';
 import { SAT_CONTENT } from '../../data/satDomains';
 import {
-  loadStudentAnalytics, aggregate, buildBreakdown, accuracy, fmtTime,
+  loadStudentAnalytics, aggregate, buildBreakdown, accuracy, fmtTime, computeSatScore,
   type LoadedAttempt, type QRecord, type SubjectKey,
 } from '../../lib/analyticsData';
 import { BreakdownTable } from '../../components/analytics/BreakdownTable';
 
-// ─── Cumulative view for one student (all attempts except diagnostics) ─────────
+// ── Colour tokens ─────────────────────────────────────────────────────────────
+const C = {
+  blue:    '#3b82f6',
+  indigo:  '#6366f1',
+  emerald: '#10b981',
+  amber:   '#f59e0b',
+  rose:    '#f43f5e',
+  slate:   '#94a3b8',
+  navy:    '#1b3d6e',
+};
+const DOMAIN_PALETTE = [C.blue, C.indigo, C.emerald, C.amber, C.rose, '#06b6d4', '#8b5cf6'];
 
+// ── Custom tooltip ─────────────────────────────────────────────────────────────
+function ChartTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-xl text-xs">
+      {label && <p className="text-gray-500 mb-1 font-medium">{label}</p>}
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+          <span className="text-gray-800 font-semibold">{p.name}: {p.value}{typeof p.value === 'number' && p.name === 'Accuracy' ? '%' : ''}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Score Trend mini-chart ─────────────────────────────────────────────────────
+function ScoreTrend({ attempts, records }: { attempts: LoadedAttempt[]; records: Map<string, QRecord[]> }) {
+  const data = useMemo(() => attempts.slice().reverse().map(a => {
+    const s = computeSatScore(records.get(a.id) ?? []);
+    const label = a.title.length > 14 ? a.title.slice(0, 13) + '…' : a.title;
+    return { name: label, Total: a.totalScore ?? s.total, RW: s.rw, Math: s.math };
+  }), [attempts, records]);
+
+  if (data.length < 2) return (
+    <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-400">
+      <TrendingUp size={20} />
+      <p className="text-xs">Need ≥ 2 tests for trend</p>
+    </div>
+  );
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+        <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+        <YAxis domain={[200, 1600]} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+        <Tooltip content={<ChartTip />} />
+        <Legend wrapperStyle={{ fontSize: 11, color: '#6b7280' }} />
+        <Line type="monotone" dataKey="Total" stroke={C.blue} strokeWidth={2.5} dot={{ r: 3, fill: C.blue }} activeDot={{ r: 5 }} />
+        <Line type="monotone" dataKey="RW" stroke={C.indigo} strokeWidth={1.5} strokeDasharray="4 2" dot={{ r: 2 }} />
+        <Line type="monotone" dataKey="Math" stroke={C.emerald} strokeWidth={1.5} strokeDasharray="4 2" dot={{ r: 2 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Domain accuracy bar chart ─────────────────────────────────────────────────
+function DomainBars({ rows, subject }: { rows: Array<{ name: string; agg: { correct: number; total: number } }>; subject: string }) {
+  const data = rows.map((r, i) => ({
+    name: r.name.length > 20 ? r.name.slice(0, 18) + '…' : r.name,
+    fullName: r.name,
+    accuracy: r.agg.total > 0 ? Math.round((r.agg.correct / r.agg.total) * 100) : 0,
+    correct: r.agg.correct, total: r.agg.total,
+    color: DOMAIN_PALETTE[i % DOMAIN_PALETTE.length],
+  })).filter(d => d.total > 0);
+
+  if (data.length === 0) return (
+    <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-400">
+      <BarChart2 size={20} />
+      <p className="text-xs">No data yet</p>
+    </div>
+  );
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }} barSize={22}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+        <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+        <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+        <Tooltip content={({ active, payload }) => {
+          if (!active || !payload?.length) return null;
+          const d = payload[0].payload;
+          return (
+            <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs shadow-xl">
+              <p className="text-gray-700 font-semibold mb-0.5">{d.fullName}</p>
+              <p className="text-gray-900">Accuracy: <strong>{d.accuracy}%</strong></p>
+              <p className="text-gray-400">{d.correct}/{d.total} correct</p>
+            </div>
+          );
+        }} />
+        <Bar dataKey="accuracy" radius={[6, 6, 0, 0]} name="Accuracy">
+          {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Donut breakdown ───────────────────────────────────────────────────────────
+function QuestionDonut({ correct, incorrect, skipped, doubts }: { correct: number; incorrect: number; skipped: number; doubts: number }) {
+  const total = correct + incorrect + skipped;
+  const accPct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const slices = [
+    { name: 'Correct', value: correct, color: C.emerald },
+    { name: 'Incorrect', value: incorrect, color: C.rose },
+    { name: 'Skipped', value: skipped, color: C.slate },
+  ].filter(d => d.value > 0);
+
+  return (
+    <div className="flex items-center gap-4 h-full">
+      <div className="relative flex-shrink-0" style={{ width: 120, height: 120 }}>
+        <ResponsiveContainer width={120} height={120}>
+          <PieChart>
+            <Pie data={slices} cx={57} cy={57} innerRadius={38} outerRadius={55}
+              dataKey="value" stroke="none" paddingAngle={2}>
+              {slices.map((d, i) => <Cell key={i} fill={d.color} />)}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-xl font-black text-gray-900">{accPct}%</span>
+          <span className="text-[10px] text-gray-400">accuracy</span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2.5 flex-1 min-w-0">
+        {[
+          { label: 'Correct', value: correct, color: C.emerald },
+          { label: 'Incorrect', value: incorrect, color: C.rose },
+          { label: 'Skipped', value: skipped, color: C.slate },
+          { label: 'Doubts', value: doubts, color: C.amber },
+        ].map(r => (
+          <div key={r.label} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.color }} />
+            <span className="text-xs text-gray-500 flex-1">{r.label}</span>
+            <span className="text-xs font-bold text-gray-800">{r.value}</span>
+            <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${total > 0 ? (r.value / total) * 100 : 0}%`, background: r.color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Time radial ───────────────────────────────────────────────────────────────
+function TimeRadial({ time, attempts }: { time: number; attempts: number }) {
+  const avgPerTest = attempts > 0 ? Math.round(time / attempts) : 0;
+  const pct = Math.min(100, Math.round((avgPerTest / 3600) * 100));
+  return (
+    <div className="flex items-center gap-4 h-full">
+      <div className="flex-shrink-0">
+        <ResponsiveContainer width={90} height={90}>
+          <RadialBarChart cx={45} cy={45} innerRadius={28} outerRadius={42}
+            data={[{ value: pct, fill: C.amber }]} startAngle={90} endAngle={-270}>
+            <RadialBar dataKey="value" cornerRadius={8} background={{ fill: '#f1f5f9' }} />
+          </RadialBarChart>
+        </ResponsiveContainer>
+      </div>
+      <div>
+        <p className="text-2xl font-black text-gray-900">{fmtTime(time)}</p>
+        <p className="text-xs text-gray-400 mt-0.5">total across {attempts} test{attempts !== 1 ? 's' : ''}</p>
+        <div className="mt-2 pt-2 border-t border-gray-100">
+          <p className="text-base font-bold text-amber-500">{fmtTime(avgPerTest)}</p>
+          <p className="text-xs text-gray-400">avg per test</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Student cumulative view ───────────────────────────────────────────────────
 function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () => void }) {
   const [attempts, setAttempts] = useState<LoadedAttempt[]>([]);
   const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
@@ -34,7 +215,6 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
     return () => { cancelled = true; };
   }, [student.id]);
 
-  // Every question record EXCEPT those from diagnostic tests.
   const nonDiagAttempts = useMemo(() => attempts.filter(a => !a.isDiagnostic), [attempts]);
   const scoped = useMemo(() => {
     const ids = new Set(nonDiagAttempts.map(a => a.id));
@@ -45,41 +225,46 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
 
   const summary = useMemo(() => aggregate(scoped), [scoped]);
   const { domainRows, skillRows } = useMemo(() => buildBreakdown(scoped, subject), [scoped, subject]);
-
   const acc = accuracy(summary);
-  const metrics = [
-    { label: 'Correct / Total', value: `${summary.correct}/${summary.total}`, cls: 'text-gray-900', icon: <Target size={14} className="text-gray-400" /> },
-    { label: 'Mistakes', value: summary.incorrect, cls: 'text-red-600', icon: <XCircle size={14} className="text-red-400" /> },
-    { label: 'Doubts', value: summary.doubts, cls: 'text-amber-600', icon: <HelpCircle size={14} className="text-amber-400" /> },
-    { label: 'Cleared', value: summary.cleared, cls: 'text-emerald-600', icon: <ShieldCheck size={14} className="text-emerald-400" /> },
-    { label: 'Total Time Spent', value: fmtTime(summary.time), cls: 'text-gray-900', icon: <Clock size={14} className="text-gray-400" /> },
-    { label: 'Accuracy', value: `${acc}%`, cls: acc >= 80 ? 'text-emerald-600' : acc >= 60 ? 'text-amber-600' : 'text-red-600', icon: <CheckCircle2 size={14} className="text-gray-400" /> },
-  ];
+
+  // Latest score card
+  const latestScore = useMemo(() => {
+    if (!nonDiagAttempts.length) return null;
+    const latest = nonDiagAttempts[0];
+    const s = computeSatScore(records.get(latest.id) ?? []);
+    return { total: latest.totalScore ?? s.total, rw: s.rw, math: s.math };
+  }, [nonDiagAttempts, records]);
 
   const subjectLabel = subject === 'rw' ? 'Reading & Writing' : 'Math';
 
   return (
     <div className="space-y-5 max-w-5xl">
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Back to students">
+        <button
+          onClick={onBack}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Back to students"
+        >
           <ArrowLeft size={20} className="text-gray-600" />
         </button>
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-          {student.name.charAt(0).toUpperCase()}
-        </div>
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-gray-900 truncate">{student.name}</h1>
-          <p className="text-gray-500 text-sm truncate">{student.email}</p>
+          <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
+          <p className="text-gray-400 text-sm">{student.name}</p>
+        </div>
+        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-medium">
+            {nonDiagAttempts.length} test{nonDiagAttempts.length !== 1 ? 's' : ''}
+          </span>
         </div>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <Loader2 size={20} className="animate-spin text-[#1b3d6e]" />
+          <Loader2 size={22} className="animate-spin text-[#1b3d6e]" />
         </div>
       ) : nonDiagAttempts.length === 0 ? (
-        <div className="bg-white border border-gray-100 rounded-xl py-16 text-center">
+        <div className="bg-white border border-gray-100 rounded-xl py-16 text-center shadow-sm">
           <Target size={24} className="text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">No non-diagnostic tests attempted yet</p>
           <p className="text-gray-400 text-sm mt-1">
@@ -88,30 +273,80 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
         </div>
       ) : (
         <>
-          {/* Cumulative summary */}
-          <div>
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Cumulative · {nonDiagAttempts.length} test{nonDiagAttempts.length !== 1 ? 's' : ''} (diagnostics excluded)
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {metrics.map(m => (
-                <div key={m.label} className="bg-white border border-gray-100 rounded-xl p-4">
-                  <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1">{m.icon}{m.label}</p>
-                  <p className={`text-2xl font-bold mt-1 ${m.cls}`}>{m.value}</p>
+          {/* ── Score Hero ──────────────────────────────────────────────── */}
+          <div className="bg-gradient-to-br from-[#1b3d6e] to-[#1e4d8c] rounded-2xl p-5 shadow-lg shadow-blue-200/40 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            <div className="relative flex flex-wrap items-center justify-between gap-6">
+              {latestScore && (
+                <div>
+                  <p className="text-blue-300 text-[11px] font-bold uppercase tracking-widest mb-1">Latest Score</p>
+                  <p className="text-6xl font-black text-white tracking-tight tabular-nums">{latestScore.total}</p>
+                  <p className="text-blue-200 text-xs mt-1">
+                    RW <span className="text-white font-bold">{latestScore.rw}</span>
+                    {' '}&nbsp;·&nbsp;{' '}
+                    Math <span className="text-white font-bold">{latestScore.math}</span>
+                  </p>
                 </div>
-              ))}
+              )}
+              <div className="flex gap-6 sm:gap-10 flex-wrap">
+                {[
+                  { label: 'Total Qs', value: summary.total, color: 'text-blue-200' },
+                  { label: 'Correct', value: summary.correct, color: 'text-emerald-300' },
+                  { label: 'Mistakes', value: summary.incorrect, color: 'text-rose-300' },
+                  { label: 'Doubts', value: summary.doubts, color: 'text-amber-300' },
+                  { label: 'Accuracy', value: `${acc}%`, color: acc >= 80 ? 'text-emerald-300' : acc >= 60 ? 'text-amber-300' : 'text-rose-300' },
+                ].map(m => (
+                  <div key={m.label} className="text-center">
+                    <p className="text-[10px] uppercase tracking-widest font-semibold text-blue-300/70">{m.label}</p>
+                    <p className={`text-2xl font-black tabular-nums ${m.color}`}>{m.value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Subject toggle */}
+          {/* ── Charts row ──────────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Score trend */}
+            <div className="sm:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp size={15} className="text-blue-500" />
+                <span className="text-sm font-bold text-gray-800">Score Trend</span>
+                <span className="text-xs text-gray-400 ml-1">all {nonDiagAttempts.length} tests</span>
+              </div>
+              <div style={{ height: 200 }}>
+                <ScoreTrend attempts={nonDiagAttempts} records={records} />
+              </div>
+            </div>
+
+            {/* Question breakdown donut */}
+            <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Target size={15} className="text-indigo-500" />
+                <span className="text-sm font-bold text-gray-800">Question Breakdown</span>
+              </div>
+              <div style={{ height: 200 }}>
+                <QuestionDonut
+                  correct={summary.correct}
+                  incorrect={summary.incorrect}
+                  skipped={summary.skipped}
+                  doubts={summary.doubts}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Subject toggle ───────────────────────────────────────────── */}
           <div className="flex items-center gap-2 pt-1">
             <span className="text-xs text-gray-500 font-medium">Breakdown for:</span>
             {([['rw', 'Reading & Writing'], ['math', 'Math']] as const).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setSubject(key)}
-                className={`text-xs px-3 py-1.5 rounded-md font-semibold transition-colors ${
-                  subject === key ? 'bg-[#1b3d6e] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                className={`text-xs px-3.5 py-1.5 rounded-lg font-semibold transition-all ${
+                  subject === key
+                    ? 'bg-[#1b3d6e] text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 }`}
               >
                 {label}
@@ -119,6 +354,31 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
             ))}
           </div>
 
+          {/* ── Domain bar + time radial ─────────────────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart2 size={15} className="text-emerald-500" />
+                <span className="text-sm font-bold text-gray-800">Domain Accuracy</span>
+                <span className="text-xs text-gray-400 ml-1">· {subjectLabel}</span>
+              </div>
+              <div style={{ height: 180 }}>
+                <DomainBars rows={domainRows} subject={subject} />
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock size={15} className="text-amber-500" />
+                <span className="text-sm font-bold text-gray-800">Time Spent</span>
+              </div>
+              <div style={{ height: 180 }}>
+                <TimeRadial time={summary.time} attempts={nonDiagAttempts.length} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Breakdown tables ─────────────────────────────────────────── */}
           <BreakdownTable
             title="Domain-wise Analysis"
             subtitle={`${subjectLabel} · ${SAT_CONTENT[subject === 'math' ? 'Math' : 'Reading and Writing'].length} content domains`}
@@ -139,8 +399,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
   );
 }
 
-// ─── Student picker list ───────────────────────────────────────────────────────
-
+// ── Student picker ────────────────────────────────────────────────────────────
 export function AdminAnalyticsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const studentIdParam = searchParams.get('studentId');
@@ -163,11 +422,7 @@ export function AdminAnalyticsPage() {
     if (students.length > 0) {
       if (studentIdParam) {
         const found = students.find(s => s.id === studentIdParam);
-        if (found) {
-          setSelected(found);
-        } else {
-          setSelected(null);
-        }
+        setSelected(found ?? null);
       } else {
         setSelected(null);
       }
@@ -186,8 +441,10 @@ export function AdminAnalyticsPage() {
   return (
     <div className="space-y-5 max-w-3xl">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Student Analytics</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Pick a student to see cumulative performance across all tests (excluding diagnostics).</p>
+        <h1 className="text-xl font-bold text-gray-900">Student Analytics</h1>
+        <p className="text-gray-500 text-sm mt-0.5">
+          Pick a student to see their cumulative performance &amp; charts (diagnostics excluded).
+        </p>
       </div>
 
       <div className="relative">
@@ -196,28 +453,30 @@ export function AdminAnalyticsPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by name or email…"
-          className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#1b3d6e]"
+          className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#1b3d6e] shadow-sm"
         />
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <Loader2 size={20} className="animate-spin text-[#1b3d6e]" />
+          <Loader2 size={22} className="animate-spin text-[#1b3d6e]" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white border border-gray-100 rounded-xl py-16 text-center">
+        <div className="bg-white border border-gray-100 rounded-xl py-16 text-center shadow-sm">
           <Users size={24} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">{students.length === 0 ? 'No students found' : 'No students match your search'}</p>
+          <p className="text-gray-500 font-medium">
+            {students.length === 0 ? 'No students found' : 'No students match your search'}
+          </p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50 overflow-hidden">
+        <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50 overflow-hidden shadow-sm">
           {filtered.map(s => (
             <button
               key={s.id}
               onClick={() => setSearchParams({ studentId: s.id })}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors group"
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-blue-50/50 transition-colors group"
             >
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                 {s.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
@@ -225,9 +484,11 @@ export function AdminAnalyticsPage() {
                 <p className="text-xs text-gray-400 truncate">{s.email}</p>
               </div>
               {typeof s.testsAttempted === 'number' && (
-                <span className="text-xs text-gray-400 flex-shrink-0">{s.testsAttempted} test{s.testsAttempted !== 1 ? 's' : ''}</span>
+                <span className="text-xs text-gray-400 flex-shrink-0 bg-gray-100 px-2 py-0.5 rounded-full">
+                  {s.testsAttempted} test{s.testsAttempted !== 1 ? 's' : ''}
+                </span>
               )}
-              <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 flex-shrink-0" />
+              <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 flex-shrink-0 transition-colors" />
             </button>
           ))}
         </div>
