@@ -1,8 +1,5 @@
 import { useMemo } from 'react';
 import { Clock, AlertTriangle, Zap } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine,
-} from 'recharts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type QuestionTimeStat = {
@@ -19,29 +16,162 @@ const SLOW_THRESHOLD = 90;
 const RUSHED_THRESHOLD = 20;
 
 const STATUS_COLOR: Record<string, string> = {
-  correct: '#10b981',   // emerald
-  incorrect: '#ef4444', // red
-  skipped: '#cbd5e1',   // slate
+  correct:   '#10b981',  // emerald
+  incorrect: '#ef4444',  // red
+  skipped:   '#cbd5e1',  // slate
 };
 
-function ChartTooltip({ active, payload }: any) {
-  if (!active || !payload || !payload.length) return null;
-  const d = payload[0].payload as QuestionTimeStat;
+// ─── Gantt chart ──────────────────────────────────────────────────────────────
+function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: number }) {
+  // Build cumulative start times
+  const rows = useMemo(() => {
+    let cursor = 0;
+    return sorted.map(q => {
+      const start = cursor;
+      cursor += q.timeSpentSeconds;
+      return { ...q, startSec: start };
+    });
+  }, [sorted]);
+
+  const totalSec = useMemo(() => rows.reduce((s, r) => s + r.timeSpentSeconds, 0), [rows]);
+
+  // Chart dimensions
+  const ROW_H    = 20;   // px per question row
+  const ROW_GAP  = 6;    // px gap between rows
+  const LABEL_W  = 36;   // px for "Q27" labels on the left
+  const TICK_H   = 24;   // px for the time axis at bottom
+  const PADDING  = 12;   // px right margin
+
+  const chartH = rows.length * (ROW_H + ROW_GAP);
+
+  // We'll render into an auto-width container; use a viewBox trick with SVG
+  // that scales to fill the container width.
+  // For the x-axis, we map [0, totalSec] → [LABEL_W, chartW].
+  // We don't know chartW at render time, so we use a fixed internal coordinate
+  // system and let SVG viewBox scale it. Internal width = 1000 units.
+  const IW = 1000; // internal width units
+  const plotW = IW - LABEL_W - PADDING;
+
+  const toX = (sec: number) => LABEL_W + (sec / Math.max(totalSec, 1)) * plotW;
+
+  // Time axis ticks — aim for ~8-12 ticks in minutes
+  const totalMin = totalSec / 60;
+  const tickStep = totalMin <= 10 ? 1 : totalMin <= 20 ? 2 : totalMin <= 40 ? 5 : 10;
+  const ticks: number[] = [];
+  for (let m = 0; m <= Math.ceil(totalMin) + tickStep; m += tickStep) {
+    if (m * 60 <= totalSec + tickStep * 60) ticks.push(m);
+  }
+
+  const svgH = chartH + TICK_H + 8;
+
+  // Tooltip state managed purely with CSS title (SVG native)
   return (
-    <div className="bg-slate-900 text-white p-2.5 rounded-lg text-[11px] shadow-xl border border-slate-800 space-y-1 text-left">
-      <p className="font-bold text-blue-400">Question {d.questionIndex}</p>
-      <p><span className="text-slate-300">Topic:</span> {d.topicName || '—'}</p>
-      <p className="capitalize"><span className="text-slate-300">Result:</span> {d.status}</p>
-      <p><span className="text-slate-300">Time:</span> <span className="font-mono">{d.timeSpentSeconds}s</span></p>
+    <div className="overflow-x-auto w-full">
+      <svg
+        viewBox={`0 0 ${IW} ${svgH}`}
+        className="w-full"
+        style={{ minWidth: Math.max(500, sorted.length * 8) }}
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* ── Grid lines ── */}
+        {ticks.map(m => {
+          const x = toX(m * 60);
+          return (
+            <line
+              key={m}
+              x1={x} y1={0} x2={x} y2={chartH}
+              stroke="#f1f5f9" strokeWidth={1}
+            />
+          );
+        })}
+
+        {/* ── Avg time reference line ── */}
+        {rows.map((r, i) => {
+          const y = i * (ROW_H + ROW_GAP);
+          const avgX = toX(r.startSec + avgTime);
+          // only draw if it's within this row's bar
+          return avgX <= toX(r.startSec + r.timeSpentSeconds) ? null : null;
+        })}
+
+        {/* ── Question rows ── */}
+        {rows.map((r, i) => {
+          const y       = i * (ROW_H + ROW_GAP);
+          const x1      = toX(r.startSec);
+          const x2      = toX(r.startSec + r.timeSpentSeconds);
+          const barW    = Math.max(x2 - x1, 1.5);
+          const fill    = STATUS_COLOR[r.status] || STATUS_COLOR.skipped;
+          const label   = `Q${r.questionIndex}`;
+          const tipText = `Q${r.questionIndex} | ${r.topicName || '—'} | ${r.status} | ${r.timeSpentSeconds}s`;
+
+          return (
+            <g key={r.questionIndex}>
+              {/* Row stripe (even rows) */}
+              {i % 2 === 0 && (
+                <rect x={0} y={y} width={IW} height={ROW_H + ROW_GAP}
+                  fill="#f9fafb" fillOpacity={0.5} />
+              )}
+              {/* Q label */}
+              <text
+                x={LABEL_W - 4} y={y + ROW_H / 2 + 4}
+                textAnchor="end" fontSize={9} fill="#6b7280" fontFamily="system-ui, sans-serif"
+              >
+                {label}
+              </text>
+              {/* Bar */}
+              <rect
+                x={x1} y={y + 3} width={barW} height={ROW_H - 6}
+                rx={3} ry={3} fill={fill} fillOpacity={0.9}
+              >
+                <title>{tipText}</title>
+              </rect>
+            </g>
+          );
+        })}
+
+        {/* ── Avg time vertical dashed line ── */}
+        {(() => {
+          // cumulative avg = at the midpoint of the total
+          const avgX = toX(avgTime);
+          return (
+            <line
+              x1={avgX} y1={0} x2={avgX} y2={chartH}
+              stroke="#60a5fa" strokeWidth={1.2}
+              strokeDasharray="5 3"
+            />
+          );
+        })()}
+
+        {/* ── X-axis tick labels ── */}
+        {ticks.map(m => {
+          const x = toX(m * 60);
+          return (
+            <g key={m}>
+              <line x1={x} y1={chartH} x2={x} y2={chartH + 5} stroke="#e2e8f0" strokeWidth={1} />
+              <text
+                x={x} y={chartH + 16}
+                textAnchor="middle" fontSize={9} fill="#94a3b8"
+                fontFamily="system-ui, sans-serif"
+              >
+                {m}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* ── X-axis label ── */}
+        <text
+          x={LABEL_W + plotW / 2} y={svgH - 1}
+          textAnchor="middle" fontSize={9} fill="#94a3b8"
+          fontFamily="system-ui, sans-serif"
+        >
+          Time (in minutes)
+        </text>
+      </svg>
     </div>
   );
 }
 
-/**
- * Honest per-question time view: one bar per question, height = real time spent,
- * colored by result. A dashed line marks the student's average pace; questions
- * above the slow line or below the rushed line are surfaced as counts.
- */
+// ─── Main component ──────────────────────────────────────────────────────────
 export function QuestionTimeChart({ stats }: { stats: QuestionTimeStat[] }) {
   const sorted = useMemo(
     () => [...stats].sort((a, b) => a.questionIndex - b.questionIndex),
@@ -82,7 +212,7 @@ export function QuestionTimeChart({ stats }: { stats: QuestionTimeStat[] }) {
         </div>
       </div>
 
-      {/* Time-per-question bar chart */}
+      {/* Gantt chart */}
       {sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-gray-400 border border-dashed border-gray-200 rounded-xl">
           <Clock size={24} className="mb-2 opacity-40" />
@@ -92,39 +222,26 @@ export function QuestionTimeChart({ stats }: { stats: QuestionTimeStat[] }) {
       ) : (
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           {/* Legend */}
-          <div className="flex justify-center items-center gap-4 mb-3 text-[11px] font-medium text-gray-500">
-            <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ background: STATUS_COLOR.correct }} /> Correct</div>
-            <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ background: STATUS_COLOR.incorrect }} /> Incorrect</div>
-            <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ background: STATUS_COLOR.skipped }} /> Skipped</div>
-            <div className="flex items-center gap-1.5"><span className="w-4 border-t-2 border-dashed border-blue-400" /> Avg ({avgTime}s)</div>
+          <div className="flex justify-center items-center gap-5 mb-4 text-[11px] font-medium text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm" style={{ background: STATUS_COLOR.correct }} />
+              Correct
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm" style={{ background: STATUS_COLOR.incorrect }} />
+              Incorrect
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm" style={{ background: STATUS_COLOR.skipped }} />
+              Skipped
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-5 border-t-2 border-dashed border-blue-400 inline-block" />
+              Avg ({avgTime}s)
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={sorted} margin={{ top: 5, right: 10, left: -18, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis
-                dataKey="questionIndex"
-                tickFormatter={(v) => `${v}`}
-                tick={{ fontSize: 10, fill: '#94a3b8' }}
-                axisLine={{ stroke: '#e2e8f0' }}
-                tickLine={false}
-                interval="preserveStartEnd"
-                label={{ value: 'Question #', position: 'insideBottom', offset: -2, fontSize: 10, fill: '#94a3b8' }}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: '#94a3b8' }}
-                axisLine={false}
-                tickLine={false}
-                unit="s"
-              />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
-              <ReferenceLine y={avgTime} stroke="#60a5fa" strokeDasharray="4 4" />
-              <Bar dataKey="timeSpentSeconds" radius={[2, 2, 0, 0]} maxBarSize={26}>
-                {sorted.map((q, i) => (
-                  <Cell key={i} fill={STATUS_COLOR[q.status] || STATUS_COLOR.skipped} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+
+          <GanttChart sorted={sorted} avgTime={avgTime} />
         </div>
       )}
     </div>
