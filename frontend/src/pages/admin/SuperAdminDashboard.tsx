@@ -6,6 +6,11 @@ import { Card, StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar
+} from 'recharts';
+
 type TabKey = 'overview' | 'users' | 'permissions' | 'system';
 
 const roleColors: Record<string, string> = {
@@ -31,11 +36,18 @@ export function SuperAdminDashboard() {
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
   const [copiedPassword, setCopiedPassword] = useState(false);
 
+  const [activityData, setActivityData] = useState<{ date: string; attempts: number; completions: number }[]>([]);
+  const [scoreDistData, setScoreDistData] = useState<{ range: string; count: number }[]>([]);
+
   useEffect(() => {
     Promise.all([
       api.getUsersByRole().then((r) => setUsers(r.users)),
       api.getAllTests().then((r) => setTests(r.tests)),
       api.getPermissions().then((r) => setPermissions(r.permissions)),
+      api.getPlatformAnalytics().then((r) => {
+        setActivityData(r.activityData || []);
+        setScoreDistData(r.scoreDistribution || []);
+      }).catch(() => {})
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -128,37 +140,151 @@ export function SuperAdminDashboard() {
       </div>
 
       {/* Overview */}
-      {tab === 'overview' && (
-        <div className="space-y-4 md:space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            <StatCard title="Total Users" value={loading ? '…' : users.length} subtitle={`${roleCounts['student'] ?? 0} students`} icon={<Users size={20} />} color="blue" />
-            <StatCard title="Published Tests" value={loading ? '…' : publishedTests.length} subtitle={`${tests.length} total`} icon={<Activity size={20} />} color="emerald" />
-            <StatCard title="Tutors" value={loading ? '…' : roleCounts['tutor'] ?? 0} subtitle="active tutors" icon={<Shield size={20} />} color="purple" />
-            <StatCard title="Admins" value={loading ? '…' : (roleCounts['admin'] ?? 0) + (roleCounts['super_admin'] ?? 0)} subtitle="platform admins" icon={<Zap size={20} />} color="amber" />
-          </div>
-          <Card>
-            <h3 className="font-semibold text-slate-900 mb-4">Users by Role</h3>
-            {loading ? <p className="text-sm text-slate-400">Loading…</p> : (
-              <div className="space-y-3">
-                {(['super_admin', 'admin', 'tutor', 'student'] as const).map((role) => {
-                  const count = roleCounts[role] ?? 0;
-                  return (
-                    <div key={role} className="flex items-center justify-between">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${roleColors[role]}`}>{role.replace('_', ' ')}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full" style={{ width: users.length ? `${(count / users.length) * 100}%` : '0%' }} />
-                        </div>
-                        <span className="text-sm font-medium text-slate-700 w-6 text-right">{count}</span>
+      {tab === 'overview' && (() => {
+        const roleChartData = [
+          { name: 'Super Admin', value: roleCounts['super_admin'] ?? 0, color: '#a855f7' },
+          { name: 'Admin', value: roleCounts['admin'] ?? 0, color: '#3b82f6' },
+          { name: 'Tutor', value: roleCounts['tutor'] ?? 0, color: '#10b981' },
+          { name: 'Student', value: roleCounts['student'] ?? 0, color: '#f59e0b' },
+        ].filter(item => item.value > 0);
+
+        return (
+          <div className="space-y-5 md:space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              <StatCard title="Total Users" value={loading ? '…' : users.length} subtitle={`${roleCounts['student'] ?? 0} students`} icon={<Users size={20} />} color="blue" />
+              <StatCard title="Published Tests" value={loading ? '…' : publishedTests.length} subtitle={`${tests.length} total`} icon={<Activity size={20} />} color="emerald" />
+              <StatCard title="Tutors" value={loading ? '…' : roleCounts['tutor'] ?? 0} subtitle="active tutors" icon={<Shield size={20} />} color="purple" />
+              <StatCard title="Admins" value={loading ? '…' : (roleCounts['admin'] ?? 0) + (roleCounts['super_admin'] ?? 0)} subtitle="platform admins" icon={<Zap size={20} />} color="amber" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Donut Chart: Users by Role */}
+              <Card className="lg:col-span-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">User Distribution</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Active platform members by role</p>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center py-2">
+                  {loading ? (
+                    <p className="text-sm text-slate-400">Loading…</p>
+                  ) : roleChartData.length === 0 ? (
+                    <p className="text-sm text-slate-400">No users found</p>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={150}>
+                        <PieChart>
+                          <Pie
+                            data={roleChartData}
+                            innerRadius={40}
+                            outerRadius={58}
+                            paddingAngle={3}
+                            dataKey="value"
+                          >
+                            {roleChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: '8px',
+                              border: '1px solid #f1f5f9',
+                              fontSize: '11px',
+                              boxShadow: 'none'
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 mt-2">
+                        {roleChartData.map((item) => (
+                          <div key={item.name} className="flex items-center gap-1 text-[11px] text-slate-600 font-medium">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                            <span>{item.name.replace('Super ', 'S. ')} ({item.value})</span>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  );
-                })}
+                    </>
+                  )}
+                </div>
+              </Card>
+
+              {/* Area Chart: Test Activity */}
+              <Card className="lg:col-span-2">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Test Activity</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Daily attempts vs completions (last 7 days)</p>
+                </div>
+                <div className="mt-4">
+                  {loading ? (
+                    <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">Loading…</p></div>
+                  ) : activityData.length === 0 ? (
+                    <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">No recent activity</p></div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={170}>
+                      <AreaChart data={activityData} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
+                        <defs>
+                          <linearGradient id="superAttempts" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="superCompletions" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #f1f5f9',
+                            fontSize: '11px',
+                            boxShadow: 'none'
+                          }}
+                        />
+                        <Area type="monotone" dataKey="attempts" stroke="#3b82f6" strokeWidth={1.5} fill="url(#superAttempts)" name="Attempts" />
+                        <Area type="monotone" dataKey="completions" stroke="#10b981" strokeWidth={1.5} fill="url(#superCompletions)" name="Completions" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            {/* Bar Chart: Score Distribution */}
+            <Card>
+              <div>
+                <h3 className="font-bold text-slate-800 text-sm">Score Distribution</h3>
+                <p className="text-xs text-slate-400 mt-0.5">ACT composite ranges across student attempts</p>
               </div>
-            )}
-          </Card>
-        </div>
-      )}
+              <div className="mt-4">
+                {loading ? (
+                  <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">Loading…</p></div>
+                ) : scoreDistData.length === 0 ? (
+                  <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">No score distribution data</p></div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={170}>
+                    <BarChart data={scoreDistData} barSize={20} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
+                      <XAxis dataKey="range" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: '8px',
+                          border: '1px solid #f1f5f9',
+                          fontSize: '11px',
+                          boxShadow: 'none'
+                        }}
+                      />
+                      <Bar dataKey="count" fill="#a855f7" radius={[3, 3, 0, 0]} name="Students" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* User Management */}
       {tab === 'users' && (
