@@ -1274,11 +1274,11 @@ export function TestReviewPage() {
         </button>
 
         {knowledgeSkillsOpen && (
-          <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mt-4 pt-4 border-t border-slate-100">
             {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
-              <div key={group} className="mb-7 last:mb-0">
+              <div key={group}>
                 <h3 className="text-lg font-bold text-slate-900 mb-5">{group}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-7">
+                <div className="space-y-5">
                   {KS_DOMAINS[group].map((d) => {
                     const stat = domainStats[d.name];
                     const segs = stat.total > 0 ? stat.total : 8;
@@ -1297,7 +1297,7 @@ export function TestReviewPage() {
                 </div>
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
 

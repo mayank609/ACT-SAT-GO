@@ -116,6 +116,7 @@ interface SectionAnalysis {
   unvisited: number;
   accuracy: number;
   timeTaken: string;
+  bookmarked: number;
 }
 
 function computeTestAnalysis(attempt: TaAttempt): {
@@ -152,10 +153,11 @@ function computeTestAnalysis(attempt: TaAttempt): {
       }
     });
 
-    let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
+    let correct = 0, incorrect = 0, omitted = 0, unvisited = 0, bookmarked = 0;
     flatQs.forEach(tq => {
       const ans = answersMap.get(tq.questionId);
       if (!ans) { unvisited++; omitted++; return; }
+      if (ans.isFlagged) bookmarked++;
       if (!ans.answerGiven) { omitted++; return; }
       if (taAnswersMatch(ans.answerGiven, tq.question.correctAnswer)) correct++;
       else incorrect++;
@@ -181,7 +183,7 @@ function computeTestAnalysis(attempt: TaAttempt): {
     totalCorrect += correct;
     totalQuestions += total;
 
-    return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
+    return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken, bookmarked };
   });
 
   // Calculate final scaled score directly instead of raw score for SAT
@@ -1075,9 +1077,13 @@ export function MyStudentsPage() {
                             <span className="w-2 h-2 rounded-full bg-slate-300"></span>
                             <span>{sec.omitted} Omitted</span>
                           </div>
-                          <div className="flex items-center gap-1">
+                           <div className="flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full bg-blue-200"></span>
                             <span>{sec.unvisited} Unvisited</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                            <span className="text-amber-700 font-semibold">{sec.bookmarked} Bookmarked</span>
                           </div>
                           <div className="text-slate-300 font-light">|</div>
                           <div className="font-semibold text-slate-800">{sec.total} Questions</div>

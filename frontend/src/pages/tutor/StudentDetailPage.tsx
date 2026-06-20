@@ -37,7 +37,27 @@ interface Analytics {
   }>;
 }
 
-interface DbTest { id: string; title: string; status: string; sections: unknown[] }
+interface DbTest { id: string; title: string; status: string; category?: string; subCategory?: string; sections: unknown[] }
+
+const isHW = (test: any): boolean => {
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  return sub.includes('hw') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+};
+
+const isEnglish = (test: any): boolean => {
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  return sub.includes('rw') || sub.includes('english') || sub.includes('reading') || sub.includes('writing') ||
+         /reading|writing|english|verbal|grammar|\brw\b/.test(t);
+};
+
+const isMath = (test: any): boolean => {
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  return sub.includes('math') || sub.includes('quant') ||
+         /math|algebra|geometry|calc/.test(t);
+};
 
 export function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,6 +71,9 @@ export function StudentDetailPage() {
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [assignFilter, setAssignFilter] = useState('All');
+  const [assignSubFilter, setAssignSubFilter] = useState<'All' | 'HW' | 'English' | 'Maths'>('All');
+  const [assignSearch, setAssignSearch] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
@@ -301,11 +324,11 @@ export function StudentDetailPage() {
       </div>
 
       {/* Assign Test Modal */}
-      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestIds([]); }}
+      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestIds([]); setAssignFilter('All'); setAssignSubFilter('All'); setAssignSearch(''); }}
         title="Assign Tests" size="md"
         footer={
           <div className="flex gap-2 justify-end">
-            <Button variant="secondary" size="sm" onClick={() => setAssignOpen(false)}>Cancel</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setAssignOpen(false); setSelectedTestIds([]); setAssignFilter('All'); setAssignSubFilter('All'); setAssignSearch(''); }}>Cancel</Button>
             <Button size="sm" disabled={selectedTestIds.length === 0 || assignLoading} onClick={async () => {
               if (selectedTestIds.length === 0 || !id) return;
               setAssignLoading(true);
@@ -325,6 +348,9 @@ export function StudentDetailPage() {
                 );
                 setAssignOpen(false);
                 setSelectedTestIds([]);
+                setAssignFilter('All');
+                setAssignSubFilter('All');
+                setAssignSearch('');
               } catch (err: unknown) {
                 toast.error(err instanceof Error ? err.message : 'Failed to assign tests.');
               } finally {
@@ -337,36 +363,108 @@ export function StudentDetailPage() {
           <p className="text-sm text-slate-500">Select one or more published tests to assign to <strong>{student.name}</strong>.</p>
           {publishedTests.length === 0 ? (
             <p className="text-sm text-slate-400 py-2">No published tests available.</p>
-          ) : (
-            <div className="space-y-2">
-              {publishedTests.map((test) => {
-                const isSelected = selectedTestIds.includes(test.id);
-                return (
-                  <label key={test.id}
-                    className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                      isSelected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
-                    }`}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedTestIds((prev) => [...prev, test.id]);
-                        } else {
-                          setSelectedTestIds((prev) => prev.filter((tId) => tId !== test.id));
-                        }
-                      }}
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          )}
+          ) : (() => {
+            const categories = ['All', ...Array.from(new Set(publishedTests.map(t => t.category ?? 'Other')))];
+            const filtered = publishedTests
+              .filter(t => assignFilter === 'All' || (t.category ?? 'Other') === assignFilter)
+              .filter((t) => {
+                if (assignFilter !== 'Practice Sheet' || assignSubFilter === 'All') return true;
+                if (assignSubFilter === 'HW') return isHW(t);
+                if (assignSubFilter === 'English') return isEnglish(t);
+                if (assignSubFilter === 'Maths') return isMath(t);
+                return true;
+              })
+              .filter(t => !assignSearch.trim() || t.title.toLowerCase().includes(assignSearch.trim().toLowerCase()));
+            return (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => { setAssignFilter(cat); setAssignSubFilter('All'); }}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                        assignFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat}
+                      <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${assignFilter === cat ? 'bg-blue-500 text-white' : 'bg-slate-300 text-slate-600'}`}>
+                        {cat === 'All' ? publishedTests.length : publishedTests.filter(t => (t.category ?? 'Other') === cat).length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {assignFilter === 'Practice Sheet' && (
+                  <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                    {(['All', 'HW', 'English', 'Maths'] as const).map((sub) => {
+                      const count = publishedTests
+                        .filter((t) => (t.category ?? 'Other') === 'Practice Sheet')
+                        .filter((t) => {
+                          if (sub === 'All') return true;
+                          if (sub === 'HW') return isHW(t);
+                          if (sub === 'English') return isEnglish(t);
+                          if (sub === 'Maths') return isMath(t);
+                          return true;
+                        }).length;
+
+                      return (
+                        <button
+                          key={sub}
+                          onClick={() => setAssignSubFilter(sub)}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                            assignSubFilter === sub ? 'bg-blue-500 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/60'
+                          }`}
+                        >
+                          {sub}
+                          <span className={`ml-1.5 text-[9px] font-bold px-1.5 py-0.2 rounded-full ${assignSubFilter === sub ? 'bg-blue-400 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  value={assignSearch}
+                  onChange={e => { setAssignSearch(e.target.value); }}
+                  placeholder="Search tests by name…"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {filtered.length === 0 ? (
+                    <p className="text-sm text-slate-400 py-4 text-center">No tests found.</p>
+                  ) : filtered.map((test) => {
+                    const isSelected = selectedTestIds.includes(test.id);
+                    return (
+                      <label key={test.id}
+                        className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                          isSelected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                        }`}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTestIds((prev) => [...prev, test.id]);
+                            } else {
+                              setSelectedTestIds((prev) => prev.filter((tId) => tId !== test.id));
+                            }
+                          }}
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </Modal>
 

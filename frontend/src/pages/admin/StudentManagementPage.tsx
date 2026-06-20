@@ -153,6 +153,7 @@ interface SectionAnalysis {
   unvisited: number;
   accuracy: number;
   timeTaken: string;
+  bookmarked: number;
 }
 
 function computeTestAnalysis(attempt: TaAttempt): {
@@ -197,10 +198,11 @@ function computeTestAnalysis(attempt: TaAttempt): {
       }
     });
 
-    let correct = 0, incorrect = 0, omitted = 0, unvisited = 0;
+    let correct = 0, incorrect = 0, omitted = 0, unvisited = 0, bookmarked = 0;
     flatQs.forEach(tq => {
       const ans = answersMap.get(tq.questionId);
       if (!ans) { unvisited++; omitted++; return; }
+      if (ans.isFlagged) bookmarked++;
       if (!ans.answerGiven) { omitted++; return; }
       if (taAnswersMatch(ans.answerGiven, tq.question.correctAnswer)) correct++;
       else incorrect++;
@@ -236,7 +238,7 @@ function computeTestAnalysis(attempt: TaAttempt): {
     totalCorrect += correct;
     totalQuestions += total;
 
-    return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
+    return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken, bookmarked };
   });
 
   const isSAT = rwTotal > 0 || mathTotal > 0;
@@ -283,6 +285,26 @@ const formatTargetDate = (dateStr: string | null) => {
 };
 
 // stage badge helper removed as the student table was consolidated
+
+const isHW = (test: any): boolean => {
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  return sub.includes('hw') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+};
+
+const isEnglish = (test: any): boolean => {
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  return sub.includes('rw') || sub.includes('english') || sub.includes('reading') || sub.includes('writing') ||
+         /reading|writing|english|verbal|grammar|\brw\b/.test(t);
+};
+
+const isMath = (test: any): boolean => {
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  return sub.includes('math') || sub.includes('quant') ||
+         /math|algebra|geometry|calc/.test(t);
+};
 
 export function StudentManagementPage() {
   const navigate = useNavigate();
@@ -379,6 +401,7 @@ export function StudentManagementPage() {
   const [assignStudentId, setAssignStudentId] = useState<string | null>(null);
   const [assignSelectedTestIds, setAssignSelectedTestIds] = useState<string[]>([]);
   const [assignFilter, setAssignFilter] = useState('All');
+  const [assignSubFilter, setAssignSubFilter] = useState<'All' | 'HW' | 'English' | 'Maths'>('All');
   const [assignSearch, setAssignSearch] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
 
@@ -1393,11 +1416,11 @@ export function StudentManagementPage() {
                       </button>
 
                       {knowledgeSkillsOpen && (
-                        <>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mt-4 pt-4 border-t border-slate-100">
                           {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
-                            <div key={group} className="mb-6 last:mb-0">
+                            <div key={group}>
                               <h5 className="text-sm font-bold text-slate-800 mb-4">{group}</h5>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+                              <div className="space-y-4">
                                 {KS_DOMAINS[group].map((d) => {
                                   const stat = domainStats[d.name] ?? { correct: 0, total: 0, diff: {} };
                                   const segs = stat.total > 0 ? stat.total : 8;
@@ -1416,7 +1439,7 @@ export function StudentManagementPage() {
                               </div>
                             </div>
                           ))}
-                        </>
+                        </div>
                       )}
                     </div>
                   );
@@ -1450,6 +1473,10 @@ export function StudentManagementPage() {
                           <div className="flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full bg-blue-200"></span>
                             <span>{sec.unvisited} Unvisited</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                            <span className="text-amber-700 font-semibold">{sec.bookmarked} Bookmarked</span>
                           </div>
                           <div className="text-slate-300 font-light">|</div>
                           <div className="font-semibold text-slate-800">{sec.total} Questions</div>
@@ -2666,16 +2693,23 @@ export function StudentManagementPage() {
         const categories = ['All', ...Array.from(new Set(publishedTests.map((t) => t.category ?? 'Other')))];
         const filtered = publishedTests
           .filter((t) => assignFilter === 'All' || (t.category ?? 'Other') === assignFilter)
+          .filter((t) => {
+            if (assignFilter !== 'Practice Sheet' || assignSubFilter === 'All') return true;
+            if (assignSubFilter === 'HW') return isHW(t);
+            if (assignSubFilter === 'English') return isEnglish(t);
+            if (assignSubFilter === 'Maths') return isMath(t);
+            return true;
+          })
           .filter((t) => !assignSearch.trim() || t.title.toLowerCase().includes(assignSearch.trim().toLowerCase()));
         return (
           <Modal
             isOpen={assignOpen}
-            onClose={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignFilter('All'); setAssignSearch(''); }}
+            onClose={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignFilter('All'); setAssignSubFilter('All'); setAssignSearch(''); }}
             title="Assign Tests"
             size="md"
             footer={
               <div className="flex gap-2 justify-end">
-                <Button variant="secondary" size="sm" onClick={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignFilter('All'); setAssignSearch(''); }}>Cancel</Button>
+                <Button variant="secondary" size="sm" onClick={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignFilter('All'); setAssignSubFilter('All'); setAssignSearch(''); }}>Cancel</Button>
                 <Button
                   size="sm"
                   icon={<BookOpen size={13} />}
@@ -2701,6 +2735,7 @@ export function StudentManagementPage() {
                       setAssignStudentId(null);
                       setAssignSelectedTestIds([]);
                       setAssignFilter('All');
+                      setAssignSubFilter('All');
                       setAssignSearch('');
                     } catch {
                       toast.error('Failed to assign tests');
@@ -2726,7 +2761,7 @@ export function StudentManagementPage() {
                     {categories.map((cat) => (
                       <button
                         key={cat}
-                        onClick={() => { setAssignFilter(cat); }}
+                        onClick={() => { setAssignFilter(cat); setAssignSubFilter('All'); }}
                         className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                           assignFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
@@ -2738,6 +2773,38 @@ export function StudentManagementPage() {
                       </button>
                     ))}
                   </div>
+
+                  {assignFilter === 'Practice Sheet' && (
+                    <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                      {(['All', 'HW', 'English', 'Maths'] as const).map((sub) => {
+                        const count = publishedTests
+                          .filter((t) => (t.category ?? 'Other') === 'Practice Sheet')
+                          .filter((t) => {
+                            if (sub === 'All') return true;
+                            if (sub === 'HW') return isHW(t);
+                            if (sub === 'English') return isEnglish(t);
+                            if (sub === 'Maths') return isMath(t);
+                            return true;
+                          }).length;
+
+                        return (
+                          <button
+                            key={sub}
+                            onClick={() => setAssignSubFilter(sub)}
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                              assignSubFilter === sub ? 'bg-blue-500 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/60'
+                            }`}
+                          >
+                            {sub}
+                            <span className={`ml-1.5 text-[9px] font-bold px-1.5 py-0.2 rounded-full ${assignSubFilter === sub ? 'bg-blue-400 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <input
                     type="text"
                     value={assignSearch}
