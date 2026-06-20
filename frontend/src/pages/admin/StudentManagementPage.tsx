@@ -377,7 +377,7 @@ export function StudentManagementPage() {
   const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignStudentId, setAssignStudentId] = useState<string | null>(null);
-  const [assignSelectedTestId, setAssignSelectedTestId] = useState('');
+  const [assignSelectedTestIds, setAssignSelectedTestIds] = useState<string[]>([]);
   const [assignFilter, setAssignFilter] = useState('All');
   const [assignSearch, setAssignSearch] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
@@ -1083,7 +1083,7 @@ export function StudentManagementPage() {
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
-                              onClick={() => { setAssignStudentId(row.studentId); setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setAssignSelectedTestId(''); }}
+                              onClick={() => { setAssignStudentId(row.studentId); setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setAssignSelectedTestIds([]); }}
                               className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
                             >
                               Assign
@@ -2670,30 +2670,40 @@ export function StudentManagementPage() {
         return (
           <Modal
             isOpen={assignOpen}
-            onClose={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestId(''); setAssignFilter('All'); setAssignSearch(''); }}
-            title="Assign Test"
+            onClose={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignFilter('All'); setAssignSearch(''); }}
+            title="Assign Tests"
             size="md"
             footer={
               <div className="flex gap-2 justify-end">
-                <Button variant="secondary" size="sm" onClick={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestId(''); setAssignFilter('All'); setAssignSearch(''); }}>Cancel</Button>
+                <Button variant="secondary" size="sm" onClick={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignFilter('All'); setAssignSearch(''); }}>Cancel</Button>
                 <Button
                   size="sm"
                   icon={<BookOpen size={13} />}
-                  disabled={!assignSelectedTestId || assignLoading}
+                  disabled={assignSelectedTestIds.length === 0 || assignLoading}
                   onClick={async () => {
-                    if (!assignStudentId || !assignSelectedTestId) return;
+                    if (!assignStudentId || assignSelectedTestIds.length === 0) return;
                     setAssignLoading(true);
                     try {
-                      await api.createTestAssignments({ testId: assignSelectedTestId, studentIds: [assignStudentId] });
-                      const test = publishedTests.find((t) => t.id === assignSelectedTestId);
-                      toast.success(`"${test?.title}" assigned`);
+                      await Promise.all(
+                        assignSelectedTestIds.map((testId) =>
+                          api.createTestAssignments({ testId, studentIds: [assignStudentId] })
+                        )
+                      );
+                      const titles = assignSelectedTestIds
+                        .map((id) => publishedTests.find((t) => t.id === id)?.title)
+                        .filter(Boolean);
+                      toast.success(
+                        titles.length > 1
+                          ? `${titles.length} tests assigned successfully`
+                          : `"${titles[0]}" assigned successfully`
+                      );
                       setAssignOpen(false);
                       setAssignStudentId(null);
-                      setAssignSelectedTestId('');
+                      setAssignSelectedTestIds([]);
                       setAssignFilter('All');
                       setAssignSearch('');
                     } catch {
-                      toast.error('Failed to assign test');
+                      toast.error('Failed to assign tests');
                     } finally {
                       setAssignLoading(false);
                     }
@@ -2706,7 +2716,7 @@ export function StudentManagementPage() {
           >
             <div className="space-y-3">
               <p className="text-sm text-slate-500">
-                Select a published test to assign to <strong>{assignStudent?.name ?? '…'}</strong>.
+                Select one or more published tests to assign to <strong>{assignStudent?.name ?? '…'}</strong>.
               </p>
               {publishedTests.length === 0 ? (
                 <p className="text-sm text-slate-400 py-2">No published tests available.</p>
@@ -2716,7 +2726,7 @@ export function StudentManagementPage() {
                     {categories.map((cat) => (
                       <button
                         key={cat}
-                        onClick={() => { setAssignFilter(cat); setAssignSelectedTestId(''); }}
+                        onClick={() => { setAssignFilter(cat); }}
                         className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                           assignFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
@@ -2731,29 +2741,42 @@ export function StudentManagementPage() {
                   <input
                     type="text"
                     value={assignSearch}
-                    onChange={(e) => { setAssignSearch(e.target.value); setAssignSelectedTestId(''); }}
+                    onChange={(e) => { setAssignSearch(e.target.value); }}
                     placeholder="Search tests by name…"
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
                   <div className="space-y-2 max-h-56 overflow-y-auto">
                     {filtered.length === 0 ? (
                       <p className="text-sm text-slate-400 py-4 text-center">No tests found.</p>
-                    ) : filtered.map((test) => (
-                      <label
-                        key={test.id}
-                        className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                          assignSelectedTestId === test.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <input type="radio" name="assign-test" value={test.id} checked={assignSelectedTestId === test.id}
-                          onChange={() => setAssignSelectedTestId(test.id)} className="mt-0.5 accent-blue-600" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
-                        </div>
-                        {assignSelectedTestId === test.id && <CheckCircle size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />}
-                      </label>
-                    ))}
+                    ) : filtered.map((test) => {
+                      const isSelected = assignSelectedTestIds.includes(test.id);
+                      return (
+                        <label
+                          key={test.id}
+                          className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                            isSelected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setAssignSelectedTestIds((prev) => [...prev, test.id]);
+                              } else {
+                                setAssignSelectedTestIds((prev) => prev.filter((id) => id !== test.id));
+                              }
+                            }}
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
+                          </div>
+                          {isSelected && <CheckCircle size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />}
+                        </label>
+                      );
+                    })}
                   </div>
                 </>
               )}

@@ -291,7 +291,7 @@ export function AdminStudentProfilePage() {
   const [editSaving, setEditSaving] = useState(false);
 
   const [assignOpen, setAssignOpen] = useState(false);
-  const [selectedTestId, setSelectedTestId] = useState('');
+  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [assignFilter, setAssignFilter] = useState('All');
   const [assignSearch, setAssignSearch] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
@@ -1148,22 +1148,32 @@ export function AdminStudentProfilePage() {
       </div>
 
       {/* Assign Test Modal */}
-      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestId(''); setAssignFilter('All'); setAssignSearch(''); }}
-        title="Assign Test" size="md"
+      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestIds([]); setAssignFilter('All'); setAssignSearch(''); }}
+        title="Assign Tests" size="md"
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setAssignOpen(false)}>Cancel</Button>
-            <Button size="sm" disabled={!selectedTestId || assignLoading} onClick={async () => {
-              if (!selectedTestId || !id) return;
+            <Button size="sm" disabled={selectedTestIds.length === 0 || assignLoading} onClick={async () => {
+              if (selectedTestIds.length === 0 || !id) return;
               setAssignLoading(true);
               try {
-                await api.createTestAssignments({ testId: selectedTestId, studentIds: [id] });
-                const test = publishedTests.find((t) => t.id === selectedTestId);
-                toast.success(`"${test?.title}" assigned`);
+                await Promise.all(
+                  selectedTestIds.map((testId) =>
+                    api.createTestAssignments({ testId, studentIds: [id] })
+                  )
+                );
+                const titles = selectedTestIds
+                  .map((tId) => publishedTests.find((t) => t.id === tId)?.title)
+                  .filter(Boolean);
+                toast.success(
+                  titles.length > 1
+                    ? `${titles.length} tests assigned successfully`
+                    : `"${titles[0]}" assigned successfully`
+                );
                 setAssignOpen(false);
-                setSelectedTestId('');
+                setSelectedTestIds([]);
               } catch (e) {
-                toast.error((e as Error).message || 'Failed to assign');
+                toast.error((e as Error).message || 'Failed to assign tests');
               } finally {
                 setAssignLoading(false);
               }
@@ -1171,7 +1181,7 @@ export function AdminStudentProfilePage() {
           </div>
         }>
         <div className="space-y-3">
-          <p className="text-sm text-slate-500">Select a published test to assign to <strong>{student.name}</strong>.</p>
+          <p className="text-sm text-slate-500">Select one or more published tests to assign to <strong>{student.name}</strong>.</p>
           {publishedTests.length === 0 ? (
             <p className="text-sm text-slate-400 py-2">No published tests available.</p>
           ) : (() => {
@@ -1185,7 +1195,7 @@ export function AdminStudentProfilePage() {
                   {categories.map(cat => (
                     <button
                       key={cat}
-                      onClick={() => { setAssignFilter(cat); setSelectedTestId(''); }}
+                      onClick={() => { setAssignFilter(cat); }}
                       className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                         assignFilter === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
@@ -1200,27 +1210,40 @@ export function AdminStudentProfilePage() {
                 <input
                   type="text"
                   value={assignSearch}
-                  onChange={e => { setAssignSearch(e.target.value); setSelectedTestId(''); }}
+                  onChange={e => { setAssignSearch(e.target.value); }}
                   placeholder="Search tests by name…"
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
                 <div className="space-y-2 max-h-56 overflow-y-auto">
                   {filtered.length === 0 ? (
                     <p className="text-sm text-slate-400 py-4 text-center">No tests found.</p>
-                  ) : filtered.map((test) => (
-                    <label key={test.id}
-                      className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        selectedTestId === test.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
-                      }`}>
-                      <input type="radio" name="test" value={test.id} checked={selectedTestId === test.id}
-                        onChange={() => setSelectedTestId(test.id)} className="mt-0.5 accent-blue-600" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
-                      </div>
-                      {selectedTestId === test.id && <CheckCircle size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />}
-                    </label>
-                  ))}
+                  ) : filtered.map((test) => {
+                    const isSelected = selectedTestIds.includes(test.id);
+                    return (
+                      <label key={test.id}
+                        className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                          isSelected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                        }`}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTestIds((prev) => [...prev, test.id]);
+                            } else {
+                              setSelectedTestIds((prev) => prev.filter((tId) => tId !== test.id));
+                            }
+                          }}
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
+                        </div>
+                        {isSelected && <CheckCircle size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />}
+                      </label>
+                    );
+                  })}
                 </div>
               </>
             );

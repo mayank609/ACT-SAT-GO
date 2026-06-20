@@ -50,7 +50,7 @@ export function StudentDetailPage() {
   const [loading, setLoading] = useState(true);
 
   const [assignOpen, setAssignOpen] = useState(false);
-  const [selectedTestId, setSelectedTestId] = useState('');
+  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
@@ -301,22 +301,32 @@ export function StudentDetailPage() {
       </div>
 
       {/* Assign Test Modal */}
-      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestId(''); }}
-        title="Assign Test" size="md"
+      <Modal isOpen={assignOpen} onClose={() => { setAssignOpen(false); setSelectedTestIds([]); }}
+        title="Assign Tests" size="md"
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setAssignOpen(false)}>Cancel</Button>
-            <Button size="sm" disabled={!selectedTestId || assignLoading} onClick={async () => {
-              if (!selectedTestId || !id) return;
+            <Button size="sm" disabled={selectedTestIds.length === 0 || assignLoading} onClick={async () => {
+              if (selectedTestIds.length === 0 || !id) return;
               setAssignLoading(true);
               try {
-                await api.createTestAssignments({ testId: selectedTestId, studentIds: [id] });
-                const test = publishedTests.find((t) => t.id === selectedTestId);
-                toast.success(`"${test?.title}" assigned successfully.`);
+                await Promise.all(
+                  selectedTestIds.map((testId) =>
+                    api.createTestAssignments({ testId, studentIds: [id] })
+                  )
+                );
+                const titles = selectedTestIds
+                  .map((tId) => publishedTests.find((t) => t.id === tId)?.title)
+                  .filter(Boolean);
+                toast.success(
+                  titles.length > 1
+                    ? `${titles.length} tests assigned successfully.`
+                    : `"${titles[0]}" assigned successfully.`
+                );
                 setAssignOpen(false);
-                setSelectedTestId('');
+                setSelectedTestIds([]);
               } catch (err: unknown) {
-                toast.error(err instanceof Error ? err.message : 'Failed to assign test.');
+                toast.error(err instanceof Error ? err.message : 'Failed to assign tests.');
               } finally {
                 setAssignLoading(false);
               }
@@ -324,24 +334,37 @@ export function StudentDetailPage() {
           </div>
         }>
         <div className="space-y-3">
-          <p className="text-sm text-slate-500">Select a published test to assign to <strong>{student.name}</strong>.</p>
+          <p className="text-sm text-slate-500">Select one or more published tests to assign to <strong>{student.name}</strong>.</p>
           {publishedTests.length === 0 ? (
             <p className="text-sm text-slate-400 py-2">No published tests available.</p>
           ) : (
             <div className="space-y-2">
-              {publishedTests.map((test) => (
-                <label key={test.id}
-                  className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                    selectedTestId === test.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
-                  }`}>
-                  <input type="radio" name="test" value={test.id} checked={selectedTestId === test.id}
-                    onChange={() => setSelectedTestId(test.id)} className="mt-0.5 accent-blue-600" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
-                  </div>
-                </label>
-              ))}
+              {publishedTests.map((test) => {
+                const isSelected = selectedTestIds.includes(test.id);
+                return (
+                  <label key={test.id}
+                    className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                      isSelected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedTestIds((prev) => [...prev, test.id]);
+                        } else {
+                          setSelectedTestIds((prev) => prev.filter((tId) => tId !== test.id));
+                        }
+                      }}
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{test.title}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{(test.sections as unknown[]).length} sections</p>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           )}
         </div>
