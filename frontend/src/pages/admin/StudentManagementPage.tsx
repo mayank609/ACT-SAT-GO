@@ -868,7 +868,7 @@ export function StudentManagementPage() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
         {/* Total Students – with Active / Inactive toggle */}
         {(() => {
           const activeCount = students.filter(s => (s.testsAttempted ?? 0) > 0).length;
@@ -902,17 +902,14 @@ export function StudentManagementPage() {
             </div>
           );
         })()}
-        { [{ label: 'With Tutors', value: students.filter(s => s.tutorId).length, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-          { label: 'Avg Score', value: students.filter(s => s.avgScore != null).length ? (students.reduce((a, s) => a + (s.avgScore ?? 0), 0) / students.filter(s => s.avgScore != null).length).toFixed(1) : '—', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-          { label: 'Tests Done', value: students.reduce((a, s) => a + (s.testsAttempted || 0), 0), color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
-        ].map(s => (
-          <div key={s.label} className={`rounded-xl border ${s.border} ${s.bg} px-4 py-3 flex items-center gap-3`}>
-            <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="flex flex-col">
-              <div className="text-xs text-slate-600 font-bold">{s.label}</div>
-            </div>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 flex items-center gap-3">
+          <div className="text-xl font-bold text-emerald-600">
+            {students.filter(s => s.tutorId).length}
           </div>
-        ))}
+          <div className="flex flex-col">
+            <div className="text-xs text-slate-600 font-bold">With Tutors</div>
+          </div>
+        </div>
       </div>
 
       {/* ── COMPREHENSIVE ANALYSIS VIEW ── */}
