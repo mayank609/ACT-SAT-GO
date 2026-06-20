@@ -1307,39 +1307,39 @@ export function StudentManagementPage() {
               <div className="space-y-4">
                 {/* ── Score Card ── */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-                  <div className="flex divide-x divide-slate-200">
-                    {/* Total Score */}
-                    <div className="px-6 py-5 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl">
+                  <div className="flex items-stretch divide-x divide-slate-200">
+                    {/* Total Score — slightly larger */}
+                    <div className="px-8 py-6 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl flex flex-col justify-center">
                       <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
-                      <p className="text-5xl font-black text-white leading-none tabular-nums mt-1">
+                      <p className="text-6xl font-black text-white leading-none tabular-nums mt-1.5">
                         {analysis.isSAT ? analysis.finalScaledScore : analysis.totalCorrect}
                       </p>
                       {analysis.isSAT ? (
-                        <p className="text-xs text-blue-300 mt-2 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 - 1600</p>
+                        <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 – 1600</p>
                       ) : (
                         <p className="text-xs text-blue-300 mt-2">out of {analysis.totalQuestions}</p>
                       )}
                     </div>
-                    {/* Reading & Writing */}
-                    <div className="px-6 py-5 shrink-0 text-center">
-                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Reading &amp; Writing</p>
-                      <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-1">
+                    {/* Reading & Writing — fixed width */}
+                    <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Reading &amp; Writing</p>
+                      <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
                         {analysis.isSAT ? analysis.rwScaled : `${analysis.rwCorrect}/${analysis.rwTotal}`}
                       </p>
                       {analysis.isSAT ? (
-                        <p className="text-xs text-slate-400 mt-2 border-b border-slate-300 pb-0.5 w-fit mx-auto">200 - 800</p>
+                        <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
                       ) : (
                         <p className="text-xs text-slate-400 mt-2">out of {analysis.rwTotal}</p>
                       )}
                     </div>
-                    {/* Math */}
-                    <div className="px-6 py-5 shrink-0 text-center">
-                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Math</p>
-                      <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-1">
+                    {/* Math — same fixed width as R&W */}
+                    <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Math</p>
+                      <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
                         {analysis.isSAT ? analysis.mathScaled : `${analysis.mathCorrect}/${analysis.mathTotal}`}
                       </p>
                       {analysis.isSAT ? (
-                        <p className="text-xs text-slate-400 mt-2 border-b border-slate-300 pb-0.5 w-fit mx-auto">200 - 800</p>
+                        <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
                       ) : (
                         <p className="text-xs text-slate-400 mt-2">out of {analysis.mathTotal}</p>
                       )}
@@ -1349,7 +1349,7 @@ export function StudentManagementPage() {
                       const score = analysis.finalScaledScore;
                       const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
                       return (
-                        <div className="flex-1 px-8 py-5 flex flex-col justify-center gap-2.5 min-w-0">
+                        <div className="flex-1 px-8 py-6 flex flex-col justify-center gap-2.5 min-w-0">
                           <div className="flex justify-between text-xs text-slate-500 font-medium">
                             <span>400</span><span>800</span><span>1200</span><span>1600</span>
                           </div>
@@ -1359,11 +1359,11 @@ export function StudentManagementPage() {
                           <div className="flex">
                             <div className="flex-1 text-center">
                               <p className="text-[10px] font-semibold text-slate-600">Below Average</p>
-                              <p className="text-[10px] text-slate-400">(400 - 800)</p>
+                              <p className="text-[10px] text-slate-400">(400 – 800)</p>
                             </div>
                             <div className="flex-1 text-center">
                               <p className="text-[10px] font-semibold text-slate-600">Average</p>
-                              <p className="text-[10px] text-slate-400">(800 - 1200)</p>
+                              <p className="text-[10px] text-slate-400">(800 – 1200)</p>
                             </div>
                             <div className="flex-1 text-center">
                               <p className="text-[10px] font-semibold text-slate-600">Above Average</p>
