@@ -50,6 +50,7 @@ const adminNavItems: NavItem[] = [
   },
   { label: 'Live Monitoring', path: '/monitoring', icon: <Activity size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Student Doubts', path: '/student-doubts', icon: <HelpCircle size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
+  { label: 'Student Mistakes', path: '/student-mistakes', icon: <AlertCircle size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Support', path: '/support', icon: <LifeBuoy size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
   { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
 ];

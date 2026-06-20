@@ -23,6 +23,7 @@ const SettingsPage = lazy(() => import('./pages/admin/SettingsPage').then((m) =>
 const QuestionBankPage = lazy(() => import('./pages/admin/QuestionBankPage').then((m) => ({ default: m.QuestionBankPage })));
 const SupportPage = lazy(() => import('./pages/admin/SupportPage').then((m) => ({ default: m.SupportPage })));
 const StudentDoubtsAdminPage = lazy(() => import('./pages/admin/StudentDoubtsAdminPage').then((m) => ({ default: m.StudentDoubtsAdminPage })));
+const StudentMistakesPage = lazy(() => import('./pages/admin/StudentMistakesPage').then((m) => ({ default: m.StudentMistakesPage })));
 
 // Tutor pages
 const TutorDashboard = lazy(() => import('./pages/tutor/TutorDashboard').then((m) => ({ default: m.TutorDashboard })));
@@ -109,6 +110,7 @@ const router = createBrowserRouter(
         <Route path="question-bank" element={<QuestionBankPage />} />
         <Route path="support" element={<SupportPage />} />
         <Route path="student-doubts" element={<StudentDoubtsAdminPage />} />
+        <Route path="student-mistakes" element={<StudentMistakesPage />} />
 
         {/* Super Admin only */}
         <Route path="user-management" element={<SuperAdminDashboard />} />
