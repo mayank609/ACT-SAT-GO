@@ -36,8 +36,8 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
   const totalSec = useMemo(() => rows.reduce((s, r) => s + r.timeSpentSeconds, 0), [rows]);
 
   // Chart dimensions
-  const ROW_H    = 20;   // px per question row
-  const ROW_GAP  = 6;    // px gap between rows
+  const ROW_H    = 14;   // px per question row (compact)
+  const ROW_GAP  = 3;    // px gap between rows (compact)
   const LABEL_W  = 36;   // px for "Q27" labels on the left
   const TICK_H   = 24;   // px for the time axis at bottom
   const PADDING  = 12;   // px right margin
@@ -110,13 +110,15 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
                 <rect x={0} y={y} width={IW} height={ROW_H + ROW_GAP}
                   fill="#f9fafb" fillOpacity={0.5} />
               )}
-              {/* Q label */}
-              <text
-                x={LABEL_W - 4} y={y + ROW_H / 2 + 4}
-                textAnchor="end" fontSize={9} fill="#6b7280" fontFamily="system-ui, sans-serif"
-              >
-                {label}
-              </text>
+              {/* Q label — only for odd question indices */}
+              {r.questionIndex % 2 !== 0 && (
+                <text
+                  x={LABEL_W - 4} y={y + ROW_H / 2 + 3.5}
+                  textAnchor="end" fontSize={8} fill="#6b7280" fontFamily="system-ui, sans-serif"
+                >
+                  {label}
+                </text>
+              )}
               {/* Bar */}
               <rect
                 x={x1} y={y + 3} width={barW} height={ROW_H - 6}
