@@ -338,6 +338,7 @@ export function StudentManagementPage() {
     rawScoreTotal: number | null;
     rawScoreEnglish: number | null;
     rawScoreMath: number | null;
+    diagnosticDecision: 'keep' | 'leave' | null;
     attempts: Array<{ id: string; testTitle: string; status: string; totalScore: number | null; startedAt: string; completedAt: string | null }>;
   }>>([]);
   const [analysisSearchTerm, setAnalysisSearchTerm] = useState('');
@@ -632,6 +633,7 @@ export function StudentManagementPage() {
             rawScoreTotal,
             rawScoreEnglish,
             rawScoreMath,
+            diagnosticDecision: student.diagnosticDecision || null,
             attempts: studentAttempts.slice(0, 10),
           });
         } catch (err) {
@@ -663,6 +665,7 @@ export function StudentManagementPage() {
             rawScoreTotal: null,
             rawScoreEnglish: null,
             rawScoreMath: null,
+            diagnosticDecision: student.diagnosticDecision || null,
             attempts: [],
           });
         }
@@ -806,6 +809,43 @@ export function StudentManagementPage() {
     reload();
   };
 
+  const handleTableUpdateDecision = (studentId: string, value: 'keep' | 'leave') => {
+    const student = studentAnalysisData.find(s => s.studentId === studentId);
+    if (!student) return;
+    const isCurrentlySelected = student.diagnosticDecision === value;
+    const nextValue = isCurrentlySelected ? null : value;
+
+    api.updateUser(studentId, { diagnosticDecision: nextValue })
+      .then(({ user }) => {
+        setStudentAnalysisData(prev =>
+          prev.map(s =>
+            s.studentId === studentId
+              ? { ...s, diagnosticDecision: user.diagnosticDecision ?? null }
+              : s
+          )
+        );
+        setStudents(prev =>
+          prev.map(s =>
+            s.id === studentId
+              ? { ...s, diagnosticDecision: user.diagnosticDecision ?? null }
+              : s
+          )
+        );
+
+        if (user.diagnosticDecision === 'keep') {
+          toast.success(`Student enrollment updated: Keep`);
+        } else if (user.diagnosticDecision === 'leave') {
+          toast.success(`Student enrollment updated: Leave`);
+        } else {
+          toast.success(`Enrollment decision reset to pending`);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to update student decision', err);
+        toast.error('Failed to update student decision');
+      });
+  };
+
   // ── Derived data ──────────────────────────────────────────────────────────
   // display variables cleaned up as student list was consolidated
 
@@ -909,6 +949,7 @@ export function StudentManagementPage() {
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Target Date</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Decision</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Performance</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Actions</th>
@@ -927,9 +968,9 @@ export function StudentManagementPage() {
               </thead>
               <tbody>
                 {analysisLoading ? (
-                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={15} className="py-8 text-center text-slate-400">Loading...</td></tr>
                 ) : studentAnalysisData.length === 0 ? (
-                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">No students found</td></tr>
+                  <tr><td colSpan={15} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) => {
                       if (activityFilter === 'active') {
@@ -998,7 +1039,33 @@ export function StudentManagementPage() {
                         <td className="px-3 py-3 text-center text-sm text-slate-600">
                           {row.practiceMath || '—'}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-3 py-3 text-center border-l border-blue-100">
+                          <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/50">
+                            <button
+                              onClick={() => handleTableUpdateDecision(row.studentId, 'keep')}
+                              className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all flex items-center gap-1 ${
+                                row.diagnosticDecision === 'keep'
+                                  ? 'bg-emerald-500 text-white shadow-sm'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                              }`}
+                              title="Keep Student"
+                            >
+                              Keep
+                            </button>
+                            <button
+                              onClick={() => handleTableUpdateDecision(row.studentId, 'leave')}
+                              className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all flex items-center gap-1 ${
+                                row.diagnosticDecision === 'leave'
+                                  ? 'bg-rose-500 text-white shadow-sm'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                              }`}
+                              title="Leave Student"
+                            >
+                              Leave
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center border-l border-blue-100">
                           <button
                             onClick={() => {
                               setSelectedStudentId(row.studentId);

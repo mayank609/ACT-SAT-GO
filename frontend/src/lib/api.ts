@@ -57,6 +57,7 @@ export interface DbUser {
   parentPhone?: string | null
   dob?: string | null
   schoolName?: string | null
+  diagnosticDecision?: 'keep' | 'leave' | null
 }
 
 export const api = {
@@ -90,6 +91,7 @@ export const api = {
     parentPhone?: string
     dob?: string
     schoolName?: string
+    diagnosticDecision?: 'keep' | 'leave' | null
   }) => request<{ user: DbUser }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteUser: (userId: string) =>
     request<{ success: boolean }>(`/api/users/${userId}`, { method: 'DELETE' }),

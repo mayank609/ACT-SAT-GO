@@ -56,6 +56,7 @@ export async function GET(
         parentPhone: perms.parentPhone ?? null,
         dob: perms.dob ?? null,
         schoolName: perms.schoolName ?? null,
+        diagnosticDecision: perms.diagnosticDecision ?? null,
       },
     })
   } catch (error) {
@@ -99,7 +100,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { name, grade, targetScore, targetDate, specialization, tutorId, notifications, phone, parentPhone, dob, schoolName } = body as {
+    const { name, grade, targetScore, targetDate, specialization, tutorId, notifications, phone, parentPhone, dob, schoolName, diagnosticDecision } = body as {
       name?: string
       grade?: string
       targetScore?: number
@@ -111,6 +112,7 @@ export async function PATCH(
       parentPhone?: string
       dob?: string
       schoolName?: string
+      diagnosticDecision?: string | null
     }
 
     const existing = await prisma.user.findUnique({ where: { id: userId } })
@@ -128,6 +130,7 @@ export async function PATCH(
     if (dob !== undefined) permissions.dob = dob
     if (schoolName !== undefined) permissions.schoolName = schoolName
     if (targetDate !== undefined) permissions.targetDate = targetDate
+    if (diagnosticDecision !== undefined) permissions.diagnosticDecision = diagnosticDecision
 
     const updateData: any = { permissions: permissions as any }
     if (name !== undefined) updateData.name = name
@@ -144,7 +147,24 @@ export async function PATCH(
       }
     }
 
-    return NextResponse.json({ user: { ...user, role: user.role.toLowerCase(), name: permissions.displayName } })
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        name: (user as unknown as { name?: string | null }).name ?? permissions.displayName as string ?? user.email.split('@')[0],
+        email: user.email,
+        role: user.role.toLowerCase(),
+        createdAt: user.createdAt,
+        grade: permissions.grade ?? null,
+        targetScore: permissions.targetScore ?? null,
+        targetDate: permissions.targetDate ?? null,
+        specialization: permissions.specialization ?? [],
+        phone: permissions.phone ?? null,
+        parentPhone: permissions.parentPhone ?? null,
+        dob: permissions.dob ?? null,
+        schoolName: permissions.schoolName ?? null,
+        diagnosticDecision: permissions.diagnosticDecision ?? null,
+      }
+    })
   } catch (error) {
     console.error('PATCH /api/users/[userId]:', error)
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })

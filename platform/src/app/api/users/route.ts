@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
           parentPhone: perms.parentPhone ?? null,
           dob: perms.dob ?? null,
           schoolName: perms.schoolName ?? null,
+          diagnosticDecision: perms.diagnosticDecision ?? null,
         }
       }),
     })
