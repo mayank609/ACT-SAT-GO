@@ -480,7 +480,7 @@ export function AdminStudentProfilePage() {
             <>
               <Button variant="secondary" size="sm" icon={<MessageSquare size={13} />} onClick={() => setNoteOpen(true)}>Note</Button>
               <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => setEditing(true)}>Edit</Button>
-              <Button size="sm" icon={<BookOpen size={13} />} onClick={() => { setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setSelectedTestId(''); }}>Assign Test</Button>
+              <Button size="sm" icon={<BookOpen size={13} />} onClick={() => { setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setSelectedTestIds([]); }}>Assign Test</Button>
               <button onClick={() => setDeleteOpen(true)}
                 className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete student">
                 <Trash2 size={15} />
@@ -695,7 +695,7 @@ export function AdminStudentProfilePage() {
           <div className="bg-white rounded-xl border border-slate-100">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
               <p className="font-medium text-slate-900 text-sm">Test History</p>
-              <Button size="sm" variant="secondary" icon={<BookOpen size={12} />} onClick={() => { setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setSelectedTestId(''); }}>
+              <Button size="sm" variant="secondary" icon={<BookOpen size={12} />} onClick={() => { setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setSelectedTestIds([]); }}>
                 Assign Test
               </Button>
             </div>
