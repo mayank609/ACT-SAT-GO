@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Loader2, Search, ChevronRight, ArrowLeft, Users, Target,
-  XCircle, HelpCircle, ShieldCheck, Clock, CheckCircle2, Layers, Wrench,
+  Clock, Layers, Wrench,
   TrendingUp, BarChart2,
 } from 'lucide-react';
 import {
@@ -80,7 +80,7 @@ function ScoreTrend({ attempts, records }: { attempts: LoadedAttempt[]; records:
 }
 
 // ── Domain accuracy bar chart ─────────────────────────────────────────────────
-function DomainBars({ rows, subject }: { rows: Array<{ name: string; agg: { correct: number; total: number } }>; subject: string }) {
+function DomainBars({ rows }: { rows: Array<{ name: string; agg: { correct: number; total: number } }> }) {
   const data = rows.map((r, i) => ({
     name: r.name.length > 20 ? r.name.slice(0, 18) + '…' : r.name,
     fullName: r.name,
@@ -363,7 +363,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
                 <span className="text-xs text-gray-400 ml-1">· {subjectLabel}</span>
               </div>
               <div style={{ height: 180 }}>
-                <DomainBars rows={domainRows} subject={subject} />
+                <DomainBars rows={domainRows} />
               </div>
             </div>
 

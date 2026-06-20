@@ -78,7 +78,7 @@ function ScoreTrend({ attempts, records }: { attempts: LoadedAttempt[]; records:
 }
 
 // ── Domain accuracy bar chart ─────────────────────────────────────────────────
-function DomainBars({ rows, subject }: { rows: Array<{ name: string; agg: { correct: number; total: number } }>; subject: string }) {
+function DomainBars({ rows }: { rows: Array<{ name: string; agg: { correct: number; total: number } }> }) {
   const data = rows.map((r, i) => ({
     name: r.name.length > 20 ? r.name.slice(0, 18) + '…' : r.name,
     fullName: r.name,
@@ -405,7 +405,7 @@ export function AnalyticsPage() {
             <span className="text-xs text-gray-400 ml-1">· {subjectLabel}</span>
           </div>
           <div style={{ height: 180 }}>
-            <DomainBars rows={domainRows} subject={subject} />
+            <DomainBars rows={domainRows} />
           </div>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">

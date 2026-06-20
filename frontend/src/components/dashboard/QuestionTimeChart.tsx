@@ -86,8 +86,7 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
         })}
 
         {/* ── Avg time reference line ── */}
-        {rows.map((r, i) => {
-          const y = i * (ROW_H + ROW_GAP);
+        {rows.map((r) => {
           const avgX = toX(r.startSec + avgTime);
           // only draw if it's within this row's bar
           return avgX <= toX(r.startSec + r.timeSpentSeconds) ? null : null;
