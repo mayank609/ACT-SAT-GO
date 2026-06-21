@@ -833,9 +833,11 @@ export function StudentManagementPage() {
   };
 
   const handleTableUpdateDecision = (studentId: string, value: 'keep' | 'leave') => {
-    const student = studentAnalysisData.find(s => s.studentId === studentId);
-    if (!student) return;
-    const isCurrentlySelected = student.diagnosticDecision === value;
+    const currentDecision =
+      studentAnalysisData.find(s => s.studentId === studentId)?.diagnosticDecision ??
+      students.find(s => s.id === studentId)?.diagnosticDecision ??
+      null;
+    const isCurrentlySelected = currentDecision === value;
     const nextValue = isCurrentlySelected ? null : value;
 
     api.updateUser(studentId, { diagnosticDecision: nextValue })
@@ -878,20 +880,9 @@ export function StudentManagementPage() {
 
       {mainView === 'analysis' && (
         <>
-      {/* ── Student Management Header (moved from Management tab) ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Students</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Total Students: <span className="font-semibold text-slate-700">{students.length}</span></p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
-          <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => { setManageSearch(''); setShowManageModal(true); }}>Manage Students</Button>
-        </div>
-      </div>
-
-      {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
+      {/* ── Stat Cards + Header actions ── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl flex-1">
         {/* Total Students – with Active / Inactive toggle */}
         {(() => {
           const activeCount = students.filter(s => (s.testsAttempted ?? 0) > 0).length;
@@ -935,6 +926,13 @@ export function StudentManagementPage() {
         </div>
       </div>
 
+      {/* Header actions – aligned with the stat cards */}
+      <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto">
+        <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
+        <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => { setManageSearch(''); setShowManageModal(true); }}>Manage Students</Button>
+      </div>
+      </div>
+
       {/* ── COMPREHENSIVE ANALYSIS VIEW ── */}
       <div className="space-y-5">
 
@@ -969,7 +967,6 @@ export function StudentManagementPage() {
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Target Date</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
-                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Decision</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Performance</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Actions</th>
@@ -988,9 +985,9 @@ export function StudentManagementPage() {
               </thead>
               <tbody>
                 {analysisLoading ? (
-                  <tr><td colSpan={15} className="py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">Loading...</td></tr>
                 ) : studentAnalysisData.length === 0 ? (
-                  <tr><td colSpan={15} className="py-8 text-center text-slate-400">No students found</td></tr>
+                  <tr><td colSpan={14} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) => {
                       if (activityFilter === 'active') {
@@ -1058,32 +1055,6 @@ export function StudentManagementPage() {
                         </td>
                         <td className="px-3 py-3 text-center text-sm text-slate-600">
                           {row.practiceMath || '—'}
-                        </td>
-                        <td className="px-3 py-3 text-center border-l border-blue-100">
-                          <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/50">
-                            <button
-                              onClick={() => handleTableUpdateDecision(row.studentId, 'keep')}
-                              className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all flex items-center gap-1 ${
-                                row.diagnosticDecision === 'keep'
-                                  ? 'bg-emerald-500 text-white shadow-sm'
-                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                              }`}
-                              title="Keep Student"
-                            >
-                              Keep
-                            </button>
-                            <button
-                              onClick={() => handleTableUpdateDecision(row.studentId, 'leave')}
-                              className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all flex items-center gap-1 ${
-                                row.diagnosticDecision === 'leave'
-                                  ? 'bg-rose-500 text-white shadow-sm'
-                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                              }`}
-                              title="Leave Student"
-                            >
-                              Leave
-                            </button>
-                          </div>
                         </td>
                         <td className="px-4 py-3 text-center border-l border-blue-100">
                           <button
@@ -2071,6 +2042,30 @@ export function StudentManagementPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-slate-900 text-sm truncate">{student.name}</p>
                       <p className="text-xs text-slate-400 truncate">{student.email}</p>
+                    </div>
+                    <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/50 flex-shrink-0">
+                      <button
+                        onClick={() => handleTableUpdateDecision(student.id, 'keep')}
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${
+                          student.diagnosticDecision === 'keep'
+                            ? 'bg-emerald-500 text-white shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                        }`}
+                        title="Keep Student"
+                      >
+                        Keep
+                      </button>
+                      <button
+                        onClick={() => handleTableUpdateDecision(student.id, 'leave')}
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${
+                          student.diagnosticDecision === 'leave'
+                            ? 'bg-rose-500 text-white shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                        }`}
+                        title="Leave Student"
+                      >
+                        Leave
+                      </button>
                     </div>
                     <button
                       onClick={() => startEditStudent(student)}
