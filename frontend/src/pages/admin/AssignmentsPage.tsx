@@ -116,9 +116,9 @@ export function AssignmentsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
+              <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
                 {['Student', 'Test', tab !== 'completed' ? 'Section / Progress' : 'Score', 'Tab Switches', tab === 'active' ? 'Time Left' : 'Completed', 'Started', 'Status'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-blue-800 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>

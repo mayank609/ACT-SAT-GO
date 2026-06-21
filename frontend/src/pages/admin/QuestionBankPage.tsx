@@ -796,10 +796,10 @@ function CSVImportModal({ onClose, onSaved }: { onClose: () => void; onSaved: (q
         {rows.length > 0 && (
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
                 <tr>
                   {['Row', 'Type', 'Question Text', 'Answer', 'Difficulty', 'Status'].map((h) => (
-                    <th key={h} className="px-3 py-2 text-left font-semibold text-slate-600">{h}</th>
+                    <th key={h} className="px-3 py-2 text-left font-semibold text-blue-800">{h}</th>
                   ))}
                 </tr>
               </thead>

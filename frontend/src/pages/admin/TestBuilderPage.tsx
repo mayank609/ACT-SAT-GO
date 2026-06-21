@@ -1669,10 +1669,10 @@ function QuestionCSVUploader({ sectionName, onImport, onClose }: CSVUploaderProp
           </div>
           <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 text-xs">
             <table className="w-full">
-              <thead className="bg-slate-50 sticky top-0">
+              <thead className="bg-gradient-to-r from-blue-50 to-blue-100/40 sticky top-0">
                 <tr>
                   {['#', 'Type', 'Question', 'Answer', 'Difficulty', ''].map((h) => (
-                    <th key={h} className="px-2 py-2 text-left text-slate-500 font-semibold">{h}</th>
+                    <th key={h} className="px-2 py-2 text-left text-blue-800 font-semibold">{h}</th>
                   ))}
                 </tr>
               </thead>

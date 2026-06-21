@@ -107,7 +107,7 @@ export function DataTable<T extends Record<string, unknown>>({
       <div className="overflow-x-auto rounded-xl border border-slate-200">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
+            <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
               {selectable && (
                 <th className="px-4 py-3 text-left w-10">
                   <input 
@@ -121,7 +121,7 @@ export function DataTable<T extends Record<string, unknown>>({
               {columns.map((col) => (
                 <th
                   key={String(col.key)}
-                  className={`px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide ${col.sortable ? 'cursor-pointer select-none hover:text-slate-700' : ''} ${col.width || ''}`}
+                  className={`px-4 py-3 text-left text-xs font-semibold text-blue-800 uppercase tracking-wide ${col.sortable ? 'cursor-pointer select-none hover:text-blue-900' : ''} ${col.width || ''}`}
                   onClick={() => col.sortable && handleSort(String(col.key))}
                 >
                   <div className="flex items-center gap-1">
