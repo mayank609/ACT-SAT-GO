@@ -1039,7 +1039,6 @@ export function TestReviewPage() {
 
   const totalQ = sectionStats.reduce((a, s) => a + s.total, 0);
   const totalCorrect = sectionStats.reduce((a, s) => a + s.correct, 0);
-  const overallAccuracy = totalQ > 0 ? Math.round(totalCorrect / totalQ * 100) : 0;
   const rawScore = attempt.totalScore ?? totalCorrect;
 
   // Subject raw totals (used by the non-SAT branch of the score card)
@@ -1090,22 +1089,6 @@ export function TestReviewPage() {
     mathScaled = Math.min(800, Math.max(200, mathScaled));
     finalScaledScore = rwScaled + mathScaled;
   }
-
-  // Total questions per module (denominators for the score breakdown)
-  let rwDen1 = 0, rwDen2 = 0, mathDen1 = 0, mathDen2 = 0;
-  sectionStats.forEach((s) => {
-    const isMathSec = /math/i.test(s.name);
-    const isRWSec = /reading|writing|rw/i.test(s.name);
-    if (isMathSec) {
-      if (/1|one/i.test(s.name)) mathDen1 = s.total;
-      else if (/2|two/i.test(s.name)) mathDen2 = s.total;
-      else mathDen1 = s.total;
-    } else if (isRWSec) {
-      if (/1|one/i.test(s.name)) rwDen1 = s.total;
-      else if (/2|two/i.test(s.name)) rwDen2 = s.total;
-      else rwDen1 = s.total;
-    }
-  });
 
   // Flatten every question across sections into Questions-Overview rows
   const reviewRows = sections.flatMap((sa, secIdx) =>
