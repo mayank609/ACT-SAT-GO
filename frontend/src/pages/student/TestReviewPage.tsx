@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle, Maximize2, X, HelpCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle, Maximize2, X, HelpCircle, Calculator } from 'lucide-react';
+import { DesmosCalculator } from '../../components/calculator/DesmosCalculator';
 import { useState, useEffect } from 'react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -934,6 +935,7 @@ export function TestReviewPage() {
   const [fullscreenReportOpen, setFullscreenReportOpen] = useState(false);
   const [showFullscreenQuestionNavigator, setShowFullscreenQuestionNavigator] = useState(false);
   const [knowledgeSkillsOpen, setKnowledgeSkillsOpen] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -2024,6 +2026,18 @@ export function TestReviewPage() {
           </>
         )}
       </div>
+
+      {/* Floating Desmos calculator toggle + panel */}
+      <button
+        onClick={() => setShowCalculator(v => !v)}
+        className={`fixed bottom-6 right-6 z-[190] flex items-center gap-2 px-4 py-3 rounded-full shadow-lg font-semibold text-sm transition-all hover:scale-105 ${
+          showCalculator ? 'bg-[#15305a] text-white' : 'bg-[#1b3d6e] text-white hover:bg-[#15305a]'
+        }`}
+        title="Desmos Calculator"
+      >
+        <Calculator size={18} /> Calculator
+      </button>
+      <DesmosCalculator open={showCalculator} onClose={() => setShowCalculator(false)} />
     </div>
   );
 }

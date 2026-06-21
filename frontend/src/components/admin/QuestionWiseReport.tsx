@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
   ChevronLeft, ChevronRight, ChevronDown,
-  Maximize2, X, Clock,
+  Maximize2, X, Clock, Calculator, Bookmark,
 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Modal } from '../common/Modal';
 import { RichContentRenderer } from './RichContentRenderer';
 import { OptionRenderer } from './OptionRenderer';
+import { DesmosCalculator } from '../calculator/DesmosCalculator';
 
 // ─── Exported types ──────────────────────────────────────────────────────────
 
@@ -528,21 +529,26 @@ function QuestionNavigator({
         <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
         <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
         <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
+        <div className="flex items-center gap-2"><Bookmark size={15} className="text-amber-500" fill="currentColor" /><span className="text-xs font-semibold text-slate-600">Bookmarked</span></div>
       </div>
       <div className="flex justify-center">
-        <div className="grid grid-cols-9 gap-3 p-1">
+        <div className="grid grid-cols-9 gap-3 p-1.5">
           {filteredQuestions.map((fq, idx) => {
             const ans = answersMap.get(fq.questionId);
             const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
             const isOmitted = !ans?.answerGiven;
+            const isFlagged = ans?.isFlagged ?? false;
             const isCurrent = idx === navSafeIdx;
             let bg = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
             let text = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
             if (isCurrent) { bg = 'bg-blue-600 border-blue-700'; text = 'text-white font-bold ring-2 ring-blue-300'; }
             return (
               <button key={idx} onClick={() => onSelect(idx)}
-                className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bg} ${text} hover:shadow-md hover:scale-105`}>
+                className={`relative w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bg} ${text} hover:shadow-md hover:scale-105 ${isFlagged && !isCurrent ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}>
                 {idx + 1}
+                {isFlagged && (
+                  <Bookmark size={12} className="absolute -top-1.5 -right-1.5 text-amber-500 drop-shadow-sm" fill="currentColor" />
+                )}
               </button>
             );
           })}
@@ -585,6 +591,7 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
   const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
   const [fullscreenOpen, setFullscreenOpen] = useState(defaultFullscreen);
   const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const handleCloseFullscreen = () => {
     setFullscreenOpen(false);
@@ -661,10 +668,16 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
             <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
             Question Wise Report
           </h4>
-          <button onClick={() => setFullscreenOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all font-semibold text-sm shadow-sm">
-            <Maximize2 size={16} /> Fullscreen
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowCalculator(v => !v)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-semibold text-sm shadow-sm ${showCalculator ? 'bg-[#1b3d6e] text-white' : 'bg-blue-50 text-[#1b3d6e] hover:bg-blue-100'}`}>
+              <Calculator size={16} /> Calculator
+            </button>
+            <button onClick={() => setFullscreenOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all font-semibold text-sm shadow-sm">
+              <Maximize2 size={16} /> Fullscreen
+            </button>
+          </div>
         </div>
         {tabBar}
         <QuestionDisplay
@@ -729,6 +742,11 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
                   <option value="omitted">Omitted Only</option>
                 </select>
               </div>
+              <button onClick={() => setShowCalculator(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${showCalculator ? 'bg-[#1b3d6e] text-white' : 'bg-blue-50 text-[#1b3d6e] hover:bg-blue-100'}`}
+                title="Desmos Calculator">
+                <Calculator size={15} /> Calculator
+              </button>
               <button onClick={handleCloseFullscreen} className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all" title="Close Fullscreen">
                 <X size={20} />
               </button>
@@ -757,6 +775,9 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
           )}
         </div>
       )}
+
+      {/* Shared draggable Desmos calculator (graphing + scientific) */}
+      <DesmosCalculator open={showCalculator} onClose={() => setShowCalculator(false)} />
     </>
   );
 }

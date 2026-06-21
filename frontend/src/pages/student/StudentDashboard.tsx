@@ -122,8 +122,11 @@ export function StudentDashboard() {
               const totalQ = (test.sections ?? []).reduce((a, s) => a + (s._count?.questions ?? 0), 0);
               const totalMin = (test.sections ?? []).reduce((a, s) => a + s.durationMinutes, 0);
               const isInProgress = test.status === 'In Progress';
+              const go = () => isInProgress && test.inProgressAttemptId
+                ? navigate(`/test/${test.testId}?attemptId=${test.inProgressAttemptId}`)
+                : navigate(`/test-instructions/${test.testId}`);
               return (
-                <div key={test.assignmentId} className="bg-white border-2 border-[#1b3d6e]/20 rounded-xl p-4 hover:border-[#1b3d6e]/40 transition-colors">
+                <div key={test.assignmentId} onClick={go} className="bg-white border-2 border-[#1b3d6e]/20 rounded-xl p-4 hover:border-[#1b3d6e]/40 transition-colors cursor-pointer">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -145,10 +148,7 @@ export function StudentDashboard() {
                       )}
                     </div>
                     <button
-                      onClick={() => isInProgress && test.inProgressAttemptId
-                        ? navigate(`/test/${test.testId}?attemptId=${test.inProgressAttemptId}`)
-                        : navigate(`/test-instructions/${test.testId}`)
-                      }
+                      onClick={(e) => { e.stopPropagation(); go(); }}
                       className="flex-shrink-0 flex items-center gap-2 bg-[#1b3d6e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#15305a] transition-colors"
                     >
                       <Play size={13} />
@@ -171,8 +171,13 @@ export function StudentDashboard() {
               {completed.map((test) => {
                 // Find matching submitted attempt for this test
                 const attempt = attempts.find(a => a.test?.title === test.title);
+                const review = () => test.submittedAttemptId && navigate(`/test-review/${test.submittedAttemptId}`);
                 return (
-                  <div key={test.assignmentId} className="flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                  <div
+                    key={test.assignmentId}
+                    onClick={review}
+                    className={`flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition-colors ${test.submittedAttemptId ? 'cursor-pointer' : ''}`}
+                  >
                     <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
                       <CheckCircle size={14} className="text-emerald-600" />
                     </div>
@@ -186,7 +191,7 @@ export function StudentDashboard() {
                       )}
                     </div>
                     <button
-                      onClick={() => test.submittedAttemptId && navigate(`/test-review/${test.submittedAttemptId}`)}
+                      onClick={(e) => { e.stopPropagation(); review(); }}
                       disabled={!test.submittedAttemptId}
                       className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
