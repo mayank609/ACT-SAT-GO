@@ -20,8 +20,38 @@ interface ApiTest {
   sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }>;
 }
 
-const CATEGORY_PILLS = ['ACT', 'SAT', 'Mock', 'Diagnostic', 'Sectional', 'Practice Sheet'] as const;
-type CategoryPill = typeof CATEGORY_PILLS[number];
+// ── Subject / type detection (mirrors admin classification) ──────────────
+const isHW = (t: ApiTest): boolean => {
+  const title = t.title.toLowerCase();
+  const sub = (t.subCategory ?? '').toLowerCase();
+  return sub.includes('hw') || /\bhw\b|homework/.test(title);
+};
+const isMathSubject = (t: ApiTest): boolean => {
+  const title = t.title.toLowerCase();
+  const sub = (t.subCategory ?? '').toLowerCase();
+  return sub.includes('math') || sub.includes('quant') || /math|algebra|geometry|calc/.test(title)
+    || (t.sections ?? []).some(s => /math/i.test(s.name));
+};
+const isReadingSubject = (t: ApiTest): boolean => {
+  const title = t.title.toLowerCase();
+  const sub = (t.subCategory ?? '').toLowerCase();
+  return sub.includes('rw') || sub.includes('english') || sub.includes('reading') || sub.includes('writing')
+    || /reading|writing|english|verbal|grammar|\brw\b/.test(title)
+    || (t.sections ?? []).some(s => /read|writ|english|verbal/i.test(s.name));
+};
+const isMock = (t: ApiTest): boolean =>
+  t.category?.toLowerCase() === 'mock' || t.category?.toLowerCase() === 'diagnostic' || /mock|diagnostic/i.test(t.title);
+const isPractice = (t: ApiTest): boolean =>
+  !isHW(t) && (t.category === 'Practice Sheet' || /practice/i.test(t.title));
+
+const TEST_FILTERS = [
+  { key: 'Mock',             match: isMock },
+  { key: 'Math HW',          match: (t: ApiTest) => isHW(t) && isMathSubject(t) },
+  { key: 'Reading HW',       match: (t: ApiTest) => isHW(t) && isReadingSubject(t) },
+  { key: 'Math Practice',    match: (t: ApiTest) => isPractice(t) && isMathSubject(t) },
+  { key: 'Reading Practice', match: (t: ApiTest) => isPractice(t) && isReadingSubject(t) },
+] as const;
+type FilterKey = typeof TEST_FILTERS[number]['key'];
 
 const CAT_COLORS: Record<string, string> = {
   Mock:             'bg-blue-100 text-blue-700',
@@ -42,19 +72,13 @@ function TestCategoryBadges({ category, subCategory }: { category?: string; subC
   );
 }
 
-function matchesPill(test: ApiTest, pill: CategoryPill): boolean {
-  const subject = test.subCategory?.split('-')[0]?.toUpperCase();
-  if (pill === 'ACT' || pill === 'SAT') return subject === pill;
-  return test.category?.toLowerCase() === pill.toLowerCase();
-}
-
 export function MyTestsPage() {
   const navigate = useNavigate();
   const { dbId } = useAuthStore();
   const [tests, setTests] = useState<ApiTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activePill, setActivePill] = useState<CategoryPill | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterKey | null>(null);
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
@@ -64,17 +88,20 @@ export function MyTestsPage() {
       .finally(() => setLoading(false));
   }, [dbId]);
 
-  const availablePills = useMemo(
-    () => CATEGORY_PILLS.filter(p => tests.some(t => matchesPill(t, p))),
+  const availableFilters = useMemo(
+    () => TEST_FILTERS.filter(f => tests.some(f.match)),
     [tests]
   );
 
   const visible = useMemo(() => {
     let list = tests;
     if (search.trim()) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
-    if (activePill) list = list.filter(t => matchesPill(t, activePill));
+    if (activeFilter) {
+      const filter = TEST_FILTERS.find(f => f.key === activeFilter);
+      if (filter) list = list.filter(filter.match);
+    }
     return list;
-  }, [tests, search, activePill]);
+  }, [tests, search, activeFilter]);
 
   if (loading) {
     return (
@@ -112,19 +139,19 @@ export function MyTestsPage() {
               </button>
             )}
           </div>
-          {availablePills.length > 0 && (
+          {availableFilters.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {availablePills.map(pill => (
+              {availableFilters.map(f => (
                 <button
-                  key={pill}
-                  onClick={() => setActivePill(activePill === pill ? null : pill)}
+                  key={f.key}
+                  onClick={() => setActiveFilter(activeFilter === f.key ? null : f.key)}
                   className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
-                    activePill === pill
+                    activeFilter === f.key
                       ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-[#1b3d6e]/40 hover:text-[#1b3d6e]'
                   }`}
                 >
-                  {pill}
+                  {f.key}
                 </button>
               ))}
             </div>
@@ -135,7 +162,7 @@ export function MyTestsPage() {
       {visible.length === 0 && tests.length > 0 && (
         <div className="bg-white border border-gray-100 rounded-xl py-10 text-center">
           <p className="text-gray-400 text-sm">No tests match your filters</p>
-          <button onClick={() => { setSearch(''); setActivePill(null); }} className="text-xs text-[#1b3d6e] mt-1 hover:underline">Clear filters</button>
+          <button onClick={() => { setSearch(''); setActiveFilter(null); }} className="text-xs text-[#1b3d6e] mt-1 hover:underline">Clear filters</button>
         </div>
       )}
 

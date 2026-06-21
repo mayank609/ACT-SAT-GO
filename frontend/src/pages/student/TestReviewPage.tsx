@@ -262,7 +262,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {studentAnswer?.timeSpentSeconds ? (
-                  <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                  <span className="text-xs font-bold text-blue-600 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
                 ) : null}
                 {correct ? (
                   <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
@@ -634,7 +634,7 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
             </Badge>
           )}
           {/* Time spent */}
-          <Badge variant="outline" className="border-slate-300 text-slate-600 bg-white font-medium flex items-center gap-1">
+          <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50 font-bold flex items-center gap-1">
             <Clock size={12} />
             {formatSeconds(studentAnswer?.timeSpentSeconds)}
           </Badge>

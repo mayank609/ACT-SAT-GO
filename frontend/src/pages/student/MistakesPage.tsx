@@ -186,8 +186,8 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {item.timeSpentSeconds ? (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[11px] font-semibold">
-                    <Clock size={11} className="text-amber-600" />
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[11px] font-bold">
+                    <Clock size={11} className="text-blue-600" />
                     <span>{item.timeSpentSeconds}s</span>
                   </span>
                 ) : null}
