@@ -446,14 +446,17 @@ export function TestInterfacePage() {
       return;
     }
 
-    // Autosave last question's answer
+    // Autosave last question's answer — await it so the answer is persisted
+    // BEFORE submitSection triggers scoring (otherwise the last answer can be
+    // dropped from the score in a race).
     const finalTimeSpent = currentQAttempt?.timeSpent ?? 0
+    const isFinalMarked = currentQAttempt?.state === 'marked_review' || currentQAttempt?.state === 'answered_marked'
     console.log(`[Test] Autosaving final Q${currentQuestion.id}: ${finalTimeSpent}s`)
-    api.autosaveAnswer(attempt.id, {
+    await api.autosaveAnswer(attempt.id, {
       questionId: currentQuestion.id,
       answerGiven: toDbAnswer(currentQuestion.type, finalAns),
       timeSpentSeconds: finalTimeSpent,
-      isFlagged: false,
+      isFlagged: isFinalMarked,
     }).catch(() => {});
     // Submit last section (also triggers score calculation in backend)
     await api.submitSection(attempt.id, currentSection.id).catch(() => {});
@@ -872,6 +875,28 @@ export function TestInterfacePage() {
     }
     setEliminatedOptions(new Set()); // reset eliminations on question change
   }, [currentQuestion?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Commit the current question's answer to the store as soon as it changes —
+  // not only on navigation. Without this, answering the very last question (which
+  // you never navigate away from) leaves the answer in local state only, so the
+  // palette counts, the submit modal, and autosave all show it as unanswered.
+  useEffect(() => {
+    if (!currentSection || !currentQuestion) return;
+    const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
+    const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
+    const prevState = currentQAttempt?.state ?? 'not_visited';
+    // Don't promote an untouched/empty question just by rendering it — only the
+    // existing navigation logic should mark a visited-but-empty question.
+    if (!hasAnswer && (prevState === 'not_visited' || prevState === 'marked_review')) return;
+    const newState: QuestionState = hasAnswer
+      ? (prevState === 'marked_review' || prevState === 'answered_marked' ? 'answered_marked' : 'answered')
+      : (prevState === 'marked_review' || prevState === 'answered_marked' ? 'marked_review' : 'not_answered');
+    // Skip redundant writes so we don't trigger an update loop.
+    const prevAns = currentQAttempt?.selectedAnswer ?? null;
+    const sameAns = JSON.stringify(prevAns) === JSON.stringify(finalAns ?? null);
+    if (sameAns && prevState === newState) return;
+    updateQuestionState(currentSection.id, currentQuestion.id, newState, finalAns as any);
+  }, [selectedAnswer, numericInput, currentQuestion?.id, currentSection?.id]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Loading & Error views for resume ────────────────────────────────────────
   if (restoring) {
