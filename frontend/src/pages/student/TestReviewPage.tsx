@@ -1042,6 +1042,14 @@ export function TestReviewPage() {
   const overallAccuracy = totalQ > 0 ? Math.round(totalCorrect / totalQ * 100) : 0;
   const rawScore = attempt.totalScore ?? totalCorrect;
 
+  // Subject raw totals (used by the non-SAT branch of the score card)
+  const rwSecs = sectionStats.filter((s) => /reading|writing|rw/i.test(s.name));
+  const mathSecs = sectionStats.filter((s) => /math/i.test(s.name));
+  const rwCorrect = rwSecs.reduce((a, s) => a + s.correct, 0);
+  const rwTotal = rwSecs.reduce((a, s) => a + s.total, 0);
+  const mathCorrect = mathSecs.reduce((a, s) => a + s.correct, 0);
+  const mathTotal = mathSecs.reduce((a, s) => a + s.total, 0);
+
   // Calculate final scaled score directly instead of raw score for SAT
   let rw1 = 0, rw2 = 0, math1 = 0, math2 = 0;
   let isSAT = false;
@@ -1172,90 +1180,109 @@ export function TestReviewPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* ── Hero score card ──────────────────────────────────────────────────── */}
-      <div className="bg-[#1b3d6e] rounded-2xl p-5 text-white">
-        {/* Top row: back + title + score */}
-        <div className="flex items-start gap-3 mb-5">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex-shrink-0 mt-0.5 p-1.5 rounded-lg text-blue-300 hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="text-blue-300 text-xs font-medium uppercase tracking-wide">Test Review</p>
-            {!isTutorOrAdmin && allAttempts.length > 0 ? (
-              <select
-                value={attemptId}
-                onChange={e => navigate(`/test-review/${e.target.value}`)}
-                className="mt-1 w-full max-w-xs bg-white/10 border border-white/20 rounded-lg text-white font-bold text-base px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/30 cursor-pointer appearance-none"
-                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2393c5fd' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '30px' }}
-              >
-                {allAttempts.map(a => (
-                  <option key={a.id} value={a.id} style={{ background: '#1b3d6e', color: 'white' }}>
-                    {a.test.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <h1 className="text-xl font-bold mt-0.5 truncate">{attempt.test.title}</h1>
-            )}
-            {attempt.completedAt && (
-              <p className="text-blue-300 text-xs mt-0.5">
-                Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
-              </p>
-            )}
-          </div>
-          <div className="flex-shrink-0 text-right">
-            <p className="text-4xl font-black">{isSAT ? finalScaledScore : rawScore}</p>
-            <p className="text-blue-300 text-xs">{isSAT ? 'total score' : 'raw score'}</p>
-          </div>
+      {/* ── Header: back + test selector + completed date ────────────────────── */}
+      <div className="flex items-start gap-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex-shrink-0 mt-1 p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Test Review</p>
+          {!isTutorOrAdmin && allAttempts.length > 0 ? (
+            <select
+              value={attemptId}
+              onChange={e => navigate(`/test-review/${e.target.value}`)}
+              className="mt-1 w-full max-w-xs bg-white border border-slate-200 rounded-lg text-slate-900 font-bold text-base px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer appearance-none"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '30px' }}
+            >
+              {allAttempts.map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.test.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <h1 className="text-xl font-bold text-slate-900 mt-0.5 truncate">{attempt.test.title}</h1>
+          )}
+          {attempt.completedAt && (
+            <p className="text-slate-400 text-xs mt-1">
+              Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
+          )}
         </div>
+      </div>
 
-        {/* Module score tiles */}
-        {isSAT ? (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-              {[
-                { label: 'RW Mod 1', val: rw1, den: rwDen1 },
-                { label: 'RW Mod 2', val: rw2, den: rwDen2 },
-                { label: 'Math Mod 1', val: math1, den: mathDen1 },
-                { label: 'Math Mod 2', val: math2, den: mathDen2 },
-              ].map(({ label, val, den }) => (
-                <div key={label} className="bg-white/10 rounded-xl px-3 py-2.5 text-center">
-                  <p className="text-lg font-bold">{val}<span className="text-blue-300 text-sm font-normal">/{den}</span></p>
-                  <p className="text-blue-200 text-[11px] mt-0.5">{label}</p>
-                </div>
-              ))}
-            </div>
-            {/* Scaled score row */}
-            <div className="grid grid-cols-3 gap-2 mt-3">
-              {[
-                { label: 'RW Scaled', val: rwScaled, highlight: false },
-                { label: 'Math Scaled', val: mathScaled, highlight: false },
-                { label: 'Total Score', val: finalScaledScore, highlight: true },
-              ].map(({ label, val, highlight }) => (
-                <div key={label} className={`rounded-xl px-3 py-2.5 text-center ${highlight ? 'bg-white/20 ring-1 ring-white/30' : 'bg-white/10'}`}>
-                  <p className={`text-xl font-black ${highlight ? 'text-white' : 'text-blue-100'}`}>{val}</p>
-                  <p className="text-blue-300 text-[11px] mt-0.5">{label}</p>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {sectionStats.map((s) => (
-              <div key={s.name} className="bg-white/10 rounded-xl px-3 py-2.5 text-center">
-                <p className="text-lg font-bold">{s.correct}<span className="text-blue-300 text-sm font-normal">/{s.total}</span></p>
-                <p className="text-blue-200 text-[11px] truncate mt-0.5">{s.name}</p>
-              </div>
-            ))}
-            <div className="bg-white/20 rounded-xl px-3 py-2.5 text-center ring-1 ring-white/30">
-              <p className="text-xl font-black">{overallAccuracy}%</p>
-              <p className="text-blue-300 text-[11px] mt-0.5">Accuracy</p>
-            </div>
+      {/* ── Score Card (with performance gauge) ──────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <div className="flex items-stretch divide-x divide-slate-200 min-w-[720px]">
+          {/* Total Score — gradient panel */}
+          <div className="px-8 py-6 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl flex flex-col justify-center">
+            <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
+            <p className="text-6xl font-black text-white leading-none tabular-nums mt-1.5">
+              {isSAT ? finalScaledScore : rawScore}
+            </p>
+            {isSAT ? (
+              <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 – 1600</p>
+            ) : (
+              <p className="text-xs text-blue-300 mt-2">out of {totalQ}</p>
+            )}
           </div>
-        )}
+          {/* Reading & Writing */}
+          <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Reading &amp; Writing</p>
+            <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
+              {isSAT ? rwScaled : `${rwCorrect}/${rwTotal}`}
+            </p>
+            {isSAT ? (
+              <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-2">out of {rwTotal}</p>
+            )}
+          </div>
+          {/* Math */}
+          <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Math</p>
+            <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
+              {isSAT ? mathScaled : `${mathCorrect}/${mathTotal}`}
+            </p>
+            {isSAT ? (
+              <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-2">out of {mathTotal}</p>
+            )}
+          </div>
+          {/* Score Range Bar — SAT only */}
+          {isSAT && (() => {
+            const score = finalScaledScore;
+            const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
+            return (
+              <div className="flex-1 px-8 py-6 flex flex-col justify-center gap-2.5 min-w-0">
+                <div className="flex justify-between text-xs text-slate-500 font-medium">
+                  <span>400</span><span>800</span><span>1200</span><span>1600</span>
+                </div>
+                <div className="relative h-3 rounded-full" style={{ background: 'linear-gradient(to right, #ef4444 0%, #ef4444 33.33%, #f59e0b 33.33%, #f59e0b 66.67%, #22c55e 66.67%, #22c55e 100%)' }}>
+                  <div className="absolute w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-md" style={{ left: `${pct}%`, top: '50%', transform: 'translate(-50%, -50%)' }} />
+                </div>
+                <div className="flex">
+                  <div className="flex-1 text-center">
+                    <p className="text-[10px] font-semibold text-slate-600">Below Average</p>
+                    <p className="text-[10px] text-slate-400">(400 – 800)</p>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <p className="text-[10px] font-semibold text-slate-600">Average</p>
+                    <p className="text-[10px] text-slate-400">(800 – 1200)</p>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <p className="text-[10px] font-semibold text-slate-600">Above Average</p>
+                    <p className="text-[10px] text-slate-400">(1200 - 1600)</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       </div>
 
       {/* ── KNOWLEDGE AND SKILLS ─────────────────────────────────────────────── */}
