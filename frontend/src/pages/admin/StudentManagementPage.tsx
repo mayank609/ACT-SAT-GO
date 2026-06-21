@@ -285,6 +285,18 @@ const formatTargetDate = (dateStr: string | null) => {
     : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+// Build a student-portal-style label, e.g. "Section 1, Module 1: Reading and Writing".
+function getSectionModuleLabel(name: string): string {
+  const isMath = /math/i.test(name);
+  const isRW = /reading|writing|rw|english/i.test(name);
+  if (!isMath && !isRW) return name;
+  const isModule2 = /2|two/i.test(name);
+  const moduleNum = isModule2 ? 2 : 1;
+  const sectionNum = isMath ? 2 : 1;
+  const subjectName = isMath ? 'Math' : 'Reading and Writing';
+  return `Section ${sectionNum}, Module ${moduleNum}: ${subjectName}`;
+}
+
 // stage badge helper removed as the student table was consolidated
 
 const isHW = (test: any): boolean => {
@@ -383,7 +395,7 @@ export function StudentManagementPage() {
     totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean; isAnalysed: boolean;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
-  const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw' | 'cw' | 'practice'>('all');
+  const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw_math' | 'hw_reading' | 'hw_writing' | 'practice_math' | 'practice_reading' | 'practice_writing'>('all');
 
   // ── Question Wise Report state ───────────────────────────────────────────
   const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
@@ -1165,22 +1177,38 @@ export function StudentManagementPage() {
                 link.click();
                 URL.revokeObjectURL(url);
               };
+              // Subject inferred from the test title (math / reading / writing).
+              const subjectOf = (t: string): 'math' | 'reading' | 'writing' | 'other' => {
+                if (/math|algebra|geometry|calc|quant|trig/.test(t)) return 'math';
+                if (/reading|comprehension/.test(t)) return 'reading';
+                if (/writing|grammar|english|verbal/.test(t)) return 'writing';
+                return 'other';
+              };
+              const isHWTitle = (t: string) => t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+              const isPracticeTitle = (t: string) => t.includes('practice');
               const filterMatches = (title: string, f: typeof reportFilter) => {
                 const t = title.toLowerCase();
                 if (f === 'all') return true;
                 if (f === 'mock') return t.includes('mock');
                 if (f === 'diagnostic') return t.includes('diagnostic');
-                if (f === 'hw') return t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
-                if (f === 'cw') return t.includes('classwork') || t.includes(' cw') || t.endsWith('cw') || /\bcw\b/.test(t);
-                if (f === 'practice') return t.includes('practice');
+                if (f === 'hw_math') return isHWTitle(t) && subjectOf(t) === 'math';
+                if (f === 'hw_reading') return isHWTitle(t) && subjectOf(t) === 'reading';
+                if (f === 'hw_writing') return isHWTitle(t) && subjectOf(t) === 'writing';
+                if (f === 'practice_math') return isPracticeTitle(t) && subjectOf(t) === 'math';
+                if (f === 'practice_reading') return isPracticeTitle(t) && subjectOf(t) === 'reading';
+                if (f === 'practice_writing') return isPracticeTitle(t) && subjectOf(t) === 'writing';
                 return true;
               };
               const filterLabels: { key: typeof reportFilter; label: string }[] = [
                 { key: 'all', label: 'All' },
                 { key: 'mock', label: 'Mock' },
-                { key: 'diagnostic', label: 'Diagnostic' },
-                { key: 'hw', label: 'HW' },
-                { key: 'practice', label: 'Practice' },
+                { key: 'diagnostic', label: 'Diag' },
+                { key: 'hw_math', label: 'Math HW' },
+                { key: 'hw_reading', label: 'Reading HW' },
+                { key: 'hw_writing', label: 'Writing HW' },
+                { key: 'practice_math', label: 'Math Practice' },
+                { key: 'practice_reading', label: 'Reading Prac' },
+                { key: 'practice_writing', label: 'Writing Practice' },
               ];
               const filteredRows = reportRows.filter(r => filterMatches(r.title, reportFilter));
 
@@ -1517,7 +1545,7 @@ export function StudentManagementPage() {
                               : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                           }`}
                         >
-                          {sa.category}
+                          {getSectionModuleLabel(sa.name)}
                         </button>
                       ))}
                       <button
@@ -2290,7 +2318,7 @@ export function StudentManagementPage() {
           <Modal isOpen={showQuestionNavigator} onClose={() => setShowQuestionNavigator(false)} title="" size="md">
             <div className="space-y-5">
               <div className="text-center border-b border-slate-200 pb-4">
-                <h3 className="text-lg font-bold text-slate-900">{analysis.sections[activeQuestionSectionIdx]?.name}</h3>
+                <h3 className="text-lg font-bold text-slate-900">{getSectionModuleLabel(analysis.sections[activeQuestionSectionIdx]?.name ?? '')}</h3>
                 <p className="text-sm text-slate-500 mt-1">Questions</p>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
@@ -2388,7 +2416,7 @@ export function StudentManagementPage() {
                           : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                       }`}
                     >
-                      {sa.category}
+                      {getSectionModuleLabel(sa.name)}
                     </button>
                   ))}
                 </div>
@@ -2666,7 +2694,7 @@ export function StudentManagementPage() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="text-center border-b border-slate-200 pb-4">
-                      <h3 className="text-lg font-bold text-slate-900">{analysis.sections[activeQuestionSectionIdx]?.name}</h3>
+                      <h3 className="text-lg font-bold text-slate-900">{getSectionModuleLabel(analysis.sections[activeQuestionSectionIdx]?.name ?? '')}</h3>
                       <p className="text-sm text-slate-500 mt-1">Questions</p>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">

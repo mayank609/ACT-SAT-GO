@@ -25,11 +25,11 @@ export function BreakdownTable({
 }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-        <span className="text-[#1b3d6e]">{icon}</span>
+      <div className="px-4 py-3 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-blue-100/40 flex items-center gap-2.5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-[#1b3d6e]">{icon}</span>
         <div>
-          <h3 className="text-sm font-bold text-gray-900">{title}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
+          <h3 className="text-sm font-bold text-blue-900">{title}</h3>
+          <p className="text-xs text-blue-500/80 mt-0.5">{subtitle}</p>
         </div>
       </div>
       <div className="overflow-x-auto">

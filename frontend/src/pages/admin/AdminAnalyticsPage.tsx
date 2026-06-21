@@ -10,7 +10,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   BarChart, Bar, Cell,
   PieChart, Pie,
-  RadialBarChart, RadialBar,
 } from 'recharts';
 import { api, type DbUser } from '../../lib/api';
 import { SAT_CONTENT } from '../../data/satDomains';
@@ -168,32 +167,6 @@ function QuestionDonut({ correct, incorrect, skipped, doubts }: { correct: numbe
   );
 }
 
-// ── Time radial ───────────────────────────────────────────────────────────────
-function TimeRadial({ time, attempts }: { time: number; attempts: number }) {
-  const avgPerTest = attempts > 0 ? Math.round(time / attempts) : 0;
-  const pct = Math.min(100, Math.round((avgPerTest / 3600) * 100));
-  return (
-    <div className="flex items-center gap-4 h-full">
-      <div className="flex-shrink-0">
-        <ResponsiveContainer width={90} height={90}>
-          <RadialBarChart cx={45} cy={45} innerRadius={28} outerRadius={42}
-            data={[{ value: pct, fill: C.amber }]} startAngle={90} endAngle={-270}>
-            <RadialBar dataKey="value" cornerRadius={8} background={{ fill: '#f1f5f9' }} />
-          </RadialBarChart>
-        </ResponsiveContainer>
-      </div>
-      <div>
-        <p className="text-2xl font-black text-gray-900">{fmtTime(time)}</p>
-        <p className="text-xs text-gray-400 mt-0.5">total across {attempts} test{attempts !== 1 ? 's' : ''}</p>
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <p className="text-base font-bold text-amber-500">{fmtTime(avgPerTest)}</p>
-          <p className="text-xs text-gray-400">avg per test</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Student cumulative view ───────────────────────────────────────────────────
 function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () => void }) {
   const [attempts, setAttempts] = useState<LoadedAttempt[]>([]);
@@ -226,14 +199,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
   const summary = useMemo(() => aggregate(scoped), [scoped]);
   const { domainRows, skillRows } = useMemo(() => buildBreakdown(scoped, subject), [scoped, subject]);
   const acc = accuracy(summary);
-
-  // Latest score card
-  const latestScore = useMemo(() => {
-    if (!nonDiagAttempts.length) return null;
-    const latest = nonDiagAttempts[0];
-    const s = computeSatScore(records.get(latest.id) ?? []);
-    return { total: latest.totalScore ?? s.total, rw: s.rw, math: s.math };
-  }, [nonDiagAttempts, records]);
+  const avgTimePerTest = nonDiagAttempts.length > 0 ? Math.round(summary.time / nonDiagAttempts.length) : 0;
 
   const subjectLabel = subject === 'rw' ? 'Reading & Writing' : 'Math';
 
@@ -273,65 +239,57 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
         </div>
       ) : (
         <>
-          {/* ── Score Hero ──────────────────────────────────────────────── */}
-          <div className="bg-gradient-to-br from-[#1b3d6e] to-[#1e4d8c] rounded-2xl p-5 shadow-lg shadow-blue-200/40 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            <div className="relative flex flex-wrap items-center justify-between gap-6">
-              {latestScore && (
-                <div>
-                  <p className="text-blue-300 text-[11px] font-bold uppercase tracking-widest mb-1">Latest Score</p>
-                  <p className="text-6xl font-black text-white tracking-tight tabular-nums">{latestScore.total}</p>
-                  <p className="text-blue-200 text-xs mt-1">
-                    RW <span className="text-white font-bold">{latestScore.rw}</span>
-                    {' '}&nbsp;·&nbsp;{' '}
-                    Math <span className="text-white font-bold">{latestScore.math}</span>
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-6 sm:gap-10 flex-wrap">
-                {[
-                  { label: 'Total Qs', value: summary.total, color: 'text-blue-200' },
-                  { label: 'Correct', value: summary.correct, color: 'text-emerald-300' },
-                  { label: 'Mistakes', value: summary.incorrect, color: 'text-rose-300' },
-                  { label: 'Doubts', value: summary.doubts, color: 'text-amber-300' },
-                  { label: 'Accuracy', value: `${acc}%`, color: acc >= 80 ? 'text-emerald-300' : acc >= 60 ? 'text-amber-300' : 'text-rose-300' },
-                ].map(m => (
-                  <div key={m.label} className="text-center">
-                    <p className="text-[10px] uppercase tracking-widest font-semibold text-blue-300/70">{m.label}</p>
-                    <p className={`text-2xl font-black tabular-nums ${m.color}`}>{m.value}</p>
+          {/* ── Hero: Total time + key metrics + question breakdown ─────── */}
+          <div className="bg-gradient-to-br from-[#16325c] via-[#1e4d8c] to-[#2563eb] rounded-2xl p-5 sm:p-6 shadow-lg shadow-blue-200/40 relative overflow-hidden">
+            <div className="absolute -top-16 -right-12 w-72 h-72 bg-white/5 rounded-full pointer-events-none" />
+            <div className="absolute -bottom-20 left-1/4 w-56 h-56 bg-white/[0.04] rounded-full pointer-events-none" />
+            <div className="relative flex flex-col lg:flex-row lg:items-stretch gap-5">
+              {/* Left: total time + metric chips */}
+              <div className="flex-1 min-w-0 flex flex-col justify-between gap-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center flex-shrink-0">
+                    <Clock size={26} className="text-amber-300" />
                   </div>
-                ))}
+                  <div className="min-w-0">
+                    <p className="text-blue-200/80 text-[11px] font-bold uppercase tracking-widest mb-0.5">Total Time Spent</p>
+                    <p className="text-4xl sm:text-5xl font-black text-white tracking-tight tabular-nums leading-none">{fmtTime(summary.time)}</p>
+                    <p className="text-blue-200 text-xs mt-1.5">
+                      across <span className="text-white font-bold">{nonDiagAttempts.length}</span> test{nonDiagAttempts.length !== 1 ? 's' : ''}
+                      {nonDiagAttempts.length > 0 && <> &nbsp;·&nbsp; avg <span className="text-white font-bold">{fmtTime(avgTimePerTest)}</span> / test</>}
+                    </p>
+                  </div>
+                </div>
+                {/* Metric chips */}
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {[
+                    { label: 'Total Qs', value: summary.total, color: 'text-blue-100' },
+                    { label: 'Correct', value: summary.correct, color: 'text-emerald-300' },
+                    { label: 'Mistakes', value: summary.incorrect, color: 'text-rose-300' },
+                    { label: 'Doubts', value: summary.doubts, color: 'text-amber-300' },
+                    { label: 'Accuracy', value: `${acc}%`, color: acc >= 80 ? 'text-emerald-300' : acc >= 60 ? 'text-amber-300' : 'text-rose-300' },
+                  ].map(m => (
+                    <div key={m.label} className="bg-white/10 ring-1 ring-white/10 rounded-xl px-3 py-2 text-center">
+                      <p className="text-[9px] uppercase tracking-widest font-semibold text-blue-200/70">{m.label}</p>
+                      <p className={`text-xl font-black tabular-nums ${m.color}`}>{m.value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* ── Charts row ──────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Score trend */}
-            <div className="sm:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp size={15} className="text-blue-500" />
-                <span className="text-sm font-bold text-gray-800">Score Trend</span>
-                <span className="text-xs text-gray-400 ml-1">all {nonDiagAttempts.length} tests</span>
-              </div>
-              <div style={{ height: 200 }}>
-                <ScoreTrend attempts={nonDiagAttempts} records={records} />
-              </div>
-            </div>
-
-            {/* Question breakdown donut */}
-            <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Target size={15} className="text-indigo-500" />
-                <span className="text-sm font-bold text-gray-800">Question Breakdown</span>
-              </div>
-              <div style={{ height: 200 }}>
-                <QuestionDonut
-                  correct={summary.correct}
-                  incorrect={summary.incorrect}
-                  skipped={summary.skipped}
-                  doubts={summary.doubts}
-                />
+              {/* Right: question breakdown panel (moved into hero) */}
+              <div className="lg:w-80 flex-shrink-0 bg-white rounded-xl p-4 shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target size={15} className="text-indigo-500" />
+                  <span className="text-sm font-bold text-gray-800">Question Breakdown</span>
+                </div>
+                <div style={{ height: 150 }}>
+                  <QuestionDonut
+                    correct={summary.correct}
+                    incorrect={summary.incorrect}
+                    skipped={summary.skipped}
+                    doubts={summary.doubts}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -354,31 +312,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
             ))}
           </div>
 
-          {/* ── Domain bar + time radial ─────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart2 size={15} className="text-emerald-500" />
-                <span className="text-sm font-bold text-gray-800">Domain Accuracy</span>
-                <span className="text-xs text-gray-400 ml-1">· {subjectLabel}</span>
-              </div>
-              <div style={{ height: 180 }}>
-                <DomainBars rows={domainRows} />
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock size={15} className="text-amber-500" />
-                <span className="text-sm font-bold text-gray-800">Time Spent</span>
-              </div>
-              <div style={{ height: 180 }}>
-                <TimeRadial time={summary.time} attempts={nonDiagAttempts.length} />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Breakdown tables ─────────────────────────────────────────── */}
+          {/* ── Breakdown tables (above the graphs) ──────────────────────── */}
           <BreakdownTable
             title="Domain-wise Analysis"
             subtitle={`${subjectLabel} · ${SAT_CONTENT[subject === 'math' ? 'Math' : 'Reading and Writing'].length} content domains`}
@@ -393,6 +327,29 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
             firstColLabel="Skill"
             rows={skillRows}
           />
+
+          {/* ── Graphs (kept at the bottom) ──────────────────────────────── */}
+          <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart2 size={15} className="text-emerald-500" />
+              <span className="text-sm font-bold text-gray-800">Domain Accuracy</span>
+              <span className="text-xs text-gray-400 ml-1">· {subjectLabel}</span>
+            </div>
+            <div style={{ height: 180 }}>
+              <DomainBars rows={domainRows} />
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp size={15} className="text-blue-500" />
+              <span className="text-sm font-bold text-gray-800">Score Trend</span>
+              <span className="text-xs text-gray-400 ml-1">all {nonDiagAttempts.length} tests</span>
+            </div>
+            <div style={{ height: 200 }}>
+              <ScoreTrend attempts={nonDiagAttempts} records={records} />
+            </div>
+          </div>
         </>
       )}
     </div>
