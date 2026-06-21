@@ -62,6 +62,7 @@ model User {
   testsCreated Test[]
   attempts     TestAttempt[]
   testAssignments TestAssignment[]
+  testPackages    TestPackage[]
 
   // Tutor assignments: a user can be a tutor for many, or a student under many tutors
   students      TutorAssignment[] @relation("TutorToStudent")
@@ -128,6 +129,32 @@ model Test {
   questions   TestQuestion[]
   attempts    TestAttempt[]
   assignments TestAssignment[]
+  packageItems TestPackageItem[]
+}
+
+// A named bundle of tests that can be assigned to students all at once.
+model TestPackage {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User              @relation(fields: [createdById], references: [id])
+  items       TestPackageItem[]
+}
+
+model TestPackageItem {
+  id         String @id @default(uuid())
+  packageId  String
+  testId     String
+  orderIndex Int    @default(0)
+
+  package    TestPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  test       Test        @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, testId])
 }
 
 model TestSection {

@@ -60,6 +60,31 @@ export interface DbUser {
   diagnosticDecision?: 'keep' | 'leave' | null
 }
 
+export interface DbTestPackageItem {
+  id: string
+  packageId: string
+  testId: string
+  orderIndex: number
+  test: {
+    id: string
+    title: string
+    status: string
+    category?: string | null
+    subCategory?: string | null
+    sections: Array<{ id: string; durationMinutes: number; _count?: { questions: number } }>
+  }
+}
+
+export interface DbTestPackage {
+  id: string
+  title: string
+  description: string | null
+  createdById: string
+  createdAt: string
+  updatedAt: string
+  items: DbTestPackageItem[]
+}
+
 export const api = {
   // Users
   getUsersByRole: (role?: string) =>
@@ -145,6 +170,18 @@ export const api = {
     request<{ success: boolean }>(`/api/tests/${testId}`, { method: 'DELETE' }),
   cloneTest: (testId: string) =>
     request<{ test: { id: string } }>(`/api/tests/${testId}/clone`, { method: 'POST', body: '{}' }),
+
+  // Test packages (bundles of tests)
+  getTestPackages: () =>
+    request<{ packages: DbTestPackage[] }>('/api/test-packages'),
+  createTestPackage: (body: { title: string; description?: string | null; testIds: string[]; createdById: string }) =>
+    request<{ package: DbTestPackage }>('/api/test-packages', { method: 'POST', body: JSON.stringify(body) }),
+  updateTestPackage: (packageId: string, body: { title?: string; description?: string | null; testIds?: string[] }) =>
+    request<{ package: DbTestPackage }>(`/api/test-packages/${packageId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteTestPackage: (packageId: string) =>
+    request<{ success: boolean }>(`/api/test-packages/${packageId}`, { method: 'DELETE' }),
+  assignTestPackage: (packageId: string, body: { studentIds: string[]; dueAt?: string | null; availableFrom?: string | null; availableUntil?: string | null; maxAttempts?: number }) =>
+    request<{ created: number; skipped: number; tests: number; students: number }>(`/api/test-packages/${packageId}/assign`, { method: 'POST', body: JSON.stringify(body) }),
 
   // Attempts
   startAttempt: (testId: string, studentId: string) =>
