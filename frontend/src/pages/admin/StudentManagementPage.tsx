@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -9,7 +9,7 @@ import { Modal } from '../../components/common/Modal';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
-import { api, type DbUser } from '../../lib/api';
+import { api, type DbUser, type DbTestPackage } from '../../lib/api';
 import { studentStatusFromDecision, STUDENT_STATUS_LABEL, STUDENT_STATUS_BADGE } from '../../lib/studentStatus';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES } from '../../data/satDomains';
@@ -405,6 +405,10 @@ export function StudentManagementPage() {
   const [assignSubFilter, setAssignSubFilter] = useState<'All' | 'HW' | 'English' | 'Maths'>('All');
   const [assignSearch, setAssignSearch] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
+  // Assign modal can target individual tests or whole packages.
+  const [assignMode, setAssignMode] = useState<'tests' | 'packages'>('tests');
+  const [assignSelectedPackageIds, setAssignSelectedPackageIds] = useState<string[]>([]);
+  const [packages, setPackages] = useState<DbTestPackage[]>([]);
 
   useEffect(() => {
     if (mainView !== 'test_analysis' || !selectedStudentId) {
@@ -509,6 +513,7 @@ export function StudentManagementPage() {
   useEffect(() => { reload(); }, []);
   useEffect(() => {
     api.getPublishedTests().then((r) => setPublishedTests((r.tests as DbTest[]).filter((t) => t.status === 'PUBLISHED'))).catch(() => {});
+    api.getTestPackages().then((r) => setPackages(r.packages)).catch(() => {});
   }, []);
 
   // Load comprehensive analysis data
@@ -2716,41 +2721,59 @@ export function StudentManagementPage() {
         return (
           <Modal
             isOpen={assignOpen}
-            onClose={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignFilter('All'); setAssignSubFilter('All'); setAssignSearch(''); }}
+            onClose={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignSelectedPackageIds([]); setAssignMode('tests'); setAssignFilter('All'); setAssignSubFilter('All'); setAssignSearch(''); }}
             title="Assign Tests"
             size="md"
             footer={
               <div className="flex gap-2 justify-end">
-                <Button variant="secondary" size="sm" onClick={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignFilter('All'); setAssignSubFilter('All'); setAssignSearch(''); }}>Cancel</Button>
+                <Button variant="secondary" size="sm" onClick={() => { setAssignOpen(false); setAssignStudentId(null); setAssignSelectedTestIds([]); setAssignSelectedPackageIds([]); setAssignMode('tests'); setAssignFilter('All'); setAssignSubFilter('All'); setAssignSearch(''); }}>Cancel</Button>
                 <Button
                   size="sm"
-                  icon={<BookOpen size={13} />}
-                  disabled={assignSelectedTestIds.length === 0 || assignLoading}
+                  icon={assignMode === 'packages' ? <Boxes size={13} /> : <BookOpen size={13} />}
+                  disabled={(assignMode === 'tests' ? assignSelectedTestIds.length === 0 : assignSelectedPackageIds.length === 0) || assignLoading}
                   onClick={async () => {
-                    if (!assignStudentId || assignSelectedTestIds.length === 0) return;
+                    if (!assignStudentId) return;
                     setAssignLoading(true);
                     try {
-                      await Promise.all(
-                        assignSelectedTestIds.map((testId) =>
-                          api.createTestAssignments({ testId, studentIds: [assignStudentId] })
-                        )
-                      );
-                      const titles = assignSelectedTestIds
-                        .map((id) => publishedTests.find((t) => t.id === id)?.title)
-                        .filter(Boolean);
-                      toast.success(
-                        titles.length > 1
-                          ? `${titles.length} tests assigned successfully`
-                          : `"${titles[0]}" assigned successfully`
-                      );
+                      if (assignMode === 'packages') {
+                        if (assignSelectedPackageIds.length === 0) return;
+                        const results = await Promise.all(
+                          assignSelectedPackageIds.map((packageId) =>
+                            api.assignTestPackage(packageId, { studentIds: [assignStudentId] })
+                          )
+                        );
+                        const totalTests = results.reduce((a, r) => a + (r.tests ?? 0), 0);
+                        toast.success(
+                          assignSelectedPackageIds.length > 1
+                            ? `${assignSelectedPackageIds.length} packages (${totalTests} tests) assigned`
+                            : `Package assigned (${totalTests} test${totalTests !== 1 ? 's' : ''})`
+                        );
+                      } else {
+                        if (assignSelectedTestIds.length === 0) return;
+                        await Promise.all(
+                          assignSelectedTestIds.map((testId) =>
+                            api.createTestAssignments({ testId, studentIds: [assignStudentId] })
+                          )
+                        );
+                        const titles = assignSelectedTestIds
+                          .map((id) => publishedTests.find((t) => t.id === id)?.title)
+                          .filter(Boolean);
+                        toast.success(
+                          titles.length > 1
+                            ? `${titles.length} tests assigned successfully`
+                            : `"${titles[0]}" assigned successfully`
+                        );
+                      }
                       setAssignOpen(false);
                       setAssignStudentId(null);
                       setAssignSelectedTestIds([]);
+                      setAssignSelectedPackageIds([]);
+                      setAssignMode('tests');
                       setAssignFilter('All');
                       setAssignSubFilter('All');
                       setAssignSearch('');
                     } catch {
-                      toast.error('Failed to assign tests');
+                      toast.error(assignMode === 'packages' ? 'Failed to assign package' : 'Failed to assign tests');
                     } finally {
                       setAssignLoading(false);
                     }
@@ -2762,10 +2785,64 @@ export function StudentManagementPage() {
             }
           >
             <div className="space-y-3">
+              {/* Tests | Packages toggle */}
+              <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/60">
+                <button
+                  onClick={() => setAssignMode('tests')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${assignMode === 'tests' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <BookOpen size={13} /> Tests
+                </button>
+                <button
+                  onClick={() => setAssignMode('packages')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${assignMode === 'packages' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Boxes size={13} /> Packages <span className="text-[10px] text-slate-400">({packages.length})</span>
+                </button>
+              </div>
+
               <p className="text-sm text-slate-500">
-                Select one or more published tests to assign to <strong>{assignStudent?.name ?? '…'}</strong>.
+                {assignMode === 'packages' ? (
+                  <>Select one or more packages to assign to <strong>{assignStudent?.name ?? '…'}</strong>. Every test in each package is assigned.</>
+                ) : (
+                  <>Select one or more published tests to assign to <strong>{assignStudent?.name ?? '…'}</strong>.</>
+                )}
               </p>
-              {publishedTests.length === 0 ? (
+
+              {assignMode === 'packages' ? (
+                packages.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-4 text-center">No packages yet. Create one from Test Builder → Packages.</p>
+                ) : (
+                  <div className="space-y-2 max-h-72 overflow-y-auto">
+                    {packages.map((pkg) => {
+                      const isSel = assignSelectedPackageIds.includes(pkg.id);
+                      const testCount = pkg.items.length;
+                      return (
+                        <label
+                          key={pkg.id}
+                          className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${isSel ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSel}
+                            onChange={(e) => {
+                              if (e.target.checked) setAssignSelectedPackageIds((prev) => [...prev, pkg.id]);
+                              else setAssignSelectedPackageIds((prev) => prev.filter((id) => id !== pkg.id));
+                            }}
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate flex items-center gap-1.5"><Boxes size={13} className="text-indigo-500 flex-shrink-0" /> {pkg.title}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{testCount} test{testCount !== 1 ? 's' : ''}{pkg.description ? ` · ${pkg.description}` : ''}</p>
+                          </div>
+                          {isSel && <CheckCircle size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+              publishedTests.length === 0 ? (
                 <p className="text-sm text-slate-400 py-2">No published tests available.</p>
               ) : (
                 <>
@@ -2858,6 +2935,7 @@ export function StudentManagementPage() {
                     })}
                   </div>
                 </>
+              )
               )}
             </div>
           </Modal>
