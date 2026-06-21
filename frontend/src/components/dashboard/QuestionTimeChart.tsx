@@ -35,6 +35,12 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
 
   const totalSec = useMemo(() => rows.reduce((s, r) => s + r.timeSpentSeconds, 0), [rows]);
 
+  // X-axis domain is the section's allotted time, not the time actually used:
+  // Reading & Writing = 35 min, Math = 32 min. (Falls back to R&W if unknown.)
+  const isMathSection = /math/i.test(sorted[0]?.sectionName ?? '');
+  const sectionMaxMin = isMathSection ? 32 : 35;
+  const domainSec = Math.max(sectionMaxMin * 60, totalSec);
+
   // Chart dimensions
   const ROW_H    = 14;   // px per question row (compact)
   const ROW_GAP  = 3;    // px gap between rows (compact)
@@ -46,21 +52,23 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
 
   // We'll render into an auto-width container; use a viewBox trick with SVG
   // that scales to fill the container width.
-  // For the x-axis, we map [0, totalSec] → [LABEL_W, chartW].
+  // For the x-axis, we map [0, domainSec] → [LABEL_W, chartW].
   // We don't know chartW at render time, so we use a fixed internal coordinate
   // system and let SVG viewBox scale it. Internal width = 1000 units.
   const IW = 1000; // internal width units
   const plotW = IW - LABEL_W - PADDING;
 
-  const toX = (sec: number) => LABEL_W + (sec / Math.max(totalSec, 1)) * plotW;
+  const toX = (sec: number) => LABEL_W + (sec / Math.max(domainSec, 1)) * plotW;
 
-  // Time axis ticks — aim for ~8-12 ticks in minutes
-  const totalMin = totalSec / 60;
-  const tickStep = totalMin <= 10 ? 1 : totalMin <= 20 ? 2 : totalMin <= 40 ? 5 : 10;
+  // Y-axis ordering: Q1 sits at the bottom (origin) and indices grow upward.
+  const toRowY = (i: number) => (rows.length - 1 - i) * (ROW_H + ROW_GAP);
+
+  // Time axis ticks — aim for ~8-12 ticks in minutes, spanning the full domain
+  const domainMin = domainSec / 60;
+  const tickStep = domainMin <= 10 ? 1 : domainMin <= 20 ? 2 : domainMin <= 40 ? 5 : 10;
   const ticks: number[] = [];
-  for (let m = 0; m <= Math.ceil(totalMin) + tickStep; m += tickStep) {
-    if (m * 60 <= totalSec + tickStep * 60) ticks.push(m);
-  }
+  for (let m = 0; m <= domainMin; m += tickStep) ticks.push(m);
+  if (ticks[ticks.length - 1] !== domainMin) ticks.push(domainMin);
 
   const svgH = chartH + TICK_H + 8;
 
@@ -94,7 +102,7 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
 
         {/* ── Question rows ── */}
         {rows.map((r, i) => {
-          const y       = i * (ROW_H + ROW_GAP);
+          const y       = toRowY(i);
           const x1      = toX(r.startSec);
           const x2      = toX(r.startSec + r.timeSpentSeconds);
           const barW    = Math.max(x2 - x1, 1.5);
@@ -109,15 +117,13 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
                 <rect x={0} y={y} width={IW} height={ROW_H + ROW_GAP}
                   fill="#f9fafb" fillOpacity={0.5} />
               )}
-              {/* Q label — only for odd question indices */}
-              {r.questionIndex % 2 !== 0 && (
-                <text
-                  x={LABEL_W - 4} y={y + ROW_H / 2 + 3.5}
-                  textAnchor="end" fontSize={8} fill="#6b7280" fontFamily="system-ui, sans-serif"
-                >
-                  {label}
-                </text>
-              )}
+              {/* Q label — shown for every question */}
+              <text
+                x={LABEL_W - 4} y={y + ROW_H / 2 + 3.5}
+                textAnchor="end" fontSize={8} fill="#6b7280" fontFamily="system-ui, sans-serif"
+              >
+                {label}
+              </text>
               {/* Bar */}
               <rect
                 x={x1} y={y + 3} width={barW} height={ROW_H - 6}
