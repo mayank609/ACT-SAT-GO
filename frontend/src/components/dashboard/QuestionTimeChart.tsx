@@ -36,9 +36,9 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
   const totalSec = useMemo(() => rows.reduce((s, r) => s + r.timeSpentSeconds, 0), [rows]);
 
   // X-axis domain is the section's allotted time, not the time actually used:
-  // Reading & Writing = 35 min, Math = 32 min. (Falls back to R&W if unknown.)
+  // Reading & Writing = 32 min, Math = 35 min. (Falls back to R&W if unknown.)
   const isMathSection = /math/i.test(sorted[0]?.sectionName ?? '');
-  const sectionMaxMin = isMathSection ? 32 : 35;
+  const sectionMaxMin = isMathSection ? 35 : 32;
   const domainSec = Math.max(sectionMaxMin * 60, totalSec);
 
   // Chart dimensions
