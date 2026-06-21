@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { HelpCircle, Loader2, Search, ExternalLink } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { QuestionWiseReport, type TaAttempt } from '../../components/admin/QuestionWiseReport';
+import { DoubtsView } from '../student/DoubtsPage';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -21,10 +21,8 @@ export function StudentDoubtsAdminPage() {
   const [pageLoading, setPageLoading] = useState(true);
   const cancelledRef = useRef(false);
 
-  // Fullscreen viewer state
-  const [viewAttempt, setViewAttempt] = useState<TaAttempt | null>(null);
-  const [viewStudentName, setViewStudentName] = useState('');
-  const [loadingViewId, setLoadingViewId] = useState<string | null>(null);
+  // Selected student whose doubts we're viewing.
+  const [viewStudent, setViewStudent] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -60,22 +58,8 @@ export function StudentDoubtsAdminPage() {
     return () => { cancelledRef.current = true; };
   }, [user, dbId]);
 
-  const handleView = async (row: StudentRow) => {
-    setLoadingViewId(row.studentId);
-    try {
-      const { attempts: raw } = await api.getStudentAttempts(row.studentId);
-      const submitted = ((raw as any[]) ?? [])
-        .filter((a: any) => a?.status === 'SUBMITTED')
-        .sort((a: any, b: any) =>
-          new Date(b.completedAt ?? b.startedAt).getTime() - new Date(a.completedAt ?? a.startedAt).getTime()
-        );
-      if (submitted.length === 0) return;
-      const data = await api.getAttempt(submitted[0].id);
-      setViewStudentName(row.studentName);
-      setViewAttempt((data as any).attempt as TaAttempt);
-    } finally {
-      setLoadingViewId(null);
-    }
+  const handleView = (row: StudentRow) => {
+    setViewStudent({ id: row.studentId, name: row.studentName });
   };
 
   const filtered = rows.filter(r =>
@@ -87,6 +71,20 @@ export function StudentDoubtsAdminPage() {
     return (
       <div className="flex items-center justify-center h-60 gap-2 text-slate-400 text-sm">
         <Loader2 size={18} className="animate-spin" /> Loading students…
+      </div>
+    );
+  }
+
+  // Viewing one student's doubts — render the same "My Doubts" view the student sees.
+  if (viewStudent) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <DoubtsView
+          studentId={viewStudent.id}
+          title={`${viewStudent.name}'s Doubts`}
+          subtitle="Questions this student marked as “still a doubt” while reviewing tests"
+          onBack={() => setViewStudent(null)}
+        />
       </div>
     );
   }
@@ -117,11 +115,11 @@ export function StudentDoubtsAdminPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide border-r border-slate-200 whitespace-nowrap">
+                <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800 uppercase tracking-wide border-r border-blue-100 whitespace-nowrap">
                     Student
                   </th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap w-28">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-blue-800 uppercase tracking-wide whitespace-nowrap w-28">
                     Review
                   </th>
                 </tr>
@@ -135,10 +133,12 @@ export function StudentDoubtsAdminPage() {
                   </tr>
                 ) : (
                   filtered.map(row => {
-                    const isLoadingThis = loadingViewId === row.studentId;
-
                     return (
-                      <tr key={row.studentId} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <tr
+                        key={row.studentId}
+                        onClick={() => handleView(row)}
+                        className="border-b border-slate-100 hover:bg-blue-50/50 transition-colors cursor-pointer"
+                      >
                         {/* Student */}
                         <td className="px-4 py-3 border-r border-slate-200">
                           <div className="flex items-center gap-2.5 min-w-[160px]">
@@ -155,15 +155,10 @@ export function StudentDoubtsAdminPage() {
                         {/* View button */}
                         <td className="px-3 py-3 text-center">
                           <button
-                            onClick={() => handleView(row)}
-                            disabled={isLoadingThis}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleView(row); }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                           >
-                            {isLoadingThis ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <ExternalLink size={12} />
-                            )}
+                            <ExternalLink size={12} />
                             View
                           </button>
                         </td>
@@ -176,26 +171,6 @@ export function StudentDoubtsAdminPage() {
           </div>
         </div>
       </div>
-
-      {/* Fullscreen question review — opens when View is clicked */}
-      {viewAttempt && (
-        <>
-          {/* Student name banner injected above the fullscreen via absolute — handled inside via onFullscreenClose */}
-          <QuestionWiseReport
-            attempt={viewAttempt}
-            defaultFilter="doubt"
-            defaultFullscreen={true}
-            onFullscreenClose={() => { setViewAttempt(null); setViewStudentName(''); }}
-          />
-          {/* Student name label inside the fullscreen header is not possible without modifying the header;
-              instead we show it as a floating chip that overlays at top-left */}
-          <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[160] pointer-events-none">
-            <div className="mt-4 px-4 py-1.5 bg-slate-900/80 backdrop-blur-sm text-white text-xs font-semibold rounded-full shadow-lg">
-              Reviewing: {viewStudentName}
-            </div>
-          </div>
-        </>
-      )}
     </>
   );
 }

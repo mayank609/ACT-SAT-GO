@@ -1265,7 +1265,7 @@ export function StudentManagementPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm border-l-4 border-l-blue-600 border border-slate-200">
                         <thead>
-                          <tr className="bg-indigo-50 border-b-2 border-slate-200 text-slate-700">
+                          <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b-2 border-blue-100 text-blue-800">
                             <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">#</th>
                             <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Started At</th>
@@ -2256,7 +2256,7 @@ export function StudentManagementPage() {
             return (
               <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                  <thead className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100 text-blue-800 font-semibold">
                     <tr>
                       <th className="px-4 py-3">Section / Module</th>
                       <th className="px-4 py-3 text-center">Questions</th>

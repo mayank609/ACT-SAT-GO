@@ -73,13 +73,13 @@ export function TopicAnalysisTable({ data, loading = false }: TopicAnalysisTable
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">S.NO.</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Topic</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider">Total Q's</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider">Correct Q's</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider">Accuracy</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider">Avg Mistakes</th>
+                <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">S.NO.</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800 uppercase tracking-wider">Topic</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-blue-800 uppercase tracking-wider">Total Q's</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-blue-800 uppercase tracking-wider">Correct Q's</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-blue-800 uppercase tracking-wider">Accuracy</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-blue-800 uppercase tracking-wider">Avg Mistakes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

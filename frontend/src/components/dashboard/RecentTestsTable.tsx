@@ -96,15 +96,15 @@ export function RecentTestsTable() {
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-100">
+            <thead className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Test Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Score</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Accuracy</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Time</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Rank</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Status</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800">Test Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800">Score</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800">Accuracy</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800">Time</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800">Rank</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-blue-800">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

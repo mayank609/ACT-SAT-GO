@@ -244,19 +244,22 @@ function DoubtItemComponent({ item, index, onCleared }: {
 
 // ─── Page ──────────────────────────────────────────────────────────────────
 
-export function DoubtsPage() {
-  const navigate = useNavigate();
-  const { dbId } = useAuthStore();
-
+export function DoubtsView({ studentId, title, subtitle, onBack }: {
+  studentId: string | null | undefined;
+  title: string;
+  subtitle: string;
+  onBack: () => void;
+}) {
   const [doubts, setDoubts] = useState<DoubtItem[]>([]);
   const [subjectFilter, setSubjectFilter] = useState<'all' | 'math' | 'english'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!dbId) { setLoading(false); return; }
+    setLoading(true);
+    if (!studentId) { setLoading(false); return; }
 
-    api.getStudentAttempts(dbId)
+    api.getStudentAttempts(studentId)
       .then(({ attempts: rawAttempts }) => {
         if (!Array.isArray(rawAttempts)) return;
         const submitted = (rawAttempts as any[]).filter(a => a?.status === 'SUBMITTED');
@@ -314,7 +317,7 @@ export function DoubtsPage() {
           .finally(() => setLoading(false));
       })
       .catch((e: Error) => { setError(e.message); setLoading(false); });
-  }, [dbId]);
+  }, [studentId]);
 
   const handleCleared = (attemptId: string, questionId: string) => {
     setDoubts(prev => prev.filter(d => !(d.attemptId === attemptId && d.questionId === questionId)));
@@ -333,12 +336,12 @@ export function DoubtsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Go back">
+        <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Go back">
           <ArrowLeft size={20} className="text-slate-600" />
         </button>
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">My Doubts</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Questions you marked as “still a doubt” while reviewing tests</p>
+          <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{subtitle}</p>
         </div>
       </div>
 
@@ -400,5 +403,20 @@ export function DoubtsPage() {
         </>
       )}
     </div>
+  );
+}
+
+// ─── Student entrypoint ──────────────────────────────────────────────────────
+
+export function DoubtsPage() {
+  const navigate = useNavigate();
+  const { dbId } = useAuthStore();
+  return (
+    <DoubtsView
+      studentId={dbId}
+      title="My Doubts"
+      subtitle="Questions you marked as “still a doubt” while reviewing tests"
+      onBack={() => navigate(-1)}
+    />
   );
 }

@@ -329,25 +329,33 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
           />
 
           {/* ── Graphs (kept at the bottom) ──────────────────────────────── */}
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart2 size={15} className="text-emerald-500" />
-              <span className="text-sm font-bold text-gray-800">Domain Accuracy</span>
-              <span className="text-xs text-gray-400 ml-1">· {subjectLabel}</span>
+          <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-blue-100/40 flex items-center gap-2.5">
+              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-[#1b3d6e]"><BarChart2 size={15} /></span>
+              <div>
+                <h3 className="text-sm font-bold text-blue-900">Domain Accuracy</h3>
+                <p className="text-xs text-blue-500/80 mt-0.5">{subjectLabel}</p>
+              </div>
             </div>
-            <div style={{ height: 180 }}>
-              <DomainBars rows={domainRows} />
+            <div className="p-4">
+              <div style={{ height: 180 }}>
+                <DomainBars rows={domainRows} />
+              </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp size={15} className="text-blue-500" />
-              <span className="text-sm font-bold text-gray-800">Score Trend</span>
-              <span className="text-xs text-gray-400 ml-1">all {nonDiagAttempts.length} tests</span>
+          <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-blue-100/40 flex items-center gap-2.5">
+              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-[#1b3d6e]"><TrendingUp size={15} /></span>
+              <div>
+                <h3 className="text-sm font-bold text-blue-900">Score Trend</h3>
+                <p className="text-xs text-blue-500/80 mt-0.5">all {nonDiagAttempts.length} tests</p>
+              </div>
             </div>
-            <div style={{ height: 200 }}>
-              <ScoreTrend attempts={nonDiagAttempts} records={records} />
+            <div className="p-4">
+              <div style={{ height: 200 }}>
+                <ScoreTrend attempts={nonDiagAttempts} records={records} />
+              </div>
             </div>
           </div>
         </>

@@ -306,9 +306,9 @@ export function SuperAdminDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100">
+                  <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
                     {['Name', 'Email', 'Role', 'Tests Done', 'Avg Score', 'Created', 'Actions'].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-blue-800 uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -383,9 +383,9 @@ export function SuperAdminDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Permission Module</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
+                  <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
+                    <th className="px-4 py-3 text-left text-xs font-bold text-blue-800 uppercase tracking-wider">Permission Module</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-blue-800 uppercase tracking-wider">Category</th>
                     {(['super_admin', 'admin', 'tutor', 'student'] as const).map((r) => (
                       <th key={r} className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${roleColors[r]}`}>{r.replace('_', ' ')}</span>
