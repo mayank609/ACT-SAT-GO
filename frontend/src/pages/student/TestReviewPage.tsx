@@ -1551,6 +1551,10 @@ export function TestReviewPage() {
                   <div className="w-5 h-5 rounded-full bg-red-500" />
                   <span className="text-xs font-semibold text-slate-600">Wrong</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Bookmark size={15} className="text-amber-500" fill="currentColor" />
+                  <span className="text-xs font-semibold text-slate-600">Bookmarked</span>
+                </div>
               </div>
 
               {/* Question Grid */}
@@ -1560,11 +1564,12 @@ export function TestReviewPage() {
                 
                 return (
                   <div className="flex justify-center max-h-[50vh] overflow-y-auto">
-                    <div className="grid grid-cols-9 gap-2 md:gap-3">
+                    <div className="grid grid-cols-9 gap-2 md:gap-3 p-1.5">
                       {activeQuestions.map((tq, idx) => {
                         const ans = answersMap.get(tq.questionId);
                         const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
                         const isOmitted = !ans?.answerGiven;
+                        const isFlagged = ans?.isFlagged ?? false;
                         const globalNum = idx + 1;
                         
                         const bgColor = isOmitted
@@ -1587,10 +1592,17 @@ export function TestReviewPage() {
                               setCurrentQuestionIdx(filteredIdx);
                               setQuestionNavigatorOpen(false);
                             }}
-                            className={`w-10 h-10 md:w-11 md:h-11 rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
-                            title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
+                            className={`relative w-10 h-10 md:w-11 md:h-11 rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 ${isFlagged ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
+                            title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}${isFlagged ? ' (Bookmarked)' : ''}`}
                           >
                             {globalNum}
+                            {isFlagged && (
+                              <Bookmark
+                                size={12}
+                                className="absolute -top-1.5 -right-1.5 text-amber-500 drop-shadow-sm"
+                                fill="currentColor"
+                              />
+                            )}
                           </button>
                         );
                       })}
@@ -1955,6 +1967,7 @@ export function TestReviewPage() {
                   <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
                   <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
                   <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
+                  <div className="flex items-center gap-2"><Bookmark size={15} className="text-amber-500" fill="currentColor" /><span className="text-xs font-semibold text-slate-600">Bookmarked</span></div>
                   <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full border-2 border-blue-600 bg-blue-50" /><span className="text-xs font-semibold text-slate-600">Current</span></div>
                 </div>
 
@@ -1965,6 +1978,7 @@ export function TestReviewPage() {
                       const ans = answersMap.get(fq.questionId);
                       const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
                       const isOmitted = !ans?.answerGiven;
+                      const isFlagged = ans?.isFlagged ?? false;
                       const isCurrent = idx === safeIdx;
                       let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
                       let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
@@ -1973,9 +1987,16 @@ export function TestReviewPage() {
                         <button
                           key={idx}
                           onClick={() => { setCurrentQuestionIdx(idx); setShowFullscreenQuestionNavigator(false); }}
-                          className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                          className={`relative w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 ${isFlagged && !isCurrent ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
                         >
                           {idx + 1}
+                          {isFlagged && (
+                            <Bookmark
+                              size={12}
+                              className="absolute -top-1.5 -right-1.5 text-amber-500 drop-shadow-sm"
+                              fill="currentColor"
+                            />
+                          )}
                         </button>
                       );
                     })}

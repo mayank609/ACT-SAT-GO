@@ -68,7 +68,7 @@ export function StudentDashboard() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Welcome Card */}
       <div className="bg-gradient-to-br from-[#1e3a8a] via-[#1b3d6e] to-[#0f172a] rounded-2xl p-6 text-white shadow-lg border border-blue-900/40 relative overflow-hidden">
         {/* Subtle decorative circles */}
