@@ -305,8 +305,8 @@ function QuestionDisplay({
   const statusBadges = (
     <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
       {studentAnswer?.timeSpentSeconds ? (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
-          <Clock size={11} /> Time Spent: {studentAnswer.timeSpentSeconds}s
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 border border-blue-300 rounded-full text-xs font-bold text-blue-800">
+          <Clock size={12} strokeWidth={2.5} /> Time Spent: {studentAnswer.timeSpentSeconds}s
         </span>
       ) : null}
       {correct ? (
