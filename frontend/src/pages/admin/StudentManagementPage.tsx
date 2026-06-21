@@ -10,6 +10,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser } from '../../lib/api';
+import { studentStatusFromDecision, STUDENT_STATUS_LABEL, STUDENT_STATUS_BADGE } from '../../lib/studentStatus';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES } from '../../data/satDomains';
 
@@ -365,7 +366,7 @@ export function StudentManagementPage() {
   }>>([]);
   const [analysisSearchTerm, setAnalysisSearchTerm] = useState('');
   const [analysisSortBy, setAnalysisSortBy] = useState<'name' | 'diagnostics' | 'attempts'>('name');
-  const [activityFilter, setActivityFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all');
 
   // ── Detailed Test Analysis state ─────────────────────────────────────────
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -858,11 +859,11 @@ export function StudentManagementPage() {
         );
 
         if (user.diagnosticDecision === 'keep') {
-          toast.success(`Student enrollment updated: Keep`);
+          toast.success(`Student marked Active`);
         } else if (user.diagnosticDecision === 'leave') {
-          toast.success(`Student enrollment updated: Leave`);
+          toast.success(`Student marked Inactive`);
         } else {
-          toast.success(`Enrollment decision reset to pending`);
+          toast.success(`Student status reset to Pending`);
         }
       })
       .catch((err) => {
@@ -883,19 +884,20 @@ export function StudentManagementPage() {
       {/* ── Stat Cards + Header actions ── */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl flex-1">
-        {/* Total Students – with Active / Inactive toggle */}
+        {/* Total Students – with Active / Inactive / Pending status toggle */}
         {(() => {
-          const activeCount = students.filter(s => (s.testsAttempted ?? 0) > 0).length;
-          const inactiveCount = students.filter(s => (s.testsAttempted ?? 0) === 0).length;
+          const activeCount = students.filter(s => s.diagnosticDecision === 'keep').length;
+          const inactiveCount = students.filter(s => s.diagnosticDecision === 'leave').length;
+          const pendingCount = students.filter(s => !s.diagnosticDecision).length;
           return (
             <div className={`rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex flex-col gap-1.5`}>
               <div className="flex items-center gap-2">
                 <div className="text-xl font-bold text-blue-600">
-                  {activityFilter === 'active' ? activeCount : activityFilter === 'inactive' ? inactiveCount : students.length}
+                  {activityFilter === 'active' ? activeCount : activityFilter === 'inactive' ? inactiveCount : activityFilter === 'pending' ? pendingCount : students.length}
                 </div>
                 <div className="text-xs text-slate-600 font-bold">Total Students</div>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={() => setActivityFilter(f => f === 'active' ? 'all' : 'active')}
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
@@ -907,10 +909,18 @@ export function StudentManagementPage() {
                 <button
                   onClick={() => setActivityFilter(f => f === 'inactive' ? 'all' : 'inactive')}
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                    activityFilter === 'inactive' ? 'bg-slate-500 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    activityFilter === 'inactive' ? 'bg-rose-500 text-white' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
                   }`}
                 >
                   {inactiveCount} Inactive
+                </button>
+                <button
+                  onClick={() => setActivityFilter(f => f === 'pending' ? 'all' : 'pending')}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                    activityFilter === 'pending' ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                  }`}
+                >
+                  {pendingCount} Pending
                 </button>
               </div>
             </div>
@@ -990,12 +1000,9 @@ export function StudentManagementPage() {
                   <tr><td colSpan={14} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) => {
-                      if (activityFilter === 'active') {
-                        const stu = students.find(st => st.id === s.studentId);
-                        if (!stu || (stu.testsAttempted ?? 0) === 0) return false;
-                      } else if (activityFilter === 'inactive') {
-                        const stu = students.find(st => st.id === s.studentId);
-                        if (!stu || (stu.testsAttempted ?? 0) > 0) return false;
+                      if (activityFilter !== 'all') {
+                        const status = studentStatusFromDecision(s.diagnosticDecision);
+                        if (status !== activityFilter) return false;
                       }
                       return analysisSearchTerm
                         ? s.studentName.toLowerCase().includes(analysisSearchTerm.toLowerCase()) ||
@@ -1021,7 +1028,17 @@ export function StudentManagementPage() {
                               {row.studentName.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-semibold text-slate-900 text-sm group-hover:text-blue-700 group-hover:underline">{row.studentName}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-semibold text-slate-900 text-sm group-hover:text-blue-700 group-hover:underline">{row.studentName}</p>
+                                {(() => {
+                                  const status = studentStatusFromDecision(row.diagnosticDecision);
+                                  return (
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${STUDENT_STATUS_BADGE[status]}`}>
+                                      {STUDENT_STATUS_LABEL[status]}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                               <p className="text-xs text-slate-400 truncate">{row.studentEmail}</p>
                             </div>
                           </button>
@@ -2051,9 +2068,9 @@ export function StudentManagementPage() {
                             ? 'bg-emerald-500 text-white shadow-sm'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                         }`}
-                        title="Keep Student"
+                        title="Mark student Active (kept after diagnostic)"
                       >
-                        Keep
+                        Active
                       </button>
                       <button
                         onClick={() => handleTableUpdateDecision(student.id, 'leave')}
@@ -2062,9 +2079,9 @@ export function StudentManagementPage() {
                             ? 'bg-rose-500 text-white shadow-sm'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                         }`}
-                        title="Leave Student"
+                        title="Mark student Inactive (left / not kept)"
                       >
-                        Leave
+                        Inactive
                       </button>
                     </div>
                     <button
