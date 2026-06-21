@@ -8,6 +8,32 @@ gracefully until the backend pieces below are in place.
 
 ---
 
+## 2026-06-21 — Surface `diagnosticDecision` on tutor-assignments student payload (already implemented)
+
+**Why:** Student active/inactive status now reuses the existing
+`diagnosticDecision` (`keep` = Active, `leave` = Inactive, `null` = Pending). The
+admin Student Management page already gets this field (the users-list route maps
+`perms.diagnosticDecision`). The **tutor** "My Students" page now shows the same
+Active/Inactive/Pending badges + filter, which needs `GET /api/tutor-assignments`
+to include `diagnosticDecision` on its nested `student` object.
+
+**Change applied (1 line):** in `platform/src/app/api/tutor-assignments/route.ts`,
+the `assignments.map(...)` `student` object (where `sp = a.student.permissions`)
+now maps `diagnosticDecision: sp.diagnosticDecision ?? null`. `permissions` was
+already selected, so no query/schema change — no migration, no env change.
+Please review on next backend sync.
+
+**Frontend (already merged):**
+- `frontend/src/lib/studentStatus.ts` — shared `studentStatusFromDecision()` +
+  label/badge maps (keep→active, leave→inactive, null→pending).
+- `frontend/src/pages/admin/StudentManagementPage.tsx` — Active/Inactive/**Pending**
+  status counts + filter now keyed off `diagnosticDecision` (was `testsAttempted`);
+  status badge per row; Manage modal buttons relabeled Keep/Leave → Active/Inactive.
+- `frontend/src/pages/tutor/MyStudentsPage.tsx` — status filter chips + per-row
+  badge (read-only; tutors don't set status). **Depends on the 1-line change above.**
+
+---
+
 ## 2026-06-12 — Stability fixes for shipping (already implemented)
 
 1. **Test save timeout fixed** (`PATCH /api/tests/[testId]`): the save ran 4-5

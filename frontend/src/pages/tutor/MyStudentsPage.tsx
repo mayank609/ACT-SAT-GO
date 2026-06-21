@@ -9,6 +9,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser } from '../../lib/api';
+import { studentStatusFromDecision, STUDENT_STATUS_LABEL, STUDENT_STATUS_BADGE } from '../../lib/studentStatus';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 
@@ -280,6 +281,7 @@ export function MyStudentsPage() {
   }>>([]);
   const [analysisSearchTerm, setAnalysisSearchTerm] = useState('');
   const [analysisSortBy, setAnalysisSortBy] = useState<'name' | 'diagnostics' | 'attempts'>('name');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all');
 
   // ── Detailed Test Analysis state ─────────────────────────────────────────
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -622,6 +624,29 @@ export function MyStudentsPage() {
           </select>
         </div>
 
+        {/* Status filter */}
+        {(() => {
+          const activeCount = students.filter(s => s.diagnosticDecision === 'keep').length;
+          const inactiveCount = students.filter(s => s.diagnosticDecision === 'leave').length;
+          const pendingCount = students.filter(s => !s.diagnosticDecision).length;
+          const chip = (key: 'all' | 'active' | 'inactive' | 'pending', label: string, on: string, off: string) => (
+            <button
+              onClick={() => setStatusFilter(key)}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${statusFilter === key ? on : off}`}
+            >
+              {label}
+            </button>
+          );
+          return (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {chip('all', `All ${students.length}`, 'bg-blue-600 text-white', 'bg-blue-50 text-blue-700 hover:bg-blue-100')}
+              {chip('active', `${activeCount} Active`, 'bg-emerald-500 text-white', 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200')}
+              {chip('inactive', `${inactiveCount} Inactive`, 'bg-rose-500 text-white', 'bg-rose-100 text-rose-700 hover:bg-rose-200')}
+              {chip('pending', `${pendingCount} Pending`, 'bg-amber-500 text-white', 'bg-amber-100 text-amber-700 hover:bg-amber-200')}
+            </div>
+          );
+        })()}
+
         {/* Analysis Table */}
         <Card padding="none">
           <div className="overflow-x-auto">
@@ -644,12 +669,16 @@ export function MyStudentsPage() {
                 ) : studentAnalysisData.length === 0 ? (
                   <tr><td colSpan={8} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
-                    .filter((s) =>
-                      analysisSearchTerm
+                    .filter((s) => {
+                      if (statusFilter !== 'all') {
+                        const decision = students.find(st => st.id === s.studentId)?.diagnosticDecision;
+                        if (studentStatusFromDecision(decision) !== statusFilter) return false;
+                      }
+                      return analysisSearchTerm
                         ? s.studentName.toLowerCase().includes(analysisSearchTerm.toLowerCase()) ||
                           s.studentEmail.toLowerCase().includes(analysisSearchTerm.toLowerCase())
-                        : true
-                    )
+                        : true;
+                    })
                     .sort((a, b) => {
                       if (analysisSortBy === 'name') return a.studentName.localeCompare(b.studentName);
                       if (analysisSortBy === 'diagnostics') return (b.diagnosticsEnglish || 0) - (a.diagnosticsEnglish || 0);
@@ -664,7 +693,17 @@ export function MyStudentsPage() {
                               {row.studentName.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-semibold text-slate-900 text-sm">{row.studentName}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-semibold text-slate-900 text-sm">{row.studentName}</p>
+                                {(() => {
+                                  const status = studentStatusFromDecision(students.find(st => st.id === row.studentId)?.diagnosticDecision);
+                                  return (
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${STUDENT_STATUS_BADGE[status]}`}>
+                                      {STUDENT_STATUS_LABEL[status]}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                               <p className="text-xs text-slate-400 truncate">{row.studentEmail}</p>
                             </div>
                           </div>
