@@ -42,8 +42,8 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
   const domainSec = Math.max(sectionMaxMin * 60, totalSec);
 
   // Chart dimensions
-  const ROW_H    = 14;   // px per question row (compact)
-  const ROW_GAP  = 3;    // px gap between rows (compact)
+  const ROW_H    = 12;   // px per question row (compact)
+  const ROW_GAP  = 0;    // no gap between rows — bars stick to each other
   const LABEL_W  = 36;   // px for "Q27" labels on the left
   const TICK_H   = 24;   // px for the time axis at bottom
   const PADDING  = 12;   // px right margin
@@ -117,17 +117,19 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
                 <rect x={0} y={y} width={IW} height={ROW_H + ROW_GAP}
                   fill="#f9fafb" fillOpacity={0.5} />
               )}
-              {/* Q label — shown for every question */}
-              <text
-                x={LABEL_W - 4} y={y + ROW_H / 2 + 3.5}
-                textAnchor="end" fontSize={8} fill="#6b7280" fontFamily="system-ui, sans-serif"
-              >
-                {label}
-              </text>
-              {/* Bar */}
+              {/* Q label — only even-numbered questions, to keep the axis uncluttered */}
+              {r.questionIndex % 2 === 0 && (
+                <text
+                  x={LABEL_W - 4} y={y + ROW_H / 2 + 3}
+                  textAnchor="end" fontSize={8} fill="#6b7280" fontFamily="system-ui, sans-serif"
+                >
+                  {label}
+                </text>
+              )}
+              {/* Bar — fills the full row height so bars sit flush with no gap */}
               <rect
-                x={x1} y={y + 3} width={barW} height={ROW_H - 6}
-                rx={3} ry={3} fill={fill} fillOpacity={0.9}
+                x={x1} y={y} width={barW} height={ROW_H}
+                rx={1.5} ry={1.5} fill={fill} fillOpacity={0.9}
               >
                 <title>{tipText}</title>
               </rect>
