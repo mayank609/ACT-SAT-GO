@@ -78,7 +78,7 @@ export function StudentDoubtsAdminPage() {
   // Viewing one student's doubts — render the same "My Doubts" view the student sees.
   if (viewStudent) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="w-full px-4 py-6">
         <DoubtsView
           studentId={viewStudent.id}
           title={`${viewStudent.name}'s Doubts`}

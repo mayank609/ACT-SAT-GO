@@ -13,7 +13,7 @@ export function DashboardLayout() {
   const { setUserId, fetchNotifications } = useNotificationStore();
   const { pathname } = useLocation();
   // Full-bleed workspace pages span the whole area; others stay centered at max-w-7xl.
-  const fullBleed = pathname === '/student-mistakes';
+  const fullBleed = pathname === '/student-mistakes' || pathname === '/student-doubts';
 
   useEffect(() => {
     if (!dbId) return;
