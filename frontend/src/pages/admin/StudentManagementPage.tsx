@@ -1436,10 +1436,10 @@ export function StudentManagementPage() {
                   });
 
                   return (
-                    <div className="mt-6 bg-white rounded-xl border border-slate-200 p-5">
+                    <div className="mt-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
                       <button
                         onClick={() => setKnowledgeSkillsOpen(!knowledgeSkillsOpen)}
-                        className="w-full text-left flex items-center justify-between hover:opacity-80 transition-opacity"
+                        className="w-full text-left flex items-center justify-between gap-2 px-5 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-2">
                           <h4 className="text-base font-bold text-slate-900">Knowledge and Skills</h4>
@@ -1451,7 +1451,7 @@ export function StudentManagementPage() {
                       </button>
 
                       {knowledgeSkillsOpen && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mt-4 pt-4 border-t border-slate-100">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 px-5 pb-5 pt-4 border-t border-slate-100">
                           {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
                             <div key={group}>
                               <h5 className="text-sm font-bold text-slate-800 mb-4">{group}</h5>
