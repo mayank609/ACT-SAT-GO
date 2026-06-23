@@ -519,40 +519,85 @@ function QuestionNavigator({
   onSelect: (idx: number) => void;
 }) {
   const navSafeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+
+  // Tally for the stats row (Bluebook-style summary).
+  const navStats = filteredQuestions.reduce(
+    (acc, fq) => {
+      const ans = answersMap.get(fq.questionId);
+      if (!ans?.answerGiven) acc.unanswered++;
+      else if (taAnswersMatch(ans.answerGiven, fq.question.correctAnswer)) acc.correct++;
+      else acc.wrong++;
+      return acc;
+    },
+    { correct: 0, wrong: 0, unanswered: 0 },
+  );
+
   const grid = (
-    <div className="space-y-5">
-      <div className="text-center border-b border-slate-200 pb-4">
-        <h3 className="text-lg font-bold text-slate-900">{sectionName}</h3>
-        <p className="text-sm text-slate-500 mt-1">Questions</p>
+    <div className="space-y-4">
+      <div className="text-center border-b border-slate-200 pb-3">
+        <h3 className="text-base font-bold text-slate-900">{sectionName}</h3>
+        <p className="text-xs text-slate-500 mt-0.5">Questions</p>
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-        <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
-        <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
-        <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
-        <div className="flex items-center gap-2"><Bookmark size={15} className="text-amber-500" fill="currentColor" /><span className="text-xs font-semibold text-slate-600">Bookmarked</span></div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+        <div className="flex items-center gap-1.5">
+          <svg width="11" height="14" viewBox="0 0 14 18" fill="none"><path d="M7 0C3.13 0 0 3.13 0 7c0 5.25 7 11 7 11s7-5.75 7-11c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S5.62 4.5 7 4.5s2.5 1.12 2.5 2.5S8.38 9.5 7 9.5z" fill="#1b3d6e"/></svg>
+          <span className="text-xs font-medium text-slate-600">Current</span>
+        </div>
+        <div className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border border-dashed border-slate-400 bg-white" /><span className="text-xs font-medium text-slate-600">Unanswered</span></div>
+        <div className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border-2 border-emerald-500 bg-white" /><span className="text-xs font-medium text-slate-600">Correct</span></div>
+        <div className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border-2 border-red-500 bg-white" /><span className="text-xs font-medium text-slate-600">Wrong</span></div>
+        <div className="flex items-center gap-1.5"><Bookmark size={13} className="text-amber-500" fill="currentColor" /><span className="text-xs font-medium text-slate-600">Bookmarked</span></div>
       </div>
-      <div className="flex justify-center">
-        <div className="grid grid-cols-9 gap-3 p-1.5">
-          {filteredQuestions.map((fq, idx) => {
-            const ans = answersMap.get(fq.questionId);
-            const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
-            const isOmitted = !ans?.answerGiven;
-            const isFlagged = ans?.isFlagged ?? false;
-            const isCurrent = idx === navSafeIdx;
-            let bg = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
-            let text = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
-            if (isCurrent) { bg = 'bg-blue-600 border-blue-700'; text = 'text-white font-bold ring-2 ring-blue-300'; }
-            return (
-              <button key={idx} onClick={() => onSelect(idx)}
-                className={`relative w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bg} ${text} hover:shadow-md hover:scale-105 ${isFlagged && !isCurrent ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}>
+
+      {/* Question grid */}
+      <div className="grid grid-cols-10 gap-2 max-h-72 overflow-y-auto px-1">
+        {filteredQuestions.map((fq, idx) => {
+          const ans = answersMap.get(fq.questionId);
+          const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+          const isOmitted = !ans?.answerGiven;
+          const isFlagged = ans?.isFlagged ?? false;
+          const isCurrent = idx === navSafeIdx;
+          const cls = isCurrent
+            ? 'bg-[#1b3d6e] text-white border border-[#1b3d6e]'
+            : isOmitted
+              ? 'bg-white border border-dashed border-slate-400 text-slate-600'
+              : isCorrect
+                ? 'bg-white border-2 border-emerald-500 text-emerald-700'
+                : 'bg-white border-2 border-red-500 text-red-700';
+          return (
+            <div key={idx} className="flex flex-col items-center gap-0.5">
+              <div className="h-3.5 flex items-end justify-center">
+                {isCurrent && (
+                  <svg width="9" height="12" viewBox="0 0 14 18" fill="none"><path d="M7 0C3.13 0 0 3.13 0 7c0 5.25 7 11 7 11s7-5.75 7-11c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S5.62 4.5 7 4.5s2.5 1.12 2.5 2.5S8.38 9.5 7 9.5z" fill="#1b3d6e"/></svg>
+                )}
+              </div>
+              <button onClick={() => onSelect(idx)}
+                className={`relative w-9 h-9 rounded text-xs font-bold transition-all flex items-center justify-center hover:shadow-sm ${cls}`}>
                 {idx + 1}
-                {isFlagged && (
-                  <Bookmark size={12} className="absolute -top-1.5 -right-1.5 text-amber-500 drop-shadow-sm" fill="currentColor" />
+                {isFlagged && !isCurrent && (
+                  <span className="absolute -top-1 -right-1"><Bookmark size={9} className="text-amber-500" fill="currentColor" /></span>
                 )}
               </button>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-4 gap-2 border-t border-slate-200 pt-3 text-center">
+        {[
+          { label: 'Correct', value: navStats.correct, color: 'text-emerald-600' },
+          { label: 'Wrong', value: navStats.wrong, color: 'text-red-500' },
+          { label: 'Unanswered', value: navStats.unanswered, color: 'text-slate-500' },
+          { label: 'Total', value: filteredQuestions.length, color: 'text-slate-400' },
+        ].map(s => (
+          <div key={s.label}>
+            <p className={`text-base font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-[11px] text-slate-400">{s.label}</p>
+          </div>
+        ))}
       </div>
     </div>
   );

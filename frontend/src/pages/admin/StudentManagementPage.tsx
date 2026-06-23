@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
@@ -402,6 +403,19 @@ export function StudentManagementPage() {
   const [questionFilterBy, setQuestionFilterBy] = useState('all');
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [fullscreenQuestionReportOpen, setFullscreenQuestionReportOpen] = useState(false);
+  // Lock page scroll while the fullscreen question-wise review is open so the
+  // page behind it can never peek through below the overlay.
+  useEffect(() => {
+    if (!fullscreenQuestionReportOpen) return;
+    const { overflow: bodyOverflow } = document.body.style;
+    const { overflow: htmlOverflow } = document.documentElement.style;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = htmlOverflow;
+    };
+  }, [fullscreenQuestionReportOpen]);
   const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
   const [knowledgeSkillsOpen, setKnowledgeSkillsOpen] = useState(false);
   const [timeChartOpen, setTimeChartOpen] = useState(false);
@@ -1496,8 +1510,8 @@ export function StudentManagementPage() {
                             <span>{sec.unvisited} Unvisited</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                            <span className="text-amber-700 font-semibold">{sec.bookmarked} Bookmarked</span>
+                            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                            <span className="text-slate-500 font-semibold">{sec.bookmarked} Bookmarked</span>
                           </div>
                           <div className="text-slate-300 font-light">|</div>
                           <div className="font-semibold text-slate-800">{sec.total} Questions</div>
@@ -2290,14 +2304,14 @@ export function StudentManagementPage() {
         </div>
       </Modal>
 
-      {/* ── Question Navigator Modal (non-fullscreen inline view) ── */}
-      {showQuestionNavigator && !fullscreenQuestionReportOpen && testAnalysisAttempt && (() => {
-        const analysis = computeTestAnalysis(testAnalysisAttempt);
-        const navSection = testAnalysisAttempt.sectionAttempts.find(
+      {/* ── Question Navigator Modal ── */}
+      {showQuestionNavigator && (() => {
+        const analysis = computeTestAnalysis(testAnalysisAttempt!);
+        const navSection = testAnalysisAttempt!.sectionAttempts.find(
           (sa) => sa.section.name === analysis.sections[activeQuestionSectionIdx]?.name
         );
         if (!navSection) return null;
-        const navAnswersMap = new Map(testAnalysisAttempt.answers.map((a) => [a.questionId, a]));
+        const navAnswersMap = new Map(testAnalysisAttempt!.answers.map((a) => [a.questionId, a]));
         const navAllQ = navSection.section.questions.flatMap((tq) => {
           const q = tq.question;
           const isP = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
@@ -2314,35 +2328,81 @@ export function StudentManagementPage() {
           return true;
         });
         const navSafeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
+        const currentTq = navFiltered[navSafeIdx];
+
         return (
           <Modal isOpen={showQuestionNavigator} onClose={() => setShowQuestionNavigator(false)} title="" size="md">
-            <div className="space-y-5">
-              <div className="text-center border-b border-slate-200 pb-4">
-                <h3 className="text-lg font-bold text-slate-900">{getSectionModuleLabel(analysis.sections[activeQuestionSectionIdx]?.name ?? '')}</h3>
-                <p className="text-sm text-slate-500 mt-1">Questions</p>
+            <div className="space-y-5 p-1">
+              {/* Title */}
+              <div className="text-center pb-3 border-b border-slate-100 relative">
+                <h3 className="text-base font-bold text-slate-800 tracking-tight pr-6 pl-6">{getSectionModuleLabel(analysis.sections[activeQuestionSectionIdx]?.name ?? '')}</h3>
+                <p className="text-[11px] font-medium text-slate-400 mt-0.5 tracking-wide">Questions</p>
+                <button
+                  onClick={() => setShowQuestionNavigator(false)}
+                  className="absolute right-0 top-0 p-1 rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
-                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
-                <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
+
+              {/* Status Legend */}
+              <div className="flex items-center justify-center gap-5 px-4 py-2.5 bg-[#f8fafc] rounded-xl border border-slate-100/50">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#cbd5e1]" />
+                  <span className="text-xs font-semibold text-slate-500">Unanswered</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                  <span className="text-xs font-semibold text-slate-500">Correct</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+                  <span className="text-xs font-semibold text-slate-500">Wrong</span>
+                </div>
               </div>
-              <div className="flex justify-center">
-                <div className="grid grid-cols-9 gap-3 p-1 max-h-72 overflow-y-auto">
-                  {navFiltered.map((fq, idx) => {
+
+              {/* Question Grid */}
+              <div className="flex justify-center max-h-[50vh] overflow-y-auto">
+                <div className="grid grid-cols-9 gap-3 p-1.5 justify-center justify-items-center">
+                  {navAllQ.map((fq, idx) => {
                     const ans = navAnswersMap.get(fq.questionId);
                     const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
                     const isOmitted = !ans?.answerGiven;
-                    const isCurrent = idx === navSafeIdx;
-                    let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
-                    let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
-                    if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
+                    const isCurrent = currentTq && fq.questionId === currentTq.questionId;
+                    const globalNum = idx + 1;
+
+                    let bgColor = 'bg-slate-100';
+                    let textColor = 'text-slate-700';
+
+                    if (isCurrent) {
+                      bgColor = 'bg-blue-600';
+                      textColor = 'text-white';
+                    } else if (isCorrect) {
+                      bgColor = 'bg-emerald-100';
+                      textColor = 'text-emerald-800';
+                    } else if (!isOmitted) {
+                      bgColor = 'bg-red-100';
+                      textColor = 'text-red-800';
+                    }
+
                     return (
                       <button
                         key={idx}
-                        onClick={() => { setCurrentQuestionIdx(idx); setShowQuestionNavigator(false); }}
-                        className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                        onClick={() => {
+                          const idxInFiltered = navFiltered.findIndex((q) => q.questionId === fq.questionId);
+                          if (idxInFiltered !== -1) {
+                            setCurrentQuestionIdx(idxInFiltered);
+                          } else {
+                            setQuestionFilterBy('all');
+                            const idxInActive = navAllQ.findIndex((q) => q.questionId === fq.questionId);
+                            setCurrentQuestionIdx(idxInActive);
+                          }
+                          setShowQuestionNavigator(false);
+                        }}
+                        className={`w-10 h-10 md:w-11 md:h-11 rounded-full font-bold text-sm transition-all flex items-center justify-center hover:shadow-md hover:scale-105 ${bgColor} ${textColor}`}
+                        title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
                       >
-                        {idx + 1}
+                        {globalNum}
                       </button>
                     );
                   })}
@@ -2394,7 +2454,7 @@ export function StudentManagementPage() {
         const userAnswerDisplay = studentAnswer ? taAnswerToDisplay(studentAnswer.answerGiven) : null;
         const correctAnswerDisplay = currentTq ? taAnswerToDisplay(currentTq.question.correctAnswer) : null;
 
-        return (
+        return createPortal(
           <div className="fixed inset-0 bg-white z-[150] overflow-hidden flex flex-col font-sans select-none">
             {/* Top Header Bar */}
             <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-5 h-16 flex items-center justify-between z-20">
@@ -2684,41 +2744,86 @@ export function StudentManagementPage() {
                 return true;
               });
               const navSafeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
+              const currentTq = navFiltered[navSafeIdx];
               return (
                 <div
                   className="absolute inset-0 z-[200]"
                   onClick={() => setShowQuestionNavigator(false)}
                 >
                   <div
-                    className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5"
+                    className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-5 border border-slate-100"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="text-center border-b border-slate-200 pb-4">
-                      <h3 className="text-lg font-bold text-slate-900">{getSectionModuleLabel(analysis.sections[activeQuestionSectionIdx]?.name ?? '')}</h3>
-                      <p className="text-sm text-slate-500 mt-1">Questions</p>
+                    {/* Title */}
+                    <div className="text-center pb-3 border-b border-slate-100 relative">
+                      <h3 className="text-base font-bold text-slate-800 tracking-tight pr-6 pl-6">{getSectionModuleLabel(analysis.sections[activeQuestionSectionIdx]?.name ?? '')}</h3>
+                      <p className="text-[11px] font-medium text-slate-400 mt-0.5 tracking-wide">Questions</p>
+                      <button
+                        onClick={() => setShowQuestionNavigator(false)}
+                        className="absolute right-0 top-0 p-1 rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
+                      >
+                        <X size={16} />
+                      </button>
                     </div>
-                    <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
-                      <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
-                      <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
+
+                    {/* Legend */}
+                    <div className="flex items-center justify-center gap-5 px-4 py-2.5 bg-[#f8fafc] rounded-xl border border-slate-100/50">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#cbd5e1]" />
+                        <span className="text-xs font-semibold text-slate-500">Unanswered</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                        <span className="text-xs font-semibold text-slate-500">Correct</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+                        <span className="text-xs font-semibold text-slate-500">Wrong</span>
+                      </div>
                     </div>
+
+                    {/* Question Grid */}
                     <div className="flex justify-center">
-                      <div className="grid grid-cols-9 gap-3 p-1">
-                        {navFiltered.map((fq, idx) => {
+                      <div className="grid grid-cols-9 gap-3 p-1.5 justify-center justify-items-center">
+                        {navAllQ.map((fq, idx) => {
                           const ans = navAnswersMap.get(fq.questionId);
                           const isCorrect = ans?.answerGiven ? taAnswersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
                           const isOmitted = !ans?.answerGiven;
-                          const isCurrent = idx === navSafeIdx;
-                          let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
-                          let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
-                          if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
+                          const isCurrent = currentTq && fq.questionId === currentTq.questionId;
+                          const globalNum = idx + 1;
+                          
+                          let bgColor = 'bg-slate-100';
+                          let textColor = 'text-slate-700';
+
+                          if (isCurrent) {
+                            bgColor = 'bg-blue-600';
+                            textColor = 'text-white';
+                          } else if (isCorrect) {
+                            bgColor = 'bg-emerald-100';
+                            textColor = 'text-emerald-800';
+                          } else if (!isOmitted) {
+                            bgColor = 'bg-red-100';
+                            textColor = 'text-red-800';
+                          }
+
                           return (
                             <button
                               key={idx}
-                              onClick={() => { setCurrentQuestionIdx(idx); setShowQuestionNavigator(false); }}
-                              className={`w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105`}
+                              onClick={() => {
+                                const idxInFiltered = navFiltered.findIndex((q) => q.questionId === fq.questionId);
+                                if (idxInFiltered !== -1) {
+                                  setCurrentQuestionIdx(idxInFiltered);
+                                } else {
+                                  setQuestionFilterBy('all');
+                                  const idxInActive = navAllQ.findIndex((q) => q.questionId === fq.questionId);
+                                  setCurrentQuestionIdx(idxInActive);
+                                }
+                                setShowQuestionNavigator(false);
+                              }}
+                              className={`w-10 h-10 md:w-11 md:h-11 rounded-full font-bold text-sm transition-all flex items-center justify-center hover:shadow-md hover:scale-105 ${bgColor} ${textColor}`}
+                              title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
                             >
-                              {idx + 1}
+                              {globalNum}
                             </button>
                           );
                         })}
@@ -2728,7 +2833,8 @@ export function StudentManagementPage() {
                 </div>
               );
             })()}
-          </div>
+          </div>,
+          document.body
         );
       })()}
 

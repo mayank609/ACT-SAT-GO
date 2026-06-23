@@ -1522,40 +1522,34 @@ export function TestReviewPage() {
 
       {/* Question Navigator Modal */}
       {questionNavigatorOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-lg shadow-2xl">
-            <div className="space-y-6 p-6">
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setQuestionNavigatorOpen(false)}>
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 space-y-5">
               {/* Title */}
-              <div className="text-center border-b border-slate-200 pb-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg md:text-xl font-bold text-slate-900">{getSectionModuleLabel(sections[activeSectionIdx]?.section.name ?? '')}</h3>
-                  <button
-                    onClick={() => setQuestionNavigatorOpen(false)}
-                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-                <p className="text-sm text-slate-500 mt-1">Questions</p>
+              <div className="text-center pb-3 border-b border-slate-100 relative">
+                <h3 className="text-base font-bold text-slate-800 tracking-tight pr-6 pl-6">{getSectionModuleLabel(sections[activeSectionIdx]?.section.name ?? '')}</h3>
+                <p className="text-[11px] font-medium text-slate-400 mt-0.5 tracking-wide">Questions</p>
+                <button
+                  onClick={() => setQuestionNavigatorOpen(false)}
+                  className="absolute right-0 top-0 p-1 rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
+                >
+                  <X size={16} />
+                </button>
               </div>
 
               {/* Status Legend */}
-              <div className="flex flex-wrap items-center justify-center gap-6 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-slate-300" />
-                  <span className="text-xs font-semibold text-slate-600">Unanswered</span>
+              <div className="flex items-center justify-center gap-5 px-4 py-2.5 bg-[#f8fafc] rounded-xl border border-slate-100/50">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#cbd5e1]" />
+                  <span className="text-xs font-semibold text-slate-500">Unanswered</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-semibold text-slate-600">Correct</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                  <span className="text-xs font-semibold text-slate-500">Correct</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-red-500" />
-                  <span className="text-xs font-semibold text-slate-600">Wrong</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bookmark size={15} className="text-amber-500" fill="currentColor" />
-                  <span className="text-xs font-semibold text-slate-600">Bookmarked</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+                  <span className="text-xs font-semibold text-slate-500">Wrong</span>
                 </div>
               </div>
 
@@ -1564,44 +1558,69 @@ export function TestReviewPage() {
                 const activeSection = sections[activeSectionIdx];
                 const activeQuestions = activeSection?.section.questions ?? [];
                 
+                // Get the current question in filtered list to find the active one
+                const filteredQuestions = activeQuestions.filter((tq) => {
+                  const ans = answersMap.get(tq.questionId);
+                  const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
+                  const isOmitted = !ans?.answerGiven;
+                  const isFlagged = ans?.isFlagged ?? false;
+                  if (filterBy === 'correct') return isCorrect;
+                  if (filterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
+                  if (filterBy === 'omitted') return isOmitted;
+                  if (filterBy === 'flagged') return isFlagged;
+                  return true;
+                });
+                const safeIdx = Math.min(currentQuestionIdx, Math.max(filteredQuestions.length - 1, 0));
+                const currentTq = filteredQuestions[safeIdx];
+
                 return (
                   <div className="flex justify-center max-h-[50vh] overflow-y-auto">
-                    <div className="grid grid-cols-9 gap-2 md:gap-3 p-1.5">
+                    <div className="grid grid-cols-9 gap-3 p-1.5 justify-center justify-items-center">
                       {activeQuestions.map((tq, idx) => {
                         const ans = answersMap.get(tq.questionId);
                         const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
                         const isOmitted = !ans?.answerGiven;
                         const isFlagged = ans?.isFlagged ?? false;
+                        const isCurrent = currentTq && tq.questionId === currentTq.questionId;
                         const globalNum = idx + 1;
                         
-                        const bgColor = isOmitted
-                          ? 'bg-slate-200'
-                          : isCorrect
-                          ? 'bg-emerald-100 border-emerald-500'
-                          : 'bg-red-100 border-red-500';
+                        let bgColor = 'bg-slate-100';
+                        let textColor = 'text-slate-700';
                         
-                        const textColor = isOmitted
-                          ? 'text-slate-600'
-                          : isCorrect
-                          ? 'text-emerald-700'
-                          : 'text-red-700';
+                        if (isCurrent) {
+                          bgColor = 'bg-blue-600';
+                          textColor = 'text-white';
+                        } else if (isCorrect) {
+                          bgColor = 'bg-emerald-100';
+                          textColor = 'text-emerald-800';
+                        } else if (!isOmitted) {
+                          // Wrong answer
+                          bgColor = 'bg-red-100';
+                          textColor = 'text-red-800';
+                        }
 
                         return (
                           <button
                             key={idx}
                             onClick={() => {
-                              const filteredIdx = activeQuestions.findIndex((q) => q.questionId === tq.questionId);
-                              setCurrentQuestionIdx(filteredIdx);
+                              const idxInFiltered = filteredQuestions.findIndex((q) => q.questionId === tq.questionId);
+                              if (idxInFiltered !== -1) {
+                                setCurrentQuestionIdx(idxInFiltered);
+                              } else {
+                                setFilterBy('all');
+                                const idxInActive = activeQuestions.findIndex((q) => q.questionId === tq.questionId);
+                                setCurrentQuestionIdx(idxInActive);
+                              }
                               setQuestionNavigatorOpen(false);
                             }}
-                            className={`relative w-10 h-10 md:w-11 md:h-11 rounded-lg font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 ${isFlagged ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
+                            className={`relative w-10 h-10 md:w-11 md:h-11 rounded-full font-bold text-sm transition-all flex items-center justify-center hover:shadow-md hover:scale-105 ${bgColor} ${textColor}`}
                             title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}${isFlagged ? ' (Bookmarked)' : ''}`}
                           >
                             {globalNum}
                             {isFlagged && (
                               <Bookmark
-                                size={12}
-                                className="absolute -top-1.5 -right-1.5 text-amber-500 drop-shadow-sm"
+                                size={11}
+                                className="absolute -top-1 -right-1 text-amber-500 drop-shadow-sm"
                                 fill="currentColor"
                               />
                             )}
@@ -1621,8 +1640,7 @@ export function TestReviewPage() {
       {/* Fullscreen Question Report Modal - Test-like Interface */}
       {fullscreenReportOpen && (
         <div
-          className="fixed bg-white z-50 overflow-hidden flex flex-col font-sans"
-          style={{ top: 0, left: 0, right: 0, bottom: 0, height: '100dvh' }}
+          className="fixed inset-0 bg-white z-[100] overflow-hidden flex flex-col font-sans"
         >
           {/* ── TOP HEADER BAR ───────────────────────────────────────────────── */}
           <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-4 h-14 flex items-center justify-between gap-3 z-20">
@@ -1937,7 +1955,7 @@ export function TestReviewPage() {
         {showFullscreenQuestionNavigator && (() => {
           const activeSection = sections[activeSectionIdx];
           const activeQuestions = activeSection?.section.questions ?? [];
-          const navFiltered = activeQuestions.filter((tq) => {
+          const fsFiltered = activeQuestions.filter((tq) => {
             const ans = answersMap.get(tq.questionId);
             const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
             const isOmitted = !ans?.answerGiven;
@@ -1948,7 +1966,8 @@ export function TestReviewPage() {
             if (filterBy === 'flagged') return isFlagged;
             return true;
           });
-          const safeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
+          const safeIdx = Math.min(currentQuestionIdx, Math.max(fsFiltered.length - 1, 0));
+          const currentTq = fsFiltered[safeIdx];
 
           return (
             <div
@@ -1956,46 +1975,84 @@ export function TestReviewPage() {
               onClick={() => setShowFullscreenQuestionNavigator(false)}
             >
               <div
-                className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
+                className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5 border border-slate-100"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="text-center border-b border-slate-200 pb-4">
-                  <h3 className="text-lg font-bold text-slate-900">{getSectionModuleLabel(activeSection?.section.name || '')}</h3>
-                  <p className="text-sm text-slate-500 mt-1">Questions</p>
+                {/* Title */}
+                <div className="text-center pb-3 border-b border-slate-100 relative">
+                  <h3 className="text-base font-bold text-slate-800 tracking-tight pr-6 pl-6">{getSectionModuleLabel(activeSection?.section.name || '')}</h3>
+                  <p className="text-[11px] font-medium text-slate-400 mt-0.5 tracking-wide">Questions</p>
+                  <button
+                    onClick={() => setShowFullscreenQuestionNavigator(false)}
+                    className="absolute right-0 top-0 p-1 rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
 
                 {/* Legend */}
-                <div className="flex flex-wrap items-center justify-center gap-5 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100">
-                  <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-slate-300" /><span className="text-xs font-semibold text-slate-600">Unanswered</span></div>
-                  <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-emerald-500" /><span className="text-xs font-semibold text-slate-600">Correct</span></div>
-                  <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-red-500" /><span className="text-xs font-semibold text-slate-600">Wrong</span></div>
-                  <div className="flex items-center gap-2"><Bookmark size={15} className="text-amber-500" fill="currentColor" /><span className="text-xs font-semibold text-slate-600">Bookmarked</span></div>
-                  <div className="flex items-center gap-2"><div className="w-5 h-5 rounded-full border-2 border-blue-600 bg-blue-50" /><span className="text-xs font-semibold text-slate-600">Current</span></div>
+                <div className="flex items-center justify-center gap-5 px-4 py-2.5 bg-[#f8fafc] rounded-xl border border-slate-100/50">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#cbd5e1]" />
+                    <span className="text-xs font-semibold text-slate-500">Unanswered</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                    <span className="text-xs font-semibold text-slate-500">Correct</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+                    <span className="text-xs font-semibold text-slate-500">Wrong</span>
+                  </div>
                 </div>
 
                 {/* Question Grid */}
                 <div className="flex justify-center">
-                  <div className="grid grid-cols-9 gap-3 p-1">
-                    {navFiltered.map((fq, idx) => {
-                      const ans = answersMap.get(fq.questionId);
-                      const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, fq.question.correctAnswer) : false;
+                  <div className="grid grid-cols-9 gap-3 p-1.5 justify-center justify-items-center">
+                    {activeQuestions.map((tq, idx) => {
+                      const ans = answersMap.get(tq.questionId);
+                      const isCorrect = ans?.answerGiven ? answersMatch(ans.answerGiven, tq.question.correctAnswer) : false;
                       const isOmitted = !ans?.answerGiven;
                       const isFlagged = ans?.isFlagged ?? false;
-                      const isCurrent = idx === safeIdx;
-                      let bgColor = isOmitted ? 'bg-slate-200 border-slate-300' : isCorrect ? 'bg-emerald-100 border-emerald-500' : 'bg-red-100 border-red-500';
-                      let textColor = isOmitted ? 'text-slate-600' : isCorrect ? 'text-emerald-700' : 'text-red-700';
-                      if (isCurrent) { bgColor = 'bg-blue-600 border-blue-700'; textColor = 'text-white font-bold ring-2 ring-blue-300'; }
+                      const isCurrent = currentTq && tq.questionId === currentTq.questionId;
+                      const globalNum = idx + 1;
+                      
+                      let bgColor = 'bg-slate-100';
+                      let textColor = 'text-slate-700';
+                      
+                      if (isCurrent) {
+                        bgColor = 'bg-blue-600';
+                        textColor = 'text-white';
+                      } else if (isCorrect) {
+                        bgColor = 'bg-emerald-100';
+                        textColor = 'text-emerald-800';
+                      } else if (!isOmitted) {
+                        bgColor = 'bg-red-100';
+                        textColor = 'text-red-800';
+                      }
+
                       return (
                         <button
                           key={idx}
-                          onClick={() => { setCurrentQuestionIdx(idx); setShowFullscreenQuestionNavigator(false); }}
-                          className={`relative w-11 h-11 rounded-xl font-bold text-sm transition-all flex items-center justify-center border-2 ${bgColor} ${textColor} hover:shadow-md hover:scale-105 ${isFlagged && !isCurrent ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}
+                          onClick={() => {
+                            const idxInFiltered = fsFiltered.findIndex((q) => q.questionId === tq.questionId);
+                            if (idxInFiltered !== -1) {
+                              setCurrentQuestionIdx(idxInFiltered);
+                            } else {
+                              setFilterBy('all');
+                              const idxInActive = activeQuestions.findIndex((q) => q.questionId === tq.questionId);
+                              setCurrentQuestionIdx(idxInActive);
+                            }
+                            setShowFullscreenQuestionNavigator(false);
+                          }}
+                          className={`relative w-10 h-10 md:w-11 md:h-11 rounded-full font-bold text-sm transition-all flex items-center justify-center hover:shadow-md hover:scale-105 ${bgColor} ${textColor}`}
+                          title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}${isFlagged ? ' (Bookmarked)' : ''}`}
                         >
-                          {idx + 1}
+                          {globalNum}
                           {isFlagged && (
                             <Bookmark
-                              size={12}
-                              className="absolute -top-1.5 -right-1.5 text-amber-500 drop-shadow-sm"
+                              size={11}
+                              className="absolute -top-1 -right-1 text-amber-500 drop-shadow-sm"
                               fill="currentColor"
                             />
                           )}
