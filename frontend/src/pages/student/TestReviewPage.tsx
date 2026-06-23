@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle, Maximize2, X, HelpCircle, Calculator } from 'lucide-react';
 import { DesmosCalculator } from '../../components/calculator/DesmosCalculator';
@@ -1271,22 +1272,22 @@ export function TestReviewPage() {
       </div>
 
       {/* ── KNOWLEDGE AND SKILLS ─────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 md:p-7">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <button
           onClick={() => setKnowledgeSkillsOpen(!knowledgeSkillsOpen)}
-          className="w-full text-left flex items-center justify-between hover:opacity-80 transition-opacity"
+          className="w-full text-left flex items-center justify-between gap-2 px-5 md:px-7 py-3.5 hover:bg-slate-50 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-slate-900">Knowledge and Skills</h2>
+            <h2 className="text-lg font-bold text-slate-900">Knowledge and Skills</h2>
             <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold"><Info size={15} /> New!</span>
           </div>
           <div className="text-slate-600">
-            {knowledgeSkillsOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+            {knowledgeSkillsOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </div>
         </button>
 
         {knowledgeSkillsOpen && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mt-4 pt-4 border-t border-slate-100">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 px-5 md:px-7 pb-6 pt-4 border-t border-slate-100">
             {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
               <div key={group}>
                 <h3 className="text-lg font-bold text-slate-900 mb-5">{group}</h3>
@@ -1638,7 +1639,7 @@ export function TestReviewPage() {
       )}
 
       {/* Fullscreen Question Report Modal - Test-like Interface */}
-      {fullscreenReportOpen && (
+      {fullscreenReportOpen && createPortal(
         <div
           className="fixed inset-0 bg-white z-[100] overflow-hidden flex flex-col font-sans"
         >
@@ -2065,7 +2066,8 @@ export function TestReviewPage() {
             </div>
           );
         })()}
-      </div>
+      </div>,
+      document.body
       )}
 
       {/* Actions */}
