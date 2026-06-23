@@ -459,6 +459,27 @@ function PackageAssignModal({ pkg, onClose }: { pkg: DbTestPackage; onClose: () 
   );
 }
 
+// ── Test category filter helpers ──────────────────────────────────────────────
+
+const isTestMock       = (t: ApiTest) => t.category === 'Mock' || t.category === 'Mock Test' || /\bmock\b/i.test(t.title ?? '');
+const isTestDiagnostic = (t: ApiTest) => t.category === 'Diagnostic' || /\bdiagnostic\b/i.test(t.title ?? '');
+const isTestHW         = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('hw') || ti.includes(' hw') || ti.endsWith('hw') || /\bhw\b/.test(ti) || ti.includes('homework'); };
+const isTestPractice   = (t: ApiTest) => { const c = (t.category ?? '').toLowerCase(); const s = (t.subCategory ?? '').toLowerCase(); return c.includes('practice') || s.includes('practice'); };
+const isTestMath       = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('math') || /\bmath\b/.test(ti); };
+const isTestReading    = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('reading') || s.includes('rw') || /\breading\b/.test(ti); };
+const isTestWriting    = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('writing') || /\bwriting\b/.test(ti); };
+
+const TEST_CAT_FILTERS = [
+  { key: 'Mock'            , match: isTestMock },
+  { key: 'Diagnostic'      , match: isTestDiagnostic },
+  { key: 'Math HW'         , match: (t: ApiTest) => isTestMath(t) && isTestHW(t) },
+  { key: 'Reading HW'      , match: (t: ApiTest) => isTestReading(t) && isTestHW(t) },
+  { key: 'Writing HW'      , match: (t: ApiTest) => isTestWriting(t) && isTestHW(t) },
+  { key: 'Math Practice'   , match: (t: ApiTest) => isTestMath(t) && isTestPractice(t) },
+  { key: 'Reading Practice', match: (t: ApiTest) => isTestReading(t) && isTestPractice(t) },
+  { key: 'Writing Practice', match: (t: ApiTest) => isTestWriting(t) && isTestPractice(t) },
+] as const;
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function TestsPage() {
@@ -525,38 +546,13 @@ export function TestsPage() {
     }
   };
 
-  const availableCats = useMemo(() => {
-    const cats = new Set<string>();
-    for (const t of tests) {
-      if (t.category) cats.add(t.category);
-      const subj = t.subCategory?.split('-')[0];
-      if (subj) cats.add(subj);
-    }
-    return [...cats];
-  }, [tests]);
-
-  const matchesTitleFilter = (title: string, cf: string) => {
-    const t = title.toLowerCase();
-    if (cf === 'HW') return t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
-    if (cf === 'CW') return t.includes('classwork') || t.includes(' cw') || t.endsWith('cw') || /\bcw\b/.test(t);
-    return false;
-  };
-
   const filtered = useMemo(() => {
     return tests.filter((t) => {
       if (filter !== 'all' && t.status.toLowerCase() !== filter) return false;
       if (search.trim() && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
       if (catFilter) {
-        if (catFilter === 'HW' || catFilter === 'CW') {
-          const subParts = t.subCategory?.split('-') ?? [];
-          const assignType = subParts[1]?.toUpperCase();
-          if (assignType !== catFilter && !matchesTitleFilter(t.title, catFilter)) return false;
-        } else {
-          const subj = t.subCategory?.split('-')[0];
-          const matchesCat = t.category === catFilter;
-          const matchesSubj = subj === catFilter;
-          if (!matchesCat && !matchesSubj) return false;
-        }
+        const filterDef = TEST_CAT_FILTERS.find(f => f.key === catFilter);
+        if (filterDef && !filterDef.match(t)) return false;
       }
       return true;
     });
@@ -665,30 +661,17 @@ export function TestsPage() {
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {availableCats.map(cat => (
+          {TEST_CAT_FILTERS.map(({ key }) => (
             <button
-              key={cat}
-              onClick={() => setCatFilter(catFilter === cat ? null : cat)}
+              key={key}
+              onClick={() => setCatFilter(catFilter === key ? null : key)}
               className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
-                catFilter === cat
+                catFilter === key
                   ? 'bg-slate-800 text-white border-slate-800'
                   : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-800'
               }`}
             >
-              {cat}
-            </button>
-          ))}
-          {['HW', 'CW'].map(label => (
-            <button
-              key={label}
-              onClick={() => setCatFilter(catFilter === label ? null : label)}
-              className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
-                catFilter === label
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-800'
-              }`}
-            >
-              {label}
+              {key}
             </button>
           ))}
         </div>

@@ -1070,7 +1070,6 @@ export function StudentManagementPage() {
                                   );
                                 })()}
                               </div>
-                              <p className="text-xs text-slate-400 truncate">{row.studentEmail}</p>
                             </div>
                           </button>
                         </td>
@@ -2105,7 +2104,6 @@ export function StudentManagementPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-slate-900 text-sm truncate">{student.name}</p>
-                      <p className="text-xs text-slate-400 truncate">{student.email}</p>
                     </div>
                     <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/50 flex-shrink-0">
                       <button

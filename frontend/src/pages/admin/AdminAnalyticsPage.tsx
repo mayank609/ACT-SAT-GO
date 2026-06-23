@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Loader2, Search, ChevronRight, ArrowLeft, Users, Target,
-  Clock, Layers, Wrench,
+  Clock, Wrench,
   TrendingUp, BarChart2,
 } from 'lucide-react';
 import {
@@ -12,7 +12,6 @@ import {
   PieChart, Pie,
 } from 'recharts';
 import { api, type DbUser } from '../../lib/api';
-import { SAT_CONTENT } from '../../data/satDomains';
 import {
   loadStudentAnalytics, aggregate, buildBreakdown, accuracy, fmtTime, computeSatScore,
   type LoadedAttempt, type QRecord, type SubjectKey,
@@ -314,13 +313,6 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
 
           {/* ── Breakdown tables (above the graphs) ──────────────────────── */}
           <BreakdownTable
-            title="Domain-wise Analysis"
-            subtitle={`${subjectLabel} · ${SAT_CONTENT[subject === 'math' ? 'Math' : 'Reading and Writing'].length} content domains`}
-            icon={<Layers size={15} />}
-            firstColLabel="Domain"
-            rows={domainRows}
-          />
-          <BreakdownTable
             title="Skill Analysis"
             subtitle={`${subjectLabel} · subdomains, weakest first`}
             icon={<Wrench size={15} />}
@@ -446,7 +438,6 @@ export function AdminAnalyticsPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-gray-900 text-sm truncate group-hover:text-blue-700">{s.name}</p>
-                <p className="text-xs text-gray-400 truncate">{s.email}</p>
               </div>
               {typeof s.testsAttempted === 'number' && (
                 <span className="text-xs text-gray-400 flex-shrink-0 bg-gray-100 px-2 py-0.5 rounded-full">
