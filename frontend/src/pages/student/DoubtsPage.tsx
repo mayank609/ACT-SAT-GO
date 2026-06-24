@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, ChevronDown, ChevronUp, Loader2, AlertCircle, HelpCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, CheckCircle, ChevronDown, ChevronUp, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
@@ -224,7 +224,6 @@ function DoubtItemComponent({ item, index, onCleared }: {
                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-slate-600">
                   {index + 1}
                 </div>
-                <HelpCircle size={14} className="text-amber-500" />
               </div>
               <div className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 text-left font-medium">
                 <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
@@ -245,7 +244,6 @@ function DoubtItemComponent({ item, index, onCleared }: {
           <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white bg-slate-600">
             {index + 1}
           </div>
-          <HelpCircle size={14} className="text-amber-500" />
         </div>
         <div className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 text-left">
           <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />

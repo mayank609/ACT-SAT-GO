@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { HelpCircle, Loader2, Search, ExternalLink } from 'lucide-react';
+import { Loader2, Search, ExternalLink } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { DoubtsView } from '../student/DoubtsPage';
@@ -106,7 +106,6 @@ export function StudentDoubtsAdminPage() {
         {/* Header */}
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <HelpCircle size={20} className="text-amber-500" />
             <h1 className="text-xl font-bold text-slate-900">Student Doubts</h1>
           </div>
           <p className="text-sm text-slate-500">

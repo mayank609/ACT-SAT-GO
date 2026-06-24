@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Search, CheckCircle, XCircle, Clock, ChevronUp, ArrowLeft, ExternalLink,
+  Search, CheckCircle, Clock, ChevronUp, ArrowLeft, ExternalLink,
   Loader2, AlertCircle, HelpCircle, ChevronDown, User, Calendar, Target
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
@@ -283,7 +283,6 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${badgeBgColor}`}>
                   {index + 1}
                 </div>
-                <XCircle size={14} className={item.status === 'unattempted' ? 'text-slate-400' : 'text-red-500'} />
               </div>
               <div className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 text-left font-medium">
                 <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
@@ -314,7 +313,6 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${badgeBgColor}`}>
             {index + 1}
           </div>
-          <XCircle size={14} className={item.status === 'unattempted' ? 'text-slate-400' : 'text-red-500'} />
         </div>
         <div className="text-sm text-slate-800 flex-1 leading-relaxed min-w-0 text-left">
           <RichContentRenderer content={q.content.text || `Question ${index + 1}`} variant="question" className="prose-sm" />
@@ -575,7 +573,6 @@ export function StudentMistakesPage() {
           {/* Header */}
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <AlertCircle size={20} className="text-blue-500" />
               <h1 className="text-xl font-bold text-slate-900">Student Mistakes</h1>
             </div>
             <p className="text-sm text-slate-500">Click a student to review their incorrect and unattempted questions.</p>
