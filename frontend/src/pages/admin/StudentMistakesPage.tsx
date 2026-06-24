@@ -563,7 +563,7 @@ export function StudentMistakesPage() {
           {/* Header */}
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <AlertCircle size={20} className="text-rose-500" />
+              <AlertCircle size={20} className="text-blue-500" />
               <h1 className="text-xl font-bold text-slate-900">Student Mistakes</h1>
             </div>
             <p className="text-sm text-slate-500">Click a student to review their incorrect and unattempted questions.</p>
@@ -585,11 +585,11 @@ export function StudentMistakesPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-gradient-to-r from-rose-50 to-rose-100/40 border-b border-rose-100">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-rose-800 uppercase tracking-wide border-r border-rose-100 whitespace-nowrap">
+                  <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-blue-800 uppercase tracking-wide border-r border-blue-100 whitespace-nowrap">
                       Student
                     </th>
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-rose-800 uppercase tracking-wide whitespace-nowrap w-28">
+                    <th className="px-3 py-3 text-center text-xs font-semibold text-blue-800 uppercase tracking-wide whitespace-nowrap w-28">
                       Review
                     </th>
                   </tr>
@@ -612,11 +612,11 @@ export function StudentMistakesPage() {
                       <tr
                         key={student.id}
                         onClick={() => setSelectedStudent(student)}
-                        className="border-b border-slate-100 hover:bg-rose-50/40 transition-colors cursor-pointer"
+                        className="border-b border-slate-100 hover:bg-blue-50/40 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-3 border-r border-slate-200">
                           <div className="flex items-center gap-2.5 min-w-[160px]">
-                            <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 text-xs font-bold flex-shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold flex-shrink-0">
                               {student.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
@@ -628,7 +628,7 @@ export function StudentMistakesPage() {
                         <td className="px-3 py-3 text-center">
                           <button
                             onClick={e => { e.stopPropagation(); setSelectedStudent(student); }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                           >
                             <ExternalLink size={12} />
                             View

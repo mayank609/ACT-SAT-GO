@@ -95,12 +95,22 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
     <div className="flex flex-col h-full bg-white border-r border-slate-200 transition-all duration-300">
       {/* Logo */}
       <div className={`flex items-center gap-2.5 px-4 py-4 border-b border-slate-100 ${collapsed ? 'justify-center px-2' : ''}`}>
-        {collapsed ? (
-          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-            <img src={logo} alt="ACT SAT GO" className="w-full h-full object-cover object-left" />
-          </div>
-        ) : (
-          <img src={logo} alt="ACT SAT GO" className="h-8 w-auto object-contain" />
+        {/* Icon badge — cropped from the logo artwork so it sits in a clean circle */}
+        <div
+          className="w-9 h-9 rounded-full bg-white ring-1 ring-amber-100 shadow-sm flex-shrink-0"
+          style={{
+            backgroundImage: `url(${logo})`,
+            backgroundSize: '142px auto',
+            backgroundPosition: '-1px -5px',
+            backgroundRepeat: 'no-repeat',
+          }}
+          role="img"
+          aria-label="ACT SAT GO"
+        />
+        {!collapsed && (
+          <span className="font-extrabold tracking-tight text-[15px] leading-none text-slate-900 whitespace-nowrap">
+            ACT&nbsp;SAT&nbsp;<span className="text-amber-500">GO</span>
+          </span>
         )}
         <button onClick={() => setMobileOpen(false)} className="ml-auto md:hidden p-1 text-slate-400 hover:text-slate-600 transition-colors">
           <X size={18} />
