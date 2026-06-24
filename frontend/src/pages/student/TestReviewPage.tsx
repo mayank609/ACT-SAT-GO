@@ -90,7 +90,7 @@ function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
   // Numeric
   if (correct.value !== undefined) {
     if (given.value === undefined) return false;
-    return Number(given.value) === Number(correct.value) || String(given.value).trim() === String(correct.value).trim();
+    return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
   }
   // MSQ — order-independent
   if (correct.keys) {

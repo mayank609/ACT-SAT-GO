@@ -10,6 +10,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import type { QuestionState, SectionAttempt } from '../../types';
 import type { TestAttempt } from '../../types';
 import { transformDbTest, flattenTest } from './TestInstructionsPage';
+import { parseNumericAnswer, isValidNumericInput } from '../../lib/numericAnswer';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ function toDbAnswer(type: string, answer: string | string[] | number | null | Re
     return passageAnswers;
   }
   
-  if (type === 'numeric') return { value: typeof answer === 'number' ? answer : parseFloat(String(answer)) || null };
+  if (type === 'numeric') return { value: typeof answer === 'number' ? answer : parseNumericAnswer(answer as string) };
   if (type === 'mcq_multi') return { keys: (answer as string[]).map((k) => k.toUpperCase()) };
   return { key: (answer as string).toUpperCase() };
 }
@@ -436,7 +437,7 @@ export function TestInterfacePage() {
 
   const doFinalSubmit = async () => {
     if (!attempt || !currentSection || !currentQuestion) return;
-    const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
+    const finalAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
 
     // Preview mode never persists or shows the celebration — just exit.
     if (isPreview) {
@@ -512,7 +513,7 @@ export function TestInterfacePage() {
         api.autosaveAnswer(attempt.id, {
           questionId: currentQuestion.id,
           answerGiven: toDbAnswer(currentQuestion.type,
-            currentQuestion.type === 'numeric' ? parseFloat(numericInput) || null : selectedAnswer
+            currentQuestion.type === 'numeric' ? parseNumericAnswer(numericInput) : selectedAnswer
           ),
           timeSpentSeconds: timeSpent,
           isFlagged: currentQAttempt.state === 'marked_review' || currentQAttempt.state === 'answered_marked',
@@ -882,7 +883,7 @@ export function TestInterfacePage() {
   // palette counts, the submit modal, and autosave all show it as unanswered.
   useEffect(() => {
     if (!currentSection || !currentQuestion) return;
-    const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
+    const finalAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
     const prevState = currentQAttempt?.state ?? 'not_visited';
     // Don't promote an untouched/empty question just by rendering it — only the
@@ -1057,7 +1058,7 @@ export function TestInterfacePage() {
 
   const saveAndNavigate = async (nextQIdx: number, nextSectionIdx?: number) => {
     if (!currentSection) return;
-    const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
+    const finalAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
     const prevState = getQuestionState(currentSection.id, currentQuestion.id);
     const newState: QuestionState = hasAnswer
@@ -1093,7 +1094,7 @@ export function TestInterfacePage() {
 
   const markForReview = () => {
     if (!currentSection) return;
-    const finalAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
+    const finalAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
     // Bluebook behaviour: toggle the review flag on the current question and
     // stay where you are (no auto-advance).
@@ -1310,9 +1311,12 @@ export function TestInterfacePage() {
               {currentQuestion.type === 'numeric' && (
                 <div>
                   <p className="text-sm text-gray-600 mb-2 font-medium">Enter your answer:</p>
-                  <input type="number" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
-                    placeholder="0"
-                    className="w-40 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-mono focus:outline-none focus:border-[#1b3d6e] transition-colors bg-white" />
+                  <input type="text" inputMode="text" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
+                    placeholder="e.g. 7/10 or 0.7"
+                    className={`w-48 px-4 py-3 border-2 rounded-lg text-lg font-mono focus:outline-none transition-colors bg-white ${
+                      isValidNumericInput(numericInput) ? 'border-gray-300 focus:border-[#1b3d6e]' : 'border-red-400 focus:border-red-500'
+                    }`} />
+                  <p className="text-xs text-gray-400 mt-1.5">You can enter a fraction (e.g. 7/10) or a decimal.</p>
                 </div>
               )}
             </div>
@@ -1926,7 +1930,7 @@ export function TestInterfacePage() {
 
       {/* ── SECTION REVIEW POPUP ─────────────────────────────────────────────── */}
       {showSectionReview && (() => {
-        const liveAns = currentQuestion.type === 'numeric' ? (parseFloat(numericInput) || null) : selectedAnswer;
+        const liveAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
         const liveHasAnswer = liveAns !== null && liveAns !== '' && !(Array.isArray(liveAns) && liveAns.length === 0);
         const liveIsMarked = currentQAttempt?.state === 'marked_review' || currentQAttempt?.state === 'answered_marked';
         const otherQs = Object.entries(currentSectionAttempt?.questions ?? {}).filter(([qId]) => qId !== currentQuestion.id);

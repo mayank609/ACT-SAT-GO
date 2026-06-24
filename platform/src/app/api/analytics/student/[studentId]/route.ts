@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { numericValuesEqual } from '@/lib/numericAnswer'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,10 +9,10 @@ function isAnswerCorrect(given: unknown, correct: unknown): boolean {
   const g = given as { key?: string; keys?: string[]; value?: number };
   const c = correct as { key?: string; keys?: string[]; value?: number };
   
-  // Numeric
+  // Numeric (supports fraction answers, decimal-equivalent with tolerance)
   if (c.value !== undefined) {
     if (g.value === undefined) return false;
-    return Number(g.value) === Number(c.value) || String(g.value).trim() === String(c.value).trim();
+    return numericValuesEqual(g.value, c.value);
   }
   
   // MSQ

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
+import { numericValuesEqual } from '@/lib/numericAnswer'
 
 type AnswerJson = { key?: string; keys?: string[]; value?: number } | null
 
@@ -11,10 +12,10 @@ function isAnswerCorrect(given: unknown, correct: unknown): boolean {
   const c = correct as AnswerJson;
   if (!g || !c) return false;
   
-  // Numeric
+  // Numeric (supports fraction answers, decimal-equivalent with tolerance)
   if (c.value !== undefined) {
     if (g.value === undefined) return false;
-    return Number(g.value) === Number(c.value) || String(g.value).trim() === String(c.value).trim();
+    return numericValuesEqual(g.value, c.value);
   }
   
   // MSQ — order-independent, case-insensitive

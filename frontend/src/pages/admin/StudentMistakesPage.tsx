@@ -98,7 +98,7 @@ function dbAnswerToDisplay(ans: DbAnswer | null): string | string[] | number | n
 
 function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
   if (!given) return false;
-  if (correct.value !== undefined) return given.value === correct.value;
+  if (correct.value !== undefined) return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
   if (correct.keys) {
     return (
       JSON.stringify([...(given.keys ?? [])].sort()) ===

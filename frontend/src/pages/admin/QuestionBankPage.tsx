@@ -7,6 +7,7 @@ import { Modal } from '../../components/common/Modal';
 import { MathRenderer } from '../../components/admin/MathRenderer';
 import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { api } from '../../lib/api';
+import { parseNumericAnswer } from '../../lib/numericAnswer';
 import { toast, Toaster } from 'react-hot-toast';
 
 type Question = Awaited<ReturnType<typeof api.getQuestions>>['questions'][0];
@@ -60,7 +61,8 @@ async function saveQuestionsToBank(questions: DraftQuestion[]): Promise<Question
         type: q.type,
         text: q.text,
         options: q.type !== 'numeric' ? q.options : undefined,
-        correctAnswer: q.correctAnswer,
+        // Numeric answers may be authored as fractions ("7/10"); store the decimal value.
+        correctAnswer: q.type === 'numeric' ? (parseNumericAnswer(String(q.correctAnswer)) ?? 0) : q.correctAnswer,
         difficulty: q.difficulty,
         topic: q.topic || undefined,
         subject: q.subject || undefined,
@@ -203,8 +205,8 @@ function parseCSVContent(text: string): CSVParseResult[] {
     const correctAnswerDisplay = ansRaw.trim().toUpperCase();
 
     if (questionType === 'numeric') {
-      const num = parseFloat(ansRaw.trim());
-      if (isNaN(num)) errors.push('Numeric answer must be a number'); else correctAnswer = num;
+      const num = parseNumericAnswer(ansRaw.trim());
+      if (num === null) errors.push('Numeric answer must be a number or fraction (e.g. 7/10)'); else correctAnswer = num;
     } else if (questionType === 'mcq_multi') {
       const keys = ansRaw.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean);
       if (keys.length === 0) errors.push('MSQ requires at least one correct answer');
@@ -350,9 +352,10 @@ function AddQuestionModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
         {draft.type === 'numeric' && (
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Correct Answer</label>
-            <input type="number" value={typeof draft.correctAnswer === 'number' ? draft.correctAnswer : ''}
-              onChange={(e) => update({ correctAnswer: parseFloat(e.target.value) || 0 })}
-              className="w-40 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Numeric answer" />
+            <input type="text" value={draft.correctAnswer == null ? '' : String(draft.correctAnswer)}
+              onChange={(e) => update({ correctAnswer: e.target.value })}
+              className="w-48 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 7/10 or 0.7" />
+            <p className="text-[11px] text-slate-400 mt-1">Enter a decimal or a fraction (e.g. 7/10). Stored and graded as a decimal.</p>
           </div>
         )}
 
