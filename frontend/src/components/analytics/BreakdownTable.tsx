@@ -20,7 +20,7 @@ export function AccuracyBar({ pct }: { pct: number }) {
 export function BreakdownTable({
   title, subtitle, icon, firstColLabel, rows,
 }: {
-  title: string; subtitle: string; icon: ReactNode; firstColLabel: string;
+  title: string; subtitle?: string; icon: ReactNode; firstColLabel: string;
   rows: Array<{ name: string; agg: Agg }>;
 }) {
   return (
@@ -29,7 +29,7 @@ export function BreakdownTable({
         <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-[#1b3d6e]">{icon}</span>
         <div>
           <h3 className="text-sm font-bold text-blue-900">{title}</h3>
-          <p className="text-xs text-blue-500/80 mt-0.5">{subtitle}</p>
+          {subtitle && <p className="text-xs text-blue-500/80 mt-0.5">{subtitle}</p>}
         </div>
       </div>
       <div className="overflow-x-auto">

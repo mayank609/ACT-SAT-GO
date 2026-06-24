@@ -429,7 +429,6 @@ export function AnalyticsPage() {
       />
       <BreakdownTable
         title="Skill Analysis"
-        subtitle={`${subjectLabel} · subdomains, weakest first`}
         icon={<Wrench size={15} />}
         firstColLabel="Skill"
         rows={skillRows}
