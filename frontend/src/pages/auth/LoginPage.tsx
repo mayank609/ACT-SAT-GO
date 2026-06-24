@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, BookOpen } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore, dbUserToAuthUser } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/common/Button';
+import logo from '../../assets/logo.png';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -61,14 +62,11 @@ export function LoginPage() {
       <div className="relative w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-2xl shadow-2xl overflow-hidden">
         {/* Left panel */}
         <div className="hidden lg:flex flex-col bg-gradient-to-br from-blue-600 to-blue-800 p-10 text-white">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <BookOpen size={22} className="text-white" />
+          <div className="mb-12">
+            <div className="bg-white rounded-xl px-4 py-2 inline-block">
+              <img src={logo} alt="ACT SAT GO" className="h-9 w-auto object-contain" />
             </div>
-            <div>
-              <span className="font-bold text-xl">ACT·SAT·GO</span>
-              <span className="block text-blue-200 text-xs">Test Preparation Platform</span>
-            </div>
+            <span className="block text-blue-200 text-xs mt-2">Test Preparation Platform</span>
           </div>
           <h2 className="text-3xl font-bold mb-4 leading-tight">
             Prepare smarter,<br />score higher.
@@ -96,11 +94,8 @@ export function LoginPage() {
         {/* Right panel */}
         <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center">
           <div className="mb-6 sm:mb-8">
-            <div className="flex items-center gap-2 mb-5 lg:hidden">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <BookOpen size={16} className="text-white" />
-              </div>
-              <span className="font-bold text-slate-900">ACT·SAT·GO</span>
+            <div className="mb-5 lg:hidden">
+              <img src={logo} alt="ACT SAT GO" className="h-8 w-auto object-contain" />
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Welcome back</h2>
             <p className="text-slate-500 mt-1 text-sm">Sign in to continue to your dashboard</p>

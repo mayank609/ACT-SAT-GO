@@ -239,3 +239,28 @@ once the column exists. The **My Doubts** page reads doubts by calling
 - `frontend/src/pages/student/DoubtsPage.tsx` — new **My Doubts** page
 - `frontend/src/App.tsx` — route `/doubts`
 - `frontend/src/components/layout/Sidebar.tsx` — nav item "My Doubts"
+
+---
+
+## 2026-06-24 — Skill Categories persistence (currently localStorage only)
+
+**Why:** The admin Skills Management page (`/skills`) lets super_admins define the test-type categories that drive filter toggles on the Student Mistakes page. Currently the config is stored in `localStorage` under key `actsatgo:skill_categories`, so it's browser-local and not shared across machines/admins.
+
+**Requested backend change:** Add a `skill_categories` config table or a single JSON config row so skill definitions persist server-side and are shared across all admin/tutor sessions.
+
+**Suggested schema (Prisma):**
+```prisma
+model SkillCategory {
+  id     String  @id @default(cuid())
+  label  String
+  value  String  @unique
+  active Boolean @default(true)
+  order  Int
+}
+```
+
+**Suggested endpoints:**
+- `GET  /api/skill-categories` → returns `{ categories: SkillCategory[] }`
+- `PUT  /api/skill-categories` → body `{ categories: SkillCategory[] }` → upserts full list
+
+**Frontend:** Already wired in `frontend/src/hooks/useSkillCategories.ts` — replace the `localStorage` read/write with calls to the above endpoints once available. No UI changes needed.

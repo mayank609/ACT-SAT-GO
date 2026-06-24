@@ -11,7 +11,8 @@ import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { MathRenderer } from '../../components/admin/MathRenderer';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
-import { ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN, SKILLS_BY_SUBDOMAIN } from '../../data/satDomains';
+import { ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
+import { useSubdomainSkills } from '../../hooks/useSubdomainSkills';
 
 // Question tagging uses the official SAT blueprint (domain → subdomain) so the
 // tags here line up exactly with the Test Review performance breakdown.
@@ -104,6 +105,7 @@ interface QuestionEditorProps {
 }
 
 function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver, isReadingWriting }: QuestionEditorProps) {
+  const { skillsMap } = useSubdomainSkills();
   // R&W questions must always be passage-based. Coerce any legacy/non-passage
   // question in this section into a passage, preserving its content by wrapping
   // it as the first internal MCQ rather than discarding it.
@@ -265,9 +267,9 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
               <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Skill</label>
               <select value={question.skill ?? ''} onChange={(e) => onUpdate({ ...question, skill: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!question.subTopic || !SKILLS_BY_SUBDOMAIN[question.subTopic]}>
+                disabled={!question.subTopic || !(skillsMap[question.subTopic]?.length)}>
                 <option value="">Select skill</option>
-                {(question.subTopic ? SKILLS_BY_SUBDOMAIN[question.subTopic] ?? [] : []).map((skill) => <option key={skill} value={skill}>{skill}</option>)}
+                {(question.subTopic ? skillsMap[question.subTopic] ?? [] : []).map((skill) => <option key={skill} value={skill}>{skill}</option>)}
               </select>
             </div>
           </div>

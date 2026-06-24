@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
-  Search, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp,
-  Loader2, AlertCircle, HelpCircle, GraduationCap, Compass, BookOpen, User, Calendar, Target
+  Search, CheckCircle, XCircle, Clock, ChevronUp, ArrowLeft, ExternalLink,
+  Loader2, AlertCircle, HelpCircle, ChevronDown, User, Calendar, Target
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useSkillCategories, getSkillForTest } from '../../hooks/useSkillCategories';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ function getSubject(item: MistakeItem): 'math' | 'english' | 'other' {
   return 'other';
 }
 
+
 // ─── Question item component ────────────────────────────────────────────────
 
 interface MistakeItemComponentProps {
@@ -191,7 +193,7 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
       <div className="text-xs text-slate-500 mb-3 p-2 bg-slate-50 rounded border border-slate-100">
         <strong className="text-slate-700">{item.testTitle}</strong> • {item.sectionName}
       </div>
-      
+
       <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-3">
         <button
           onClick={() => setShowExplanation(!showExplanation)}
@@ -230,29 +232,27 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
               {doubtStatus === 'cleared'
                 ? "Doubt cleared. Student has revised this question."
                 : doubtStatus === 'doubt'
-                ? "Student is struggling with this. Help them clear it below."
-                : "You can update this question's doubt status for the student:"}
+                  ? "Student is struggling with this. Help them clear it below."
+                  : "You can update this question's doubt status for the student:"}
             </p>
             <div className="flex items-center gap-1.5 self-end sm:self-auto">
               <button
                 onClick={() => handleSetDoubt('doubt')}
                 disabled={savingDoubt}
-                className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded border transition-colors disabled:opacity-50 ${
-                  doubtStatus === 'doubt'
+                className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded border transition-colors disabled:opacity-50 ${doubtStatus === 'doubt'
                     ? 'bg-amber-500 text-white border-amber-500'
                     : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
-                }`}
+                  }`}
               >
                 <HelpCircle size={10} /> Keep Doubt
               </button>
               <button
                 onClick={() => handleSetDoubt('cleared')}
                 disabled={savingDoubt}
-                className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded border transition-colors disabled:opacity-50 ${
-                  doubtStatus === 'cleared'
+                className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded border transition-colors disabled:opacity-50 ${doubtStatus === 'cleared'
                     ? 'bg-emerald-600 text-white border-emerald-600'
                     : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
-                }`}
+                  }`}
               >
                 <CheckCircle size={10} /> Mark Cleared
               </button>
@@ -344,11 +344,14 @@ export function StudentMistakesPage() {
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<DbUser | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
-  const [studentDropdownOpen, setStudentDropdownOpen] = useState(false);
+
+  const { skills } = useSkillCategories();
+  const activeSkills = skills.filter(s => s.active).sort((a, b) => a.order - b.order);
 
   const [mistakes, setMistakes] = useState<MistakeItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'wrong' | 'unattempted'>('all');
   const [subjectFilter, setSubjectFilter] = useState<'all' | 'math' | 'english'>('all');
+  const [testTypeFilter, setTestTypeFilter] = useState<string>('all');
   const [testScope, setTestScope] = useState<'all' | 'latest' | 'last2' | 'last5' | 'custom'>('all');
   const [selectedAttemptIds, setSelectedAttemptIds] = useState<string[]>([]);
   const [submittedAttempts, setSubmittedAttempts] = useState<any[]>([]);
@@ -380,13 +383,6 @@ export function StudentMistakesPage() {
     }
   }, [dbId, user]);
 
-  // Auto-select the first student once the directory loads (no left panel to pick from)
-  useEffect(() => {
-    if (!selectedStudent && students.length > 0) {
-      setSelectedStudent(students[0]);
-    }
-  }, [students, selectedStudent]);
-
   // 2. Fetch Mistakes when Student Selection changes
   useEffect(() => {
     if (!selectedStudent) {
@@ -399,6 +395,7 @@ export function StudentMistakesPage() {
     setMistakesError(null);
     setFilter('all');
     setSubjectFilter('all');
+    setTestTypeFilter('all');
     setTestScope('all');
     setSelectedAttemptIds([]);
 
@@ -411,7 +408,7 @@ export function StudentMistakesPage() {
 
         const submitted = (rawAttempts as any[]).filter(a => a?.status === 'SUBMITTED');
         setSubmittedAttempts(submitted);
-        
+
         if (submitted.length === 0) {
           setMistakes([]);
           setLoadingMistakes(false);
@@ -429,7 +426,7 @@ export function StudentMistakesPage() {
 
               const answersMap = new Map((attempt.answers ?? []).map((a: DbAttemptAnswer) => [a.questionId, a]));
               const sections = attempt.sectionAttempts ?? [];
-              
+
               sections.forEach((sa: DbSectionAttempt) => {
                 const section = sa.section;
                 const flattenedQuestions: DbTestQuestion[] = [];
@@ -437,7 +434,7 @@ export function StudentMistakesPage() {
                 (section.questions ?? []).forEach((tq: DbTestQuestion) => {
                   const q = tq.question;
                   const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
-                  
+
                   if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
                     q.childQuestions.forEach((cq: DbQuestion) => {
                       flattenedQuestions.push({
@@ -522,8 +519,14 @@ export function StudentMistakesPage() {
     return true;
   });
 
-  // 2. Filter by subject
-  const mistakesForSubject = mistakesForScope.filter(m => {
+  // 2. Filter by test type
+  const mistakesForTestType = mistakesForScope.filter(m => {
+    if (testTypeFilter === 'all') return true;
+    return getSkillForTest(m.testTitle, skills) === testTypeFilter;
+  });
+
+  // 3. Filter by subject
+  const mistakesForSubject = mistakesForTestType.filter(m => {
     if (subjectFilter === 'all') return true;
     return getSubject(m) === subjectFilter;
   });
@@ -553,316 +556,345 @@ export function StudentMistakesPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-112px)] overflow-hidden bg-slate-50/50 -m-5">
-      {/* ─── Mistakes Workspace ─── */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col">
-        {!selectedStudent ? (
-          /* BLANK STATE */
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto py-12">
-            <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-5 relative">
-              <Compass size={32} className="animate-pulse" />
-              <div className="absolute inset-0 bg-blue-200/20 rounded-full blur-xl -z-10" />
+    <div className="w-full pb-10">
+      {!selectedStudent ? (
+        /* STUDENT LIST */
+        <div className="space-y-5 max-w-4xl mx-auto">
+          {/* Header */}
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <AlertCircle size={20} className="text-rose-500" />
+              <h1 className="text-xl font-bold text-slate-900">Student Mistakes</h1>
             </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Student Mistakes Workspace</h1>
-            <p className="text-slate-500 text-sm mt-2 leading-relaxed">
-              {loadingStudents
-                ? 'Loading the student directory…'
-                : 'No students are available yet. Once students are added, pick one from the dropdown to inspect their completed test attempts, see which questions they answered incorrectly or skipped, and review explanation materials.'}
-            </p>
-            <div className="grid grid-cols-2 gap-3 mt-8 w-full">
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm text-left">
-                <GraduationCap size={20} className="text-emerald-500 mb-1.5" />
-                <p className="text-xs font-bold text-slate-700">Doubt Tracking</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Identify marked doubts and update resolution status.</p>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm text-left">
-                <BookOpen size={20} className="text-indigo-500 mb-1.5" />
-                <p className="text-xs font-bold text-slate-700">Error Isolation</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Filter by Subject or Status to isolate specific gaps.</p>
-              </div>
+            <p className="text-sm text-slate-500">Click a student to review their incorrect and unattempted questions.</p>
+          </div>
+
+          {/* Search */}
+          <div className="relative max-w-xs">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={studentSearch}
+              onChange={e => setStudentSearch(e.target.value)}
+              placeholder="Search students…"
+              className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Table */}
+          <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gradient-to-r from-rose-50 to-rose-100/40 border-b border-rose-100">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-rose-800 uppercase tracking-wide border-r border-rose-100 whitespace-nowrap">
+                      Student
+                    </th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold text-rose-800 uppercase tracking-wide whitespace-nowrap w-28">
+                      Review
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingStudents ? (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-10 text-center text-sm text-slate-400">
+                        <Loader2 size={18} className="animate-spin inline mr-2" /> Loading students…
+                      </td>
+                    </tr>
+                  ) : filteredStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-10 text-center text-sm text-slate-400">
+                        {students.length === 0 ? 'No students found.' : 'No matching students.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStudents.map(student => (
+                      <tr
+                        key={student.id}
+                        onClick={() => setSelectedStudent(student)}
+                        className="border-b border-slate-100 hover:bg-rose-50/40 transition-colors cursor-pointer"
+                      >
+                        <td className="px-4 py-3 border-r border-slate-200">
+                          <div className="flex items-center gap-2.5 min-w-[160px]">
+                            <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 text-xs font-bold flex-shrink-0">
+                              {student.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-800 truncate">{student.name}</p>
+                              <p className="text-[11px] text-slate-400 truncate max-w-[200px]">{student.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <button
+                            onClick={e => { e.stopPropagation(); setSelectedStudent(student); }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors"
+                          >
+                            <ExternalLink size={12} />
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        ) : (
-          /* ACTIVE STATE */
-          <div className="space-y-6 w-full">
-            {/* Student Profile Overview Card */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-lg font-extrabold flex-shrink-0">
-                  {selectedStudent.name.charAt(0).toUpperCase()}
-                </div>
-                {/* Student selector dropdown (replaces the old left-side panel) */}
-                <div className="relative">
-                  <button
-                    onClick={() => setStudentDropdownOpen((o) => !o)}
-                    className="text-left group"
-                  >
-                    <h1 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-                      {selectedStudent.name}
-                      <ChevronDown size={18} className={`text-slate-400 transition-transform ${studentDropdownOpen ? 'rotate-180' : ''}`} />
-                    </h1>
-                    <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1"><User size={12} /> {selectedStudent.email}</p>
-                  </button>
+        </div>
+      ) : (
+        /* ACTIVE STATE — mistakes for selected student */
+        <div className="space-y-6 w-full">
+          {/* Back button + student header */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setSelectedStudent(null); setStudentSearch(''); }}
+              className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              <ArrowLeft size={16} /> Back to Students
+            </button>
+          </div>
 
-                  {studentDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-20" onClick={() => { setStudentDropdownOpen(false); setStudentSearch(''); }} />
-                      <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden">
-                        <div className="p-2 border-b border-slate-100">
-                          <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                            <input
-                              autoFocus
-                              type="text"
-                              placeholder="Search by name or email..."
-                              value={studentSearch}
-                              onChange={(e) => setStudentSearch(e.target.value)}
-                              className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                        </div>
-                        <div className="max-h-72 overflow-y-auto p-1.5 space-y-1 scrollbar-thin">
-                          {loadingStudents ? (
-                            <div className="flex items-center justify-center gap-2 py-6 text-slate-400 text-xs">
-                              <Loader2 className="animate-spin text-blue-500" size={16} /> Loading…
-                            </div>
-                          ) : filteredStudents.length === 0 ? (
-                            <div className="text-center py-6 text-slate-400 text-xs">No students found</div>
-                          ) : (
-                            filteredStudents.map((student) => {
-                              const isSelected = selectedStudent?.id === student.id;
-                              return (
-                                <button
-                                  key={student.id}
-                                  onClick={() => { setSelectedStudent(student); setStudentDropdownOpen(false); setStudentSearch(''); }}
-                                  className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 transition-colors ${
-                                    isSelected ? 'bg-blue-50 text-slate-900' : 'hover:bg-slate-50 text-slate-600'
-                                  }`}
-                                >
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                    isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
-                                  }`}>
-                                    {student.name.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-semibold text-xs text-slate-800 truncate">{student.name}</p>
-                                    <p className="text-[10px] text-slate-400 truncate">{student.email}</p>
-                                  </div>
-                                  {isSelected && <CheckCircle size={14} className="text-blue-600 flex-shrink-0" />}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+          {/* Student Profile Overview Card */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-lg font-extrabold flex-shrink-0">
+                {selectedStudent.name.charAt(0).toUpperCase()}
               </div>
-
-              {/* Student target stats */}
-              <div className="flex flex-wrap gap-2 md:gap-3 border-t border-slate-50 sm:border-0 pt-3 sm:pt-0">
-                {selectedStudent.targetScore && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-800 rounded-xl text-xs font-bold border border-blue-100">
-                    <Target size={12} className="text-blue-600" />
-                    Target: {selectedStudent.targetScore}
-                  </span>
-                )}
-                {selectedStudent.targetDate && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-800 rounded-xl text-xs font-bold border border-indigo-100">
-                    <Calendar size={12} className="text-indigo-600" />
-                    Test Date: {formatTargetDate(selectedStudent.targetDate)}
-                  </span>
-                )}
-                {selectedStudent.grade && (
-                  <span className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">
-                    Grade {selectedStudent.grade}
-                  </span>
-                )}
+              <div>
+                <h1 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">{selectedStudent.name}</h1>
+                <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1"><User size={12} /> {selectedStudent.email}</p>
               </div>
             </div>
 
-            {/* Quick Metrics Bar */}
-            {loadingMistakes ? null : mistakes.length > 0 && (
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: 'Total Mistakes', value: totalCount, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-100' },
-                  { label: 'Wrong Answers', value: wrongCount, color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
-                  { label: 'Unattempted', value: unattemptedCount, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200/60' },
-                ].map((s) => (
-                  <div key={s.label} className={`bg-white border rounded-2xl p-4 text-center shadow-sm`}>
-                    <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-                    <p className="text-xs text-slate-400 mt-1 font-medium">{s.label}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Student target stats */}
+            <div className="flex flex-wrap gap-2 md:gap-3 border-t border-slate-50 sm:border-0 pt-3 sm:pt-0">
+              {selectedStudent.targetScore && (
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-800 rounded-xl text-xs font-bold border border-blue-100">
+                  <Target size={12} className="text-blue-600" />
+                  Target: {selectedStudent.targetScore}
+                </span>
+              )}
+              {selectedStudent.targetDate && (
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-800 rounded-xl text-xs font-bold border border-indigo-100">
+                  <Calendar size={12} className="text-indigo-600" />
+                  Test Date: {formatTargetDate(selectedStudent.targetDate)}
+                </span>
+              )}
+              {selectedStudent.grade && (
+                <span className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">
+                  Grade {selectedStudent.grade}
+                </span>
+              )}
+            </div>
+          </div>
 
-            {/* Loading Mistakes State */}
-            {loadingMistakes ? (
-              <div className="flex flex-col items-center justify-center h-60 gap-3 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
-                <Loader2 size={24} className="animate-spin text-blue-500" />
-                <span className="font-medium">Retrieving student attempts and mapping mistakes…</span>
-              </div>
-            ) : mistakesError ? (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
-                <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-red-700">{mistakesError}</div>
-              </div>
-            ) : mistakes.length === 0 ? (
-              /* NO MISTAKES DETECTED */
-              <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
-                <CheckCircle size={48} className="mx-auto text-emerald-400 mb-3" />
-                <p className="text-slate-800 font-bold text-base">Perfect record! No mistakes found</p>
-                <p className="text-slate-400 text-xs mt-1">This student has answered all questions correctly in their submitted attempts.</p>
-              </div>
-            ) : (
-              /* DETAILED VIEW WITH WORKSPACE FILTERS */
-              <>
-                {/* Filters Board */}
-                <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                  <div className="flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
-                    {/* Status filter */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-bold text-slate-400 mr-1.5 uppercase tracking-wide">Status:</span>
-                      {[
-                        { value: 'all' as const, label: 'All' },
-                        { value: 'wrong' as const, label: 'Wrong Only' },
-                        { value: 'unattempted' as const, label: 'Unattempted' },
-                      ].map((f) => (
-                        <button
-                          key={f.value}
-                          onClick={() => setFilter(f.value)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                            filter === f.value
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
+          {/* Quick Metrics Bar */}
+          {loadingMistakes ? null : mistakes.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Total Mistakes', value: totalCount, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-100' },
+                { label: 'Wrong Answers', value: wrongCount, color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
+                { label: 'Unattempted', value: unattemptedCount, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200/60' },
+              ].map((s) => (
+                <div key={s.label} className={`bg-white border rounded-2xl p-4 text-center shadow-sm`}>
+                  <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-xs text-slate-400 mt-1 font-medium">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
-                    {/* Subject Filter */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-bold text-slate-400 mr-1.5 uppercase tracking-wide">Subject:</span>
-                      {[
-                        { value: 'all' as const, label: 'All Subjects' },
-                        { value: 'math' as const, label: 'Maths' },
-                        { value: 'english' as const, label: 'English' },
-                      ].map((f) => (
-                        <button
-                          key={f.value}
-                          onClick={() => setSubjectFilter(f.value)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                            subjectFilter === f.value
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+          {/* Loading Mistakes State */}
+          {loadingMistakes ? (
+            <div className="flex flex-col items-center justify-center h-60 gap-3 text-slate-400 text-sm bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
+              <Loader2 size={24} className="animate-spin text-blue-500" />
+              <span className="font-medium">Retrieving student attempts and mapping mistakes…</span>
+            </div>
+          ) : mistakesError ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
+              <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-red-700">{mistakesError}</div>
+            </div>
+          ) : mistakes.length === 0 ? (
+            /* NO MISTAKES DETECTED */
+            <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
+              <CheckCircle size={48} className="mx-auto text-emerald-400 mb-3" />
+              <p className="text-slate-800 font-bold text-base">Perfect record! No mistakes found</p>
+              <p className="text-slate-400 text-xs mt-1">This student has answered all questions correctly in their submitted attempts.</p>
+            </div>
+          ) : (
+            /* DETAILED VIEW WITH WORKSPACE FILTERS */
+            <>
+              {/* Filters Board */}
+              <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
 
-                  {/* Scope filter */}
-                  <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-50 pt-3">
-                    <span className="text-xs font-bold text-slate-400 mr-1.5 uppercase tracking-wide">Test Range:</span>
+                {/* Test Type Filter — driven by Skills Management page */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-400 mr-1.5 uppercase tracking-wide">Test Type:</span>
+                  <button
+                    onClick={() => setTestTypeFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${testTypeFilter === 'all'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                  >
+                    All
+                  </button>
+                  {activeSkills.map((skill) => (
+                    <button
+                      key={skill.id}
+                      onClick={() => setTestTypeFilter(skill.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${testTypeFilter === skill.value
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                    >
+                      {skill.label}
+                    </button>
+                  ))}
+                  {activeSkills.length === 0 && (
+                    <span className="text-xs text-slate-400 italic">No skills configured — go to Skills in the sidebar to add some.</span>
+                  )}
+                </div>
+
+                <div className="flex flex-col lg:flex-row gap-3 lg:items-center justify-between border-t border-slate-50 pt-3">
+                  {/* Status filter */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-400 mr-1.5 uppercase tracking-wide">Status:</span>
                     {[
-                      { value: 'all' as const, label: 'All Tests' },
-                      { value: 'latest' as const, label: 'Latest Test' },
-                      { value: 'last2' as const, label: 'Last 2 Tests' },
-                      { value: 'last5' as const, label: 'Last 5 Tests' },
-                      { value: 'custom' as const, label: 'Select Specific...' },
+                      { value: 'all' as const, label: 'All' },
+                      { value: 'wrong' as const, label: 'Wrong Only' },
+                      { value: 'unattempted' as const, label: 'Unattempted' },
                     ].map((f) => (
                       <button
                         key={f.value}
-                        onClick={() => {
-                          setTestScope(f.value);
-                          if (f.value === 'custom' && selectedAttemptIds.length === 0 && submittedAttempts.length > 0) {
-                            setSelectedAttemptIds([submittedAttempts[0].id]);
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                          testScope === f.value
+                        onClick={() => setFilter(f.value)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${filter === f.value
                             ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                        }`}
+                          }`}
                       >
                         {f.label}
                       </button>
                     ))}
                   </div>
 
-                  {/* Custom Test Selection Multi-Picker */}
-                  {testScope === 'custom' && submittedAttempts.length > 0 && (
-                    <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 space-y-2 max-h-40 overflow-y-auto animate-fadeIn mt-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Check tests to include:</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {submittedAttempts.map((attempt) => {
-                          const isChecked = selectedAttemptIds.includes(attempt.id);
-                          const formattedDate = attempt.completedAt
-                            ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                            : new Date(attempt.startedAt).toLocaleDateString();
-                          return (
-                            <label
-                              key={attempt.id}
-                              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs font-medium cursor-pointer select-none transition-all ${
-                                isChecked
-                                  ? 'bg-blue-50/40 border-blue-200 text-blue-700 font-semibold'
-                                  : 'bg-white border-slate-200/60 text-slate-600 hover:bg-slate-50'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => {
-                                  setSelectedAttemptIds((prev) =>
-                                    prev.includes(attempt.id)
-                                      ? prev.filter((id) => id !== attempt.id)
-                                      : [...prev, attempt.id]
-                                  );
-                                }}
-                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-slate-800">{attempt.test?.title ?? 'Unknown Test'}</p>
-                                <p className="text-[10px] text-slate-400 font-normal mt-0.5">{formattedDate} · Score: {attempt.totalScore ?? '—'}</p>
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  {/* Subject Filter */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-400 mr-1.5 uppercase tracking-wide">Subject:</span>
+                    {[
+                      { value: 'all' as const, label: 'All Subjects' },
+                      { value: 'math' as const, label: 'Maths' },
+                      { value: 'english' as const, label: 'English' },
+                    ].map((f) => (
+                      <button
+                        key={f.value}
+                        onClick={() => setSubjectFilter(f.value)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${subjectFilter === f.value
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Questions Listing */}
-                <div className="space-y-4">
-                  {filteredMistakes.map((item, idx) => (
-                    <MistakeItemComponent
-                      key={`${item.attemptId}-${item.questionId}`}
-                      item={item}
-                      index={idx}
-                      onDoubtStatusChange={handleDoubtStatusChange}
-                    />
+                {/* Scope filter */}
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-50 pt-3">
+                  <span className="text-xs font-bold text-slate-400 mr-1.5 uppercase tracking-wide">Test Range:</span>
+                  {[
+                    { value: 'all' as const, label: 'All Tests' },
+                    { value: 'latest' as const, label: 'Latest Test' },
+                    { value: 'last2' as const, label: 'Last 2 Tests' },
+                    { value: 'last5' as const, label: 'Last 5 Tests' },
+                    { value: 'custom' as const, label: 'Select Specific...' },
+                  ].map((f) => (
+                    <button
+                      key={f.value}
+                      onClick={() => {
+                        setTestScope(f.value);
+                        if (f.value === 'custom' && selectedAttemptIds.length === 0 && submittedAttempts.length > 0) {
+                          setSelectedAttemptIds([submittedAttempts[0].id]);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${testScope === f.value
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                    >
+                      {f.label}
+                    </button>
                   ))}
                 </div>
 
-                {filteredMistakes.length === 0 && (
-                  <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
-                    <CheckCircle size={48} className="mx-auto text-emerald-400 mb-3" />
-                    <p className="text-slate-800 font-bold text-sm">No mistake questions match these filters</p>
-                    <p className="text-slate-400 text-xs mt-1">Try switching filters or selecting other tests.</p>
+                {/* Custom Test Selection Multi-Picker */}
+                {testScope === 'custom' && submittedAttempts.length > 0 && (
+                  <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 space-y-2 max-h-40 overflow-y-auto animate-fadeIn mt-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Check tests to include:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {submittedAttempts.map((attempt) => {
+                        const isChecked = selectedAttemptIds.includes(attempt.id);
+                        const formattedDate = attempt.completedAt
+                          ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                          : new Date(attempt.startedAt).toLocaleDateString();
+                        return (
+                          <label
+                            key={attempt.id}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs font-medium cursor-pointer select-none transition-all ${isChecked
+                                ? 'bg-blue-50/40 border-blue-200 text-blue-700 font-semibold'
+                                : 'bg-white border-slate-200/60 text-slate-600 hover:bg-slate-50'
+                              }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setSelectedAttemptIds((prev) =>
+                                  prev.includes(attempt.id)
+                                    ? prev.filter((id) => id !== attempt.id)
+                                    : [...prev, attempt.id]
+                                );
+                              }}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-slate-800">{attempt.test?.title ?? 'Unknown Test'}</p>
+                              <p className="text-[10px] text-slate-400 font-normal mt-0.5">{formattedDate} · Score: {attempt.totalScore ?? '—'}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
-              </>
-            )}
-          </div>
-        )}
-      </div>
+              </div>
+
+              {/* Questions Listing */}
+              <div className="space-y-4">
+                {filteredMistakes.map((item, idx) => (
+                  <MistakeItemComponent
+                    key={`${item.attemptId}-${item.questionId}`}
+                    item={item}
+                    index={idx}
+                    onDoubtStatusChange={handleDoubtStatusChange}
+                  />
+                ))}
+              </div>
+
+              {filteredMistakes.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
+                  <CheckCircle size={48} className="mx-auto text-emerald-400 mb-3" />
+                  <p className="text-slate-800 font-bold text-sm">No mistake questions match these filters</p>
+                  <p className="text-slate-400 text-xs mt-1">Try switching filters or selecting other tests.</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
