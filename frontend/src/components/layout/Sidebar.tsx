@@ -6,6 +6,7 @@ import {
   Activity, UserCheck, Database, LifeBuoy, ChevronDown,
   AlertCircle, HelpCircle, PieChart
 } from 'lucide-react';
+import logo from '../../assets/logo.png';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Role } from '../../types';
 
@@ -92,15 +93,13 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white border-r border-slate-200 transition-all duration-300">
       {/* Logo */}
-      <div className={`flex items-center gap-2.5 px-4 py-5 border-b border-transparent ${collapsed ? 'justify-center px-2' : ''}`}>
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-600/20">
-          <span className="text-white font-bold text-sm">A</span>
-        </div>
-        {!collapsed && (
-          <div className="flex flex-col min-w-0">
-            <span className="font-bold text-slate-900 text-sm tracking-wide truncate">ACT · SAT · GO</span>
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Control Center</span>
+      <div className={`flex items-center gap-2.5 px-4 py-4 border-b border-slate-100 ${collapsed ? 'justify-center px-2' : ''}`}>
+        {collapsed ? (
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+            <img src={logo} alt="ACT SAT GO" className="w-full h-full object-cover object-left" />
           </div>
+        ) : (
+          <img src={logo} alt="ACT SAT GO" className="h-8 w-auto object-contain" />
         )}
         <button onClick={() => setMobileOpen(false)} className="ml-auto md:hidden p-1 text-slate-400 hover:text-slate-600 transition-colors">
           <X size={18} />
