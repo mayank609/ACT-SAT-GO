@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Search, ChevronRight, ArrowLeft, Users, Target,
   Clock, Wrench,
@@ -168,6 +168,7 @@ function QuestionDonut({ correct, incorrect, skipped, doubts }: { correct: numbe
 
 // ── Student cumulative view ───────────────────────────────────────────────────
 function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () => void }) {
+  const navigate = useNavigate();
   const [attempts, setAttempts] = useState<LoadedAttempt[]>([]);
   const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -260,15 +261,20 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
                 </div>
                 {/* Metric chips */}
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {[
-                    { label: 'Total Qs', value: summary.total, color: 'text-blue-100' },
-                    { label: 'Correct', value: summary.correct, color: 'text-emerald-300' },
-                    { label: 'Mistakes', value: summary.incorrect, color: 'text-rose-300' },
-                    { label: 'Doubts', value: summary.doubts, color: 'text-amber-300' },
-                    { label: 'Accuracy', value: `${acc}%`, color: acc >= 80 ? 'text-emerald-300' : acc >= 60 ? 'text-amber-300' : 'text-rose-300' },
-                  ].map(m => (
-                    <div key={m.label} className="bg-white/10 ring-1 ring-white/10 rounded-xl px-3 py-2 text-center">
-                      <p className="text-[9px] uppercase tracking-widest font-semibold text-blue-200/70">{m.label}</p>
+                  {([
+                    { label: 'Total Qs', value: summary.total, color: 'text-blue-700' },
+                    { label: 'Correct', value: summary.correct, color: 'text-emerald-600' },
+                    { label: 'Mistakes', value: summary.incorrect, color: 'text-rose-600', onClick: () => navigate(`/student-mistakes?studentId=${student.id}`) },
+                    { label: 'Doubts', value: summary.doubts, color: 'text-amber-600', onClick: () => navigate(`/student-doubts?studentId=${student.id}`) },
+                    { label: 'Accuracy', value: `${acc}%`, color: acc >= 80 ? 'text-emerald-600' : acc >= 60 ? 'text-amber-600' : 'text-rose-600' },
+                  ] as Array<{ label: string; value: string | number; color: string; onClick?: () => void }>).map(m => (
+                    <div
+                      key={m.label}
+                      onClick={m.onClick}
+                      title={m.onClick ? `View this student’s ${m.label.toLowerCase()}` : undefined}
+                      className={`bg-blue-50 ring-1 ring-white/40 rounded-xl px-3 py-2 text-center shadow-sm ${m.onClick ? 'cursor-pointer hover:bg-blue-100 hover:ring-blue-300 transition-colors' : ''}`}
+                    >
+                      <p className="text-[9px] uppercase tracking-widest font-semibold text-blue-500/80">{m.label}</p>
                       <p className={`text-xl font-black tabular-nums ${m.color}`}>{m.value}</p>
                     </div>
                   ))}

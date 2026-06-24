@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { HelpCircle, Loader2, Search, ExternalLink } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -20,9 +21,19 @@ export function StudentDoubtsAdminPage() {
   const [search, setSearch] = useState('');
   const [pageLoading, setPageLoading] = useState(true);
   const cancelledRef = useRef(false);
+  const [searchParams] = useSearchParams();
 
   // Selected student whose doubts we're viewing.
   const [viewStudent, setViewStudent] = useState<{ id: string; name: string } | null>(null);
+
+  // Open a specific student directly when navigated here with ?studentId=… (e.g. from Analytics).
+  useEffect(() => {
+    const sid = searchParams.get('studentId');
+    if (sid && !viewStudent && rows.length > 0) {
+      const found = rows.find(r => r.studentId === sid);
+      if (found) setViewStudent({ id: found.studentId, name: found.studentName });
+    }
+  }, [searchParams, rows, viewStudent]);
 
   useEffect(() => {
     cancelledRef.current = false;

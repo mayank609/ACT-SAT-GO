@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Search, CheckCircle, XCircle, Clock, ChevronUp, ArrowLeft, ExternalLink,
   Loader2, AlertCircle, HelpCircle, ChevronDown, User, Calendar, Target
@@ -340,10 +341,21 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
 export function StudentMistakesPage() {
   const { dbId, user } = useAuthStore();
 
+  const [searchParams] = useSearchParams();
+
   const [students, setStudents] = useState<DbUser[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<DbUser | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
+
+  // Open a specific student directly when navigated here with ?studentId=… (e.g. from Analytics).
+  useEffect(() => {
+    const sid = searchParams.get('studentId');
+    if (sid && !selectedStudent && students.length > 0) {
+      const found = students.find(s => s.id === sid);
+      if (found) setSelectedStudent(found);
+    }
+  }, [searchParams, students, selectedStudent]);
 
   const { skills } = useSkillCategories();
   const activeSkills = skills.filter(s => s.active).sort((a, b) => a.order - b.order);
