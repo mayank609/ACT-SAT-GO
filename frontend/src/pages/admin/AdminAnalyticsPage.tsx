@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Search, ChevronRight, ArrowLeft, Users, Target,
-  Clock, Wrench,
+  Clock, Wrench, Layers,
   TrendingUp, BarChart2,
 } from 'lucide-react';
 import {
@@ -318,6 +318,13 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
           </div>
 
           {/* ── Breakdown tables (above the graphs) ──────────────────────── */}
+          <BreakdownTable
+            title="Domain-wise Analysis"
+            subtitle={`${subjectLabel} · ${domainRows.length} content domain${domainRows.length !== 1 ? 's' : ''}`}
+            icon={<Layers size={15} />}
+            firstColLabel="Domain"
+            rows={domainRows}
+          />
           <BreakdownTable
             title="Skill Analysis"
             icon={<Wrench size={15} />}

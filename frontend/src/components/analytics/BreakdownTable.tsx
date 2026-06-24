@@ -52,7 +52,7 @@ export function BreakdownTable({
               const acc = accuracy(agg);
               const empty = agg.total === 0;
               return (
-                <tr key={name} className={`hover:bg-gray-50 transition-colors ${empty ? 'opacity-50' : ''}`}>
+                <tr key={name} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-gray-900">{name}</td>
                   <td className="px-3 py-3 text-center font-semibold text-slate-700">
                     <span className="text-emerald-600">{agg.correct}</span>
