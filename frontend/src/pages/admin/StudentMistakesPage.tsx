@@ -289,8 +289,8 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {item.timeSpentSeconds ? (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[11px] font-semibold">
-                    <Clock size={11} className="text-amber-600" />
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[11px] font-semibold">
+                    <Clock size={11} className="text-blue-600" />
                     <span>{item.timeSpentSeconds}s</span>
                   </span>
                 ) : null}
@@ -320,8 +320,8 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {item.timeSpentSeconds ? (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[11px] font-semibold">
-              <Clock size={11} className="text-amber-600" />
+            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[11px] font-semibold">
+              <Clock size={11} className="text-blue-600" />
               <span>{item.timeSpentSeconds}s</span>
             </span>
           ) : null}
@@ -349,7 +349,7 @@ export function StudentMistakesPage() {
   const [mistakes, setMistakes] = useState<MistakeItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'wrong' | 'unattempted'>('all');
   const [subjectFilter, setSubjectFilter] = useState<'all' | 'math' | 'english'>('all');
-  const [testScope, setTestScope] = useState<'all' | 'latest' | 'last2' | 'custom'>('all');
+  const [testScope, setTestScope] = useState<'all' | 'latest' | 'last2' | 'last5' | 'custom'>('all');
   const [selectedAttemptIds, setSelectedAttemptIds] = useState<string[]>([]);
   const [submittedAttempts, setSubmittedAttempts] = useState<any[]>([]);
   const [loadingMistakes, setLoadingMistakes] = useState(false);
@@ -510,6 +510,10 @@ export function StudentMistakesPage() {
     }
     if (testScope === 'last2') {
       const activeIds = submittedAttempts.slice(0, 2).map(a => a.id);
+      return activeIds.includes(m.attemptId);
+    }
+    if (testScope === 'last5') {
+      const activeIds = submittedAttempts.slice(0, 5).map(a => a.id);
       return activeIds.includes(m.attemptId);
     }
     if (testScope === 'custom') {
@@ -770,6 +774,7 @@ export function StudentMistakesPage() {
                       { value: 'all' as const, label: 'All Tests' },
                       { value: 'latest' as const, label: 'Latest Test' },
                       { value: 'last2' as const, label: 'Last 2 Tests' },
+                      { value: 'last5' as const, label: 'Last 5 Tests' },
                       { value: 'custom' as const, label: 'Select Specific...' },
                     ].map((f) => (
                       <button

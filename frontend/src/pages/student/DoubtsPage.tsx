@@ -87,6 +87,21 @@ function dbOptionsToDisplay(options: Record<string, string> | null): Array<{ id:
   return Object.entries(options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }))
 }
 
+function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
+  if (!given) return false;
+  if (correct.value !== undefined) return given.value === correct.value;
+  if (correct.keys) {
+    return JSON.stringify([...(given.keys ?? [])].sort()) === JSON.stringify([...correct.keys].sort());
+  }
+  if (correct.key) return given.key?.toUpperCase() === correct.key.toUpperCase();
+  return false;
+}
+
+function getDoubtStatus(item: DoubtItem): 'wrong' | 'unattempted' | 'correct' {
+  if (!item.answerGiven) return 'unattempted';
+  return answersMatch(item.answerGiven, item.question.correctAnswer) ? 'correct' : 'wrong';
+}
+
 function getSubject(item: DoubtItem): 'math' | 'english' | 'other' {
   const subject = (item.question.subject || '').toLowerCase();
   if (subject.includes('math')) return 'math';
@@ -252,6 +267,10 @@ export function DoubtsView({ studentId, title, subtitle, onBack }: {
 }) {
   const [doubts, setDoubts] = useState<DoubtItem[]>([]);
   const [subjectFilter, setSubjectFilter] = useState<'all' | 'math' | 'english'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'wrong' | 'unattempted'>('all');
+  const [testScope, setTestScope] = useState<'all' | 'latest' | 'last2' | 'last5' | 'custom'>('all');
+  const [selectedAttemptIds, setSelectedAttemptIds] = useState<string[]>([]);
+  const [submittedAttempts, setSubmittedAttempts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -263,6 +282,7 @@ export function DoubtsView({ studentId, title, subtitle, onBack }: {
       .then(({ attempts: rawAttempts }) => {
         if (!Array.isArray(rawAttempts)) return;
         const submitted = (rawAttempts as any[]).filter(a => a?.status === 'SUBMITTED');
+        setSubmittedAttempts(submitted);
 
         Promise.all(submitted.map(a => api.getAttempt(a.id).catch(() => null)))
           .then((fullAttempts) => {
@@ -323,7 +343,20 @@ export function DoubtsView({ studentId, title, subtitle, onBack }: {
     setDoubts(prev => prev.filter(d => !(d.attemptId === attemptId && d.questionId === questionId)));
   };
 
-  const filtered = doubts.filter(d => subjectFilter === 'all' || getSubject(d) === subjectFilter);
+  const matchesScope = (d: DoubtItem) => {
+    if (testScope === 'all') return true;
+    if (testScope === 'latest') return d.attemptId === submittedAttempts[0]?.id;
+    if (testScope === 'last2') return submittedAttempts.slice(0, 2).map(a => a.id).includes(d.attemptId);
+    if (testScope === 'last5') return submittedAttempts.slice(0, 5).map(a => a.id).includes(d.attemptId);
+    if (testScope === 'custom') return selectedAttemptIds.includes(d.attemptId);
+    return true;
+  };
+
+  const filtered = doubts.filter(d =>
+    (subjectFilter === 'all' || getSubject(d) === subjectFilter) &&
+    matchesScope(d) &&
+    (statusFilter === 'all' || getDoubtStatus(d) === statusFilter)
+  );
 
   if (loading) {
     return (
@@ -360,26 +393,124 @@ export function DoubtsView({ studentId, title, subtitle, onBack }: {
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Subject:</span>
-            {[
-              { value: 'all' as const, label: 'All Subjects' },
-              { value: 'math' as const, label: 'Maths' },
-              { value: 'english' as const, label: 'English' },
-            ].map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setSubjectFilter(f.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                  subjectFilter === f.value
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-            <span className="ml-auto text-xs font-semibold text-blue-600">{filtered.length} open</span>
+          <div className="flex flex-col gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
+              {/* Status filter */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Status:</span>
+                {[
+                  { value: 'all' as const, label: 'All' },
+                  { value: 'wrong' as const, label: 'Wrong Only' },
+                  { value: 'unattempted' as const, label: 'Unattempted' },
+                ].map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setStatusFilter(f.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      statusFilter === f.value
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Subject filter */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Subject:</span>
+                {[
+                  { value: 'all' as const, label: 'All Subjects' },
+                  { value: 'math' as const, label: 'Maths' },
+                  { value: 'english' as const, label: 'English' },
+                ].map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setSubjectFilter(f.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      subjectFilter === f.value
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Test Range filter */}
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200/60 pt-3">
+              <span className="text-xs font-semibold text-slate-500 mr-1 uppercase tracking-wider">Test Range:</span>
+              {[
+                { value: 'all' as const, label: 'All Tests' },
+                { value: 'latest' as const, label: 'Latest Test' },
+                { value: 'last2' as const, label: 'Last 2 Tests' },
+                { value: 'last5' as const, label: 'Last 5 Tests' },
+                { value: 'custom' as const, label: 'Select Specific...' },
+              ].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => {
+                    setTestScope(f.value);
+                    if (f.value === 'custom' && selectedAttemptIds.length === 0 && submittedAttempts.length > 0) {
+                      setSelectedAttemptIds([submittedAttempts[0].id]);
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    testScope === f.value
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+              <span className="ml-auto text-xs font-semibold text-blue-600">{filtered.length} open</span>
+            </div>
+
+            {/* Custom Test Selection Multi-Picker */}
+            {testScope === 'custom' && submittedAttempts.length > 0 && (
+              <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-2 max-h-40 overflow-y-auto">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Check tests to include:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {submittedAttempts.map((attempt) => {
+                    const isChecked = selectedAttemptIds.includes(attempt.id);
+                    const formattedDate = attempt.completedAt
+                      ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : new Date(attempt.startedAt).toLocaleDateString();
+                    return (
+                      <label
+                        key={attempt.id}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs font-medium cursor-pointer select-none transition-all ${
+                          isChecked
+                            ? 'bg-blue-50/40 border-blue-200 text-blue-700 font-semibold'
+                            : 'bg-white border-slate-200/60 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedAttemptIds((prev) =>
+                              prev.includes(attempt.id)
+                                ? prev.filter((id) => id !== attempt.id)
+                                : [...prev, attempt.id]
+                            );
+                          }}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-slate-800">{attempt.test?.title ?? 'Unknown Test'}</p>
+                          <p className="text-[10px] text-slate-400 font-normal mt-0.5">{formattedDate}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">

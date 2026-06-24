@@ -1,8 +1,18 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, FileSearch, CheckCircle, Clock, Target, Loader2, BookOpen, Search, X } from 'lucide-react';
+import { Play, FileSearch, Clock, Target, Loader2, BookOpen, Search, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { computeTestAnalysis, type TaAttempt } from '../../components/admin/QuestionWiseReport';
+
+// Row shape for the Assessment Summary table (mirrors the admin student panel).
+interface ReportRow {
+  id: string; title: string; startedAt: string; completedAt: string | null;
+  rwM1: number; rwM2: number; mathM1: number; mathM2: number;
+  rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
+  totalRaw: number; rwSS: number; mathSS: number; totalSS: number;
+  isSAT: boolean; isMockTest: boolean;
+}
 
 interface ApiTest {
   assignmentId: string;
@@ -79,6 +89,8 @@ export function MyTestsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterKey | null>(null);
+  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
+  const [reportLoading, setReportLoading] = useState(true);
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
@@ -86,6 +98,45 @@ export function MyTestsPage() {
       .then(r => setTests((r.assignedTests ?? []) as ApiTest[]))
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, [dbId]);
+
+  // Build the Assessment Summary rows from the student's own submitted attempts.
+  useEffect(() => {
+    if (!dbId) { setReportLoading(false); return; }
+    let cancelled = false;
+    setReportLoading(true);
+    api.getStudentAttempts(dbId)
+      .then(({ attempts }) => {
+        const submitted = (Array.isArray(attempts) ? attempts : []).filter((a: any) => a?.status === 'SUBMITTED');
+        return Promise.all(submitted.map((a: any) => api.getAttempt(a.id).then(r => r.attempt as TaAttempt).catch(() => null)));
+      })
+      .then((atts) => {
+        if (cancelled || !atts) return;
+        const rows: ReportRow[] = (atts.filter(Boolean) as TaAttempt[]).map((att) => {
+          try {
+            const an = computeTestAnalysis(att);
+            return {
+              id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+              rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
+              rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
+              totalRaw: an.totalCorrect, rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore,
+              isSAT: an.isSAT,
+              isMockTest: ['Mock Test', 'Diagnostic'].includes(att.test.category ?? '') || /mock|diagnostic/i.test(att.test.title ?? ''),
+            };
+          } catch {
+            return {
+              id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+              rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0, rwM1T: 0, rwM2T: 0, mathM1T: 0, mathM2T: 0,
+              totalRaw: att.totalScore ?? 0, rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false, isMockTest: false,
+            };
+          }
+        });
+        rows.sort((a, b) => new Date(b.completedAt ?? b.startedAt).getTime() - new Date(a.completedAt ?? a.startedAt).getTime());
+        setReportRows(rows);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setReportLoading(false); });
+    return () => { cancelled = true; };
   }, [dbId]);
 
   const availableFilters = useMemo(
@@ -112,11 +163,23 @@ export function MyTestsPage() {
   }
 
   const pending = visible.filter(t => t.status === 'Not Started' || t.status === 'In Progress');
-  const completed = visible.filter(t => t.status === 'Completed');
   const expired = visible.filter(t => t.status === 'Expired');
 
+  // Assessment Summary table data — filtered by the page search box on test name.
+  const reportFiltered = reportRows.filter(r => !search.trim() || r.title.toLowerCase().includes(search.toLowerCase()));
+  const den = (() => {
+    const d = reportRows.reduce((acc, r) => ({
+      rwM1: Math.max(acc.rwM1, r.rwM1T), rwM2: Math.max(acc.rwM2, r.rwM2T),
+      mathM1: Math.max(acc.mathM1, r.mathM1T), mathM2: Math.max(acc.mathM2, r.mathM2T),
+    }), { rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0 });
+    return {
+      rwM1: d.rwM1 || 27, rwM2: d.rwM2 || 27, mathM1: d.mathM1 || 22, mathM2: d.mathM2 || 22,
+      total: (d.rwM1 + d.rwM2 + d.mathM1 + d.mathM2) || 98,
+    };
+  })();
+
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-gray-900">My Tests</h1>
         <p className="text-gray-500 text-sm mt-0.5">{tests.length} test{tests.length !== 1 ? 's' : ''} assigned</p>
@@ -241,42 +304,71 @@ export function MyTestsPage() {
         </div>
       )}
 
-      {/* Completed */}
-      {completed.length > 0 && (
+      {/* Completed — Assessment Summary table */}
+      {(reportLoading || reportRows.length > 0) && (
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Completed</h2>
-          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <div className="divide-y divide-gray-50">
-              {completed.map((test) => {
-                const totalQ = (test.sections ?? []).reduce((a, s) => a + (s._count?.questions ?? 0), 0);
-                const review = () => test.submittedAttemptId && navigate(`/test-review/${test.submittedAttemptId}`);
-                return (
-                  <div
-                    key={test.assignmentId}
-                    onClick={review}
-                    className={`flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition-colors ${test.submittedAttemptId ? 'cursor-pointer' : ''}`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle size={14} className="text-emerald-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{test.title}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
-                        <span className="text-xs text-gray-400">{test.sections.length} sections · {totalQ} questions</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); review(); }}
-                      disabled={!test.submittedAttemptId}
-                      className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors disabled:opacity-40"
-                    >
-                      <FileSearch size={13} /> View Analysis
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            {reportLoading ? (
+              <div className="flex items-center justify-center py-16 gap-2 text-slate-400">
+                <Loader2 size={20} className="animate-spin text-[#1b3d6e]" />
+                <span className="text-sm">Loading your assessment summary…</span>
+              </div>
+            ) : reportFiltered.length === 0 ? (
+              <p className="py-12 text-center text-slate-400 text-sm">No completed tests match your search.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-l-4 border-l-[#1b3d6e]">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b-2 border-blue-100 text-blue-800">
+                      <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">#</th>
+                      <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Started At</th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Completed At</th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW SS</th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Math SS</th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total SS</th>
+                      <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap">Analysis</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportFiltered.map((r, i) => (
+                      <tr
+                        key={r.id}
+                        onClick={() => navigate(`/test-review/${r.id}`)}
+                        className={`border-b border-slate-200 hover:bg-blue-50/60 cursor-pointer transition-colors ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}
+                      >
+                        <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
+                        <td className="px-4 py-4 font-semibold text-[#1b3d6e] hover:underline whitespace-nowrap border-r border-slate-100">{r.title}</td>
+                        <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">{r.startedAt ? new Date(r.startedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
+                        <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">{r.completedAt ? new Date(r.completedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
+                        <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.rwM1}</td>
+                        <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.rwM2}</td>
+                        <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.mathM1}</td>
+                        <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.mathM2}</td>
+                        <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRaw}</td>
+                        <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
+                        <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
+                        <td className="px-4 py-4 text-center font-semibold text-slate-800 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/test-review/${r.id}`); }}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                          >
+                            <FileSearch size={13} /> View Analysis
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
