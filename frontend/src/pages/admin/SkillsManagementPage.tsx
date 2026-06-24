@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   BookMarked, Plus, Trash2, RotateCcw, Pencil, Check, X, Info,
-  GripVertical, ToggleLeft, ToggleRight,
+  GripVertical,
 } from 'lucide-react';
 import { useSkillCategories, DEFAULT_SKILLS } from '../../hooks/useSkillCategories';
 import toast, { Toaster } from 'react-hot-toast';
