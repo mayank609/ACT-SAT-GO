@@ -205,67 +205,6 @@ function flattenSection(sa: TaSectionAttempt): FlatQuestion[] {
   });
 }
 
-// ─── Time analytics modal content ────────────────────────────────────────────
-
-function TimeAnalyticsContent({ attempt }: { attempt: TaAttempt }) {
-  const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
-  const rows = [...attempt.sectionAttempts]
-    .sort((a, b) => a.section.orderIndex - b.section.orderIndex)
-    .map(sa => {
-      const allQs = flattenSection(sa);
-      let correctCount = 0, incorrectCount = 0, omittedCount = 0;
-      let correctTime = 0, incorrectTime = 0, omittedTime = 0, totalTime = 0;
-      allQs.forEach(tq => {
-        const ans = answersMap.get(tq.questionId);
-        const time = ans?.timeSpentSeconds ?? 0;
-        totalTime += time;
-        if (!ans?.answerGiven) { omittedCount++; omittedTime += time; }
-        else if (taAnswersMatch(ans.answerGiven, tq.question.correctAnswer)) { correctCount++; correctTime += time; }
-        else { incorrectCount++; incorrectTime += time; }
-      });
-      const total = allQs.length;
-      const fmt = (s: number) => s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
-      return {
-        name: sa.section.name, totalQuestions: total, totalTime,
-        avgTime: total > 0 ? Math.round(totalTime / total) : 0,
-        avgCorrect: correctCount > 0 ? Math.round(correctTime / correctCount) : 0,
-        avgIncorrect: incorrectCount > 0 ? Math.round(incorrectTime / incorrectCount) : 0,
-        avgOmitted: omittedCount > 0 ? Math.round(omittedTime / omittedCount) : 0, fmt,
-      };
-    });
-
-  return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
-      <table className="w-full text-sm text-left">
-        <thead className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100 text-blue-800 font-semibold">
-          <tr>
-            <th className="px-4 py-3">Section / Module</th>
-            <th className="px-4 py-3 text-center">Questions</th>
-            <th className="px-4 py-3 text-center">Total Time</th>
-            <th className="px-4 py-3 text-center font-bold">Avg / Q</th>
-            <th className="px-4 py-3 text-center text-green-700">Correct</th>
-            <th className="px-4 py-3 text-center text-red-600">Incorrect</th>
-            <th className="px-4 py-3 text-center text-slate-500">Omitted</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {rows.map(r => (
-            <tr key={r.name} className="hover:bg-slate-50 transition-colors">
-              <td className="px-4 py-3 font-medium text-slate-800">{r.name}</td>
-              <td className="px-4 py-3 text-center">{r.totalQuestions}</td>
-              <td className="px-4 py-3 text-center">{r.fmt(r.totalTime)}</td>
-              <td className="px-4 py-3 text-center font-bold text-blue-700">{r.fmt(r.avgTime)}</td>
-              <td className="px-4 py-3 text-center text-green-700">{r.avgCorrect > 0 ? r.fmt(r.avgCorrect) : '—'}</td>
-              <td className="px-4 py-3 text-center text-red-600">{r.avgIncorrect > 0 ? r.fmt(r.avgIncorrect) : '—'}</td>
-              <td className="px-4 py-3 text-center text-slate-500">{r.avgOmitted > 0 ? r.fmt(r.avgOmitted) : '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 // ─── Question display (shared between inline and fullscreen) ──────────────────
 
 function QuestionDisplay({
@@ -635,7 +574,6 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
   const [showAnswerFeedback, setShowAnswerFeedback] = useState(false);
   const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
   const [fullscreenOpen, setFullscreenOpen] = useState(defaultFullscreen);
-  const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
 
   const handleCloseFullscreen = () => {
@@ -678,10 +616,6 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
             {sa.category}
           </button>
         ))}
-        <button onClick={() => setTimeAnalyticsOpen(true)}
-          className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all shadow-sm flex items-center gap-1.5">
-          <Clock size={12} /> Time Analysis
-        </button>
         <button onClick={() => { setQuestionFilterBy(f => f === 'doubt' ? 'all' : 'doubt'); setCurrentQuestionIdx(0); }}
           className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${questionFilterBy === 'doubt' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>
           Still Doubt
@@ -743,14 +677,6 @@ export function QuestionWiseReport({ attempt, defaultFilter = 'all', defaultFull
           onSelect={idx => { setCurrentQuestionIdx(idx); setShowQuestionNavigator(false); }}
         />
       )}
-
-      {/* ── Time Analytics Modal ── */}
-      <Modal isOpen={timeAnalyticsOpen} onClose={() => setTimeAnalyticsOpen(false)} title="Time Pacing Analytics" size="lg">
-        <div className="space-y-4">
-          <p className="text-sm text-slate-500">Average time spent per question broken down by correctness — helps identify pacing issues.</p>
-          <TimeAnalyticsContent attempt={attempt} />
-        </div>
-      </Modal>
 
       {/* ── Fullscreen overlay ── */}
       {fullscreenOpen && (

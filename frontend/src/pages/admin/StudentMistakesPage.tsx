@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  Search, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp,
-  Loader2, AlertCircle, HelpCircle, GraduationCap, Compass, BookOpen, User, Calendar, Target
+  Search, CheckCircle, XCircle, Clock, ChevronUp, ArrowLeft, ExternalLink,
+  Loader2, AlertCircle, HelpCircle, ChevronDown, User, Calendar, Target
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
@@ -346,7 +346,6 @@ export function StudentMistakesPage() {
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<DbUser | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
-  const [studentDropdownOpen, setStudentDropdownOpen] = useState(false);
 
   const { skills } = useSkillCategories();
   const activeSkills = skills.filter(s => s.active).sort((a, b) => a.order - b.order);
@@ -385,13 +384,6 @@ export function StudentMistakesPage() {
       setLoadingStudents(false);
     }
   }, [dbId, user]);
-
-  // Auto-select the first student once the directory loads (no left panel to pick from)
-  useEffect(() => {
-    if (!selectedStudent && students.length > 0) {
-      setSelectedStudent(students[0]);
-    }
-  }, [students, selectedStudent]);
 
   // 2. Fetch Mistakes when Student Selection changes
   useEffect(() => {
@@ -564,106 +556,112 @@ export function StudentMistakesPage() {
   return (
     <div className="w-full pb-10">
         {!selectedStudent ? (
-          /* BLANK STATE */
-          <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto min-h-[65vh] py-12">
-            <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-5 relative">
-              <Compass size={32} className="animate-pulse" />
-              <div className="absolute inset-0 bg-blue-200/20 rounded-full blur-xl -z-10" />
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Student Mistakes Workspace</h1>
-            <p className="text-slate-500 text-sm mt-2 leading-relaxed">
-              {loadingStudents
-                ? 'Loading the student directory…'
-                : 'No students are available yet. Once students are added, pick one from the dropdown to inspect their completed test attempts, see which questions they answered incorrectly or skipped, and review explanation materials.'}
-            </p>
-            <div className="grid grid-cols-2 gap-3 mt-8 w-full">
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm text-left">
-                <GraduationCap size={20} className="text-emerald-500 mb-1.5" />
-                <p className="text-xs font-bold text-slate-700">Doubt Tracking</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Identify marked doubts and update resolution status.</p>
+          /* STUDENT LIST */
+          <div className="space-y-5 max-w-4xl mx-auto">
+            {/* Header */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <AlertCircle size={20} className="text-rose-500" />
+                <h1 className="text-xl font-bold text-slate-900">Student Mistakes</h1>
               </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm text-left">
-                <BookOpen size={20} className="text-indigo-500 mb-1.5" />
-                <p className="text-xs font-bold text-slate-700">Error Isolation</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Filter by Subject or Status to isolate specific gaps.</p>
+              <p className="text-sm text-slate-500">Click a student to review their incorrect and unattempted questions.</p>
+            </div>
+
+            {/* Search */}
+            <div className="relative max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={studentSearch}
+                onChange={e => setStudentSearch(e.target.value)}
+                placeholder="Search students…"
+                className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Table */}
+            <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-rose-50 to-rose-100/40 border-b border-rose-100">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-rose-800 uppercase tracking-wide border-r border-rose-100 whitespace-nowrap">
+                        Student
+                      </th>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-rose-800 uppercase tracking-wide whitespace-nowrap w-28">
+                        Review
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingStudents ? (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-10 text-center text-sm text-slate-400">
+                          <Loader2 size={18} className="animate-spin inline mr-2" /> Loading students…
+                        </td>
+                      </tr>
+                    ) : filteredStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-10 text-center text-sm text-slate-400">
+                          {students.length === 0 ? 'No students found.' : 'No matching students.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStudents.map(student => (
+                        <tr
+                          key={student.id}
+                          onClick={() => setSelectedStudent(student)}
+                          className="border-b border-slate-100 hover:bg-rose-50/40 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3 border-r border-slate-200">
+                            <div className="flex items-center gap-2.5 min-w-[160px]">
+                              <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 text-xs font-bold flex-shrink-0">
+                                {student.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-800 truncate">{student.name}</p>
+                                <p className="text-[11px] text-slate-400 truncate max-w-[200px]">{student.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <button
+                              onClick={e => { e.stopPropagation(); setSelectedStudent(student); }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors"
+                            >
+                              <ExternalLink size={12} />
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         ) : (
-          /* ACTIVE STATE */
+          /* ACTIVE STATE — mistakes for selected student */
           <div className="space-y-6 w-full">
+            {/* Back button + student header */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setSelectedStudent(null); setStudentSearch(''); }}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                <ArrowLeft size={16} /> Back to Students
+              </button>
+            </div>
+
             {/* Student Profile Overview Card */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-lg font-extrabold flex-shrink-0">
                   {selectedStudent.name.charAt(0).toUpperCase()}
                 </div>
-                {/* Student selector dropdown (replaces the old left-side panel) */}
-                <div className="relative">
-                  <button
-                    onClick={() => setStudentDropdownOpen((o) => !o)}
-                    className="text-left group"
-                  >
-                    <h1 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-                      {selectedStudent.name}
-                      <ChevronDown size={18} className={`text-slate-400 transition-transform ${studentDropdownOpen ? 'rotate-180' : ''}`} />
-                    </h1>
-                    <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1"><User size={12} /> {selectedStudent.email}</p>
-                  </button>
-
-                  {studentDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-20" onClick={() => { setStudentDropdownOpen(false); setStudentSearch(''); }} />
-                      <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden">
-                        <div className="p-2 border-b border-slate-100">
-                          <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                            <input
-                              autoFocus
-                              type="text"
-                              placeholder="Search by name or email..."
-                              value={studentSearch}
-                              onChange={(e) => setStudentSearch(e.target.value)}
-                              className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                        </div>
-                        <div className="max-h-72 overflow-y-auto p-1.5 space-y-1 scrollbar-thin">
-                          {loadingStudents ? (
-                            <div className="flex items-center justify-center gap-2 py-6 text-slate-400 text-xs">
-                              <Loader2 className="animate-spin text-blue-500" size={16} /> Loading…
-                            </div>
-                          ) : filteredStudents.length === 0 ? (
-                            <div className="text-center py-6 text-slate-400 text-xs">No students found</div>
-                          ) : (
-                            filteredStudents.map((student) => {
-                              const isSelected = selectedStudent?.id === student.id;
-                              return (
-                                <button
-                                  key={student.id}
-                                  onClick={() => { setSelectedStudent(student); setStudentDropdownOpen(false); setStudentSearch(''); }}
-                                  className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 transition-colors ${
-                                    isSelected ? 'bg-blue-50 text-slate-900' : 'hover:bg-slate-50 text-slate-600'
-                                  }`}
-                                >
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                    isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
-                                  }`}>
-                                    {student.name.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-semibold text-xs text-slate-800 truncate">{student.name}</p>
-                                    <p className="text-[10px] text-slate-400 truncate">{student.email}</p>
-                                  </div>
-                                  {isSelected && <CheckCircle size={14} className="text-blue-600 flex-shrink-0" />}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
+                <div>
+                  <h1 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">{selectedStudent.name}</h1>
+                  <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1"><User size={12} /> {selectedStudent.email}</p>
                 </div>
               </div>
 
