@@ -416,7 +416,6 @@ export function StudentManagementPage() {
       document.documentElement.style.overflow = htmlOverflow;
     };
   }, [fullscreenQuestionReportOpen]);
-  const [timeAnalyticsOpen, setTimeAnalyticsOpen] = useState(false);
   const [knowledgeSkillsOpen, setKnowledgeSkillsOpen] = useState(false);
   const [timeChartOpen, setTimeChartOpen] = useState(false);
   const [timeChartSectionIdx, setTimeChartSectionIdx] = useState(0);
@@ -1562,13 +1561,6 @@ export function StudentManagementPage() {
                         </button>
                       ))}
                       <button
-                        onClick={() => setTimeAnalyticsOpen(true)}
-                        className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all shadow-sm flex items-center gap-1.5"
-                      >
-                        <Clock size={12} />
-                        Time Analysis
-                      </button>
-                      <button
                         onClick={() => { setQuestionFilterBy(questionFilterBy === 'doubt' ? 'all' : 'doubt'); setCurrentQuestionIdx(0); }}
                         className={`px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
                           questionFilterBy === 'doubt'
@@ -2213,91 +2205,6 @@ export function StudentManagementPage() {
                 {csvSuccess ? 'Uploaded!' : `Upload${csvPreview.length ? ` (${csvPreview.length}+ rows)` : ''}`}
               </Button>
             </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* ── Time Pacing Analytics Modal ── */}
-      <Modal
-        isOpen={timeAnalyticsOpen}
-        onClose={() => setTimeAnalyticsOpen(false)}
-        title="Time Pacing Analytics"
-        size="lg"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-500 leading-relaxed">
-            Average time spent per question broken down by correctness — helps identify pacing issues.
-          </p>
-          {testAnalysisAttempt ? (() => {
-            const answersMap = new Map(testAnalysisAttempt.answers.map((a: any) => [a.questionId, a]));
-            const rows = testAnalysisAttempt.sectionAttempts
-              .slice()
-              .sort((a: any, b: any) => a.section.orderIndex - b.section.orderIndex)
-              .map((sa: any) => {
-                let correctCount = 0, incorrectCount = 0, omittedCount = 0;
-                let correctTime = 0, incorrectTime = 0, omittedTime = 0, totalTime = 0;
-                const allQs = sa.section.questions.flatMap((tq: any) => {
-                  const q = tq.question;
-                  const isPassage = q.type === 'PASSAGE' || (q.content as any)?.meta?.isPassage === true;
-                  if (isPassage && q.childQuestions?.length > 0) {
-                    return q.childQuestions.map((cq: any) => ({ ...tq, questionId: cq.id, question: cq }));
-                  }
-                  return [tq];
-                });
-                allQs.forEach((tq: any) => {
-                  const ans = answersMap.get(tq.questionId) as any;
-                  const time = ans?.timeSpentSeconds ?? 0;
-                  totalTime += time;
-                  if (!ans?.answerGiven) { omittedCount++; omittedTime += time; }
-                  else if (taAnswersMatch(ans.answerGiven, tq.question.correctAnswer)) { correctCount++; correctTime += time; }
-                  else { incorrectCount++; incorrectTime += time; }
-                });
-                const total = allQs.length;
-                const fmt = (s: number) => s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
-                return {
-                  name: sa.section.name,
-                  totalQuestions: total,
-                  totalTime,
-                  avgTime: total > 0 ? Math.round(totalTime / total) : 0,
-                  avgCorrect: correctCount > 0 ? Math.round(correctTime / correctCount) : 0,
-                  avgIncorrect: incorrectCount > 0 ? Math.round(incorrectTime / incorrectCount) : 0,
-                  avgOmitted: omittedCount > 0 ? Math.round(omittedTime / omittedCount) : 0,
-                  fmt,
-                };
-              });
-            return (
-              <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100 text-blue-800 font-semibold">
-                    <tr>
-                      <th className="px-4 py-3">Section / Module</th>
-                      <th className="px-4 py-3 text-center">Questions</th>
-                      <th className="px-4 py-3 text-center">Total Time</th>
-                      <th className="px-4 py-3 text-center font-bold">Avg / Q</th>
-                      <th className="px-4 py-3 text-center text-green-700">Correct</th>
-                      <th className="px-4 py-3 text-center text-red-700">Incorrect</th>
-                      <th className="px-4 py-3 text-center text-amber-700">Skipped</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-600 bg-white">
-                    {rows.map((row: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3 font-semibold text-slate-800">{row.name}</td>
-                        <td className="px-4 py-3 text-center font-medium">{row.totalQuestions}</td>
-                        <td className="px-4 py-3 text-center">{row.fmt(row.totalTime)}</td>
-                        <td className="px-4 py-3 text-center font-bold text-slate-900">{row.avgTime}s</td>
-                        <td className="px-4 py-3 text-center text-green-600 font-bold bg-green-50/20">{row.avgCorrect}s</td>
-                        <td className="px-4 py-3 text-center text-red-600 font-bold bg-red-50/20">{row.avgIncorrect}s</td>
-                        <td className="px-4 py-3 text-center text-amber-600 font-bold bg-amber-50/20">{row.avgOmitted}s</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })() : <p className="text-sm text-slate-400">No attempt data available.</p>}
-          <div className="flex justify-end pt-2">
-            <Button variant="secondary" onClick={() => setTimeAnalyticsOpen(false)}>Close</Button>
           </div>
         </div>
       </Modal>
