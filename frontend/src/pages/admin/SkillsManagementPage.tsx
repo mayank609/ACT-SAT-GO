@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  BookMarked, Plus, Trash2, RotateCcw, ChevronDown, ChevronRight, Info, X,
+  BookMarked, Plus, RotateCcw, ChevronDown, ChevronRight, Info, X,
 } from 'lucide-react';
 import { SAT_CONTENT } from '../../data/satDomains';
 import { useSubdomainSkills } from '../../hooks/useSubdomainSkills';
