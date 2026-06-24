@@ -8,6 +8,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useSkillCategories, getSkillForTest } from '../../hooks/useSkillCategories';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -129,20 +130,6 @@ function getSubject(item: MistakeItem): 'math' | 'english' | 'other' {
   return 'other';
 }
 
-type TestTypeFilter = 'all' | 'mock' | 'diagnostic' | 'math_hw' | 'reading_hw' | 'writing_hw' | 'math_practice' | 'reading_practice' | 'writing_practice';
-
-function getTestType(testTitle: string): string {
-  const t = testTitle.toLowerCase();
-  if (t.includes('mock')) return 'mock';
-  if (t.includes('diagnostic')) return 'diagnostic';
-  if (t.includes('math') && (t.includes(' hw') || t.includes('homework'))) return 'math_hw';
-  if (t.includes('reading') && (t.includes(' hw') || t.includes('homework'))) return 'reading_hw';
-  if (t.includes('writing') && (t.includes(' hw') || t.includes('homework'))) return 'writing_hw';
-  if (t.includes('math') && t.includes('practice')) return 'math_practice';
-  if (t.includes('reading') && t.includes('practice')) return 'reading_practice';
-  if (t.includes('writing') && t.includes('practice')) return 'writing_practice';
-  return 'other';
-}
 
 // ─── Question item component ────────────────────────────────────────────────
 
@@ -361,10 +348,13 @@ export function StudentMistakesPage() {
   const [studentSearch, setStudentSearch] = useState('');
   const [studentDropdownOpen, setStudentDropdownOpen] = useState(false);
 
+  const { skills } = useSkillCategories();
+  const activeSkills = skills.filter(s => s.active).sort((a, b) => a.order - b.order);
+
   const [mistakes, setMistakes] = useState<MistakeItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'wrong' | 'unattempted'>('all');
   const [subjectFilter, setSubjectFilter] = useState<'all' | 'math' | 'english'>('all');
-  const [testTypeFilter, setTestTypeFilter] = useState<TestTypeFilter>('all');
+  const [testTypeFilter, setTestTypeFilter] = useState<string>('all');
   const [testScope, setTestScope] = useState<'all' | 'latest' | 'last2' | 'custom'>('all');
   const [selectedAttemptIds, setSelectedAttemptIds] = useState<string[]>([]);
   const [submittedAttempts, setSubmittedAttempts] = useState<any[]>([]);
@@ -538,7 +528,7 @@ export function StudentMistakesPage() {
   // 2. Filter by test type
   const mistakesForTestType = mistakesForScope.filter(m => {
     if (testTypeFilter === 'all') return true;
-    return getTestType(m.testTitle) === testTypeFilter;
+    return getSkillForTest(m.testTitle, skills) === testTypeFilter;
   });
 
   // 3. Filter by subject
@@ -739,32 +729,35 @@ export function StudentMistakesPage() {
                 {/* Filters Board */}
                 <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
 
-                  {/* Test Type Filter */}
+                  {/* Test Type Filter — driven by Skills Management page */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs font-bold text-slate-400 mr-1.5 uppercase tracking-wide">Test Type:</span>
-                    {([
-                      { value: 'all', label: 'All' },
-                      { value: 'mock', label: 'Mocks' },
-                      { value: 'diagnostic', label: 'Diagnostic' },
-                      { value: 'math_hw', label: 'Math HW' },
-                      { value: 'reading_hw', label: 'Reading HW' },
-                      { value: 'writing_hw', label: 'Writing HW' },
-                      { value: 'math_practice', label: 'Math Practice' },
-                      { value: 'reading_practice', label: 'Reading Practice' },
-                      { value: 'writing_practice', label: 'Writing Practice' },
-                    ] as { value: TestTypeFilter; label: string }[]).map((f) => (
+                    <button
+                      onClick={() => setTestTypeFilter('all')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        testTypeFilter === 'all'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {activeSkills.map((skill) => (
                       <button
-                        key={f.value}
-                        onClick={() => setTestTypeFilter(f.value)}
+                        key={skill.id}
+                        onClick={() => setTestTypeFilter(skill.value)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                          testTypeFilter === f.value
+                          testTypeFilter === skill.value
                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}
                       >
-                        {f.label}
+                        {skill.label}
                       </button>
                     ))}
+                    {activeSkills.length === 0 && (
+                      <span className="text-xs text-slate-400 italic">No skills configured — go to Skills in the sidebar to add some.</span>
+                    )}
                   </div>
 
                   <div className="flex flex-col lg:flex-row gap-3 lg:items-center justify-between border-t border-slate-50 pt-3">
