@@ -1346,9 +1346,12 @@ export function TestInterfacePage() {
             {currentQuestion.type === 'numeric' && (
               <div>
                 <p className="text-sm text-gray-600 mb-2 font-medium">Enter your answer:</p>
-                <input type="number" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
-                  placeholder="0"
-                  className="w-40 px-4 py-3 border-2 border-gray-300 rounded-lg text-lg font-mono focus:outline-none focus:border-[#1b3d6e] transition-colors bg-white" />
+                <input type="text" inputMode="text" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
+                  placeholder="e.g. 7/10 or 0.7"
+                  className={`w-48 px-4 py-3 border-2 rounded-lg text-lg font-mono focus:outline-none transition-colors bg-white ${
+                    isValidNumericInput(numericInput) ? 'border-gray-300 focus:border-[#1b3d6e]' : 'border-red-400 focus:border-red-500'
+                  }`} />
+                <p className="text-xs text-gray-400 mt-1.5">You can enter a fraction (e.g. 7/10) or a decimal.</p>
               </div>
             )}
           </div>
