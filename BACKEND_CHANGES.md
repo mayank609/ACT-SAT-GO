@@ -8,6 +8,39 @@ gracefully until the backend pieces below are in place.
 
 ---
 
+## 2026-06-26 — Login page redesign: optional Supabase config for new UI elements
+
+**Why:** The login page (`frontend/src/pages/auth/LoginPage.tsx`) was redesigned to
+match the new marketing mockup. It adds three UI elements that are wired on the
+frontend but need **Supabase dashboard config** (no code/schema/migration) to be
+functional. All three degrade gracefully today — they show a friendly message
+instead of breaking — so this is optional / enable-when-ready.
+
+1. **Continue with Google / Continue with Apple** — buttons call
+   `supabase.auth.signInWithOAuth({ provider, redirectTo: <origin>/dashboard })`.
+   To make them work: enable the **Google** and **Apple** providers under
+   *Supabase → Authentication → Providers* (client ID/secret + add
+   `<origin>/dashboard` and the Supabase callback URL to allowed redirects).
+   Until enabled, clicking shows "… sign-in isn't available yet. Please use your
+   email and password."
+
+2. **Forgot password?** — calls `supabase.auth.resetPasswordForEmail(email,
+   { redirectTo: <origin>/login })`. Needs Supabase **email/SMTP + password-reset
+   template** configured to actually deliver mail. (Note: there is no
+   `/login` reset-handling UI yet — if we want full self-serve reset, we'll need a
+   small reset-password page later. For now it just sends the link.)
+
+3. **Remember me** — fully frontend (stores the email in `localStorage`); no
+   backend action needed.
+
+**"Create an account"** link intentionally just shows "Accounts are created by your
+administrator" since signup remains admin-driven — no backend needed.
+
+**Frontend (already merged):** `LoginPage.tsx` rewrite + `index.html` adds the
+Caveat Google font for the headline/quote accents. No API or env changes.
+
+---
+
 ## 2026-06-21 — Surface `diagnosticDecision` on tutor-assignments student payload (already implemented)
 
 **Why:** Student active/inactive status now reuses the existing

@@ -1,25 +1,55 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Target, BarChart3, Trophy, TrendingUp } from 'lucide-react';
 import { useAuthStore, dbUserToAuthUser } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
-import { Button } from '../../components/common/Button';
 import logo from '../../assets/logo.png';
+
+const REMEMBER_KEY = 'actsatgo:remembered_email';
+
+const FEATURES = [
+  { icon: Target,     title: 'Personalized Prep', desc: 'Practice that adapts to your strengths and weaknesses.' },
+  { icon: BarChart3,  title: 'In-Depth Analytics', desc: 'Track your progress with detailed insights and performance reports.' },
+  { icon: Trophy,     title: 'Proven Results',    desc: 'Trusted by thousands of students to achieve their dream scores.' },
+];
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+      <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
+      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor" aria-hidden>
+      <path d="M13.36 9.54c-.02-2.05 1.67-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.26-.13-2.46.74-3.1.74-.64 0-1.63-.72-2.68-.7-1.38.02-2.65.8-3.36 2.04-1.43 2.49-.37 6.17 1.03 8.19.68.99 1.5 2.1 2.57 2.06 1.03-.04 1.42-.67 2.67-.67 1.24 0 1.6.67 2.69.65 1.11-.02 1.81-1.01 2.49-2 .78-1.15 1.11-2.26 1.13-2.32-.02-.01-2.17-.83-2.19-3.3M11.3 3.5c.57-.69.95-1.65.85-2.6-.82.03-1.81.54-2.39 1.23-.52.61-.98 1.59-.86 2.52.91.07 1.84-.46 2.4-1.15" />
+    </svg>
+  );
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { setSession } = useAuthStore();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem(REMEMBER_KEY) ?? '');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
+  const [remember, setRemember] = useState(() => Boolean(localStorage.getItem(REMEMBER_KEY)));
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     setLoading(true);
 
     try {
@@ -34,6 +64,10 @@ export function LoginPage() {
         setLoading(false);
         return;
       }
+
+      // Persist (or clear) the remembered email for next time.
+      if (remember) localStorage.setItem(REMEMBER_KEY, email.trim());
+      else localStorage.removeItem(REMEMBER_KEY);
 
       // 2. Load the mirrored DB profile (role, relations). Its id == auth id.
       try {
@@ -52,105 +86,252 @@ export function LoginPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-10">
-        <div className="absolute top-10 left-4 sm:top-20 sm:left-20 w-40 h-40 sm:w-64 sm:h-64 bg-blue-500 rounded-full blur-3xl" />
-        <div className="absolute bottom-10 right-4 sm:bottom-20 sm:right-20 w-56 h-56 sm:w-96 sm:h-96 bg-purple-500 rounded-full blur-3xl" />
-      </div>
+  const handleOAuth = async (provider: 'google' | 'apple') => {
+    setError('');
+    setNotice('');
+    setOauthLoading(provider);
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (oauthError) {
+        setError(`${provider === 'google' ? 'Google' : 'Apple'} sign-in isn't available yet. Please use your email and password.`);
+        setOauthLoading(null);
+      }
+      // On success the browser is redirected to the provider, so no further work here.
+    } catch {
+      setError('Unable to start social sign-in. Please try again.');
+      setOauthLoading(null);
+    }
+  };
 
-      <div className="relative w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* Left panel */}
-        <div className="hidden lg:flex flex-col bg-gradient-to-br from-blue-600 to-blue-800 p-10 text-white">
-          <div className="mb-12">
-            <div className="bg-white rounded-xl px-4 py-2 inline-block">
-              <img src={logo} alt="ACT SAT GO" className="h-9 w-auto object-contain" />
+  const handleForgotPassword = async () => {
+    setError('');
+    setNotice('');
+    if (!email.trim()) {
+      setError('Enter your email address above, then click “Forgot password?”.');
+      document.getElementById('login-email')?.focus();
+      return;
+    }
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    if (resetError) setError('Could not send a reset link. Please contact your administrator.');
+    else setNotice('If an account exists for that email, a password reset link is on its way.');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-blue-100 flex flex-col items-center justify-center p-4 sm:p-6 gap-5">
+      <div className="relative w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 bg-white rounded-3xl shadow-2xl shadow-blue-900/10 overflow-hidden">
+
+        {/* ── Left: marketing panel ─────────────────────────────────────────── */}
+        <div className="relative hidden lg:flex flex-col p-10 xl:p-12 bg-gradient-to-br from-sky-50 via-blue-50 to-blue-100/70 overflow-hidden">
+          {/* soft decorative blobs */}
+          <div className="absolute -top-10 -left-10 w-56 h-56 bg-blue-200/40 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-24 -right-8 w-64 h-64 bg-sky-200/40 rounded-full blur-3xl pointer-events-none" />
+
+          {/* logo */}
+          <img src={logo} alt="ACT SAT GO" className="relative h-9 w-auto object-contain self-start" />
+
+          {/* headline */}
+          <div className="relative mt-8">
+            <h1 className="text-4xl xl:text-[2.7rem] font-extrabold leading-[1.05] tracking-tight">
+              <span className="block text-[#15315c]">PREPARE TODAY.</span>
+              <span className="block text-[#2f6dff]">PERFORM<br />TOMORROW.</span>
+            </h1>
+            <p className="mt-4 text-slate-500 text-[15px]">Smarter practice. Stronger concepts.</p>
+            <div className="mt-2 inline-block relative">
+              <span className="font-[Caveat] text-3xl xl:text-4xl font-bold text-[#15315c]">Higher Scores!</span>
+              <svg className="absolute -bottom-2 left-0 w-full" height="10" viewBox="0 0 200 10" preserveAspectRatio="none" aria-hidden>
+                <path d="M2 6 C 50 1, 150 1, 198 5" stroke="#facc15" strokeWidth="4" fill="none" strokeLinecap="round" />
+              </svg>
             </div>
-            <span className="block text-blue-200 text-xs mt-2">Test Preparation Platform</span>
           </div>
-          <h2 className="text-3xl font-bold mb-4 leading-tight">
-            Prepare smarter,<br />score higher.
-          </h2>
-          <p className="text-blue-200 text-base mb-10">
-            Advanced analytics, adaptive testing, and personalized insights to maximize your test performance.
-          </p>
-          <div className="space-y-4 mt-auto">
-            {[
-              { icon: '📊', title: 'Deep Analytics', desc: 'Question-level time tracking and accuracy breakdown' },
-              { icon: '🎯', title: 'Adaptive Practice', desc: 'Tests tailored to your weak areas' },
-              { icon: '📈', title: 'Progress Tracking', desc: 'Monitor improvement across every attempt' },
-            ].map((f) => (
-              <div key={f.title} className="flex gap-3 items-start bg-white/10 rounded-xl p-4">
-                <span className="text-2xl">{f.icon}</span>
-                <div>
-                  <p className="font-semibold text-sm">{f.title}</p>
-                  <p className="text-blue-200 text-xs">{f.desc}</p>
+
+          {/* illustration: floating achievement cards */}
+          <div className="relative flex-1 min-h-[150px] my-8">
+            {/* progress chart card */}
+            <div className="absolute left-0 top-2 bg-white rounded-2xl shadow-lg shadow-blue-900/10 px-4 py-3 w-44 rotate-[-4deg]">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Progress</p>
+              <svg viewBox="0 0 120 44" className="w-full h-10" aria-hidden>
+                <polyline points="2,40 26,30 50,33 74,18 98,20 118,4" fill="none" stroke="#2f6dff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="118" cy="4" r="3.5" fill="#2f6dff" />
+              </svg>
+            </div>
+
+            {/* score badge */}
+            <div className="absolute right-2 top-0 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-600/30 px-5 py-3 rotate-[5deg] text-center">
+              <p className="text-2xl font-extrabold leading-none">780</p>
+              <p className="text-[10px] font-medium opacity-90 mt-0.5">Your Score</p>
+            </div>
+
+            {/* target chip */}
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-2 bg-white rounded-2xl shadow-lg shadow-blue-900/10 p-3 rotate-[3deg]">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center">
+                <Target size={20} className="text-white" />
+              </div>
+            </div>
+
+            {/* trending chip */}
+            <div className="absolute right-10 bottom-6 bg-white rounded-xl shadow-lg shadow-blue-900/10 p-2.5 rotate-[-6deg]">
+              <TrendingUp size={18} className="text-emerald-500" />
+            </div>
+          </div>
+
+          {/* feature cards */}
+          <div className="relative grid grid-cols-3 gap-3 mt-auto">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="text-center">
+                <div className="w-10 h-10 mx-auto rounded-xl bg-white shadow-sm shadow-blue-900/5 flex items-center justify-center mb-2">
+                  <f.icon size={18} className="text-[#2f6dff]" />
                 </div>
+                <p className="text-[12px] font-bold text-[#15315c] leading-tight">{f.title}</p>
+                <p className="text-[10.5px] text-slate-500 leading-snug mt-1">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right panel */}
-        <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center">
-          <div className="mb-6 sm:mb-8">
-            <div className="mb-5 lg:hidden">
-              <img src={logo} alt="ACT SAT GO" className="h-8 w-auto object-contain" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Welcome back</h2>
-            <p className="text-slate-500 mt-1 text-sm">Sign in to continue to your dashboard</p>
+        {/* ── Right: login card ─────────────────────────────────────────────── */}
+        <div className="p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
+          {/* logo on mobile */}
+          <img src={logo} alt="ACT SAT GO" className="h-8 w-auto object-contain mb-8 lg:hidden" />
+
+          <div className="mb-6">
+            <h2 className="text-2xl sm:text-[28px] font-extrabold text-slate-900 flex items-center gap-2">
+              Welcome Back! <span className="text-2xl">👋</span>
+            </h2>
+            <p className="text-slate-500 mt-1.5 text-sm">Sign in to continue to your ACT SAT GO dashboard</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-slate-700">Password</label>
-              </div>
+              <label htmlFor="login-email" className="block text-sm font-semibold text-slate-700 mb-1.5">Email address</label>
               <div className="relative">
+                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2f6dff]/30 focus:border-[#2f6dff] transition-all bg-slate-50/60 focus:bg-white"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="login-password" className="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
                   id="login-password"
                   type={showPwd ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
-                  className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-11 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2f6dff]/30 focus:border-[#2f6dff] transition-all bg-slate-50/60 focus:bg-white"
                   required
                 />
                 <button type="button" onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
+            {/* Remember / Forgot */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-[#2f6dff] focus:ring-[#2f6dff]/30 accent-[#2f6dff]"
+                />
+                <span className="text-sm text-slate-600">Remember me</span>
+              </label>
+              <button type="button" onClick={handleForgotPassword} className="text-sm font-semibold text-[#2f6dff] hover:underline">
+                Forgot password?
+              </button>
+            </div>
+
             {error && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
                 <span className="text-red-500 text-xs mt-0.5">⚠</span>
                 <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
+            {notice && (
+              <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                <p className="text-emerald-700 text-sm">{notice}</p>
+              </div>
+            )}
 
-            <Button type="submit" loading={loading} className="w-full py-2.5 justify-center text-sm">
-              Sign In
-            </Button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#2f6dff] hover:bg-[#2057df] text-white font-semibold py-3 rounded-xl shadow-lg shadow-[#2f6dff]/25 transition-colors disabled:opacity-60"
+            >
+              {loading ? (
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <>Sign In <ArrowRight size={17} /></>
+              )}
+            </button>
           </form>
 
-          <p className="text-[11px] text-slate-400 text-center mt-6">
-            Accounts are created by your administrator. Contact them if you can't sign in.
+          {/* divider */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400">or continue with</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          {/* social buttons */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => handleOAuth('google')}
+              disabled={oauthLoading !== null}
+              className="w-full flex items-center justify-center gap-3 border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+            >
+              <GoogleIcon /> Continue with Google
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOAuth('apple')}
+              disabled={oauthLoading !== null}
+              className="w-full flex items-center justify-center gap-3 border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+            >
+              <AppleIcon /> Continue with Apple
+            </button>
+          </div>
+
+          <p className="text-sm text-slate-500 text-center mt-7">
+            New to ACT SAT GO?{' '}
+            <button
+              type="button"
+              onClick={() => setNotice('Accounts are created by your administrator. Please contact them to get access.')}
+              className="font-semibold text-[#2f6dff] hover:underline"
+            >
+              Create an account
+            </button>
           </p>
         </div>
       </div>
+
+      {/* bottom quote */}
+      <p className="font-[Caveat] text-xl sm:text-2xl text-[#15315c]/80 text-center">
+        <span className="text-[#facc15]">“</span>Small steps today, big results tomorrow.<span className="text-[#facc15]">”</span>
+      </p>
     </div>
   );
 }

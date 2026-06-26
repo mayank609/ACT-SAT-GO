@@ -115,14 +115,13 @@ export function MyTestsPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">My Tests</h1>
-        <p className="text-gray-500 text-sm mt-0.5">{tests.length} test{tests.length !== 1 ? 's' : ''} assigned</p>
-      </div>
-
-      {tests.length > 0 && (
-        <div className="space-y-2">
-          <div className="relative">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">My Tests</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{tests.length} test{tests.length !== 1 ? 's' : ''} assigned</p>
+        </div>
+        {tests.length > 0 && (
+          <div className="relative w-56">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               value={search}
@@ -136,6 +135,11 @@ export function MyTestsPage() {
               </button>
             )}
           </div>
+        )}
+      </div>
+
+      {tests.length > 0 && (
+        <div>
           {availableFilters.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {availableFilters.map(f => (

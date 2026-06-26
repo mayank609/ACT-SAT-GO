@@ -203,7 +203,7 @@ export function TestInterfacePage() {
   const calcResizeStart = useRef({ x: 0, y: 0, width: 800, height: 550 });
   const passageRef = useRef<HTMLDivElement>(null);
   const questionTextRef = useRef<HTMLDivElement>(null);
-  const highlightPendingRef = useRef<{ container: HTMLDivElement; key: string } | null>(null);
+  const highlightPendingRef = useRef<{ container: HTMLDivElement; key: string; range: Range } | null>(null);
   const [restoring, setRestoring] = useState(Boolean(searchParams.get('attemptId')));
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
@@ -810,7 +810,9 @@ export function TestInterfacePage() {
     if (!sel || sel.isCollapsed || !sel.toString().trim()) return;
     const range = sel.getRangeAt(0);
     if (!ref.current?.contains(range.commonAncestorContainer)) return;
-    highlightPendingRef.current = { container: ref.current, key };
+    // Clone the range now — some browsers clear the selection on the next mousedown
+    // even with e.preventDefault(), so we can't re-query window.getSelection() later.
+    highlightPendingRef.current = { container: ref.current, key, range: range.cloneRange() };
     const rect = range.getBoundingClientRect();
     setHighlightTooltip({ x: rect.left + rect.width / 2, y: rect.top });
   }, []);
@@ -818,26 +820,20 @@ export function TestInterfacePage() {
   const applyHighlight = useCallback(() => {
     const pending = highlightPendingRef.current;
     if (!pending) return;
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) { setHighlightTooltip(null); return; }
 
     try {
-      const range = sel.getRangeAt(0);
-      if (!pending.container.contains(range.commonAncestorContainer)) {
-        setHighlightTooltip(null);
-        return;
-      }
+      const { container, key, range } = pending;
       const mark = document.createElement('mark');
       mark.style.cssText = 'background:#fef08a;border-radius:2px;padding:0 1px;';
-      // extractContents + insertNode reliably handles selections spanning multiple elements
       mark.appendChild(range.extractContents());
       range.insertNode(mark);
-      // Merge adjacent text nodes to keep the DOM clean
-      pending.container.normalize();
-      setQuestionHighlights(prev => ({ ...prev, [pending.key]: pending.container.innerHTML }));
-    } catch { /* ignore — e.g. selection in non-text node */ }
+      container.normalize();
+      setQuestionHighlights(prev => ({ ...prev, [key]: container.innerHTML }));
+    } catch (err) {
+      console.error('Highlight failed:', err);
+    }
 
-    sel.removeAllRanges();
+    window.getSelection()?.removeAllRanges();
     setHighlightTooltip(null);
     highlightPendingRef.current = null;
   }, []);
