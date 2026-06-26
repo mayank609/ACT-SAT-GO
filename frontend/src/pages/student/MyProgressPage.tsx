@@ -1,165 +1,109 @@
-import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, Target, CheckCircle, XCircle, Minus, AlertTriangle, FileSearch, Loader2 } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, Target, Search, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useNavigate } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
+import { computeTestAnalysis, type TaAttempt } from '../../components/admin/QuestionWiseReport';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type QStat = QuestionTimeStat;
-
-interface Analytics {
-  trend: Array<{ date: string; score: number; testTitle: string; attemptId: string }>;
-  sectionStats: Array<{
-    sectionId: string;
-    sectionName: string;
-    totalQuestions: number;
-    correct: number;
-    incorrect: number;
-    skipped: number;
-    accuracy: number;
-    timeAllocated: number;
-    timeUsed: number;
-  }>;
-  questionPacingStats?: QStat[];
-  overallAccuracy: number;
-  totalAttempts: number;
-  latestScore: number;
-  avgScore: number;
+interface ReportRow {
+  id: string; title: string; startedAt: string; completedAt: string | null;
+  rwM1: number; rwM2: number; mathM1: number; mathM2: number;
+  rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
+  totalRaw: number; rwSS: number; mathSS: number; totalSS: number;
+  isSAT: boolean; isMockTest: boolean;
 }
 
-type Attempt = {
-  id: string;
-  status: string;
-  totalScore: number | null;
-  startedAt: string;
-  completedAt: string | null;
-  test: { title: string; sections: Array<{ _count: { questions: number } }> };
-};
-
-type TopicRow = {
-  section: string;
-  topic: string;
-  total: number;
-  correct: number;
-  incorrect: number;
-  skipped: number;
-  accuracy: number;
-  avgTime: number;
-};
-
-function buildTopicTable(qs: QStat[]): TopicRow[] {
-  const map = new Map<string, { section: string; topic: string; correct: number; incorrect: number; skipped: number; times: number[] }>();
-  for (const q of qs) {
-    const key = `${q.sectionName}|||${q.topicName || 'Unknown'}`;
-    if (!map.has(key)) map.set(key, { section: q.sectionName, topic: q.topicName || 'Unknown', correct: 0, incorrect: 0, skipped: 0, times: [] });
-    const row = map.get(key)!;
-    if (q.status === 'correct') row.correct++;
-    else if (q.status === 'incorrect') row.incorrect++;
-    else row.skipped++;
-    row.times.push(q.timeSpentSeconds);
-  }
-  return Array.from(map.values()).map(r => {
-    const total = r.correct + r.incorrect + r.skipped;
-    return {
-      section: r.section,
-      topic: r.topic,
-      total,
-      correct: r.correct,
-      incorrect: r.incorrect,
-      skipped: r.skipped,
-      accuracy: total > 0 ? Math.round((r.correct / total) * 100) : 0,
-      avgTime: r.times.length > 0 ? Math.round(r.times.reduce((a, b) => a + b, 0) / r.times.length) : 0,
-    };
-  }).sort((a, b) => a.accuracy - b.accuracy);
-}
-
-function AccuracyBar({ pct }: { pct: number }) {
-  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-500';
-  return (
-    <div className="flex items-center gap-2 min-w-[100px]">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className={`text-xs font-bold w-9 text-right ${pct >= 80 ? 'text-emerald-700' : pct >= 60 ? 'text-amber-700' : 'text-red-600'}`}>{pct}%</span>
-    </div>
-  );
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
+const FILTERS = [
+  { key: 'mock',             label: 'Mock',             match: (t: string) => /\bmock\b/i.test(t) && !/diagnostic/i.test(t) },
+  { key: 'diagnostic',       label: 'Diag',             match: (t: string) => /\bdiagnostic\b/i.test(t) },
+  { key: 'math_hw',          label: 'Math HW',          match: (t: string) => /\bmhw\b/i.test(t) || (/math/i.test(t) && /\bhw\b|homework/i.test(t)) },
+  { key: 'reading_hw',       label: 'Reading HW',       match: (t: string) => /reading/i.test(t) && /\bhw\b|homework/i.test(t) },
+  { key: 'writing_hw',       label: 'Writing HW',       match: (t: string) => /writing/i.test(t) && /\bhw\b|homework/i.test(t) },
+  { key: 'math_practice',    label: 'Math Practice',    match: (t: string) => /math/i.test(t) && /practice/i.test(t) },
+  { key: 'reading_practice', label: 'Reading Prac',     match: (t: string) => /reading/i.test(t) && /practice/i.test(t) },
+  { key: 'writing_practice', label: 'Writing Practice', match: (t: string) => /writing/i.test(t) && /practice/i.test(t) },
+] as const;
+type FilterKey = typeof FILTERS[number]['key'] | 'all';
 
 export function MyProgressPage() {
-  const { dbId, user } = useAuthStore();
   const navigate = useNavigate();
+  const { dbId } = useAuthStore();
+  const [rows, setRows] = useState<ReportRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
 
-  const [attempts, setAttempts] = useState<Attempt[]>([]);
-  const [selectedAttemptId, setSelectedAttemptId] = useState('');
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [attemptsLoading, setAttemptsLoading] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [sectionFilter, setSectionFilter] = useState('All');
-
-  // Load completed attempts
   useEffect(() => {
-    if (!dbId) { setAttemptsLoading(false); return; }
+    if (!dbId) { setLoading(false); return; }
+    let cancelled = false;
     api.getStudentAttempts(dbId)
-      .then((r) => {
-        const submitted = ((r.attempts as Attempt[]) ?? []).filter(a => a.status === 'SUBMITTED');
-        setAttempts(submitted);
-        if (submitted.length > 0) setSelectedAttemptId(submitted[0].id);
+      .then(({ attempts }) => {
+        const submitted = (Array.isArray(attempts) ? attempts : []).filter((a: any) => a?.status === 'SUBMITTED');
+        return Promise.all(
+          submitted.map((a: any) => api.getAttempt(a.id).then(r => r.attempt as TaAttempt).catch(() => null))
+        );
+      })
+      .then((atts) => {
+        if (cancelled || !atts) return;
+        const built: ReportRow[] = (atts.filter(Boolean) as TaAttempt[]).map((att) => {
+          try {
+            const an = computeTestAnalysis(att);
+            return {
+              id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+              rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
+              rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
+              totalRaw: an.totalCorrect, rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore,
+              isSAT: an.isSAT,
+              isMockTest: /mock|diagnostic/i.test(att.test.title ?? '') || ['Mock Test', 'Diagnostic'].includes(att.test.category ?? ''),
+            };
+          } catch {
+            return {
+              id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+              rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0, rwM1T: 0, rwM2T: 0, mathM1T: 0, mathM2T: 0,
+              totalRaw: att.totalScore ?? 0, rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false, isMockTest: false,
+            };
+          }
+        });
+        built.sort((a, b) => new Date(b.completedAt ?? b.startedAt).getTime() - new Date(a.completedAt ?? a.startedAt).getTime());
+        if (!cancelled) setRows(built);
       })
       .catch(() => {})
-      .finally(() => setAttemptsLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [dbId]);
 
-  // Load analytics when attempt changes
-  useEffect(() => {
-    if (!dbId || !selectedAttemptId) return;
-    setLoading(true);
-    api.getStudentAnalytics(dbId, selectedAttemptId)
-      .then(r => setAnalytics(r as Analytics))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [dbId, selectedAttemptId]);
+  const filterCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: rows.length };
+    for (const f of FILTERS) counts[f.key] = rows.filter(r => f.match(r.title)).length;
+    return counts;
+  }, [rows]);
 
-  // Auto-select first section when analytics loads
-  useEffect(() => {
-    if (analytics?.questionPacingStats && analytics.questionPacingStats.length > 0) {
-      setSectionFilter(analytics.questionPacingStats[0].sectionName);
-    } else {
-      setSectionFilter('All');
+  const visible = useMemo(() => {
+    let list = rows;
+    if (search.trim()) list = list.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
+    if (activeFilter !== 'all') {
+      const f = FILTERS.find(f => f.key === activeFilter);
+      if (f) list = list.filter(r => f.match(r.title));
     }
-  }, [analytics]);
+    return list;
+  }, [rows, search, activeFilter]);
 
-  const qs = analytics?.questionPacingStats ?? [];
-  const topicRows = buildTopicTable(qs);
-  const sections = ['All', ...Array.from(new Set(qs.map(q => q.sectionName)))];
-  const filteredTopics = sectionFilter === 'All' ? topicRows : topicRows.filter(r => r.section === sectionFilter);
-  const filteredPacing = sectionFilter === 'All' ? qs : qs.filter(q => q.sectionName === sectionFilter);
-  const weakTopics = topicRows.filter(r => r.accuracy < 60).slice(0, 5);
+  const den = useMemo(() => {
+    const d = rows.reduce((acc, r) => ({
+      rwM1: Math.max(acc.rwM1, r.rwM1T), rwM2: Math.max(acc.rwM2, r.rwM2T),
+      mathM1: Math.max(acc.mathM1, r.mathM1T), mathM2: Math.max(acc.mathM2, r.mathM2T),
+    }), { rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0 });
+    return {
+      rwM1: d.rwM1 || 27, rwM2: d.rwM2 || 27, mathM1: d.mathM1 || 22, mathM2: d.mathM2 || 22,
+      total: (d.rwM1 + d.rwM2 + d.mathM1 + d.mathM2) || 98,
+    };
+  }, [rows]);
 
-  const sectionMap = useMemo(() => {
-    const m = new Map<string, { correct: number; total: number }>();
-    for (const q of qs) {
-      if (!m.has(q.sectionName)) m.set(q.sectionName, { correct: 0, total: 0 });
-      const s = m.get(q.sectionName)!;
-      s.total++;
-      if (q.status === 'correct') s.correct++;
-    }
-    return m;
-  }, [qs]);
+  const fmt = (iso: string | null) => iso
+    ? new Date(iso).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' })
+    : '—';
 
-  const totalQ = qs.length;
-  const totalCorrect = qs.filter(q => q.status === 'correct').length;
-  const totalWrong = qs.filter(q => q.status === 'incorrect').length;
-  const overallAcc = totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0;
-  const avgTimePerQ = totalQ > 0 ? Math.round(qs.reduce((a, q) => a + q.timeSpentSeconds, 0) / totalQ) : 0;
-
-  const attempt = attempts.find(a => a.id === selectedAttemptId);
-
-  if (attemptsLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={20} className="animate-spin text-[#1b3d6e]" />
@@ -167,14 +111,14 @@ export function MyProgressPage() {
     );
   }
 
-  if (attempts.length === 0) {
+  if (rows.length === 0) {
     return (
       <div className="max-w-2xl mx-auto py-20 text-center">
         <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Target size={24} className="text-gray-400" />
         </div>
         <h2 className="text-lg font-semibold text-gray-900 mb-1">No tests completed yet</h2>
-        <p className="text-gray-500 text-sm mb-6">Complete a test to see your performance analytics here.</p>
+        <p className="text-gray-500 text-sm mb-6">Complete a test to see your progress here.</p>
         <button
           onClick={() => navigate('/my-tests')}
           className="px-5 py-2.5 bg-[#1b3d6e] text-white rounded-lg text-sm font-medium hover:bg-[#15305a] transition-colors"
@@ -186,266 +130,115 @@ export function MyProgressPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-5xl">
-
-      {/* ── Header + selectors ──────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-end gap-3">
+    <div className="space-y-4">
+      {/* Header + search */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">My Analytics</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Accuracy, pacing & topic breakdown</p>
+          <h1 className="text-xl font-semibold text-gray-900">My Progress</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{rows.length} completed test{rows.length !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex flex-wrap gap-2 ml-auto items-center">
-          {/* Attempt picker */}
-          <select
-            value={selectedAttemptId}
-            onChange={e => setSelectedAttemptId(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#1b3d6e] min-w-[240px]"
-          >
-            {attempts.map(a => (
-              <option key={a.id} value={a.id}>
-                {a.test.title} — {a.completedAt
-                  ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  : '—'}
-              </option>
-            ))}
-          </select>
-          {/* Full Review button */}
-          {selectedAttemptId && (
-            <button
-              onClick={() => navigate(`/test-review/${selectedAttemptId}`)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
-            >
-              <FileSearch size={14} /> Full Review
+        <div className="relative w-56">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search attempt…"
+            className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1b3d6e]/30 bg-white"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={13} />
             </button>
           )}
         </div>
       </div>
 
-      {loading && (
-        <div className="flex items-center justify-center h-40">
-          <Loader2 size={20} className="animate-spin text-[#1b3d6e]" />
-        </div>
-      )}
+      {/* Filter tabs */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setActiveFilter('all')}
+          className={`flex items-center gap-2 text-sm font-semibold px-4 py-1.5 rounded-full transition-all ${
+            activeFilter === 'all'
+              ? 'bg-[#1b3d6e] text-white'
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#1b3d6e]/40'
+          }`}
+        >
+          All
+          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+            activeFilter === 'all' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+          }`}>
+            {filterCounts.all}
+          </span>
+        </button>
+        {FILTERS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setActiveFilter(activeFilter === f.key ? 'all' : f.key)}
+            className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full border transition-all ${
+              activeFilter === f.key
+                ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-[#1b3d6e]/40 hover:text-[#1b3d6e]'
+            }`}
+          >
+            {f.label}
+            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+              activeFilter === f.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {filterCounts[f.key]}
+            </span>
+          </button>
+        ))}
+      </div>
 
-      {!loading && analytics && totalQ > 0 && (
-        <>
-          {/* ── Score header ─────────────────────────────────────────────── */}
-          <div className="bg-[#1b3d6e] rounded-2xl p-5 text-white">
-            <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-              <div>
-                <p className="text-blue-300 text-xs font-medium uppercase tracking-wide">{user?.name}</p>
-                <h2 className="text-xl font-bold mt-0.5">{attempt?.test.title ?? 'Test'}</h2>
-                {attempt?.completedAt && (
-                  <p className="text-blue-300 text-xs mt-0.5">
-                    Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
-                  </p>
-                )}
-              </div>
-              <div className="text-right">
-                <p className="text-4xl font-black">{attempt?.totalScore ?? '—'}</p>
-                <p className="text-blue-300 text-xs">raw score</p>
-              </div>
-            </div>
-
-            {/* Section scores */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {Array.from(sectionMap.entries()).map(([sec, data]) => (
-                <div key={sec} className="bg-white/10 rounded-xl px-3 py-2.5 text-center">
-                  <p className="text-lg font-bold">{data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0}%</p>
-                  <p className="text-blue-200 text-[11px] truncate">{sec}</p>
-                  <p className="text-blue-300 text-[10px]">{data.correct}/{data.total}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Key metric cards ─────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Accuracy', value: `${overallAcc}%`, sub: `${totalCorrect}/${totalQ} correct`, accent: 'text-[#1b3d6e]' },
-              { label: 'Avg Time / Question', value: `${avgTimePerQ}s`, sub: 'across all questions', accent: 'text-gray-900' },
-              { label: 'Correct', value: totalCorrect, sub: `${totalWrong} wrong`, accent: 'text-emerald-600' },
-              { label: 'Attempts', value: analytics.totalAttempts, sub: `latest: ${analytics.latestScore || '—'}`, accent: 'text-gray-900' },
-            ].map(s => (
-              <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-4">
-                <p className="text-xs text-gray-500">{s.label}</p>
-                <p className={`text-2xl font-bold mt-1 ${s.accent}`}>{s.value}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">{s.sub}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Priority focus areas ─────────────────────────────────────── */}
-          {weakTopics.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle size={15} className="text-amber-600 flex-shrink-0" />
-                <h3 className="text-sm font-semibold text-amber-900">Priority Focus Areas</h3>
-                <span className="text-[11px] text-amber-600 ml-1">— topics below 60% accuracy</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {weakTopics.map(t => (
-                  <div key={`${t.section}-${t.topic}`} className="bg-white border border-amber-200 rounded-lg px-3 py-1.5 text-center">
-                    <p className="text-xs font-bold text-amber-700">{t.topic}</p>
-                    <p className="text-[10px] text-amber-500">{t.section} · {t.correct}/{t.total} correct · {t.accuracy}%</p>
-                  </div>
+      {/* Assessment Summary table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        {visible.length === 0 ? (
+          <p className="py-16 text-center text-slate-400 text-sm">No completed tests match your filters.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-l-4 border-l-[#1b3d6e]">
+              <thead>
+                <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b-2 border-blue-100 text-blue-800">
+                  <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">#</th>
+                  <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Started At</th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Completed At</th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW SS</th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Math SS</th>
+                  <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap">Total SS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((r, i) => (
+                  <tr
+                    key={r.id}
+                    onClick={() => navigate(`/test-review/${r.id}`)}
+                    className={`border-b border-slate-200 hover:bg-blue-50/60 cursor-pointer transition-colors ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}
+                  >
+                    <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
+                    <td className="px-4 py-4 font-semibold text-[#1b3d6e] hover:underline whitespace-nowrap border-r border-slate-100 max-w-[240px] truncate">{r.title}</td>
+                    <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">{fmt(r.startedAt)}</td>
+                    <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">{fmt(r.completedAt)}</td>
+                    <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.rwM1}</td>
+                    <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.rwM2}</td>
+                    <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.mathM1}</td>
+                    <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.mathM2}</td>
+                    <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRaw}</td>
+                    <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
+                    <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
+                    <td className="px-4 py-4 text-center font-semibold text-slate-800 whitespace-nowrap">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
+                  </tr>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── Section filter ────────────────────────────────────────────── */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-gray-500 font-medium">Section:</span>
-            {sections.map(s => (
-              <button key={s} onClick={() => setSectionFilter(s)}
-                className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${sectionFilter === s ? 'bg-[#1b3d6e] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                {s}
-              </button>
-            ))}
+              </tbody>
+            </table>
           </div>
-
-          {/* ── Performance by topic ──────────────────────────────────────── */}
-          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900">Performance by Topic</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Weakest topics first</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Section</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Topic</th>
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Qs</th>
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-emerald-600 uppercase tracking-wide">✓</th>
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-red-500 uppercase tracking-wide">✗</th>
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">—</th>
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Avg Time</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-40">Accuracy</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filteredTopics.length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No data</td></tr>
-                  ) : filteredTopics.map((row, i) => (
-                    <tr key={i} className={`hover:bg-gray-50 transition-colors ${row.accuracy < 40 ? 'bg-red-50/30' : row.accuracy < 60 ? 'bg-amber-50/20' : ''}`}>
-                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{row.section}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{row.topic}</td>
-                      <td className="px-3 py-3 text-center text-gray-700 font-semibold">{row.total}</td>
-                      <td className="px-3 py-3 text-center font-bold text-emerald-600">{row.correct}</td>
-                      <td className="px-3 py-3 text-center font-bold text-red-500">{row.incorrect}</td>
-                      <td className="px-3 py-3 text-center font-bold text-gray-400">{row.skipped}</td>
-                      <td className="px-3 py-3 text-center text-xs text-gray-500">{row.avgTime}s</td>
-                      <td className="px-4 py-3"><AccuracyBar pct={row.accuracy} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {filteredTopics.length > 0 && (
-              <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex flex-wrap gap-4 text-xs text-gray-500">
-                <span className="font-semibold text-gray-700">Totals:</span>
-                <span><span className="font-bold text-gray-800">{filteredTopics.reduce((a, r) => a + r.total, 0)}</span> questions</span>
-                <span className="text-emerald-700"><span className="font-bold">{filteredTopics.reduce((a, r) => a + r.correct, 0)}</span> correct</span>
-                <span className="text-red-600"><span className="font-bold">{filteredTopics.reduce((a, r) => a + r.incorrect, 0)}</span> wrong</span>
-                <span className="text-gray-400"><span className="font-bold">{filteredTopics.reduce((a, r) => a + r.skipped, 0)}</span> skipped</span>
-                <span className="ml-auto font-semibold text-[#1b3d6e]">
-                  Overall: {filteredTopics.reduce((a, r) => a + r.total, 0) > 0
-                    ? Math.round((filteredTopics.reduce((a, r) => a + r.correct, 0) / filteredTopics.reduce((a, r) => a + r.total, 0)) * 100)
-                    : 0}%
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* ── Question log ─────────────────────────────────────────────── */}
-          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900">Question Log</h3>
-              <p className="text-xs text-gray-400 mt-0.5">{filteredPacing.length} question{filteredPacing.length !== 1 ? 's' : ''}{sectionFilter !== 'All' ? ` in ${sectionFilter}` : ''}</p>
-            </div>
-            <div className="overflow-x-auto max-h-[520px]">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-gray-50 z-10">
-                  <tr className="border-b border-gray-100">
-                    {['#', 'Section', 'Topic', 'Difficulty', 'Time', 'Result'].map(h => (
-                      <th key={h} className="px-3 py-2.5 text-left font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filteredPacing.length === 0 ? (
-                    <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-400">No questions found for this section.</td></tr>
-                  ) : filteredPacing.map((q, i) => (
-                    <tr key={i} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-3 py-2.5 font-semibold text-gray-600">Q{q.questionIndex}</td>
-                      <td className="px-3 py-2.5 text-gray-500">{q.sectionName}</td>
-                      <td className="px-3 py-2.5 text-gray-700 font-medium">{q.topicName || '—'}</td>
-                      <td className="px-3 py-2.5">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${q.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-700' : q.difficulty === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
-                          {q.difficulty}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <span className={`font-bold ${q.timeSpentSeconds >= 90 ? 'text-red-500' : q.timeSpentSeconds < 20 ? 'text-amber-500' : 'text-gray-700'}`}>
-                          {q.timeSpentSeconds}s
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <span className={`flex items-center gap-1 font-semibold capitalize ${q.status === 'correct' ? 'text-emerald-600' : q.status === 'incorrect' ? 'text-red-500' : 'text-gray-400'}`}>
-                          {q.status === 'correct' ? <CheckCircle size={11} /> : q.status === 'incorrect' ? <XCircle size={11} /> : <Minus size={11} />}
-                          {q.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* ── Score trend ───────────────────────────────────────────────── */}
-          <div className="bg-white border border-gray-100 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">Score Over Time</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{analytics.trend.length} attempt{analytics.trend.length !== 1 ? 's' : ''}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-bold text-[#1b3d6e]">Avg: {analytics.avgScore || '—'}</p>
-                <p className="text-xs text-gray-400">Latest: {analytics.latestScore || '—'}</p>
-              </div>
-            </div>
-            {analytics.trend.length < 2 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                <TrendingUp size={24} className="mb-2 opacity-30" />
-                <p className="text-sm">Need 2+ attempts to show trend</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={analytics.trend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                  <XAxis dataKey="date" tickFormatter={v => v.slice(5)} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis domain={analytics.trend.some(d => d.score > 36) ? [400, 1600] : [0, 36]} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
-                    formatter={(v: any, _n: any, p: any) => [v, p?.payload?.testTitle ?? 'Score']} />
-                  <Line type="monotone" dataKey="score" stroke="#1b3d6e" strokeWidth={2.5}
-                    dot={{ fill: '#1b3d6e', r: 4, stroke: '#fff', strokeWidth: 2 }}
-                    activeDot={{ r: 6, fill: '#1b3d6e', stroke: '#fff', strokeWidth: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </>
-      )}
-
-      {!loading && analytics && totalQ === 0 && (
-        <div className="bg-white border border-gray-100 rounded-xl py-16 text-center">
-          <AlertTriangle size={24} className="text-amber-400 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">No detailed question data available for this attempt</p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
