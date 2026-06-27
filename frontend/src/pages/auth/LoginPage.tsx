@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Target, BarChart3, Trophy, TrendingUp } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Target, BarChart3, Trophy } from 'lucide-react';
 import { useAuthStore, dbUserToAuthUser } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
+import { StudentHero } from './StudentHero';
 import logo from '../../assets/logo.png';
 
 const REMEMBER_KEY = 'actsatgo:remembered_email';
@@ -122,26 +123,26 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-blue-100 flex flex-col items-center justify-center p-4 sm:p-6 gap-5">
-      <div className="relative w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 bg-white rounded-3xl shadow-2xl shadow-blue-900/10 overflow-hidden">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-sky-50 to-blue-100 flex flex-col items-center justify-center p-3 sm:p-4 gap-3">
+      <div className="relative w-full max-w-6xl max-h-[calc(100vh-5rem)] grid grid-cols-1 lg:grid-cols-2 bg-white rounded-3xl shadow-2xl shadow-blue-900/10 overflow-hidden">
 
         {/* ── Left: marketing panel ─────────────────────────────────────────── */}
-        <div className="relative hidden lg:flex flex-col p-10 xl:p-12 bg-gradient-to-br from-sky-50 via-blue-50 to-blue-100/70 overflow-hidden">
+        <div className="relative hidden lg:flex flex-col p-8 xl:p-10 bg-gradient-to-br from-sky-50 via-blue-50 to-blue-100/70 overflow-hidden">
           {/* soft decorative blobs */}
           <div className="absolute -top-10 -left-10 w-56 h-56 bg-blue-200/40 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-24 -right-8 w-64 h-64 bg-sky-200/40 rounded-full blur-3xl pointer-events-none" />
 
           {/* logo */}
-          <img src={logo} alt="ACT SAT GO" className="relative h-9 w-auto object-contain self-start" />
+          <img src={logo} alt="ACT SAT GO" className="relative h-8 w-auto object-contain self-start" />
 
           {/* headline */}
-          <div className="relative mt-8">
-            <h1 className="text-4xl xl:text-[2.7rem] font-extrabold leading-[1.05] tracking-tight">
+          <div className="relative mt-5">
+            <h1 className="text-[2rem] xl:text-[2.4rem] font-extrabold leading-[1.05] tracking-tight">
               <span className="block text-[#15315c]">PREPARE TODAY.</span>
               <span className="block text-[#2f6dff]">PERFORM<br />TOMORROW.</span>
             </h1>
-            <p className="mt-4 text-slate-500 text-[15px]">Smarter practice. Stronger concepts.</p>
-            <div className="mt-2 inline-block relative">
+            <p className="mt-3 text-slate-500 text-[14px]">Smarter practice. Stronger concepts.</p>
+            <div className="mt-1.5 inline-block relative">
               <span className="font-[Caveat] text-3xl xl:text-4xl font-bold text-[#15315c]">Higher Scores!</span>
               <svg className="absolute -bottom-2 left-0 w-full" height="10" viewBox="0 0 200 10" preserveAspectRatio="none" aria-hidden>
                 <path d="M2 6 C 50 1, 150 1, 198 5" stroke="#facc15" strokeWidth="4" fill="none" strokeLinecap="round" />
@@ -149,34 +150,9 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* illustration: floating achievement cards */}
-          <div className="relative flex-1 min-h-[150px] my-8">
-            {/* progress chart card */}
-            <div className="absolute left-0 top-2 bg-white rounded-2xl shadow-lg shadow-blue-900/10 px-4 py-3 w-44 rotate-[-4deg]">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Progress</p>
-              <svg viewBox="0 0 120 44" className="w-full h-10" aria-hidden>
-                <polyline points="2,40 26,30 50,33 74,18 98,20 118,4" fill="none" stroke="#2f6dff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="118" cy="4" r="3.5" fill="#2f6dff" />
-              </svg>
-            </div>
-
-            {/* score badge */}
-            <div className="absolute right-2 top-0 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-600/30 px-5 py-3 rotate-[5deg] text-center">
-              <p className="text-2xl font-extrabold leading-none">780</p>
-              <p className="text-[10px] font-medium opacity-90 mt-0.5">Your Score</p>
-            </div>
-
-            {/* target chip */}
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-2 bg-white rounded-2xl shadow-lg shadow-blue-900/10 p-3 rotate-[3deg]">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center">
-                <Target size={20} className="text-white" />
-              </div>
-            </div>
-
-            {/* trending chip */}
-            <div className="absolute right-10 bottom-6 bg-white rounded-xl shadow-lg shadow-blue-900/10 p-2.5 rotate-[-6deg]">
-              <TrendingUp size={18} className="text-emerald-500" />
-            </div>
+          {/* illustration: student at laptop with floating achievement cards */}
+          <div className="relative flex-1 flex items-center justify-center my-2 min-h-0">
+            <StudentHero className="w-full max-w-[330px] max-h-full h-auto" />
           </div>
 
           {/* feature cards */}
@@ -194,21 +170,21 @@ export function LoginPage() {
         </div>
 
         {/* ── Right: login card ─────────────────────────────────────────────── */}
-        <div className="p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
+        <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center overflow-y-auto">
           {/* logo on mobile */}
-          <img src={logo} alt="ACT SAT GO" className="h-8 w-auto object-contain mb-8 lg:hidden" />
+          <img src={logo} alt="ACT SAT GO" className="h-8 w-auto object-contain mb-6 lg:hidden" />
 
-          <div className="mb-6">
-            <h2 className="text-2xl sm:text-[28px] font-extrabold text-slate-900 flex items-center gap-2">
+          <div className="mb-5">
+            <h2 className="text-2xl sm:text-[26px] font-extrabold text-slate-900 flex items-center gap-2">
               Welcome Back! <span className="text-2xl">👋</span>
             </h2>
-            <p className="text-slate-500 mt-1.5 text-sm">Sign in to continue to your ACT SAT GO dashboard</p>
+            <p className="text-slate-500 mt-1 text-sm">Sign in to continue to your ACT SAT GO dashboard</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-3.5">
             {/* Email */}
             <div>
-              <label htmlFor="login-email" className="block text-sm font-semibold text-slate-700 mb-1.5">Email address</label>
+              <label htmlFor="login-email" className="block text-sm font-semibold text-slate-700 mb-1">Email address</label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
@@ -217,7 +193,7 @@ export function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2f6dff]/30 focus:border-[#2f6dff] transition-all bg-slate-50/60 focus:bg-white"
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2f6dff]/30 focus:border-[#2f6dff] transition-all bg-slate-50/60 focus:bg-white"
                   required
                 />
               </div>
@@ -225,7 +201,7 @@ export function LoginPage() {
 
             {/* Password */}
             <div>
-              <label htmlFor="login-password" className="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>
+              <label htmlFor="login-password" className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
@@ -234,7 +210,7 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
-                  className="w-full pl-10 pr-11 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2f6dff]/30 focus:border-[#2f6dff] transition-all bg-slate-50/60 focus:bg-white"
+                  className="w-full pl-10 pr-11 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2f6dff]/30 focus:border-[#2f6dff] transition-all bg-slate-50/60 focus:bg-white"
                   required
                 />
                 <button type="button" onClick={() => setShowPwd(!showPwd)}
@@ -275,7 +251,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-[#2f6dff] hover:bg-[#2057df] text-white font-semibold py-3 rounded-xl shadow-lg shadow-[#2f6dff]/25 transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 bg-[#2f6dff] hover:bg-[#2057df] text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-[#2f6dff]/25 transition-colors disabled:opacity-60"
             >
               {loading ? (
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -289,19 +265,19 @@ export function LoginPage() {
           </form>
 
           {/* divider */}
-          <div className="flex items-center gap-3 my-6">
+          <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-px bg-slate-200" />
             <span className="text-xs text-slate-400">or continue with</span>
             <div className="flex-1 h-px bg-slate-200" />
           </div>
 
           {/* social buttons */}
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <button
               type="button"
               onClick={() => handleOAuth('google')}
               disabled={oauthLoading !== null}
-              className="w-full flex items-center justify-center gap-3 border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-3 border border-slate-200 rounded-xl py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
             >
               <GoogleIcon /> Continue with Google
             </button>
@@ -309,13 +285,13 @@ export function LoginPage() {
               type="button"
               onClick={() => handleOAuth('apple')}
               disabled={oauthLoading !== null}
-              className="w-full flex items-center justify-center gap-3 border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-3 border border-slate-200 rounded-xl py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
             >
               <AppleIcon /> Continue with Apple
             </button>
           </div>
 
-          <p className="text-sm text-slate-500 text-center mt-7">
+          <p className="text-sm text-slate-500 text-center mt-4">
             New to ACT SAT GO?{' '}
             <button
               type="button"
