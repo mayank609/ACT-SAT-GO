@@ -911,7 +911,7 @@ export function MyStudentsPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                          <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100 text-blue-800">
                             <th className="px-3 py-3 text-left font-semibold">#</th>
                             <th className="px-3 py-3 text-left font-semibold">Test Name</th>
                             <th className="px-3 py-3 text-center font-semibold">Started At</th>

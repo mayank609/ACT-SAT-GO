@@ -35,14 +35,14 @@ export function BreakdownTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/60">
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{firstColLabel}</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Correct / Total</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Mistakes</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Doubts</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Cleared</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Avg Time</th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-36">Accuracy</th>
+            <tr className="border-b border-blue-100 bg-gradient-to-r from-blue-50 to-blue-100/40">
+              <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-blue-800 uppercase tracking-wide">{firstColLabel}</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-blue-800 uppercase tracking-wide">Correct / Total</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-blue-800 uppercase tracking-wide">Mistakes</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-blue-800 uppercase tracking-wide">Doubts</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-blue-800 uppercase tracking-wide">Cleared</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-blue-800 uppercase tracking-wide">Avg Time</th>
+              <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-blue-800 uppercase tracking-wide w-36">Accuracy</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">

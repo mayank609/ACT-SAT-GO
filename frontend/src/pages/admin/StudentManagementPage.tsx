@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -1456,14 +1456,29 @@ export function StudentManagementPage() {
                               <div className="space-y-4">
                                 {KS_DOMAINS[group].map((d) => {
                                   const stat = domainStats[d.name] ?? { correct: 0, total: 0, diff: {} };
-                                  const segs = stat.total > 0 ? stat.total : 8;
+                                  // Every domain shows the same number of blocks (R&W and Math match),
+                                  // filled proportionally to accuracy and colored by performance band.
+                                  const SEGMENTS = 16;
+                                  const accuracy = stat.total > 0 ? stat.correct / stat.total : 0;
+                                  const filled = stat.total > 0 ? Math.round(accuracy * SEGMENTS) : 0;
+                                  const barColor = stat.total === 0 ? 'bg-slate-300'
+                                    : accuracy >= 0.8 ? 'bg-emerald-500'
+                                    : accuracy >= 0.5 ? 'bg-amber-400'
+                                    : 'bg-red-400';
                                   return (
                                     <div key={d.name}>
-                                      <p className="font-bold text-slate-900 text-xs">{d.name}</p>
+                                      <div className="flex items-center justify-between">
+                                        <p className="font-bold text-slate-900 text-xs">{d.name}</p>
+                                        {stat.total > 0 && (
+                                          <span className={`text-[11px] font-bold ${
+                                            accuracy >= 0.8 ? 'text-emerald-600' : accuracy >= 0.5 ? 'text-amber-600' : 'text-red-500'
+                                          }`}>{Math.round(accuracy * 100)}%</span>
+                                        )}
+                                      </div>
                                       <p className="text-xs text-slate-400 mb-2">({d.pct}% of test section, {d.range} questions)</p>
                                       <div className="flex gap-0.5">
-                                        {Array.from({ length: segs }).map((_, i) => (
-                                          <div key={i} className={`h-2 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
+                                        {Array.from({ length: SEGMENTS }).map((_, i) => (
+                                          <div key={i} className={`h-2 flex-1 rounded-[2px] ${i < filled ? barColor : 'bg-slate-200'}`} />
                                         ))}
                                       </div>
                                     </div>
@@ -1593,6 +1608,7 @@ export function StudentManagementPage() {
                         <option value="correct">Correct</option>
                         <option value="incorrect">Incorrect</option>
                         <option value="omitted">Omitted</option>
+                        <option value="flagged">Bookmarked</option>
                       </select>
                     </div>
                   </div>
@@ -1627,6 +1643,7 @@ export function StudentManagementPage() {
                       if (questionFilterBy === 'correct') return isCorrect;
                       if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
                       if (questionFilterBy === 'omitted') return isOmitted;
+                      if (questionFilterBy === 'flagged') return ans?.isFlagged;
                       if (questionFilterBy === 'doubt') return ans?.doubtStatus === 'doubt';
                       if (questionFilterBy === 'cleared') return ans?.doubtStatus === 'cleared';
                       return true;
@@ -1705,6 +1722,9 @@ export function StudentManagementPage() {
                                     ) : (
                                       <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
                                     )}
+                                    {studentAnswer?.isFlagged && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-md bg-amber-100 text-amber-700 border border-amber-200"><Bookmark size={10} fill="currentColor" /> Bookmarked</span>
+                                    )}
                                     {studentAnswer?.doubtStatus === 'doubt' && (
                                       <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-md bg-amber-400 text-white">Still Doubt</span>
                                     )}
@@ -1771,6 +1791,9 @@ export function StudentManagementPage() {
                                     <Badge variant="info" className="bg-blue-50 text-blue-600 border-none font-semibold">Skip</Badge>
                                   ) : (
                                     <Badge variant="info" className="bg-blue-200 text-blue-900 border-none font-semibold">Wrong</Badge>
+                                  )}
+                                  {studentAnswer?.isFlagged && (
+                                    <Badge variant="info" className="bg-amber-100 text-amber-700 border border-amber-200 font-semibold flex items-center gap-1"><Bookmark size={10} fill="currentColor" /> Bookmarked</Badge>
                                   )}
                                   {studentAnswer?.doubtStatus === 'doubt' && (
                                     <Badge variant="info" className="bg-amber-100 text-amber-700 border-none font-semibold">Still Doubt</Badge>
@@ -2230,6 +2253,7 @@ export function StudentManagementPage() {
           if (questionFilterBy === 'correct') return isCorrect;
           if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
           if (questionFilterBy === 'omitted') return isOmitted;
+          if (questionFilterBy === 'flagged') return ans?.isFlagged;
           return true;
         });
         const navSafeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
@@ -2347,6 +2371,7 @@ export function StudentManagementPage() {
           if (questionFilterBy === 'correct') return isCorrect;
           if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
           if (questionFilterBy === 'omitted') return isOmitted;
+          if (questionFilterBy === 'flagged') return ans?.isFlagged;
           return true;
         });
 
@@ -2400,6 +2425,7 @@ export function StudentManagementPage() {
                     <option value="correct">Correct Only</option>
                     <option value="incorrect">Incorrect Only</option>
                     <option value="omitted">Omitted Only</option>
+                    <option value="flagged">Bookmarked Only</option>
                   </select>
                 </div>
                 <button
@@ -2442,12 +2468,19 @@ export function StudentManagementPage() {
                           {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
                         </span>
                       </div>
-                      {studentAnswer?.timeSpentSeconds ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
-                          <Clock size={11} />
-                          Time Spent: {studentAnswer.timeSpentSeconds}s
-                        </span>
-                      ) : null}
+                      <div className="flex items-center gap-2">
+                        {studentAnswer?.isFlagged && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full text-xs font-semibold text-amber-700">
+                            <Bookmark size={11} fill="currentColor" /> Bookmarked
+                          </span>
+                        )}
+                        {studentAnswer?.timeSpentSeconds ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
+                            <Clock size={11} />
+                            Time Spent: {studentAnswer.timeSpentSeconds}s
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
                     {/* Question text */}
@@ -2521,12 +2554,19 @@ export function StudentManagementPage() {
                           {allQuestions.findIndex(q => q.questionId === currentTq.questionId) + 1}
                         </span>
                       </div>
-                      {studentAnswer?.timeSpentSeconds ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
-                          <Clock size={11} />
-                          Time Spent: {studentAnswer.timeSpentSeconds}s
-                        </span>
-                      ) : null}
+                      <div className="flex items-center gap-2">
+                        {studentAnswer?.isFlagged && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full text-xs font-semibold text-amber-700">
+                            <Bookmark size={11} fill="currentColor" /> Bookmarked
+                          </span>
+                        )}
+                        {studentAnswer?.timeSpentSeconds ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
+                            <Clock size={11} />
+                            Time Spent: {studentAnswer.timeSpentSeconds}s
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
                     {/* Question text */}
@@ -2646,6 +2686,7 @@ export function StudentManagementPage() {
                 if (questionFilterBy === 'correct') return isCorrect;
                 if (questionFilterBy === 'incorrect') return ans?.answerGiven && !isCorrect;
                 if (questionFilterBy === 'omitted') return isOmitted;
+                if (questionFilterBy === 'flagged') return ans?.isFlagged;
                 return true;
               });
               const navSafeIdx = Math.min(currentQuestionIdx, Math.max(navFiltered.length - 1, 0));
@@ -2711,6 +2752,7 @@ export function StudentManagementPage() {
                             textColor = 'text-red-800';
                           }
 
+                          const isFlagged = ans?.isFlagged ?? false;
                           return (
                             <button
                               key={idx}
@@ -2725,10 +2767,13 @@ export function StudentManagementPage() {
                                 }
                                 setShowQuestionNavigator(false);
                               }}
-                              className={`w-10 h-10 md:w-11 md:h-11 rounded-full font-bold text-sm transition-all flex items-center justify-center hover:shadow-md hover:scale-105 ${bgColor} ${textColor}`}
-                              title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}`}
+                              className={`relative w-10 h-10 md:w-11 md:h-11 rounded-full font-bold text-sm transition-all flex items-center justify-center hover:shadow-md hover:scale-105 ${bgColor} ${textColor}`}
+                              title={`Q${globalNum} — ${isOmitted ? 'Unanswered' : isCorrect ? 'Correct' : 'Wrong'}${isFlagged ? ' (Bookmarked)' : ''}`}
                             >
                               {globalNum}
+                              {isFlagged && (
+                                <Bookmark size={10} className="absolute -top-1 -right-1 text-amber-500 drop-shadow-sm" fill="currentColor" />
+                              )}
                             </button>
                           );
                         })}

@@ -2032,10 +2032,10 @@ export function TestInterfacePage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs border-collapse border border-gray-300">
                       <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold">Answer</th>
-                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold">Acceptable ways to<br />enter answer</th>
-                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold">Unacceptable: will<br />NOT receive credit</th>
+                        <tr className="bg-blue-50">
+                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold text-blue-800">Answer</th>
+                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold text-blue-800">Acceptable ways to<br />enter answer</th>
+                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold text-blue-800">Unacceptable: will<br />NOT receive credit</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2139,10 +2139,10 @@ export function TestInterfacePage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse border border-gray-300">
                   <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Answer</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Acceptable ways to<br />enter answer</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold">Unacceptable: will<br />NOT receive credit</th>
+                    <tr className="bg-blue-50">
+                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-blue-800">Answer</th>
+                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-blue-800">Acceptable ways to<br />enter answer</th>
+                      <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-blue-800">Unacceptable: will<br />NOT receive credit</th>
                     </tr>
                   </thead>
                   <tbody>

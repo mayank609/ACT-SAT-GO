@@ -696,9 +696,9 @@ export function TutorAnalyticsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100">
                     {['Student', 'Grade', 'Tests Done', 'Avg Score', 'Target', 'Gap', 'Trend', 'Status'].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-xs font-bold text-blue-800 uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>

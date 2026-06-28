@@ -1129,7 +1129,7 @@ export function TestReviewPage() {
   });
 
 
-  // Precompute pacing stats per section for the View Time Analytics modal
+  // Precompute pacing stats per section for the Time Analysis modal
   const pacingStats = sections.map((sa) => {
     let correctCount = 0, incorrectCount = 0, omittedCount = 0;
     let correctTime = 0, incorrectTime = 0, omittedTime = 0, totalTime = 0;
@@ -1294,14 +1294,29 @@ export function TestReviewPage() {
                 <div className="space-y-5">
                   {KS_DOMAINS[group].map((d) => {
                     const stat = domainStats[d.name];
-                    const segs = stat.total > 0 ? stat.total : 8;
+                    // Every domain shows the same number of blocks (R&W and Math match),
+                    // filled proportionally to accuracy and colored by performance band.
+                    const SEGMENTS = 16;
+                    const accuracy = stat.total > 0 ? stat.correct / stat.total : 0;
+                    const filled = stat.total > 0 ? Math.round(accuracy * SEGMENTS) : 0;
+                    const barColor = stat.total === 0 ? 'bg-slate-300'
+                      : accuracy >= 0.8 ? 'bg-emerald-500'
+                      : accuracy >= 0.5 ? 'bg-amber-400'
+                      : 'bg-red-400';
                     return (
                       <div key={d.name}>
-                        <p className="font-bold text-slate-900">{d.name}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-slate-900">{d.name}</p>
+                          {stat.total > 0 && (
+                            <span className={`text-xs font-bold ${
+                              accuracy >= 0.8 ? 'text-emerald-600' : accuracy >= 0.5 ? 'text-amber-600' : 'text-red-500'
+                            }`}>{Math.round(accuracy * 100)}%</span>
+                          )}
+                        </div>
                         <p className="text-sm text-slate-500 mb-2.5">({d.pct}% of test section, {d.range} questions)</p>
                         <div className="flex gap-1">
-                          {Array.from({ length: segs }).map((_, i) => (
-                            <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < stat.correct ? 'bg-[#1b3d6e]' : 'bg-slate-200'}`} />
+                          {Array.from({ length: SEGMENTS }).map((_, i) => (
+                            <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < filled ? barColor : 'bg-slate-200'}`} />
                           ))}
                         </div>
                       </div>
@@ -1354,7 +1369,7 @@ export function TestReviewPage() {
               className="px-4 py-2.5 rounded-lg text-xs font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all flex items-center gap-1.5 shadow-sm"
             >
               <Clock size={12} />
-              View Time Analytics
+              Time Analysis
             </button>
           </div>
 
@@ -1480,7 +1495,7 @@ export function TestReviewPage() {
       <Modal
         isOpen={timeAnalyticsOpen}
         onClose={() => setTimeAnalyticsOpen(false)}
-        title="Time Pacing Analytics"
+        title="Time Analysis"
         size="lg"
       >
         <div className="space-y-4">
@@ -1489,7 +1504,7 @@ export function TestReviewPage() {
           </p>
           <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
             <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+              <thead className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100 text-blue-800 font-semibold">
                 <tr>
                   <th className="px-4 py-3">Section / Module</th>
                   <th className="px-4 py-3 text-center">Questions</th>

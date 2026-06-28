@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2, Search, Copy, Boxes, Package } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2, Search, Copy, Boxes, Package, ChevronDown } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -463,6 +463,7 @@ function PackageAssignModal({ pkg, onClose }: { pkg: DbTestPackage; onClose: () 
 
 const isTestMock       = (t: ApiTest) => t.category === 'Mock' || t.category === 'Mock Test' || /\bmock\b/i.test(t.title ?? '');
 const isTestDiagnostic = (t: ApiTest) => t.category === 'Diagnostic' || /\bdiagnostic\b/i.test(t.title ?? '');
+const isTestSectional  = (t: ApiTest) => t.category === 'Sectional' || /\bsectional\b/i.test(t.title ?? '');
 const isTestHW         = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('hw') || ti.includes(' hw') || ti.endsWith('hw') || /\bhw\b/.test(ti) || ti.includes('homework'); };
 const isTestPractice   = (t: ApiTest) => { const c = (t.category ?? '').toLowerCase(); const s = (t.subCategory ?? '').toLowerCase(); return c.includes('practice') || s.includes('practice'); };
 const isTestMath       = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('math') || /\bmath\b/.test(ti); };
@@ -472,6 +473,7 @@ const isTestWriting    = (t: ApiTest) => { const s = (t.subCategory ?? '').toLow
 const TEST_CAT_FILTERS = [
   { key: 'Mock'            , match: isTestMock },
   { key: 'Diagnostic'      , match: isTestDiagnostic },
+  { key: 'Sectional'       , match: isTestSectional },
   { key: 'Math HW'         , match: (t: ApiTest) => isTestMath(t) && isTestHW(t) },
   { key: 'Reading HW'      , match: (t: ApiTest) => isTestReading(t) && isTestHW(t) },
   { key: 'Writing HW'      , match: (t: ApiTest) => isTestWriting(t) && isTestHW(t) },
@@ -581,19 +583,25 @@ export function TestsPage() {
   return (
     <div className="space-y-6" onClick={() => menuOpen && setMenuOpen(null)}>
       <Toaster position="top-right" />
-      {/* Header */}
+      {/* Header: Tests | Packages toggle inline with actions */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tests</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Create and manage all tests</p>
+        <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/60">
+          <button
+            onClick={() => { setView('tests'); }}
+            className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${view === 'tests' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <FileText size={14} /> Tests <span className="text-xs text-slate-400">({tests.length})</span>
+          </button>
+          <button
+            onClick={() => { setView('packages'); exitBundleMode(); }}
+            className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${view === 'packages' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <Boxes size={14} /> Packages <span className="text-xs text-slate-400">({packages.length})</span>
+          </button>
         </div>
         <div className="flex items-center gap-2">
-          {view === 'tests' ? (
-            bundleMode ? (
-              <Button variant="secondary" size="sm" icon={<X size={14} />} onClick={exitBundleMode}>Cancel Bundle</Button>
-            ) : (
-              <Button variant="secondary" size="sm" icon={<Boxes size={14} />} onClick={() => { setView('tests'); setBundleMode(true); }}>New Package</Button>
-            )
+          {view === 'tests' && bundleMode ? (
+            <Button variant="secondary" size="sm" icon={<X size={14} />} onClick={exitBundleMode}>Cancel Bundle</Button>
           ) : (
             <Button variant="secondary" size="sm" icon={<Boxes size={14} />} onClick={() => { setView('tests'); setBundleMode(true); }}>New Package</Button>
           )}
@@ -601,22 +609,6 @@ export function TestsPage() {
             <Button size="sm" icon={<Plus size={14} />}>Create Test</Button>
           </Link>
         </div>
-      </div>
-
-      {/* View toggle: Tests | Packages */}
-      <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/60">
-        <button
-          onClick={() => { setView('tests'); }}
-          className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${view === 'tests' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-        >
-          <FileText size={14} /> Tests <span className="text-xs text-slate-400">({tests.length})</span>
-        </button>
-        <button
-          onClick={() => { setView('packages'); exitBundleMode(); }}
-          className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${view === 'packages' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-        >
-          <Boxes size={14} /> Packages <span className="text-xs text-slate-400">({packages.length})</span>
-        </button>
       </div>
 
       {/* Bundle-mode hint */}
@@ -628,52 +620,56 @@ export function TestsPage() {
       )}
 
       {view === 'tests' && (<>
-      {/* Filter tabs + search */}
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1">
-            {(['all', 'published', 'draft', 'archived'] as const).map((f) => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all capitalize ${
-                  filter === f ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                }`}>
-                {f}
-                <span className={`ml-1.5 text-xs ${filter === f ? 'text-blue-200' : 'text-slate-400'}`}>
-                  ({f === 'all' ? tests.length : tests.filter((t) => t.status.toLowerCase() === f).length})
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="relative ml-auto">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search tests…"
-              className="pl-8 pr-7 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-52"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                <X size={12} />
-              </button>
-            )}
-          </div>
+      {/* Status dropdown + category pills + search */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {/* Status filter (All / Published / Draft / Archived) as a dropdown */}
+        <div className="relative">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as 'all' | 'published' | 'draft' | 'archived')}
+            className={`appearance-none cursor-pointer text-xs font-semibold pl-3 pr-7 py-1.5 rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              filter !== 'all'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'
+            }`}
+          >
+            <option value="all">All ({tests.length})</option>
+            <option value="published">Published ({tests.filter((t) => t.status.toLowerCase() === 'published').length})</option>
+            <option value="draft">Draft ({tests.filter((t) => t.status.toLowerCase() === 'draft').length})</option>
+            <option value="archived">Archived ({tests.filter((t) => t.status.toLowerCase() === 'archived').length})</option>
+          </select>
+          <ChevronDown size={12} className={`absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filter !== 'all' ? 'text-blue-100' : 'text-slate-400'}`} />
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {TEST_CAT_FILTERS.map(({ key }) => (
-            <button
-              key={key}
-              onClick={() => setCatFilter(catFilter === key ? null : key)}
-              className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
-                catFilter === key
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-800'
-              }`}
-            >
-              {key}
+        {/* Category pills */}
+        {TEST_CAT_FILTERS.map(({ key }) => (
+          <button
+            key={key}
+            onClick={() => setCatFilter(catFilter === key ? null : key)}
+            className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+              catFilter === key
+                ? 'bg-slate-800 text-white border-slate-800'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-800'
+            }`}
+          >
+            {key}
+          </button>
+        ))}
+
+        {/* Search */}
+        <div className="relative ml-auto">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search tests…"
+            className="pl-8 pr-7 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-52"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <X size={12} />
             </button>
-          ))}
+          )}
         </div>
       </div>
 
