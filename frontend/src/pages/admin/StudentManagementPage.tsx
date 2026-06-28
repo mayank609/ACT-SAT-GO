@@ -1922,7 +1922,7 @@ export function StudentManagementPage() {
                         className="w-full text-left flex items-center justify-between hover:opacity-80 transition-opacity"
                       >
                         <div className="flex items-center gap-2">
-                          <h4 className="text-base font-bold text-slate-900">Time Spent Per Question</h4>
+                          <h4 className="text-base font-bold text-slate-900">Time Analysis</h4>
                           <span className="text-xs text-slate-400 font-medium">section-wise breakdown</span>
                         </div>
                         <div className="text-slate-500">

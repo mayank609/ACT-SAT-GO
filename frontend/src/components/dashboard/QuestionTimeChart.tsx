@@ -199,25 +199,22 @@ export function QuestionTimeChart({ stats }: { stats: QuestionTimeStat[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Pacing stat cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white border border-gray-200 rounded-lg p-3 text-center shadow-xs">
-          <p className="text-xl font-bold text-gray-900 flex items-center justify-center gap-1.5">
-            <Clock size={16} className="text-gray-400" /> {avgTime}s
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">avg / question</p>
+      {/* Pacing stat cards — compact, left-aligned chips */}
+      <div className="flex flex-wrap gap-2">
+        <div className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-xs">
+          <Clock size={14} className="text-gray-400" />
+          <span className="text-sm font-bold text-gray-900">{avgTime}s</span>
+          <span className="text-[11px] text-gray-500">avg / question</span>
         </div>
-        <div className="bg-red-50/50 border border-red-100 rounded-lg p-3 text-center shadow-xs">
-          <p className="text-xl font-bold text-red-600 flex items-center justify-center gap-1.5">
-            <AlertTriangle size={16} /> {slowCount}
-          </p>
-          <p className="text-xs text-red-500 mt-0.5">slow &ge; {SLOW_THRESHOLD}s</p>
+        <div className="bg-red-50/50 border border-red-100 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-xs">
+          <AlertTriangle size={14} className="text-red-600" />
+          <span className="text-sm font-bold text-red-600">{slowCount}</span>
+          <span className="text-[11px] text-red-500">slow &ge; {SLOW_THRESHOLD}s</span>
         </div>
-        <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3 text-center shadow-xs">
-          <p className="text-xl font-bold text-amber-600 flex items-center justify-center gap-1.5">
-            <Zap size={16} /> {rushedCount}
-          </p>
-          <p className="text-xs text-amber-500 mt-0.5">rushed &lt; {RUSHED_THRESHOLD}s</p>
+        <div className="bg-amber-50/50 border border-amber-100 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-xs">
+          <Zap size={14} className="text-amber-600" />
+          <span className="text-sm font-bold text-amber-600">{rushedCount}</span>
+          <span className="text-[11px] text-amber-500">rushed &lt; {RUSHED_THRESHOLD}s</span>
         </div>
       </div>
 
