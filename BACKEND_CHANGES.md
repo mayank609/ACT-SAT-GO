@@ -8,6 +8,48 @@ gracefully until the backend pieces below are in place.
 
 ---
 
+## 2026-06-28 — New student profile fields (admin-filled at profile creation)
+
+**Why:** Admins now capture richer student details when creating/editing a
+student. The Add/Edit Student form (`StudentManagementPage`) sends these, and the
+Student Profile header (`AdminStudentProfilePage`) displays them. They persist
+once the columns + API mapping below exist; until then the values simply won't
+round-trip (form submits fine, fields show blank on reload).
+
+**New columns on the student/user (or permissions) record** — all nullable:
+| Field | Type | Notes |
+|---|---|---|
+| `board` | string | e.g. CBSE, ICSE, IB, IGCSE, State Board, Other |
+| `timezone` | string | IANA tz, e.g. `Asia/Kolkata` (frontend defaults to this) |
+| `firstClassDate` | date/ISO string | "First class started on" |
+| `programVariant` | string | e.g. Flagship, Premium, Standard, Self-Paced |
+| `mockVariant` | string | e.g. Full Mocks, Sectional Mocks, No Mocks |
+| `accommodation` | boolean | Yes/No |
+| `stage` | int | 1–6 |
+| `onboarded` | boolean | drives the "Onboarded" badge |
+
+Note: `targetDate` already exists and is reused as **"Target Test Date"** — no
+change needed there.
+
+**API wiring needed:**
+- `POST /api/users` and `PATCH /api/users/[id]` should accept + persist the 8
+  fields above (frontend already includes them in the request bodies — see
+  `frontend/src/lib/api.ts` `createUser` / `updateUser`).
+- `GET /api/users` and `GET /api/users/[id]` should return them on the user
+  payload (mapped onto `DbUser`).
+
+**Frontend (already merged):**
+- `frontend/src/lib/api.ts` — `DbUser` + `createUser`/`updateUser` bodies extended.
+- `frontend/src/pages/admin/StudentManagementPage.tsx` — Add/Edit form has a new
+  "Program & Enrollment" section + Board/Timezone; submits all fields.
+- `frontend/src/pages/admin/AdminStudentProfilePage.tsx` — header shows the new
+  fields + Onboarded / Stage badges.
+
+(Photo upload + a "profile completion %" meter from the mock are **not** built
+yet — flag if you want those; photo needs a storage bucket.)
+
+---
+
 ## 2026-06-26 — Login page redesign: optional Supabase config for new UI elements
 
 **Why:** The login page (`frontend/src/pages/auth/LoginPage.tsx`) was redesigned to

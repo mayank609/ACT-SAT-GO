@@ -57,6 +57,14 @@ export interface DbUser {
   parentPhone?: string | null
   dob?: string | null
   schoolName?: string | null
+  board?: string | null
+  timezone?: string | null
+  firstClassDate?: string | null
+  programVariant?: string | null
+  mockVariant?: string | null
+  accommodation?: boolean | null
+  stage?: number | null
+  onboarded?: boolean | null
   diagnosticDecision?: 'keep' | 'leave' | null
 }
 
@@ -103,6 +111,14 @@ export const api = {
     parentPhone?: string
     dob?: string
     schoolName?: string
+    board?: string
+    timezone?: string
+    firstClassDate?: string
+    programVariant?: string
+    mockVariant?: string
+    accommodation?: boolean
+    stage?: number
+    onboarded?: boolean
   }) => request<{ user: DbUser; tempPassword?: string; warning?: string }>('/api/users', { method: 'POST', body: JSON.stringify(body) }),
   updateUser: (userId: string, body: {
     name?: string
@@ -116,6 +132,14 @@ export const api = {
     parentPhone?: string
     dob?: string
     schoolName?: string
+    board?: string
+    timezone?: string
+    firstClassDate?: string
+    programVariant?: string
+    mockVariant?: string
+    accommodation?: boolean
+    stage?: number
+    onboarded?: boolean
     diagnosticDecision?: 'keep' | 'leave' | null
   }) => request<{ user: DbUser }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteUser: (userId: string) =>

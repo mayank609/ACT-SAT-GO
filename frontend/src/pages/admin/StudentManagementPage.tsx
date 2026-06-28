@@ -337,7 +337,7 @@ export function StudentManagementPage() {
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
@@ -807,9 +807,17 @@ export function StudentManagementPage() {
           parentPhone: addForm.parentPhone || undefined,
           dob: addForm.dob || undefined,
           schoolName: addForm.schoolName || undefined,
+          board: addForm.board || undefined,
+          timezone: addForm.timezone || undefined,
+          firstClassDate: addForm.firstClassDate || undefined,
+          programVariant: addForm.programVariant || undefined,
+          mockVariant: addForm.mockVariant || undefined,
+          accommodation: addForm.accommodation,
+          stage: addForm.stage ? Number(addForm.stage) : undefined,
+          onboarded: addForm.onboarded,
         });
         setShowAddModal(false); setIsEditing(false); setEditingStudentId(null);
-        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false });
         reload();
       } else {
         const res = await api.createUser({
@@ -822,9 +830,17 @@ export function StudentManagementPage() {
           parentPhone: addForm.parentPhone || undefined,
           dob: addForm.dob || undefined,
           schoolName: addForm.schoolName || undefined,
+          board: addForm.board || undefined,
+          timezone: addForm.timezone || undefined,
+          firstClassDate: addForm.firstClassDate || undefined,
+          programVariant: addForm.programVariant || undefined,
+          mockVariant: addForm.mockVariant || undefined,
+          accommodation: addForm.accommodation,
+          stage: addForm.stage ? Number(addForm.stage) : undefined,
+          onboarded: addForm.onboarded,
         });
         setShowAddModal(false);
-        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false });
         reload();
         if (res.tempPassword) setCreatedPassword({ name: fullName, email: addForm.email, password: res.tempPassword });
       }
@@ -850,6 +866,14 @@ export function StudentManagementPage() {
       dob: student.dob || '',
       schoolName: student.schoolName || '',
       targetDate: student.targetDate || '',
+      board: student.board || '',
+      timezone: student.timezone || 'Asia/Kolkata',
+      firstClassDate: student.firstClassDate || '',
+      programVariant: student.programVariant || '',
+      mockVariant: student.mockVariant || '',
+      accommodation: student.accommodation ?? false,
+      stage: student.stage != null ? String(student.stage) : '',
+      onboarded: student.onboarded ?? false,
     });
     setIsEditing(true);
     setEditingStudentId(student.id);
@@ -2008,6 +2032,21 @@ export function StudentManagementPage() {
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Lincoln High School" />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Board</label>
+                  <select value={addForm.board} onChange={(e) => setAddForm(f => ({ ...f, board: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">—</option>
+                    {['CBSE', 'ICSE', 'IB', 'IGCSE', 'State Board', 'Other'].map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Timezone</label>
+                  <input value={addForm.timezone} onChange={(e) => setAddForm(f => ({ ...f, timezone: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Asia/Kolkata" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2058,9 +2097,62 @@ export function StudentManagementPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Target Date</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Target Test Date</label>
                 <input type="date" value={addForm.targetDate} onChange={(e) => setAddForm(f => ({ ...f, targetDate: e.target.value }))}
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* Program & Enrollment */}
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              <Boxes size={12} /> Program &amp; Enrollment
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Program Variant</label>
+                <select value={addForm.programVariant} onChange={(e) => setAddForm(f => ({ ...f, programVariant: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">—</option>
+                  {['Flagship', 'Premium', 'Standard', 'Self-Paced'].map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Mock Variant</label>
+                <select value={addForm.mockVariant} onChange={(e) => setAddForm(f => ({ ...f, mockVariant: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">—</option>
+                  {['Full Mocks', 'Sectional Mocks', 'No Mocks'].map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">First Class Started On</label>
+                <input type="date" value={addForm.firstClassDate} onChange={(e) => setAddForm(f => ({ ...f, firstClassDate: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Stage</label>
+                <select value={addForm.stage} onChange={(e) => setAddForm(f => ({ ...f, stage: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">—</option>
+                  {['1', '2', '3', '4', '5', '6'].map((s) => <option key={s} value={s}>Stage {s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Accommodation</label>
+                <select value={addForm.accommodation ? 'yes' : 'no'} onChange={(e) => setAddForm(f => ({ ...f, accommodation: e.target.value === 'yes' }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </div>
+              <div className="flex items-end pb-0.5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={addForm.onboarded} onChange={(e) => setAddForm(f => ({ ...f, onboarded: e.target.checked }))}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600" />
+                  <span className="text-sm text-slate-700">Onboarded</span>
+                </label>
               </div>
             </div>
           </div>
@@ -2090,7 +2182,7 @@ export function StudentManagementPage() {
               onClick={() => {
                 setIsEditing(false);
                 setEditingStudentId(null);
-                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '' });
+                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false });
                 setShowManageModal(false);
                 setShowAddModal(true);
               }}

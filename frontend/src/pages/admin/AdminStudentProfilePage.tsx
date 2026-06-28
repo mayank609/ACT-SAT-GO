@@ -506,6 +506,8 @@ export function AdminStudentProfilePage() {
                 <div className="flex flex-wrap gap-1 mt-1">
                   <Badge variant="info" size="sm">Student</Badge>
                   {student.grade && <Badge variant="default" size="sm">Gr. {student.grade}</Badge>}
+                  {student.onboarded && <Badge variant="success" size="sm">Onboarded</Badge>}
+                  {student.stage != null && <Badge variant="purple" size="sm">Stage {student.stage}</Badge>}
                 </div>
               </div>
             </div>
@@ -518,6 +520,17 @@ export function AdminStudentProfilePage() {
                 <InfoRow icon={<Calendar size={13} />} label="Date of Birth"
                   value={student.dob ? new Date(student.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null} />
                 <InfoRow icon={<School size={13} />} label="School" value={student.schoolName} />
+                <InfoRow icon={<BookOpen size={13} />} label="Board" value={student.board} />
+                <InfoRow icon={<Clock size={13} />} label="Timezone" value={student.timezone} />
+                <div className="border-t-2 border-slate-200 my-2" />
+                <InfoRow icon={<Target size={13} />} label="Target Test Date"
+                  value={student.targetDate ? new Date(student.targetDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null} />
+                <InfoRow icon={<Calendar size={13} />} label="First Class Started On"
+                  value={student.firstClassDate ? new Date(student.firstClassDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null} />
+                <InfoRow icon={<BookOpen size={13} />} label="Program Variant" value={student.programVariant} />
+                <InfoRow icon={<BookOpen size={13} />} label="Mock Variant" value={student.mockVariant} />
+                <InfoRow icon={<CheckCircle size={13} />} label="Accommodation"
+                  value={student.accommodation == null ? undefined : student.accommodation ? 'Yes' : 'No'} />
                 <InfoRow icon={<User2 size={13} />} label="Tutor" value={student.tutorName || undefined} />
               </div>
             ) : (
