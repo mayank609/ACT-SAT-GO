@@ -100,16 +100,16 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
           className="w-9 h-9 rounded-full bg-white ring-1 ring-amber-100 shadow-sm flex-shrink-0"
           style={{
             backgroundImage: `url(${logo})`,
-            backgroundSize: '142px auto',
-            backgroundPosition: '-1px -5px',
+            backgroundSize: '140% auto',
+            backgroundPosition: 'center 10%',
             backgroundRepeat: 'no-repeat',
           }}
           role="img"
-          aria-label="ACT SAT GO"
+          aria-label="ScoreπGo"
         />
         {!collapsed && (
           <span className="font-extrabold tracking-tight text-[15px] leading-none text-slate-900 whitespace-nowrap">
-            ACT&nbsp;SAT&nbsp;<span className="text-amber-500">GO</span>
+            Score&nbsp;<span className="text-amber-500">π</span>&nbsp;Go
           </span>
         )}
         <button onClick={() => setMobileOpen(false)} className="ml-auto md:hidden p-1 text-slate-400 hover:text-slate-600 transition-colors">

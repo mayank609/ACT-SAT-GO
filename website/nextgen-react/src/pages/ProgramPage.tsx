@@ -50,11 +50,12 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
   // Each program page should open at the top and carry a descriptive title.
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = `${data.exam} Preparation — ACT SAT GO`;
+    document.title = `${data.exam} Preparation — ScoreπGo`;
   }, [data.exam]);
 
   const isAp = data.slug === 'ap';
   const isSat = data.slug === 'sat';
+  const isAct = data.slug === 'act';
 
   return (
     <>
@@ -62,7 +63,7 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
 
       <main>
         {/* Hero */}
-        <section className={`prog-hero section-dark${isSat ? ' sat-page' : ''}`}>
+        <section className={`prog-hero section-dark${(isSat || isAct) ? ' sat-page' : ''}`}>
           <span className="orb orb-gold" aria-hidden="true" />
           <span className="orb orb-ring" aria-hidden="true" />
           <div className="shell prog-hero-grid">
@@ -75,18 +76,6 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
               </h1>
               <p className="hero-text">{data.heroText}</p>
               
-              <div className="hero-actions-new">
-                <a className="btn btn-primary" href="#programs">{data.primaryCta} <span aria-hidden="true">→</span></a>
-                <a className="btn btn-outline" href={CONSULT_HREF}>
-                  {data.secondaryCta}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px', marginLeft: '6px' }}>
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                  </svg>
-                </a>
-              </div>
-
               <div className="hero-bullets-grid">
                 {data.heroBullets.map((b) => (
                   <div key={b.title} className="hero-bullet-item">
@@ -99,6 +88,18 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="hero-actions-new">
+                <a className="btn btn-primary" href="#programs">{data.primaryCta} <span aria-hidden="true">→</span></a>
+                <a className="btn btn-outline" href={CONSULT_HREF}>
+                  {data.secondaryCta}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px', marginLeft: '6px' }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </a>
               </div>
             </div>
             
@@ -151,7 +152,7 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
                   <span>Top Scores & Credit</span>
                 </div>
               </div>
-            ) : isSat ? (
+            ) : (isSat || isAct) ? (
               <div className="hero-art" aria-hidden="true">
                 <div className="sat-hero-img" style={{ backgroundImage: `url(${satHeroImg})` }} />
 

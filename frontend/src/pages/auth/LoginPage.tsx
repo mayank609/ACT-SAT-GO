@@ -132,8 +132,6 @@ export function LoginPage() {
           <div className="absolute -top-10 -left-10 w-56 h-56 bg-blue-200/40 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-24 -right-8 w-64 h-64 bg-sky-200/40 rounded-full blur-3xl pointer-events-none" />
 
-          {/* logo */}
-          <img src={logo} alt="ACT SAT GO" className="relative h-8 w-auto object-contain self-start" />
 
           {/* headline */}
           <div className="relative mt-5">
@@ -172,13 +170,13 @@ export function LoginPage() {
         {/* ── Right: login card ─────────────────────────────────────────────── */}
         <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center overflow-y-auto">
           {/* logo on mobile */}
-          <img src={logo} alt="ACT SAT GO" className="h-8 w-auto object-contain mb-6 lg:hidden" />
+          <img src={logo} alt="ScoreπGo" className="h-8 w-auto object-contain mb-6 lg:hidden" />
 
           <div className="mb-5">
             <h2 className="text-2xl sm:text-[26px] font-extrabold text-slate-900 flex items-center gap-2">
               Welcome Back! <span className="text-2xl">👋</span>
             </h2>
-            <p className="text-slate-500 mt-1 text-sm">Sign in to continue to your ACT SAT GO dashboard</p>
+            <p className="text-slate-500 mt-1 text-sm">Sign in to continue to your ScoreπGo dashboard</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3.5">
@@ -292,7 +290,7 @@ export function LoginPage() {
           </div>
 
           <p className="text-sm text-slate-500 text-center mt-4">
-            New to ACT SAT GO?{' '}
+            New to ScoreπGo?{' '}
             <button
               type="button"
               onClick={() => setNotice('Accounts are created by your administrator. Please contact them to get access.')}
