@@ -4,10 +4,29 @@ export function Newsletter() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email.trim()) return;
+    
     setSubscribed(true);
+    
+    try {
+      await fetch('http://localhost:5005/api/queries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Newsletter Subscriber',
+          email: email.trim(),
+          phone: '',
+          exam: 'General',
+          message: 'Signed up for newsletter resources & tips.',
+          type: 'Newsletter'
+        })
+      });
+    } catch (error) {
+      console.error('Error submitting newsletter email:', error);
+    }
+    
     setEmail('');
   };
 

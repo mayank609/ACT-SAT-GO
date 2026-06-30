@@ -1,3 +1,4 @@
+﻿import { useState } from 'react';
 import { Header } from './components/Header';
 import { Brand } from './components/Brand';
 import { Testimonials } from './components/Testimonials';
@@ -7,6 +8,48 @@ import heroImg from './assets/hero.png';
 
 export default function App() {
   useScrollReveal();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', exam: 'General', message: '' });
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+
+  const openConsultationModal = (defaultExam = 'General') => {
+    setFormData({ name: '', email: '', phone: '', exam: defaultExam, message: '' });
+    setSubmitStatus('idle');
+    setIsModalOpen(true);
+    document.body.classList.add('modal-open-body');
+  };
+
+  const closeConsultationModal = () => {
+    setIsModalOpen(false);
+    document.body.classList.remove('modal-open-body');
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email.trim()) return;
+
+    setSubmitStatus('submitting');
+    try {
+      const response = await fetch('http://localhost:5005/api/queries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          type: 'Consultation'
+        })
+      });
+
+      if (response.ok) {
+        setSubmitStatus('success');
+      } else {
+        setSubmitStatus('error');
+      }
+    } catch (error) {
+      console.error('Error submitting query:', error);
+      setSubmitStatus('error');
+    }
+  };
 
   return (
     <>
@@ -25,7 +68,9 @@ export default function App() {
               <p className="hero-text">Personalized online tutoring for SAT, ACT, AP and K-12 students designed to unlock potential and achieve real results.</p>
 
               <div className="hero-actions-new">
-                <a className="btn btn-primary" href="#consultation">Book Free Consultation <span aria-hidden="true">→</span></a>
+                <a className="btn btn-primary" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal('General'); }}>
+                  Book Free Consultation <span aria-hidden="true">→</span>
+                </a>
                 <a className="btn btn-outline" href="#programs">Explore Programs</a>
               </div>
 
@@ -165,6 +210,7 @@ export default function App() {
           </div>
         </section>
 
+
         {/* Program Tiers */}
         <section className="prog-tiers" id="programs">
           <div className="shell">
@@ -194,7 +240,9 @@ export default function App() {
                     <strong>{t.price}</strong>
                     {t.oldPrice && <s>{t.oldPrice}</s>}
                   </div>
-                  <a className="btn tier-btn" href="#consultation">View Details <span aria-hidden="true">-&gt;</span></a>
+                  <a className="btn tier-btn" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal(t.name); }}>
+                    View Details <span aria-hidden="true">-&gt;</span>
+                  </a>
                 </article>
               ))}
             </div>
@@ -276,8 +324,12 @@ export default function App() {
                 </p>
               </div>
               <div className="prog-cta-actions">
-                <a className="btn btn-primary" href="mailto:hello@scorepigo.com">Book Free Consultation <span aria-hidden="true">-&gt;</span></a>
-                <a className="btn btn-outline" href="mailto:hello@scorepigo.com">Talk to an Expert</a>
+                <a className="btn btn-primary" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal('General'); }}>
+                  Book Free Consultation <span aria-hidden="true">-&gt;</span>
+                </a>
+                <a className="btn btn-outline" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal('General'); }}>
+                  Talk to an Expert
+                </a>
               </div>
             </div>
             <div className="prog-stats">
@@ -304,6 +356,108 @@ export default function App() {
           <p>Premium academic coaching for SAT, ACT, AP, and K-12 learners.</p>
         </div>
       </footer>
+
+      {/* Consultation Request Modal */}
+      <div className={`c-modal-overlay${isModalOpen ? ' is-active' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) closeConsultationModal(); }}>
+        <div className="c-modal">
+          <button className="c-modal-close" onClick={closeConsultationModal}>&times;</button>
+          
+          {submitStatus === 'success' ? (
+            <div className="c-success-state">
+              <div className="c-success-icon">✓</div>
+              <h4>Consultation Booked!</h4>
+              <p>Thank you for reaching out. An expert academic counselor from ScoreπGo will contact you shortly.</p>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={closeConsultationModal}>Close</button>
+            </div>
+          ) : (
+            <form onSubmit={handleFormSubmit}>
+              <div className="c-modal-header">
+                <h3>Book Free Consultation</h3>
+                <p>Submit your goals and our experts will design a customized learning roadmap.</p>
+              </div>
+
+              <div className="c-form-group">
+                <label htmlFor="modal-name">Full Name</label>
+                <input
+                  id="modal-name"
+                  type="text"
+                  className="c-input"
+                  placeholder="e.g. Ananya Sharma"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="c-form-group">
+                <label htmlFor="modal-email">Email Address</label>
+                <input
+                  id="modal-email"
+                  type="email"
+                  className="c-input"
+                  placeholder="e.g. ananya@example.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="c-form-group">
+                <label htmlFor="modal-phone">Phone Number</label>
+                <input
+                  id="modal-phone"
+                  type="tel"
+                  className="c-input"
+                  placeholder="e.g. +91 98765 43210"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+
+              <div className="c-form-group">
+                <label htmlFor="modal-exam">Exam / Program Interest</label>
+                <select
+                  id="modal-exam"
+                  className="c-input"
+                  value={formData.exam}
+                  onChange={(e) => setFormData({ ...formData, exam: e.target.value })}
+                >
+                  <option value="General">General / Other</option>
+                  <option value="SAT">SAT Prep</option>
+                  <option value="ACT">ACT Prep</option>
+                  <option value="AP Prep">AP Prep</option>
+                  <option value="K-12 Tutoring">K-12 Tutoring</option>
+                </select>
+              </div>
+
+              <div className="c-form-group">
+                <label htmlFor="modal-message">Tell us about your learning goals</label>
+                <textarea
+                  id="modal-message"
+                  className="c-input c-textarea"
+                  placeholder="e.g. Target SAT score is 1500+, looking for 1-on-1 tutoring..."
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                />
+              </div>
+
+              {submitStatus === 'error' && (
+                <p style={{ color: '#ef4444', fontSize: '13px', margin: '8px 0', fontWeight: 600 }}>
+                  ✕ Unable to submit form. Please check if the query server is running.
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="c-submit-btn"
+                disabled={submitStatus === 'submitting'}
+              >
+                {submitStatus === 'submitting' ? 'Submitting...' : 'Book Free Consultation'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
     </>
   );
 }

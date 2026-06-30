@@ -92,9 +92,9 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200 transition-all duration-300">
+    <div className="flex flex-col h-full bg-[#0B1E36] border-r border-white/5 transition-all duration-300">
       {/* Logo */}
-      <div className={`flex items-center gap-2.5 px-4 py-4 border-b border-slate-100 ${collapsed ? 'justify-center px-2' : ''}`}>
+      <div className={`flex items-center gap-2.5 px-4 py-4 border-b border-white/5 ${collapsed ? 'justify-center px-2' : ''}`}>
         {/* Icon badge — cropped from the logo artwork so it sits in a clean circle */}
         <div
           className="w-9 h-9 rounded-full bg-white ring-1 ring-amber-100 shadow-sm flex-shrink-0"
@@ -108,11 +108,11 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
           aria-label="ScoreπGo"
         />
         {!collapsed && (
-          <span className="font-extrabold tracking-tight text-[15px] leading-none text-slate-900 whitespace-nowrap">
-            Score&nbsp;<span className="text-amber-500">π</span>&nbsp;Go
+          <span className="font-extrabold tracking-tight text-[15px] leading-none text-white whitespace-nowrap">
+            Score&nbsp;<span className="text-amber-400">π</span>&nbsp;Go
           </span>
         )}
-        <button onClick={() => setMobileOpen(false)} className="ml-auto md:hidden p-1 text-slate-400 hover:text-slate-600 transition-colors">
+        <button onClick={() => setMobileOpen(false)} className="ml-auto md:hidden p-1 text-slate-400 hover:text-white transition-colors">
           <X size={18} />
         </button>
       </div>
@@ -131,8 +131,8 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-blue-600/25 text-blue-300 font-semibold'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
                 } ${collapsed ? 'justify-center' : ''}`
               }
               title={collapsed ? item.label : undefined}
@@ -140,7 +140,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               {({ isActive }) => (
                 <>
                   {isActive && !item.subItems && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-500 rounded-r-full" />
                   )}
                   <span className={`flex-shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
                     {item.icon}
@@ -159,7 +159,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             
             {/* First level sub-items */}
             {!collapsed && item.subItems && expandedItems[item.path] && (
-              <div className="ml-7 mt-1 border-l border-slate-200 pl-2 space-y-1">
+              <div className="ml-7 mt-1 border-l border-white/10 pl-2 space-y-1">
                 {item.subItems.map(subItem => (
                   <div key={subItem.path}>
                     <NavLink
@@ -170,7 +170,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
                       }}
                       className={({ isActive }) =>
                         `flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                          isActive && !subItem.subItems ? 'text-blue-700 bg-blue-50 font-semibold' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-medium'
+                          isActive && !subItem.subItems ? 'text-blue-300 bg-blue-600/20 font-semibold' : 'text-slate-400 hover:text-white hover:bg-white/5 font-medium'
                         }`
                       }
                     >
@@ -182,7 +182,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
                     
                     {/* Second level sub-items */}
                     {subItem.subItems && expandedItems[subItem.path] && (
-                      <div className="ml-4 mt-1 border-l border-slate-200 pl-2 space-y-1">
+                      <div className="ml-4 mt-1 border-l border-white/10 pl-2 space-y-1">
                         {subItem.subItems.map(subSubItem => (
                           <NavLink
                             key={subSubItem.path}
@@ -190,7 +190,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
                             onClick={() => setMobileOpen(false)}
                             className={({ isActive }) =>
                               `block px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                                isActive ? 'text-blue-700 bg-blue-50 font-semibold' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                                isActive ? 'text-blue-300 bg-blue-600/20 font-semibold' : 'text-slate-400 hover:text-white hover:bg-white/5'
                               }`
                             }
                           >
@@ -208,17 +208,17 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-slate-100 p-3 space-y-1">
+      <div className="border-t border-white/5 p-3 space-y-1">
 
         {user && (
           <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-2 ${collapsed ? 'justify-center px-0' : ''}`}>
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
               {user.name.charAt(0)}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate">{user.name}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">{roleLabels[user.role]}</p>
+                <p className="text-sm font-semibold text-white truncate">{user.name}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">{roleLabels[user.role]}</p>
               </div>
             )}
           </div>
@@ -226,7 +226,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
 
         <button
           onClick={handleLogout}
-          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 text-sm font-medium group ${collapsed ? 'justify-center' : ''}`}
+          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 text-sm font-medium group ${collapsed ? 'justify-center' : ''}`}
           title={collapsed ? "Sign Out" : undefined}
         >
           <LogOut size={18} className="flex-shrink-0 group-hover:-translate-x-1 transition-transform" />
@@ -261,7 +261,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
         className={`
           relative hidden md:flex flex-col transition-all duration-300 ease-in-out
           ${collapsed ? 'w-20' : 'w-64'}
-          h-screen sticky top-0 flex-shrink-0 shadow-lg border-r border-slate-200 z-50
+          h-screen sticky top-0 flex-shrink-0 shadow-lg border-r border-white/5 z-50
         `}
       >
         <SidebarContent />
