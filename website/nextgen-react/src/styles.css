@@ -1545,3 +1545,93 @@ h1 span,
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ── AP Hero Page Custom Layout overrides ────────────────────────── */
+.ap-hero-illustration {
+  width: 100%;
+  height: 380px;
+  background-size: 300% 200%;
+  background-position: 100% 0; /* Top right cell containing the AP girl */
+  background-repeat: no-repeat;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.ap-hero-art {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+.ap-hero-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Badges positions for AP page student */
+.badge-ap-strategy {
+  top: 22%;
+  left: -8%;
+}
+
+.badge-ap-concepts {
+  top: -8%;
+  left: 38%;
+  animation-delay: 1.5s;
+}
+
+.badge-ap-scores {
+  top: 20%;
+  right: -8%;
+  animation-delay: 3s;
+}
+
+@media (max-width: 1040px) {
+  .badge-ap-strategy {
+    top: 20%;
+    left: 2%;
+  }
+  .badge-ap-concepts {
+    top: -6%;
+    left: 36%;
+  }
+  .badge-ap-scores {
+    top: 18%;
+    right: 2%;
+  }
+}
+
+@media (max-width: 768px) {
+  .ap-hero-lines {
+    display: none;
+  }
+}
+
+/* ── SAT page: give the art column equal width & show full image ───── */
+.prog-hero.sat-page .prog-hero-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* SAT hero: render transparent PNG as background-image so it blends with dark navy */
+.sat-hero-img {
+  width: 100%;
+  height: 480px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center bottom;
+}
+
+@media (max-width: 1040px) {
+  .sat-hero-img { height: 380px; }
+}
+
+@media (max-width: 768px) {
+  .sat-hero-img { height: 280px; }
+}
+

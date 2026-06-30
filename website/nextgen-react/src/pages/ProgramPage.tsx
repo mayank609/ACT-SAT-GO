@@ -3,8 +3,46 @@ import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import type { ProgramPageData } from '../data/programs';
+import programsImg from '../assets/programs.png';
+import satHeroImg from '../assets/sat-hero.png';
 
 const CONSULT_HREF = '/#consultation';
+
+function getHeroBulletIcon(title: string) {
+  const t = title.toLowerCase();
+  if (t.includes('instructor') || t.includes('tutor') || t.includes('strateg')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+      </svg>
+    );
+  }
+  if (t.includes('learn') || t.includes('mentor')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+        <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"></path>
+      </svg>
+    );
+  }
+  if (t.includes('college') || t.includes('placement') || t.includes('data') || t.includes('progress')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+    </svg>
+  );
+}
 
 export function ProgramPage({ data }: { data: ProgramPageData }) {
   useScrollReveal();
@@ -15,44 +53,163 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
     document.title = `${data.exam} Preparation — ACT SAT GO`;
   }, [data.exam]);
 
+  const isAp = data.slug === 'ap';
+  const isSat = data.slug === 'sat';
+
   return (
     <>
       <Header />
 
       <main>
         {/* Hero */}
-        <section className="prog-hero section-dark">
+        <section className={`prog-hero section-dark${isSat ? ' sat-page' : ''}`}>
           <span className="orb orb-gold" aria-hidden="true" />
           <span className="orb orb-ring" aria-hidden="true" />
           <div className="shell prog-hero-grid">
             <div className="prog-hero-copy">
-              <p className="eyebrow">{data.heroEyebrow}</p>
+              <span className="eyebrow-hero">{data.heroEyebrow}</span>
               <h1>
                 {data.heroTitle.map((run, i) =>
                   run.gold ? <span key={i}>{run.text}</span> : <span key={i} className="plain">{run.text}</span>,
                 )}
               </h1>
               <p className="hero-text">{data.heroText}</p>
-              <div className="hero-actions">
-                <a className="btn btn-primary" href="#programs">{data.primaryCta} <span aria-hidden="true">-&gt;</span></a>
-                <a className="btn btn-outline" href={CONSULT_HREF}>{data.secondaryCta} <span aria-hidden="true">↓</span></a>
+              
+              <div className="hero-actions-new">
+                <a className="btn btn-primary" href="#programs">{data.primaryCta} <span aria-hidden="true">→</span></a>
+                <a className="btn btn-outline" href={CONSULT_HREF}>
+                  {data.secondaryCta}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px', marginLeft: '6px' }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </a>
               </div>
-              <ul className="prog-hero-bullets">
+
+              <div className="hero-bullets-grid">
                 {data.heroBullets.map((b) => (
-                  <li key={b.title}>
-                    <strong>{b.title}</strong>
-                    <span>{b.text}</span>
-                  </li>
+                  <div key={b.title} className="hero-bullet-item">
+                    <span className="bullet-icon-wrapper">
+                      {getHeroBulletIcon(b.title)}
+                    </span>
+                    <div className="bullet-text">
+                      <strong>{b.title}</strong>
+                      <span>{b.text}</span>
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
-            <div className="prog-hero-art" aria-hidden="true">
-              <div className="exam-orb"><span>{data.exam}</span></div>
-              <div className="orbit-badge badge-1">Smart Strategy</div>
-              <div className="orbit-badge badge-2">Target Score</div>
-              <div className="orbit-badge badge-3">Track Progress</div>
-              <div className="orbit-badge badge-4">Achieve Success</div>
-            </div>
+            
+            {isAp ? (
+              <div className="prog-hero-art ap-hero-art" aria-hidden="true">
+                <div 
+                  className="ap-hero-illustration" 
+                  style={{ backgroundImage: `url(${programsImg})` }} 
+                />
+                
+                {/* SVG dashed connector lines */}
+                <svg className="ap-hero-lines" viewBox="0 0 400 400" fill="none">
+                  <path d="M60,140 Q100,240 180,240" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeDasharray="5,5" />
+                  <path d="M200,90 Q200,160 200,200" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeDasharray="5,5" />
+                  <path d="M340,140 Q300,240 220,240" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeDasharray="5,5" />
+                </svg>
+
+                <div className="orbit-card badge-ap-strategy">
+                  <div className="badge-icon-bg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <circle cx="12" cy="12" r="6"></circle>
+                      <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
+                  </div>
+                  <span>Smart Strategy</span>
+                </div>
+
+                <div className="orbit-card badge-ap-concepts">
+                  <div className="badge-icon-bg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .4 2.5 1.5 3.5.7.8 1.3 1.5 1.5 2.5"></path>
+                      <line x1="9" y1="18" x2="15" y2="18"></line>
+                      <line x1="10" y1="22" x2="14" y2="22"></line>
+                    </svg>
+                  </div>
+                  <span>Deep Concepts</span>
+                </div>
+
+                <div className="orbit-card badge-ap-scores">
+                  <div className="badge-icon-bg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                      <path d="M4 22h16"></path>
+                      <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path>
+                      <path d="M12 2a6 6 0 0 1 6 6v3.5c0 3.3-2.7 6-6 6s-6-2.7-6-6V8a6 6 0 0 1 6-6z"></path>
+                    </svg>
+                  </div>
+                  <span>Top Scores & Credit</span>
+                </div>
+              </div>
+            ) : isSat ? (
+              <div className="hero-art" aria-hidden="true">
+                <div className="sat-hero-img" style={{ backgroundImage: `url(${satHeroImg})` }} />
+
+                <div className="orbit-card badge-target">
+                  <div className="badge-icon-bg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <circle cx="12" cy="12" r="6"></circle>
+                      <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
+                  </div>
+                  <span>Target Score</span>
+                </div>
+
+                <div className="orbit-card badge-track">
+                  <div className="badge-icon-bg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="20" x2="18" y2="10"></line>
+                      <line x1="12" y1="20" x2="12" y2="4"></line>
+                      <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                  </div>
+                  <span>Track Progress</span>
+                </div>
+
+                <div className="orbit-card badge-strategy">
+                  <div className="badge-icon-bg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .4 2.5 1.5 3.5.7.8 1.3 1.5 1.5 2.5"></path>
+                      <line x1="9" y1="18" x2="15" y2="18"></line>
+                      <line x1="10" y1="22" x2="14" y2="22"></line>
+                    </svg>
+                  </div>
+                  <span>Smart Strategy</span>
+                </div>
+
+                <div className="orbit-card badge-success">
+                  <div className="badge-icon-bg">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                      <path d="M4 22h16"></path>
+                      <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path>
+                      <path d="M12 2a6 6 0 0 1 6 6v3.5c0 3.3-2.7 6-6 6s-6-2.7-6-6V8a6 6 0 0 1 6-6z"></path>
+                    </svg>
+                  </div>
+                  <span>Achieve Success</span>
+                </div>
+              </div>
+            ) : (
+              <div className="prog-hero-art" aria-hidden="true">
+                <div className="exam-orb"><span>{data.exam}</span></div>
+                <div className="orbit-badge badge-1">Smart Strategy</div>
+                <div className="orbit-badge badge-2">Target Score</div>
+                <div className="orbit-badge badge-3">Track Progress</div>
+                <div className="orbit-badge badge-4">Achieve Success</div>
+              </div>
+            )}
           </div>
         </section>
 
