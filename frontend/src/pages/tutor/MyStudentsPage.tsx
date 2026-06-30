@@ -10,6 +10,7 @@ import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser } from '../../lib/api';
 import { studentStatusFromDecision, STUDENT_STATUS_LABEL, STUDENT_STATUS_BADGE } from '../../lib/studentStatus';
+import { satSectionScore } from '../../lib/analyticsData';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 
@@ -211,23 +212,8 @@ function computeTestAnalysis(attempt: TaAttempt): {
   let rwScaled = 0;
   let mathScaled = 0;
   if (isSAT) {
-    rwScaled = 200;
-    mathScaled = 200;
-
-    if (rw1 >= 18) {
-      rwScaled = 400 + Math.round(((rw1 + rw2) / 54) * 400 / 10) * 10;
-    } else {
-      rwScaled = 200 + Math.round(((rw1 + rw2) / 54) * 450 / 10) * 10;
-    }
-    
-    if (math1 >= 14) {
-      mathScaled = 420 + Math.round(((math1 + math2) / 44) * 380 / 10) * 10;
-    } else {
-      mathScaled = 200 + Math.round(((math1 + math2) / 44) * 450 / 10) * 10;
-    }
-
-    rwScaled = Math.min(800, Math.max(200, rwScaled));
-    mathScaled = Math.min(800, Math.max(200, mathScaled));
+    rwScaled = satSectionScore(rw1, rw2, 54, false);
+    mathScaled = satSectionScore(math1, math2, 44, true);
     finalScaledScore = rwScaled + mathScaled;
   }
 

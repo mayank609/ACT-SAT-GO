@@ -6,6 +6,38 @@ import { numericValuesEqual } from '@/lib/numericAnswer'
 
 type AnswerJson = { key?: string; keys?: string[]; value?: number } | null
 
+// Digital SAT raw→scaled conversion tables, reproduced exactly from the
+// test-ninjas.com Digital SAT Score Calculator. RW uses a 0–66 index, Math 0–54.
+const RW_SCALE: number[] = [
+  200, 200, 200, 200, 200, 200, 200, 210, 210, 220, 240, 250, 260, 270, 290, 300, 330,
+  350, 360, 370, 380, 380, 390, 400, 410, 420, 430, 430, 440, 450, 460, 470, 470, 480,
+  490, 500, 500, 510, 520, 530, 540, 550, 550, 560, 570, 580, 590, 600, 600, 610, 620,
+  630, 640, 640, 650, 660, 670, 680, 690, 700, 710, 720, 730, 740, 760, 780, 800,
+]
+const MATH_SCALE: number[] = [
+  200, 200, 200, 200, 200, 200, 200, 210, 220, 240, 270, 300, 310, 320, 330, 340, 350,
+  350, 360, 370, 380, 390, 390, 400, 410, 420, 440, 450, 460, 480, 490, 500, 520, 530,
+  540, 550, 570, 580, 590, 600, 610, 620, 640, 650, 670, 690, 710, 730, 750, 760, 770,
+  780, 790, 790, 800,
+]
+
+// Convert a section's two module raw scores into a scaled section score (200–800),
+// replicating test-ninjas.com: adaptive easy-route weights Module 2 down to
+// round(0.8 × M2) when Module 1 is below the routing threshold (18 RW, 15 Math),
+// then the combined raw is normalized to the table index and looked up.
+function satSectionScore(m1: number, m2: number, total: number, isMath: boolean, adaptive = true): number {
+  let eff2 = m2
+  if (adaptive && (isMath ? m1 < 15 : m1 < 18)) {
+    eff2 = Math.round(0.8 * m2)
+  }
+  const raw = m1 + eff2
+  if (!(total > 0)) return 200
+  const ratio = Math.max(0, Math.min(1, raw / total))
+  const table = isMath ? MATH_SCALE : RW_SCALE
+  const idx = Math.min(Math.round((isMath ? 54 : 66) * ratio), table.length - 1)
+  return table[idx]
+}
+
 function isAnswerCorrect(given: unknown, correct: unknown): boolean {
   if (!given || !correct) return false;
   const g = given as AnswerJson;
@@ -226,23 +258,10 @@ export async function POST(
 
           const rwActualTotal = rw1Total + rw2Total || 54
           const mathActualTotal = math1Total + math2Total || 44
-          let rwScaled = 200
-          let mathScaled = 200
 
-          if (rw1Correct >= 18) {
-            rwScaled = 400 + Math.round(((rw1Correct + rw2Correct) / rwActualTotal) * 400 / 10) * 10
-          } else {
-            rwScaled = 200 + Math.round(((rw1Correct + rw2Correct) / rwActualTotal) * 450 / 10) * 10
-          }
+          const rwScaled = satSectionScore(rw1Correct, rw2Correct, rwActualTotal, false)
+          const mathScaled = satSectionScore(math1Correct, math2Correct, mathActualTotal, true)
 
-          if (math1Correct >= 14) {
-            mathScaled = 420 + Math.round(((math1Correct + math2Correct) / mathActualTotal) * 380 / 10) * 10
-          } else {
-            mathScaled = 200 + Math.round(((math1Correct + math2Correct) / mathActualTotal) * 450 / 10) * 10
-          }
-
-          rwScaled = Math.min(800, Math.max(200, rwScaled))
-          mathScaled = Math.min(800, Math.max(200, mathScaled))
           finalScaledScore = rwScaled + mathScaled
           console.log(`[Submit] SAT calculation: RW=${rwScaled} (M1=${rw1Correct}/${rw1Total}, M2=${rw2Correct}/${rw2Total}), Math=${mathScaled} (M1=${math1Correct}/${math1Total}, M2=${math2Correct}/${math2Total})`)
         } else if (isACT) {

@@ -208,7 +208,39 @@ export function recordsFromAttempt(attempt: DbAttempt): QRecord[] {
   return out;
 }
 
-// ─── Scaled SAT score (mirrors the backend submit-route formula exactly) ───────
+// ─── Scaled SAT score (mirrors the backend submit-route conversion exactly) ─────
+
+// Digital SAT raw→scaled conversion tables, reproduced exactly from the
+// test-ninjas.com Digital SAT Score Calculator. RW uses a 0–66 index, Math 0–54.
+const RW_SCALE: number[] = [
+  200, 200, 200, 200, 200, 200, 200, 210, 210, 220, 240, 250, 260, 270, 290, 300, 330,
+  350, 360, 370, 380, 380, 390, 400, 410, 420, 430, 430, 440, 450, 460, 470, 470, 480,
+  490, 500, 500, 510, 520, 530, 540, 550, 550, 560, 570, 580, 590, 600, 600, 610, 620,
+  630, 640, 640, 650, 660, 670, 680, 690, 700, 710, 720, 730, 740, 760, 780, 800,
+];
+const MATH_SCALE: number[] = [
+  200, 200, 200, 200, 200, 200, 200, 210, 220, 240, 270, 300, 310, 320, 330, 340, 350,
+  350, 360, 370, 380, 390, 390, 400, 410, 420, 440, 450, 460, 480, 490, 500, 520, 530,
+  540, 550, 570, 580, 590, 600, 610, 620, 640, 650, 670, 690, 710, 730, 750, 760, 770,
+  780, 790, 790, 800,
+];
+
+// Convert a section's two module raw scores into a scaled section score (200–800),
+// replicating test-ninjas.com: adaptive easy-route weights Module 2 down to
+// round(0.8 × M2) when Module 1 is below the routing threshold (18 RW, 15 Math),
+// then the combined raw is normalized to the table index and looked up.
+export function satSectionScore(m1: number, m2: number, total: number, isMath: boolean, adaptive = true): number {
+  let eff2 = m2;
+  if (adaptive && (isMath ? m1 < 15 : m1 < 18)) {
+    eff2 = Math.round(0.8 * m2);
+  }
+  const raw = m1 + eff2;
+  if (!(total > 0)) return 200;
+  const ratio = Math.max(0, Math.min(1, raw / total));
+  const table = isMath ? MATH_SCALE : RW_SCALE;
+  const idx = Math.min(Math.round((isMath ? 54 : 66) * ratio), table.length - 1);
+  return table[idx];
+}
 
 export interface ScaledScore { rw: number; math: number; total: number }
 
@@ -247,14 +279,8 @@ export function computeSatScore(recs: QRecord[]): ScaledScore {
 
   const rwTotal = rw1T + rw2T || 54;
   const mathTotal = m1T + m2T || 44;
-  let rw = rw1C >= 18
-    ? 400 + Math.round(((rw1C + rw2C) / rwTotal) * 400 / 10) * 10
-    : 200 + Math.round(((rw1C + rw2C) / rwTotal) * 450 / 10) * 10;
-  let math = m1C >= 14
-    ? 420 + Math.round(((m1C + m2C) / mathTotal) * 380 / 10) * 10
-    : 200 + Math.round(((m1C + m2C) / mathTotal) * 450 / 10) * 10;
-  rw = Math.min(800, Math.max(200, rw));
-  math = Math.min(800, Math.max(200, math));
+  const rw = satSectionScore(rw1C, rw2C, rwTotal, false);
+  const math = satSectionScore(m1C, m2C, mathTotal, true);
   return { rw, math, total: rw + math };
 }
 

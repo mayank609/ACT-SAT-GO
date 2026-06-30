@@ -12,6 +12,7 @@ import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser, type DbTestPackage } from '../../lib/api';
 import { studentStatusFromDecision, STUDENT_STATUS_LABEL, STUDENT_STATUS_BADGE } from '../../lib/studentStatus';
+import { satSectionScore } from '../../lib/analyticsData';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES } from '../../data/satDomains';
 
@@ -252,20 +253,8 @@ function computeTestAnalysis(attempt: TaAttempt): {
     const rwActualTotal = rw1Total + rw2Total || 54;
     const mathActualTotal = math1Total + math2Total || 44;
 
-    if (rw1Correct >= 18) {
-      rwScaled = 400 + Math.round(((rw1Correct + rw2Correct) / rwActualTotal) * 400 / 10) * 10;
-    } else {
-      rwScaled = 200 + Math.round(((rw1Correct + rw2Correct) / rwActualTotal) * 450 / 10) * 10;
-    }
-
-    if (math1Correct >= 14) {
-      mathScaled = 420 + Math.round(((math1Correct + math2Correct) / mathActualTotal) * 380 / 10) * 10;
-    } else {
-      mathScaled = 200 + Math.round(((math1Correct + math2Correct) / mathActualTotal) * 450 / 10) * 10;
-    }
-
-    rwScaled = Math.min(800, Math.max(200, rwScaled));
-    mathScaled = Math.min(800, Math.max(200, mathScaled));
+    rwScaled = satSectionScore(rw1Correct, rw2Correct, rwActualTotal, false);
+    mathScaled = satSectionScore(math1Correct, math2Correct, mathActualTotal, true);
     finalScaledScore = rwScaled + mathScaled;
   }
 
