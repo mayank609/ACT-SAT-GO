@@ -1,18 +1,29 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Brand } from './Brand';
-import { APP_LOGIN_URL } from '../config';
 
-const NAV_LINKS = [
-  { href: '#programs', label: 'Programs' },
-  { href: '#process', label: 'K-12 Learning' },
-  { href: '#results', label: 'Study Abroad' },
-  { href: '#resources', label: 'Resources' },
-  { href: '#about', label: 'About Us' },
+const PROGRAM_LINKS = [
+  { to: '/sat', label: 'SAT Preparation' },
+  { to: '/act', label: 'ACT Preparation' },
+  { to: '/ap', label: 'AP Preparation' },
+];
+
+const RESOURCE_LINKS = [
+  { href: '/#process', label: 'Our Method' },
+  { href: '/#results', label: 'Success Stories' },
+  { href: '/#consultation', label: 'ACT Guide' },
 ];
 
 export function Header() {
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  const [programsOpen, setProgramsOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+
+  const close = () => {
+    setOpen(false);
+    setProgramsOpen(false);
+    setResourcesOpen(false);
+  };
 
   return (
     <header className="site-header">
@@ -28,13 +39,56 @@ export function Header() {
           <span></span><span></span><span></span>
         </button>
         <div className="nav-links" data-nav>
-          {NAV_LINKS.map((l) => (
-            <a key={l.href} href={l.href} onClick={close}>{l.label}</a>
-          ))}
+          <a href="/#home" onClick={close}>Home</a>
+          
+          <div
+            className={`nav-dropdown${programsOpen ? ' is-open' : ''}`}
+            onMouseEnter={() => setProgramsOpen(true)}
+            onMouseLeave={() => setProgramsOpen(false)}
+          >
+            <button
+              type="button"
+              className="nav-dropdown-toggle"
+              aria-expanded={programsOpen}
+              onClick={() => setProgramsOpen((v) => !v)}
+            >
+              Programs <span aria-hidden="true">▾</span>
+            </button>
+            <div className="nav-dropdown-menu" role="menu">
+              {PROGRAM_LINKS.map((p) => (
+                <Link key={p.to} to={p.to} role="menuitem" onClick={close}>{p.label}</Link>
+              ))}
+            </div>
+          </div>
+
+          <a href="/#programs" onClick={close}>Practice</a>
+
+          <div
+            className={`nav-dropdown${resourcesOpen ? ' is-open' : ''}`}
+            onMouseEnter={() => setResourcesOpen(true)}
+            onMouseLeave={() => setResourcesOpen(false)}
+          >
+            <button
+              type="button"
+              className="nav-dropdown-toggle"
+              aria-expanded={resourcesOpen}
+              onClick={() => setResourcesOpen((v) => !v)}
+            >
+              Resources <span aria-hidden="true">▾</span>
+            </button>
+            <div className="nav-dropdown-menu" role="menu">
+              {RESOURCE_LINKS.map((r) => (
+                <a key={r.href} href={r.href} role="menuitem" onClick={close}>{r.label}</a>
+              ))}
+            </div>
+          </div>
+
+          <a href="/#about" onClick={close}>About Us</a>
         </div>
         <div className="nav-actions">
-          <a className="btn btn-ghost" href={APP_LOGIN_URL} onClick={close}>Login</a>
-          <a className="btn btn-primary" href="#consultation" onClick={close}>Book Free Consultation</a>
+          <a className="btn btn-primary" href="/#consultation" onClick={close}>
+            Enroll Now <span aria-hidden="true">→</span>
+          </a>
         </div>
       </nav>
     </header>

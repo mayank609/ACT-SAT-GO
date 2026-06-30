@@ -1329,3 +1329,219 @@ h1 span,
     transition: none;
   }
 }
+
+/* ── Custom modifications for Brand Logo & Hero Banner ───────────── */
+
+/* Brand Text logo styling */
+.brand-logo-text {
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: -0.5px;
+}
+
+.brand-go-box {
+  background-color: var(--gold);
+  color: #061a2f;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 900;
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* Eyebrow for ACT Prep */
+.eyebrow-hero {
+  margin: 0 0 20px;
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: inline-block;
+  border-bottom: 2px solid var(--gold);
+  padding-bottom: 4px;
+}
+
+/* Hero features grid (4 columns layout under subtitle) */
+.hero-bullets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 24px;
+  margin: 28px 0;
+  max-width: 580px;
+}
+
+.hero-bullet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bullet-icon-wrapper {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 180, 0, 0.1);
+  border: 1px solid rgba(255, 180, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+}
+
+.bullet-icon-wrapper svg {
+  width: 18px;
+  height: 18px;
+}
+
+.bullet-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.bullet-text strong {
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.bullet-text span {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* Hero actions container */
+.hero-actions-new {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 32px;
+}
+
+/* Orbiting cards around student image */
+.orbit-card {
+  position: absolute;
+  background: white;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.22);
+  width: 100px;
+  z-index: 10;
+  animation: floatY 6s ease-in-out infinite;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.orbit-card:hover {
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+}
+
+.orbit-card span {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--navy);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.badge-icon-bg {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--navy-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+}
+
+.badge-icon-bg svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Positions of orbiting cards */
+.badge-target {
+  top: 8%;
+  left: 4%;
+}
+
+.badge-track {
+  top: 10%;
+  right: 12%;
+  animation-delay: 1.5s;
+}
+
+.badge-strategy {
+  top: 36%;
+  left: -2%;
+  animation-delay: 3s;
+}
+
+.badge-success {
+  top: 38%;
+  right: 4%;
+  animation-delay: 4.5s;
+}
+
+/* Responsive adjustment for orbiting cards and bullets */
+@media (max-width: 1040px) {
+  .orbit-card {
+    width: 90px;
+    padding: 8px 10px;
+  }
+  .orbit-card span {
+    font-size: 10px;
+  }
+  .badge-icon-bg {
+    width: 32px;
+    height: 32px;
+  }
+  .badge-icon-bg svg {
+    width: 14px;
+    height: 14px;
+  }
+  .badge-target { top: 6%; left: 2%; }
+  .badge-track { top: 8%; right: 4%; }
+  .badge-strategy { top: 32%; left: 0%; }
+  .badge-success { top: 34%; right: 2%; }
+}
+
+@media (max-width: 768px) {
+  .hero-bullets-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  /* On very small devices, hide orbiting cards to avoid overlap with student illustration */
+  .orbit-card {
+    display: none;
+  }
+}
+
+/* Curriculum overrides for 4 areas layout */
+.curriculum-grid {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+
+@media (max-width: 1040px) {
+  .curriculum-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .curriculum-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

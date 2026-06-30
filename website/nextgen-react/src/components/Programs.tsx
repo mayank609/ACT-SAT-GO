@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import programsImg from '../assets/programs.png';
 
 type Category = 'test' | 'school' | 'future';
@@ -10,10 +11,10 @@ const FILTERS: { key: 'all' | Category; label: string }[] = [
   { key: 'future', label: 'Future Programs' },
 ];
 
-const PROGRAMS: { title: string; desc: string; alt: string; category: Category }[] = [
-  { title: 'SAT Preparation', desc: 'Strategies, practice plans, and expert guidance to reach your target score.', alt: 'Student preparing for SAT', category: 'test' },
-  { title: 'ACT Preparation', desc: 'Targeted coaching to maximize ACT performance and college opportunities.', alt: 'Student preparing for ACT', category: 'test' },
-  { title: 'AP Courses', desc: 'Excel in AP classes and earn college credit while still in high school.', alt: 'AP course support illustration', category: 'school' },
+const PROGRAMS: { title: string; desc: string; alt: string; category: Category; to?: string }[] = [
+  { title: 'SAT Preparation', desc: 'Strategies, practice plans, and expert guidance to reach your target score.', alt: 'Student preparing for SAT', category: 'test', to: '/sat' },
+  { title: 'ACT Preparation', desc: 'Targeted coaching to maximize ACT performance and college opportunities.', alt: 'Student preparing for ACT', category: 'test', to: '/act' },
+  { title: 'AP Courses', desc: 'Excel in AP classes and earn college credit while still in high school.', alt: 'AP course support illustration', category: 'school', to: '/ap' },
   { title: 'High School Tutoring', desc: 'Strengthen concepts, improve grades, and build confidence in all subjects.', alt: 'High school tutoring illustration', category: 'school' },
   { title: 'Middle School Tutoring', desc: 'Build strong habits and academic foundations for tomorrow.', alt: 'Middle school tutoring illustration', category: 'school' },
   { title: 'Elementary Learning', desc: 'Fun, engaging learning that builds lifelong confidence.', alt: 'Elementary learning illustration', category: 'future' },
@@ -54,7 +55,11 @@ export function Programs() {
               <div>
                 <h3>{p.title}</h3>
                 <p>{p.desc}</p>
-                <a href="#consultation">Learn More -&gt;</a>
+                {p.to ? (
+                  <Link to={p.to}>Learn More -&gt;</Link>
+                ) : (
+                  <a href="#consultation">Learn More -&gt;</a>
+                )}
               </div>
             </article>
           ))}
