@@ -86,6 +86,9 @@ export function Header() {
           <a href="/#about" onClick={close}>About Us</a>
         </div>
         <div className="nav-actions">
+          <Link className="nav-login" to="/admin/login" onClick={close}>
+            Log in
+          </Link>
           <a className="btn btn-primary" href="/#consultation" onClick={close}>
             Enroll Now <span aria-hidden="true">→</span>
           </a>
