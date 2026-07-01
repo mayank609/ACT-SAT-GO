@@ -3,7 +3,7 @@
 // (e.g. VITE_APP_LOGIN_URL=https://app.actsatgo.com/login). The default points
 // at the local frontend dev server.
 export const APP_LOGIN_URL =
-  import.meta.env.VITE_APP_LOGIN_URL ?? 'http://localhost:5173/login';
+  import.meta.env.VITE_APP_LOGIN_URL ?? 'https://act-sat-go-w3kf.vercel.app/login';
 
 // Base URL of the Node query-server that stores consultation leads and powers
 // the admin dashboard. Override with VITE_QUERY_API_BASE in a .env file.

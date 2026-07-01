@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Brand } from './Brand';
+import { APP_LOGIN_URL } from '../config';
 
 const PROGRAM_LINKS = [
   { to: '/sat', label: 'SAT Preparation' },
@@ -86,9 +87,9 @@ export function Header() {
           <a href="/#about" onClick={close}>About Us</a>
         </div>
         <div className="nav-actions">
-          <Link className="nav-login" to="/admin/login" onClick={close}>
+          <a className="nav-login" href={APP_LOGIN_URL} onClick={close}>
             Log in
-          </Link>
+          </a>
           <a className="btn btn-primary" href="/#consultation" onClick={close}>
             Enroll Now <span aria-hidden="true">→</span>
           </a>
