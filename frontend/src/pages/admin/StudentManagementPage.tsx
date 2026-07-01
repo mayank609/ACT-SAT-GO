@@ -619,6 +619,37 @@ export function StudentManagementPage() {
             });
             const practiceAttempts = studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('practice'));
 
+            // Find the latest diagnostic or mock attempt and compute SAT scaled scores
+            const scoringAttempt = studentAttempts
+              .filter((a: any) => {
+                const t = (a.test?.title ?? '').toLowerCase();
+                return t.includes('diagnostic') || t.includes('mock');
+              })
+              .sort((a: any, b: any) =>
+                new Date(b.submittedAt ?? b.completedAt ?? b.startedAt ?? 0).getTime() -
+                new Date(a.submittedAt ?? a.completedAt ?? a.startedAt ?? 0).getTime()
+              )[0];
+
+            let scaledScoreTotal: number | null = null;
+            let scaledScoreEnglish: number | null = null;
+            let scaledScoreMath: number | null = null;
+
+            if (scoringAttempt) {
+              try {
+                const fullAttempt = (await api.getAttempt(scoringAttempt.id)) as any;
+                if (fullAttempt?.attempt) {
+                  const analysis = computeTestAnalysis(fullAttempt.attempt);
+                  if (analysis.finalScaledScore > 0) {
+                    scaledScoreTotal = analysis.finalScaledScore;
+                    scaledScoreEnglish = analysis.rwScaled || null;
+                    scaledScoreMath = analysis.mathScaled || null;
+                  }
+                }
+              } catch {
+                // scaled scores remain null
+              }
+            }
+
             return {
               studentId: student.id,
               studentName: student.name,
@@ -639,9 +670,9 @@ export function StudentManagementPage() {
               totalAssessments: studentAttempts.length,
               lastTestName,
               lastSubmittedAt,
-              scaledScoreTotal: null,
-              scaledScoreEnglish: null,
-              scaledScoreMath: null,
+              scaledScoreTotal,
+              scaledScoreEnglish,
+              scaledScoreMath,
               rawScoreTotal,
               rawScoreEnglish,
               rawScoreMath,

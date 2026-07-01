@@ -395,132 +395,150 @@ export function MyStudentsPage() {
   const loadComprehensiveAnalysis = async () => {
     setAnalysisLoading(true);
     try {
-      const allStudentData: typeof studentAnalysisData = [];
-      
-      for (const student of students) {
-        try {
-          const attempts = (await api.getStudentAttempts(student.id)) as any;
-          const studentAttempts = attempts?.attempts?.filter((a: any) => a.status === 'SUBMITTED') || [];
-          
-          // Fetch analytics from backend for accurate scores
-          const analytics = await api.getStudentAnalytics(student.id);
-          console.log(`[TutorAnalysis] ${student.name}: latestScore=${analytics.latestScore}, sectionStats=${analytics.sectionStats.length}`);
-          
-          let diagnosticsEnglish = null;
-          let diagnosticsMath = null;
-          let lastTestName = null;
-          let lastSubmittedAt = null;
-          let scaledScoreTotal = null;
-          let scaledScoreEnglish = null;
-          let scaledScoreMath = null;
-          let rawScoreTotal = null;
-          let rawScoreEnglish = null;
-          let rawScoreMath = null;
-          
-          // Use backend analytics data
-          if (analytics.latestScore !== undefined) {
-            scaledScoreTotal = analytics.latestScore;
-            rawScoreTotal = analytics.latestScore;
-            scaledScoreEnglish = analytics.latestScore;
-            scaledScoreMath = analytics.latestScore;
-          }
-          
-          // Get last test info from trend and get latest attempt for scaled score calculation
-          let latestAttempt = null;
-          if (analytics.trend && analytics.trend.length > 0) {
-            const latestTrend = analytics.trend[analytics.trend.length - 1];
-            lastTestName = latestTrend.testTitle;
-            lastSubmittedAt = latestTrend.date;
-            
-            // Fetch the latest attempt to calculate scaled scores
-            try {
-              latestAttempt = (await api.getAttempt(latestTrend.attemptId)) as any;
-              if (latestAttempt?.attempt) {
-                const analysis = computeTestAnalysis(latestAttempt.attempt);
-                scaledScoreTotal = analysis.finalScaledScore;
-                scaledScoreEnglish = analysis.rwScaled;
-                scaledScoreMath = analysis.mathScaled;
-                console.log(`[TutorAnalysis] Scaled scores for ${student.name}: total=${scaledScoreTotal}, rw=${scaledScoreEnglish}, math=${scaledScoreMath}`);
-              }
-            } catch (err) {
-              console.log(`[TutorAnalysis] Could not fetch attempt for scaled score calculation: ${err}`);
+      const subjectOf = (a: any): 'rw' | 'math' | 'other' => {
+        const t = (a.test?.title ?? '').toLowerCase();
+        if (/math|algebra|geometry|calc/.test(t)) return 'math';
+        if (/reading|writing|english|verbal|grammar|\brw\b|r&w/.test(t)) return 'rw';
+        return 'other';
+      };
+
+      const allStudentData = await Promise.all(
+        students.map(async (student) => {
+          try {
+            const [attemptsResp, analyticsResp] = await Promise.all([
+              api.getStudentAttempts(student.id) as Promise<any>,
+              api.getStudentAnalytics(student.id),
+            ]);
+
+            const studentAttempts = (attemptsResp?.attempts ?? []).filter((a: any) => a.status === 'SUBMITTED');
+            const analytics = analyticsResp;
+
+            let diagnosticsEnglish: number | null = null;
+            let diagnosticsMath: number | null = null;
+            let lastTestName: string | null = null;
+            let lastSubmittedAt: string | null = null;
+            let scaledScoreTotal: number | null = null;
+            let scaledScoreEnglish: number | null = null;
+            let scaledScoreMath: number | null = null;
+            let rawScoreTotal: number | null = null;
+            let rawScoreEnglish: number | null = null;
+            let rawScoreMath: number | null = null;
+
+            if (analytics.latestScore !== undefined) {
+              rawScoreTotal = analytics.latestScore;
             }
-          }
-          
-          // Get section-wise scores from analytics
-          if (analytics.sectionStats && analytics.sectionStats.length > 0) {
-            const sections = analytics.sectionStats;
-            console.log(`[TutorAnalysis] Sections for ${student.name}:`, sections.map((s: any) => ({ name: s.sectionName, correct: s.correct, total: s.totalQuestions })));
-            
-            // Find ALL English sections and sum them up
-            const engSections = sections.filter((s: any) => /reading|writing|rw|english/i.test(s.sectionName));
-            if (engSections.length > 0) {
-              diagnosticsEnglish = engSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
-              rawScoreEnglish = diagnosticsEnglish;
-              // Only update scaledScoreEnglish if it wasn't set from the full attempt analysis
-              if (scaledScoreEnglish === analytics.latestScore) {
-                scaledScoreEnglish = diagnosticsEnglish;
-              }
-              console.log(`[TutorAnalysis] English for ${student.name}: ${diagnosticsEnglish} (from ${engSections.length} sections)`);
+
+            if (analytics.trend?.length > 0) {
+              const latestTrend = analytics.trend[analytics.trend.length - 1];
+              lastTestName = latestTrend.testTitle;
+              lastSubmittedAt = latestTrend.date;
             }
-            
-            // Find ALL Math sections and sum them up
-            const mathSections = sections.filter((s: any) => /math/i.test(s.sectionName));
-            if (mathSections.length > 0) {
-              diagnosticsMath = mathSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
-              rawScoreMath = diagnosticsMath;
-              // Only update scaledScoreMath if it wasn't set from the full attempt analysis
-              if (scaledScoreMath === analytics.latestScore) {
-                scaledScoreMath = diagnosticsMath;
+
+            if (analytics.sectionStats?.length > 0) {
+              const engSections = analytics.sectionStats.filter((s: any) => /reading|writing|rw|english/i.test(s.sectionName));
+              const mathSections = analytics.sectionStats.filter((s: any) => /math/i.test(s.sectionName));
+              if (engSections.length > 0) {
+                diagnosticsEnglish = engSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
+                rawScoreEnglish = diagnosticsEnglish;
               }
-              console.log(`[TutorAnalysis] Math for ${student.name}: ${diagnosticsMath} (from ${mathSections.length} sections)`);
+              if (mathSections.length > 0) {
+                diagnosticsMath = mathSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
+                rawScoreMath = diagnosticsMath;
+              }
             }
+
+            if (diagnosticsEnglish === null && analytics.latestScore !== undefined) {
+              diagnosticsEnglish = Math.round(analytics.latestScore / 2);
+            }
+            if (diagnosticsMath === null && analytics.latestScore !== undefined) {
+              diagnosticsMath = Math.round(analytics.latestScore / 2);
+            }
+
+            // Find the latest diagnostic or mock attempt and compute SAT scaled scores
+            const scoringAttempt = studentAttempts
+              .filter((a: any) => {
+                const t = (a.test?.title ?? '').toLowerCase();
+                return t.includes('diagnostic') || t.includes('mock');
+              })
+              .sort((a: any, b: any) =>
+                new Date(b.submittedAt ?? b.completedAt ?? b.startedAt ?? 0).getTime() -
+                new Date(a.submittedAt ?? a.completedAt ?? a.startedAt ?? 0).getTime()
+              )[0];
+
+            if (scoringAttempt) {
+              try {
+                const fullAttempt = (await api.getAttempt(scoringAttempt.id)) as any;
+                if (fullAttempt?.attempt) {
+                  const analysis = computeTestAnalysis(fullAttempt.attempt);
+                  if (analysis.finalScaledScore > 0) {
+                    scaledScoreTotal = analysis.finalScaledScore;
+                    scaledScoreEnglish = analysis.rwScaled || null;
+                    scaledScoreMath = analysis.mathScaled || null;
+                  }
+                }
+              } catch {
+                // scaled scores remain null
+              }
+            }
+
+            const hwAttempts = studentAttempts.filter((a: any) => {
+              const t = (a.test?.title ?? '').toLowerCase();
+              return t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+            });
+            const practiceAttempts = studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('practice'));
+
+            return {
+              studentId: student.id,
+              studentName: student.name,
+              studentEmail: student.email,
+              targetDate: student.targetDate || null,
+              diagnosticsEnglish,
+              diagnosticsMath,
+              mockTests: studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('mock')).length,
+              sectionalTests: studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('sectional')).length,
+              hwCount: hwAttempts.length,
+              cwCount: studentAttempts.filter((a: any) => { const t = (a.test?.title ?? '').toLowerCase(); return t.includes('classwork') || t.includes('cw'); }).length,
+              practiceSheets: practiceAttempts.length,
+              totalAssessments: studentAttempts.length,
+              lastTestName,
+              lastSubmittedAt,
+              scaledScoreTotal,
+              scaledScoreEnglish,
+              scaledScoreMath,
+              rawScoreTotal,
+              rawScoreEnglish,
+              rawScoreMath,
+              attempts: studentAttempts.slice(0, 10),
+            };
+          } catch (err) {
+            console.error(`Error loading analysis for student ${student.id}:`, err);
+            return {
+              studentId: student.id,
+              studentName: student.name,
+              studentEmail: student.email,
+              targetDate: null,
+              diagnosticsEnglish: null,
+              diagnosticsMath: null,
+              mockTests: 0,
+              sectionalTests: 0,
+              hwCount: 0,
+              cwCount: 0,
+              practiceSheets: 0,
+              totalAssessments: 0,
+              lastTestName: null,
+              lastSubmittedAt: null,
+              scaledScoreTotal: null,
+              scaledScoreEnglish: null,
+              scaledScoreMath: null,
+              rawScoreTotal: null,
+              rawScoreEnglish: null,
+              rawScoreMath: null,
+              attempts: [],
+            };
           }
-          
-          // Fallback if no section data
-          if (diagnosticsEnglish === null && analytics.latestScore !== undefined) {
-            diagnosticsEnglish = Math.round(analytics.latestScore / 2);
-          }
-          if (diagnosticsMath === null && analytics.latestScore !== undefined) {
-            diagnosticsMath = Math.round(analytics.latestScore / 2);
-          }
-          
-          // Count assessment types
-          const mockCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('mock')).length;
-          const sectionalCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('sectional')).length;
-          const hwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('homework') || a.test?.title?.toLowerCase().includes('hw')).length;
-          const cwCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('classwork') || a.test?.title?.toLowerCase().includes('cw')).length;
-          const practiceCount = studentAttempts.filter((a: any) => a.test?.title?.toLowerCase().includes('practice')).length;
-          const totalAssessments = mockCount + sectionalCount + hwCount + cwCount + practiceCount;
-          
-          allStudentData.push({
-            studentId: student.id,
-            studentName: student.name,
-            studentEmail: student.email,
-            targetDate: student.targetScore ? new Date().toISOString().split('T')[0] : null,
-            diagnosticsEnglish,
-            diagnosticsMath,
-            mockTests: mockCount,
-            sectionalTests: sectionalCount,
-            hwCount,
-            cwCount,
-            practiceSheets: practiceCount,
-            totalAssessments,
-            lastTestName,
-            lastSubmittedAt,
-            scaledScoreTotal,
-            scaledScoreEnglish,
-            scaledScoreMath,
-            rawScoreTotal,
-            rawScoreEnglish,
-            rawScoreMath,
-            attempts: studentAttempts.slice(0, 10),
-          });
-        } catch (err) {
-          console.error(`Error loading analysis for student ${student.id}:`, err);
-        }
-      }
-      
+        })
+      );
+
       setStudentAnalysisData(allStudentData);
     } finally {
       setAnalysisLoading(false);
@@ -689,14 +707,6 @@ export function MyStudentsPage() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="font-semibold text-slate-900 text-sm">{row.studentName}</p>
-                                {(() => {
-                                  const status = studentStatusFromDecision(students.find(st => st.id === row.studentId)?.diagnosticDecision);
-                                  return (
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${STUDENT_STATUS_BADGE[status]}`}>
-                                      {STUDENT_STATUS_LABEL[status]}
-                                    </span>
-                                  );
-                                })()}
                               </div>
                               <p className="text-xs text-slate-400 truncate">{row.studentEmail}</p>
                             </div>

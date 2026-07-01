@@ -330,9 +330,60 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <div className="shell">
-          <Brand />
-          <p>Premium academic coaching for SAT, ACT, AP, and K-12 learners.</p>
+        <div className="footer-top shell">
+          {/* Brand column */}
+          <div className="footer-brand-col">
+            <Brand />
+            <p className="footer-desc">
+              ACT SAT GO offers expert guidance and resources to help students excel in their ACT | SAT | AP | and other academic courses. Join our community and unlock your potential with tailored learning strategies and comprehensive support.
+            </p>
+          </div>
+
+          {/* Courses */}
+          <div className="footer-col">
+            <h4 className="footer-heading">Courses</h4>
+            <ul className="footer-links">
+              <li><a href="/act">ACT</a></li>
+              <li><a href="/sat">SAT</a></li>
+              <li><a href="/ap">AP</a></li>
+              <li><a href="/#programs">Elementary School</a></li>
+              <li><a href="/#programs">Middle School</a></li>
+              <li><a href="/#programs">High School</a></li>
+            </ul>
+          </div>
+
+          {/* Quick Links */}
+          <div className="footer-col">
+            <h4 className="footer-heading">Quick Links</h4>
+            <ul className="footer-links">
+              <li><a href="/#home">Home</a></li>
+              <li><a href="/#about">About Us</a></li>
+              <li><a href="/#programs">Courses</a></li>
+              <li><a href="/#programs">Career</a></li>
+              <li><a href="/#resources">Blogs</a></li>
+              <li><a href="/#consultation">Contact</a></li>
+            </ul>
+          </div>
+
+          {/* Get In Touch */}
+          <div className="footer-col">
+            <h4 className="footer-heading">Get In Touch</h4>
+            <ul className="footer-contact">
+              <li>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.61 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <a href="tel:+13322314081">+1 (332) 231-4081</a>
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                <a href="mailto:info@actsatgo.com">info@actsatgo.com</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="footer-bottom shell">
+          <p>&copy; {new Date().getFullYear()} ACT SAT GO. All rights reserved.</p>
+          <p>Designed for students who aim higher.</p>
         </div>
       </footer>
 
