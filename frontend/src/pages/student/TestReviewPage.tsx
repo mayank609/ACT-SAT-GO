@@ -72,7 +72,7 @@ export interface DbAttempt {
   totalScore: number | null
   startedAt: string
   completedAt: string | null
-  test: { id: string; title: string }
+  test: { id: string; title: string; category?: string | null }
   sectionAttempts: DbSectionAttempt[]
   answers: DbAttemptAnswer[]
 }
@@ -1074,6 +1074,11 @@ export function TestReviewPage() {
     }
   });
 
+  // Scaled scores apply to Diagnostic, Mock Test and Sectional attempts —
+  // only Practice Sheet tests show the raw count instead.
+  const isPracticeSheet = (attempt.test.category ?? '').trim() === 'Practice Sheet' || /practice\s*sheet/i.test(attempt.test.title ?? '');
+  const showScaled = isSAT && !isPracticeSheet;
+
   let finalScaledScore = rawScore;
   let rwScaled = 200;
   let mathScaled = 200;
@@ -1197,9 +1202,9 @@ export function TestReviewPage() {
           <div className="px-8 py-6 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl flex flex-col justify-center">
             <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
             <p className="text-6xl font-black text-white leading-none tabular-nums mt-1.5">
-              {isSAT ? finalScaledScore : rawScore}
+              {showScaled ? finalScaledScore : (isSAT ? totalCorrect : rawScore)}
             </p>
-            {isSAT ? (
+            {showScaled ? (
               <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 – 1600</p>
             ) : (
               <p className="text-xs text-blue-300 mt-2">out of {totalQ}</p>
@@ -1209,9 +1214,9 @@ export function TestReviewPage() {
           <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Reading &amp; Writing</p>
             <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
-              {isSAT ? rwScaled : `${rwCorrect}/${rwTotal}`}
+              {showScaled ? rwScaled : `${rwCorrect}/${rwTotal}`}
             </p>
-            {isSAT ? (
+            {showScaled ? (
               <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
             ) : (
               <p className="text-xs text-slate-400 mt-2">out of {rwTotal}</p>
@@ -1221,16 +1226,16 @@ export function TestReviewPage() {
           <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Math</p>
             <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
-              {isSAT ? mathScaled : `${mathCorrect}/${mathTotal}`}
+              {showScaled ? mathScaled : `${mathCorrect}/${mathTotal}`}
             </p>
-            {isSAT ? (
+            {showScaled ? (
               <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
             ) : (
               <p className="text-xs text-slate-400 mt-2">out of {mathTotal}</p>
             )}
           </div>
-          {/* Score Range Bar — SAT only */}
-          {isSAT && (() => {
+          {/* Score Range Bar — Mock/Diagnostic SAT only */}
+          {showScaled && (() => {
             const score = finalScaledScore;
             const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
             return (

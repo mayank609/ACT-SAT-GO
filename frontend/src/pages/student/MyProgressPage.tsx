@@ -54,7 +54,8 @@ export function MyProgressPage() {
               rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
               totalRaw: an.totalCorrect, rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore,
               isSAT: an.isSAT,
-              isMockTest: /mock|diagnostic/i.test(att.test.title ?? '') || ['Mock Test', 'Diagnostic'].includes(att.test.category ?? ''),
+              // Scaled score applies to Diagnostic/Mock/Sectional — only Practice Sheet shows a raw count.
+              isMockTest: !(['Practice Sheet'].includes(att.test.category ?? '') || /practice\s*sheet/i.test(att.test.title ?? '')),
             };
           } catch {
             return {

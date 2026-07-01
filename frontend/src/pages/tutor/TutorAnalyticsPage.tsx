@@ -514,7 +514,8 @@ export function TutorAnalyticsPage() {
           {/* Test Analysis Panel - Only show when specific student & attempt selected */}
           {selectedStudent !== 'all' && selectedAttemptId && expandedAttempt && !expandedLoading && (() => {
             const analysis = computeTestAnalysis(expandedAttempt);
-            const isMockTest = ['Mock Test', 'Diagnostic'].includes(expandedAttempt.test.category ?? '') || /mock|diagnostic/i.test(expandedAttempt.test.title ?? '');
+            // Scaled score applies to Diagnostic/Mock/Sectional — only Practice Sheet shows a raw count.
+            const isMockTest = !(['Practice Sheet'].includes(expandedAttempt.test.category ?? '') || /practice\s*sheet/i.test(expandedAttempt.test.title ?? ''));
             const completedDate = expandedAttempt.completedAt
               ? new Date(expandedAttempt.completedAt).toLocaleDateString('en-US', {
                 day: '2-digit', month: '2-digit', year: 'numeric'

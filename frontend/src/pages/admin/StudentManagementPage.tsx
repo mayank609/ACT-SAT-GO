@@ -520,7 +520,9 @@ export function StudentManagementPage() {
               rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
               rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
               totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
-              rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT, isMockTest: ['Mock Test', 'Diagnostic'].includes(att.test.category ?? '') || /mock|diagnostic/i.test(att.test.title ?? ''),
+              rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
+              // Scaled score applies to Diagnostic/Mock/Sectional — only Practice Sheet shows a raw count.
+              isMockTest: !(['Practice Sheet'].includes(att.test.category ?? '') || /practice\s*sheet/i.test(att.test.title ?? '')),
               isAnalysed,
             };
           } catch (err) {
@@ -531,7 +533,7 @@ export function StudentManagementPage() {
               rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0,
               rwM1T: 0, rwM2T: 0, mathM1T: 0, mathM2T: 0,
               totalRaw: att.totalScore ?? 0, totalRawT: 0,
-              rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false, isMockTest: false, isAnalysed: false,
+              rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false, isMockTest: true, isAnalysed: false,
             };
           }
         });
@@ -1344,6 +1346,9 @@ export function StudentManagementPage() {
             </Card>
           ) : testAnalysisAttempt ? (() => {
             const analysis = computeTestAnalysis(testAnalysisAttempt);
+            // Scaled score applies to Diagnostic/Mock/Sectional — only Practice Sheet shows a raw count.
+            const isPracticeSheet = ['Practice Sheet'].includes(testAnalysisAttempt.test.category ?? '') || /practice\s*sheet/i.test(testAnalysisAttempt.test.title ?? '');
+            const showScaled = analysis.isSAT && !isPracticeSheet;
 
             return (
               <div className="space-y-4">
@@ -1354,9 +1359,9 @@ export function StudentManagementPage() {
                     <div className="px-8 py-6 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl flex flex-col justify-center">
                       <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
                       <p className="text-6xl font-black text-white leading-none tabular-nums mt-1.5">
-                        {analysis.isSAT ? analysis.finalScaledScore : analysis.totalCorrect}
+                        {showScaled ? analysis.finalScaledScore : analysis.totalCorrect}
                       </p>
-                      {analysis.isSAT ? (
+                      {showScaled ? (
                         <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 – 1600</p>
                       ) : (
                         <p className="text-xs text-blue-300 mt-2">out of {analysis.totalQuestions}</p>
@@ -1366,9 +1371,9 @@ export function StudentManagementPage() {
                     <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Reading &amp; Writing</p>
                       <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
-                        {analysis.isSAT ? analysis.rwScaled : `${analysis.rwCorrect}/${analysis.rwTotal}`}
+                        {showScaled ? analysis.rwScaled : `${analysis.rwCorrect}/${analysis.rwTotal}`}
                       </p>
-                      {analysis.isSAT ? (
+                      {showScaled ? (
                         <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
                       ) : (
                         <p className="text-xs text-slate-400 mt-2">out of {analysis.rwTotal}</p>
@@ -1378,16 +1383,16 @@ export function StudentManagementPage() {
                     <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Math</p>
                       <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
-                        {analysis.isSAT ? analysis.mathScaled : `${analysis.mathCorrect}/${analysis.mathTotal}`}
+                        {showScaled ? analysis.mathScaled : `${analysis.mathCorrect}/${analysis.mathTotal}`}
                       </p>
-                      {analysis.isSAT ? (
+                      {showScaled ? (
                         <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
                       ) : (
                         <p className="text-xs text-slate-400 mt-2">out of {analysis.mathTotal}</p>
                       )}
                     </div>
-                    {/* Score Range Bar — SAT only */}
-                    {analysis.isSAT && (() => {
+                    {/* Score Range Bar — Mock/Diagnostic SAT only */}
+                    {showScaled && (() => {
                       const score = analysis.finalScaledScore;
                       const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
                       return (
