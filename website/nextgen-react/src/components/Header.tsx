@@ -33,7 +33,7 @@ export function Header() {
         <button
           className="nav-toggle"
           type="button"
-          aria-label="Open navigation"
+          aria-label={open ? 'Close navigation' : 'Open navigation'}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
@@ -85,6 +85,16 @@ export function Header() {
           </div>
 
           <a href="/#about" onClick={close}>About Us</a>
+
+          {/* Mobile-only actions inside the drawer */}
+          <div className="nav-links-mobile-actions">
+            <a className="nav-login" href={APP_LOGIN_URL} onClick={close}>
+              Log in
+            </a>
+            <a className="btn btn-primary" href="/#consultation" onClick={close}>
+              Enroll Now <span aria-hidden="true">→</span>
+            </a>
+          </div>
         </div>
         <div className="nav-actions">
           <a className="nav-login" href={APP_LOGIN_URL} onClick={close}>
@@ -98,3 +108,4 @@ export function Header() {
     </header>
   );
 }
+

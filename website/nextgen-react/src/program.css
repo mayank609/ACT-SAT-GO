@@ -643,4 +643,61 @@
   .prog-stats {
     grid-template-columns: 1fr;
   }
+
+  .prog-cta-banner {
+    padding: 24px 18px !important;
+  }
+  .prog-cta-banner h2 {
+    font-size: 24px !important;
+  }
+  .choose-grid {
+    padding: 12px 0 !important;
+  }
+
+  .hero-actions-new {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-actions-new .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .prog-hero-art,
+  .ap-hero-art {
+    display: none;
+  }
+
+  .hero-art.prog-hero-art-sat {
+    min-height: 220px;
+  }
 }
+
+@media (max-width: 480px) {
+  .prog-hero {
+    padding: 36px 0 28px;
+  }
+  .prog-hero-copy h1 {
+    font-size: clamp(28px, 8vw, 40px);
+  }
+  .tier-card {
+    padding: 20px 16px;
+  }
+  .step-card {
+    padding: 18px 16px;
+  }
+  .curriculum-card {
+    padding: 20px 18px;
+  }
+  .choose-card {
+    padding: 18px 14px;
+  }
+  .highlight-card {
+    padding: 20px 16px;
+  }
+  .prog-stats {
+    gap: 10px;
+  }
+}
+
+
