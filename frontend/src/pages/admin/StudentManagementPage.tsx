@@ -11,7 +11,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser, type DbTestPackage } from '../../lib/api';
-import { studentStatusFromDecision, STUDENT_STATUS_LABEL, STUDENT_STATUS_BADGE } from '../../lib/studentStatus';
+import { studentStatusFromDecision } from '../../lib/studentStatus';
 import { satSectionScore } from '../../lib/analyticsData';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES } from '../../data/satDomains';
@@ -1059,14 +1059,6 @@ export function StudentManagementPage() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="font-semibold text-slate-900 text-sm group-hover:text-blue-700 group-hover:underline">{row.studentName}</p>
-                                {(() => {
-                                  const status = studentStatusFromDecision(row.diagnosticDecision);
-                                  return (
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${STUDENT_STATUS_BADGE[status]}`}>
-                                      {STUDENT_STATUS_LABEL[status]}
-                                    </span>
-                                  );
-                                })()}
                               </div>
                             </div>
                           </button>
