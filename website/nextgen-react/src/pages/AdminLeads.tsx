@@ -114,7 +114,7 @@ export function AdminLeads() {
         <div className="admin-topbar">
           <div>
             <div className="admin-logo">
-              Score<span>π</span>Go
+              ACT SAT GO
             </div>
             <h1>Leads &amp; Enquiries</h1>
             <p className="admin-muted">Consultation requests and newsletter sign-ups from the website.</p>

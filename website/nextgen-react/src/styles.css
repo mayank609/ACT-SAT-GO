@@ -258,13 +258,14 @@ h1 span,
 
 .hero-art {
   position: relative;
+  overflow: visible;
 }
 
 .hero-art img {
   width: 100%;
   min-height: 480px;
   object-fit: cover;
-  object-position: center;
+  object-position: 72% center;
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
@@ -280,31 +281,10 @@ h1 span,
   backdrop-filter: blur(12px);
 }
 
-.card-score {
-  right: 18px;
-  top: 18%;
-  width: 190px;
-}
-
-.card-score span {
-  display: block;
-  margin: 10px 0;
-  color: var(--gold);
-  font-size: 22px;
-  font-weight: 900;
-}
-
-.card-score polyline {
-  fill: none;
-  stroke: var(--gold);
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 
 .card-tags {
-  right: 24px;
-  top: 48%;
+  left: 6px;
+  bottom: 22%;
   display: grid;
   gap: 8px;
   padding: 0;
@@ -323,8 +303,8 @@ h1 span,
 }
 
 .card-plan {
-  right: 22px;
-  bottom: 28px;
+  right: 18px;
+  bottom: 18px;
   width: 178px;
 }
 
@@ -336,6 +316,40 @@ h1 span,
   border-radius: 999px;
   background: linear-gradient(90deg, var(--gold) 0 22%, rgba(255, 255, 255, 0.25) 22%);
 }
+
+/* Concepts Made Simple pill (top-left over the illustration) */
+.card-concepts {
+  left: 6px;
+  top: 14%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.card-concepts strong {
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.concepts-check {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #06172a;
+  background: linear-gradient(135deg, var(--gold), var(--gold-2));
+}
+
+.concepts-check svg {
+  width: 18px;
+  height: 18px;
+}
+
+.card-concepts { animation: floatY-soft 7.5s ease-in-out infinite 0.3s; }
 
 .stats-band {
   position: relative;
@@ -1021,7 +1035,6 @@ h1 span,
   50% { transform: scale(1.08); opacity: calc(var(--o, 1) * 0.7); }
 }
 
-.card-score { animation: floatY 6s ease-in-out infinite; }
 .card-tags  { animation: floatY-soft 7s ease-in-out infinite; }
 .card-plan  { animation: floatY 8s ease-in-out infinite 0.6s; }
 
@@ -1079,7 +1092,6 @@ h1 span,
 .target-graphic span:nth-child(3) { --o: 1; animation-delay: 0.8s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .card-score,
   .card-tags,
   .card-plan,
   .orb,

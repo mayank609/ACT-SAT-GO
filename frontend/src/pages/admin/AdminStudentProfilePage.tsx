@@ -142,6 +142,11 @@ function computeTestAnalysis(attempt: TaAttempt): {
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
 
+  const testTitle = (attempt.test.title ?? '').toLowerCase();
+  const testCat   = (attempt.test.category ?? '').toLowerCase();
+  const testIsMath = /\bmhw\b|math[\s-]hw|math\s*homework|\bmath\b|algebra|geometry|calc/.test(testTitle) || /math/i.test(testCat);
+  const testIsRW   = /\brhw\b|reading[\s-]hw|writing[\s-]hw|english[\s-]hw|\breading\b|\bwriting\b|\benglish\b|verbal|grammar|\brw\b/.test(testTitle) || /rw|english/i.test(testCat);
+
   let totalCorrect = 0, totalQuestions = 0;
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
 
@@ -182,9 +187,11 @@ function computeTestAnalysis(attempt: TaAttempt): {
       timeTaken = `${mins}:${secs.toString().padStart(2, '0')} Minutes Taken`;
     }
 
-    // Category detection
-    const isMath = /math/i.test(sa.section.name);
-    const isRW = /reading|writing|rw/i.test(sa.section.name);
+    // Category detection — fall back to test title when section name is generic
+    const sectionIsMath = /math/i.test(sa.section.name);
+    const sectionIsRW   = /reading|writing|rw/i.test(sa.section.name);
+    const isMath = sectionIsMath || (!sectionIsRW && testIsMath);
+    const isRW   = sectionIsRW   || (!sectionIsMath && testIsRW);
     const category = isMath ? 'Math' : isRW ? 'Reading and Writing' : sa.section.name;
 
     if (isMath) { mathCorrect += correct; mathTotal += total; }
@@ -201,18 +208,19 @@ function computeTestAnalysis(attempt: TaAttempt): {
   let isSAT = false;
 
   sections.forEach((s) => {
-    const isMath = /math/i.test(s.name);
-    const isRW = /reading|writing|rw/i.test(s.name);
+    // Use already-computed category (which already includes the test-title fallback)
+    const isMath = s.category === 'Math';
+    const isRW   = s.category === 'Reading and Writing';
     if (isMath || isRW) isSAT = true;
-    
+
     if (isMath) {
       if (/1|one/i.test(s.name)) math1 += s.correct;
       else if (/2|two/i.test(s.name)) math2 += s.correct;
-      else math1 += s.correct; // Fallback
+      else math1 += s.correct;
     } else if (isRW) {
       if (/1|one/i.test(s.name)) rw1 += s.correct;
       else if (/2|two/i.test(s.name)) rw2 += s.correct;
-      else rw1 += s.correct; // Fallback
+      else rw1 += s.correct;
     }
   });
 

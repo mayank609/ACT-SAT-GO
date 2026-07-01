@@ -102,7 +102,7 @@ export const ACT_PAGE: ProgramPageData = {
   ],
   primaryCta: 'Explore ACT Programs',
   secondaryCta: 'Download ACT Guide',
-  highlightsHeading: 'Why Prep With ScoreπGo?',
+  highlightsHeading: 'Why Prep With ACT SAT GO?',
   highlights: [
     { value: '36', label: 'Target a Perfect Composite' },
     { value: '12+', label: 'Full-Length ACT Mocks' },

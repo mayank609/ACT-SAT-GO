@@ -137,6 +137,11 @@ function computeTestAnalysis(attempt: TaAttempt): {
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
 
+  const testTitle = (attempt.test.title ?? '').toLowerCase();
+  const testCat   = (attempt.test.category ?? '').toLowerCase();
+  const testIsMath = /\bmhw\b|math[\s-]hw|math\s*homework|\bmath\b|algebra|geometry|calc/.test(testTitle) || /math/i.test(testCat);
+  const testIsRW   = /\brhw\b|reading[\s-]hw|writing[\s-]hw|english[\s-]hw|\breading\b|\bwriting\b|\benglish\b|verbal|grammar|\brw\b/.test(testTitle) || /rw|english/i.test(testCat);
+
   let totalCorrect = 0, totalQuestions = 0;
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
 
@@ -175,8 +180,10 @@ function computeTestAnalysis(attempt: TaAttempt): {
       timeTaken = `${mins}:${secs.toString().padStart(2, '0')} Minutes Taken`;
     }
 
-    const isMath = /math/i.test(sa.section.name);
-    const isRW = /reading|writing|rw/i.test(sa.section.name);
+    const sectionIsMath = /math/i.test(sa.section.name);
+    const sectionIsRW   = /reading|writing|rw/i.test(sa.section.name);
+    const isMath = sectionIsMath || (!sectionIsRW && testIsMath);
+    const isRW   = sectionIsRW   || (!sectionIsMath && testIsRW);
     const category = isMath ? 'Math' : isRW ? 'Reading and Writing' : sa.section.name;
 
     if (isMath) { mathCorrect += correct; mathTotal += total; }
@@ -193,8 +200,8 @@ function computeTestAnalysis(attempt: TaAttempt): {
   let isSAT = false;
 
   sections.forEach((s) => {
-    const isMath = /math/i.test(s.name);
-    const isRW = /reading|writing|rw/i.test(s.name);
+    const isMath = s.category === 'Math';
+    const isRW   = s.category === 'Reading and Writing';
     if (isMath || isRW) isSAT = true;
     
     if (isMath) {
@@ -285,6 +292,7 @@ export function MyStudentsPage() {
     totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
+  const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw_math' | 'hw_reading' | 'hw_writing' | 'practice_math' | 'practice_reading' | 'practice_writing'>('all');
 
   // ── Question Wise Report state ───────────────────────────────────────────
   const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
@@ -874,64 +882,126 @@ export function MyStudentsPage() {
                 link.click();
                 URL.revokeObjectURL(url);
               };
+              const subjectOf = (t: string): 'math' | 'reading' | 'writing' | 'other' => {
+                if (/math|algebra|geometry|calc|quant|trig/.test(t)) return 'math';
+                if (/reading|comprehension/.test(t)) return 'reading';
+                if (/writing|grammar|english|verbal/.test(t)) return 'writing';
+                return 'other';
+              };
+              const isHWTitle = (t: string) => t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+              const isPracticeTitle = (t: string) => t.includes('practice');
+              const filterMatches = (title: string, f: typeof reportFilter) => {
+                const t = title.toLowerCase();
+                if (f === 'all') return true;
+                if (f === 'mock') return t.includes('mock');
+                if (f === 'diagnostic') return t.includes('diagnostic');
+                if (f === 'hw_math') return isHWTitle(t) && subjectOf(t) === 'math';
+                if (f === 'hw_reading') return isHWTitle(t) && subjectOf(t) === 'reading';
+                if (f === 'hw_writing') return isHWTitle(t) && subjectOf(t) === 'writing';
+                if (f === 'practice_math') return isPracticeTitle(t) && subjectOf(t) === 'math';
+                if (f === 'practice_reading') return isPracticeTitle(t) && subjectOf(t) === 'reading';
+                if (f === 'practice_writing') return isPracticeTitle(t) && subjectOf(t) === 'writing';
+                return true;
+              };
+              const filterLabels: { key: typeof reportFilter; label: string }[] = [
+                { key: 'all', label: 'All' },
+                { key: 'mock', label: 'Mock' },
+                { key: 'diagnostic', label: 'Diag' },
+                { key: 'hw_math', label: 'Math HW' },
+                { key: 'hw_reading', label: 'Reading HW' },
+                { key: 'hw_writing', label: 'Writing HW' },
+                { key: 'practice_math', label: 'Math Practice' },
+                { key: 'practice_reading', label: 'Reading Prac' },
+                { key: 'practice_writing', label: 'Writing Practice' },
+              ];
+              const filteredRows = reportRows.filter(r => filterMatches(r.title, reportFilter));
+
               return (
                 <Card padding="none">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-500">Total Session : <span className="text-slate-900 font-bold">{reportRows.length}</span></p>
-                      <h2 className="text-lg font-bold text-blue-900 mt-0.5">{studentName}<span className="text-slate-500 font-medium text-sm ml-2">Test Report</span></h2>
+                    <h2 className="text-lg font-bold text-blue-900">Assessment Summary</h2>
+                    <div className="flex items-center gap-3 self-start">
+                      <select
+                        value={selectedAttemptId}
+                        onChange={e => setSelectedAttemptId(e.target.value)}
+                        className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[220px] max-w-[300px]"
+                      >
+                        <option value="">Search attempt…</option>
+                        {studentAttempts.map(a => (
+                          <option key={a.id} value={a.id}>
+                            {a.test.title} — {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : new Date(a.startedAt).toLocaleDateString()}
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={downloadReport} disabled={reportRows.length === 0}
+                        className="px-4 py-2 text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap">
+                        Download Report
+                      </button>
                     </div>
-                    <button onClick={downloadReport} disabled={reportRows.length === 0}
-                      className="px-4 py-2 text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors self-start">
-                      Download Report
-                    </button>
+                  </div>
+                  {/* Filter tabs */}
+                  <div className="flex items-center gap-1.5 px-5 py-3 border-b border-slate-100 flex-wrap">
+                    {filterLabels.map(({ key, label }) => {
+                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r.title, key)).length;
+                      const active = reportFilter === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setReportFilter(key)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${active ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        >
+                          {label}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-blue-500 text-white' : 'bg-slate-300 text-slate-600'}`}>{count}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                   {reportLoading ? (
                     <div className="flex items-center justify-center py-16 gap-2 text-slate-400">
                       <Loader2 size={20} className="animate-spin text-blue-500" />
                       <span className="text-sm">Loading report…</span>
                     </div>
-                  ) : reportRows.length === 0 ? (
-                    <p className="py-12 text-center text-slate-400 text-sm">No completed tests found.</p>
+                  ) : filteredRows.length === 0 ? (
+                    <p className="py-12 text-center text-slate-400 text-sm">{reportRows.length === 0 ? 'No completed tests found.' : `No ${filterLabels.find(f => f.key === reportFilter)?.label} tests found.`}</p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full text-sm border-l-4 border-l-blue-600 border border-slate-200">
                         <thead>
-                          <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b border-blue-100 text-blue-800">
-                            <th className="px-3 py-3 text-left font-semibold">#</th>
-                            <th className="px-3 py-3 text-left font-semibold">Test Name</th>
-                            <th className="px-3 py-3 text-center font-semibold">Started At</th>
-                            <th className="px-3 py-3 text-center font-semibold">Completed At</th>
-                            <th className="px-3 py-3 text-center font-semibold">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
-                            <th className="px-3 py-3 text-center font-semibold">RW SS</th>
-                            <th className="px-3 py-3 text-center font-semibold">Math SS</th>
-                            <th className="px-3 py-3 text-center font-semibold">Total SS</th>
-                            <th className="px-3 py-3 text-center font-semibold">Analysis</th>
+                          <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b-2 border-blue-100 text-blue-800">
+                            <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">#</th>
+                            <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Started At</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Completed At</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW SS</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Math SS</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total SS</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap">Analysis</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {reportRows.map((r, i) => {
+                          {filteredRows.map((r, i) => {
                             const analysed = testAnalysisStatus[r.id] === 'submitted';
                             return (
                               <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
-                                className="border-b border-slate-50 hover:bg-blue-50/50 cursor-pointer transition-colors">
-                                <td className="px-3 py-3 text-slate-500">{i + 1}</td>
-                                <td className="px-3 py-3 font-semibold text-blue-700 hover:underline">{r.title}</td>
-                                <td className="px-3 py-3 text-center text-xs text-slate-500">{r.startedAt ? new Date(r.startedAt).toLocaleString() : '—'}</td>
-                                <td className="px-3 py-3 text-center text-xs text-slate-500">{r.completedAt ? new Date(r.completedAt).toLocaleString() : '—'}</td>
-                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.rwM1}</td>
-                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.rwM2}</td>
-                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.mathM1}</td>
-                                <td className="px-3 py-3 text-center text-blue-700 font-medium">{r.mathM2}</td>
-                                <td className="px-3 py-3 text-center font-bold text-slate-900">{r.totalRaw}</td>
-                                <td className="px-3 py-3 text-center text-slate-600">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
-                                <td className="px-3 py-3 text-center text-slate-600">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
-                                <td className="px-3 py-3 text-center font-semibold text-slate-800">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
-                                <td className="px-3 py-3 text-center">
+                                className={`border-b border-slate-200 hover:bg-blue-50/60 cursor-pointer transition-colors ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
+                                <td className="px-4 py-3 text-slate-500 border-r border-slate-100">{i + 1}</td>
+                                <td className="px-4 py-3 font-semibold text-blue-700 hover:underline border-r border-slate-100">{r.title}</td>
+                                <td className="px-4 py-3 text-center text-xs text-slate-500 border-r border-slate-100">{r.startedAt ? new Date(r.startedAt).toLocaleString() : '—'}</td>
+                                <td className="px-4 py-3 text-center text-xs text-slate-500 border-r border-slate-100">{r.completedAt ? new Date(r.completedAt).toLocaleString() : '—'}</td>
+                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.rwM1}</td>
+                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.rwM2}</td>
+                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.mathM1}</td>
+                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.mathM2}</td>
+                                <td className="px-4 py-3 text-center font-bold text-slate-900 border-r border-slate-100">{r.totalRaw}</td>
+                                <td className="px-4 py-3 text-center text-slate-600 border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
+                                <td className="px-4 py-3 text-center text-slate-600 border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
+                                <td className="px-4 py-3 text-center font-semibold text-slate-800 border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
+                                <td className="px-4 py-3 text-center">
                                   <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${analysed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                                     {analysed ? 'ANALYSED' : 'UNANALYSED'}
                                   </span>

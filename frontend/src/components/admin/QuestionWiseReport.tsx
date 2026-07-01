@@ -133,6 +133,12 @@ export function computeTestAnalysis(attempt: TaAttempt): {
 } {
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
+
+  const testTitle = (attempt.test.title ?? '').toLowerCase();
+  const testCat   = (attempt.test.category ?? '').toLowerCase();
+  const testIsMath = /\bmhw\b|math[\s-]hw|math\s*homework|\bmath\b|algebra|geometry|calc/.test(testTitle) || /math/i.test(testCat);
+  const testIsRW   = /\brhw\b|reading[\s-]hw|writing[\s-]hw|english[\s-]hw|\breading\b|\bwriting\b|\benglish\b|verbal|grammar|\brw\b/.test(testTitle) || /rw|english/i.test(testCat);
+
   let totalCorrect = 0, totalQuestions = 0;
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
   let mathGroupIdx = 0, rwGroupIdx = 0;
@@ -167,8 +173,10 @@ export function computeTestAnalysis(attempt: TaAttempt): {
       const secs = Math.round((ms % 60000) / 1000);
       timeTaken = `${mins}:${secs.toString().padStart(2, '0')} Minutes Taken`;
     }
-    const isMath = /math/i.test(sa.section.name);
-    const isRW = /reading|writing|rw|english/i.test(sa.section.name);
+    const sectionIsMath = /math/i.test(sa.section.name);
+    const sectionIsRW   = /reading|writing|rw|english/i.test(sa.section.name);
+    const isMath = sectionIsMath || (!sectionIsRW && testIsMath);
+    const isRW   = sectionIsRW   || (!sectionIsMath && testIsRW);
     const category = isMath ? 'Math' : isRW ? 'Reading and Writing' : sa.section.name;
     if (isMath) {
       mathCorrect += correct; mathTotal += total;

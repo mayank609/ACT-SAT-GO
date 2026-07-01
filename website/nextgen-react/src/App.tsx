@@ -86,45 +86,24 @@ export default function App() {
             </div>
 
             <div className="hero-art">
-              <img src={heroImg} alt="Students studying online with ScoreπGo tutoring support" />
+              <img src={heroImg} alt="Students studying online with tutoring support" />
 
-              <div className="orbit-card badge-target">
-                <div className="badge-icon-bg">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>
+              <div className="floating-card card-concepts">
+                <span className="concepts-check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
                   </svg>
-                </div>
-                <span>Target Score</span>
+                </span>
+                <strong>Concepts<br />Made Simple</strong>
               </div>
 
-              <div className="orbit-card badge-track">
-                <div className="badge-icon-bg">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>
-                  </svg>
-                </div>
-                <span>Track Progress</span>
+<div className="floating-card card-tags">
+                <span>SAT</span><span>ACT</span><span>AP</span>
               </div>
 
-              <div className="orbit-card badge-strategy">
-                <div className="badge-icon-bg">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .4 2.5 1.5 3.5.7.8 1.3 1.5 1.5 2.5"></path>
-                    <line x1="9" y1="18" x2="15" y2="18"></line><line x1="10" y1="22" x2="14" y2="22"></line>
-                  </svg>
-                </div>
-                <span>Smart Strategy</span>
-              </div>
-
-              <div className="orbit-card badge-success">
-                <div className="badge-icon-bg">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
-                    <path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path>
-                    <path d="M12 2a6 6 0 0 1 6 6v3.5c0 3.3-2.7 6-6 6s-6-2.7-6-6V8a6 6 0 0 1 6-6z"></path>
-                  </svg>
-                </div>
-                <span>Achieve Success</span>
+              <div className="floating-card card-plan">
+                <strong>Personalized Plan</strong>
+                <i></i><i></i><i></i>
               </div>
             </div>
           </div>
@@ -175,7 +154,7 @@ export default function App() {
         <section className="difference shell" id="why">
           <div className="section-heading">
             <p className="eyebrow">Why families choose us</p>
-            <h2>Why ScoreπGo Is Different</h2>
+            <h2>Why ACT SAT GO Is Different</h2>
             <p>A learning experience designed around student confidence, parent clarity, and measurable outcomes.</p>
           </div>
           <div className="benefit-grid">
@@ -196,10 +175,10 @@ export default function App() {
             <p>Every student gets a personalized path built for real results — not one-size-fits-all lessons.</p>
             <div className="note-card-check">✓</div>
           </aside>
-          <div className="compare-table" role="table" aria-label="ScoreπGo comparison">
-            <h2>Why Families Choose ScoreπGo</h2>
+          <div className="compare-table" role="table" aria-label="ACT SAT GO comparison">
+            <h2>Why Families Choose ACT SAT GO</h2>
             <div className="table-row table-head" role="row">
-              <span>Others</span><span>ScoreπGo</span>
+              <span>Others</span><span>ACT SAT GO</span>
             </div>
             <div className="table-row" role="row"><span>One-size-fits-all approach</span><strong>Personalized learning for every student</strong></div>
             <div className="table-row" role="row"><span>Focus only on tutoring</span><strong>End-to-end academic success partner</strong></div>
@@ -366,7 +345,7 @@ export default function App() {
             <div className="c-success-state">
               <div className="c-success-icon">✓</div>
               <h4>Consultation Booked!</h4>
-              <p>Thank you for reaching out. An expert academic counselor from ScoreπGo will contact you shortly.</p>
+              <p>Thank you for reaching out. An expert academic counselor from ACT SAT GO will contact you shortly.</p>
               <button className="btn btn-primary" style={{ width: '100%' }} onClick={closeConsultationModal}>Close</button>
             </div>
           ) : (

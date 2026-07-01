@@ -50,7 +50,7 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
   // Each program page should open at the top and carry a descriptive title.
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = `${data.exam} Preparation — ScoreπGo`;
+    document.title = `${data.exam} Preparation — ACT SAT GO`;
   }, [data.exam]);
 
   const isAp = data.slug === 'ap';

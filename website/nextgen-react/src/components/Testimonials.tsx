@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 const TESTIMONIALS = [
-  { name: 'Riya Sharma', quote: 'ScoreπGo has been a game changer for my daughter.' },
+  { name: 'Riya Sharma', quote: 'ACT SAT GO has been a game changer for my daughter.' },
   { name: 'Vihan Malhotra', quote: 'The personalized attention helped me improve my ACT score from 28 to 32.' },
   { name: 'Neha Iyer', quote: 'AP strategy sessions were extremely helpful and clear.' },
 ];
