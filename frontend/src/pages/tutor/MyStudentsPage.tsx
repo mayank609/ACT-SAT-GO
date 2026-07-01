@@ -9,7 +9,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { api, type DbUser } from '../../lib/api';
-import { studentStatusFromDecision, STUDENT_STATUS_LABEL, STUDENT_STATUS_BADGE } from '../../lib/studentStatus';
+import { studentStatusFromDecision } from '../../lib/studentStatus';
 import { satSectionScore } from '../../lib/analyticsData';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
@@ -395,13 +395,6 @@ export function MyStudentsPage() {
   const loadComprehensiveAnalysis = async () => {
     setAnalysisLoading(true);
     try {
-      const subjectOf = (a: any): 'rw' | 'math' | 'other' => {
-        const t = (a.test?.title ?? '').toLowerCase();
-        if (/math|algebra|geometry|calc/.test(t)) return 'math';
-        if (/reading|writing|english|verbal|grammar|\brw\b|r&w/.test(t)) return 'rw';
-        return 'other';
-      };
-
       const allStudentData = await Promise.all(
         students.map(async (student) => {
           try {
