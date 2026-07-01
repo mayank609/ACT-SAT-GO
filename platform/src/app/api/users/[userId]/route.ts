@@ -56,7 +56,18 @@ export async function GET(
         parentPhone: perms.parentPhone ?? null,
         dob: perms.dob ?? null,
         schoolName: perms.schoolName ?? null,
+        board: perms.board ?? null,
+        timezone: perms.timezone ?? null,
+        firstClassDate: perms.firstClassDate ?? null,
+        programVariant: perms.programVariant ?? null,
+        mockVariant: perms.mockVariant ?? null,
+        accommodation: perms.accommodation ?? null,
+        stage: perms.stage ?? null,
+        onboarded: perms.onboarded ?? null,
         diagnosticDecision: perms.diagnosticDecision ?? null,
+        manualDiagTotal: perms.manualDiagTotal ?? null,
+        manualDiagRW: perms.manualDiagRW ?? null,
+        manualDiagMath: perms.manualDiagMath ?? null,
       },
     })
   } catch (error) {
@@ -100,7 +111,13 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { name, grade, targetScore, targetDate, specialization, tutorId, notifications, phone, parentPhone, dob, schoolName, diagnosticDecision } = body as {
+    const {
+      name, grade, targetScore, targetDate, specialization, tutorId, notifications,
+      phone, parentPhone, dob, schoolName, diagnosticDecision,
+      board, timezone, firstClassDate, programVariant, mockVariant,
+      accommodation, stage, onboarded,
+      manualDiagTotal, manualDiagRW, manualDiagMath,
+    } = body as {
       name?: string
       grade?: string
       targetScore?: number
@@ -113,6 +130,17 @@ export async function PATCH(
       dob?: string
       schoolName?: string
       diagnosticDecision?: string | null
+      board?: string
+      timezone?: string
+      firstClassDate?: string
+      programVariant?: string
+      mockVariant?: string
+      accommodation?: boolean
+      stage?: number
+      onboarded?: boolean
+      manualDiagTotal?: number | null
+      manualDiagRW?: number | null
+      manualDiagMath?: number | null
     }
 
     const existing = await prisma.user.findUnique({ where: { id: userId } })
@@ -131,6 +159,17 @@ export async function PATCH(
     if (schoolName !== undefined) permissions.schoolName = schoolName
     if (targetDate !== undefined) permissions.targetDate = targetDate
     if (diagnosticDecision !== undefined) permissions.diagnosticDecision = diagnosticDecision
+    if (board !== undefined) permissions.board = board
+    if (timezone !== undefined) permissions.timezone = timezone
+    if (firstClassDate !== undefined) permissions.firstClassDate = firstClassDate
+    if (programVariant !== undefined) permissions.programVariant = programVariant
+    if (mockVariant !== undefined) permissions.mockVariant = mockVariant
+    if (accommodation !== undefined) permissions.accommodation = accommodation
+    if (stage !== undefined) permissions.stage = stage
+    if (onboarded !== undefined) permissions.onboarded = onboarded
+    if (manualDiagTotal !== undefined) permissions.manualDiagTotal = manualDiagTotal
+    if (manualDiagRW !== undefined) permissions.manualDiagRW = manualDiagRW
+    if (manualDiagMath !== undefined) permissions.manualDiagMath = manualDiagMath
 
     const updateData: any = { permissions: permissions as any }
     if (name !== undefined) updateData.name = name
@@ -162,7 +201,18 @@ export async function PATCH(
         parentPhone: permissions.parentPhone ?? null,
         dob: permissions.dob ?? null,
         schoolName: permissions.schoolName ?? null,
+        board: permissions.board ?? null,
+        timezone: permissions.timezone ?? null,
+        firstClassDate: permissions.firstClassDate ?? null,
+        programVariant: permissions.programVariant ?? null,
+        mockVariant: permissions.mockVariant ?? null,
+        accommodation: permissions.accommodation ?? null,
+        stage: permissions.stage ?? null,
+        onboarded: permissions.onboarded ?? null,
         diagnosticDecision: permissions.diagnosticDecision ?? null,
+        manualDiagTotal: permissions.manualDiagTotal ?? null,
+        manualDiagRW: permissions.manualDiagRW ?? null,
+        manualDiagMath: permissions.manualDiagMath ?? null,
       }
     })
   } catch (error) {

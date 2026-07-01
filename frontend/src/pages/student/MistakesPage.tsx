@@ -1,3 +1,4 @@
+import { fmtSec } from '../../lib/utils';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, AlertCircle, HelpCircle } from 'lucide-react';
@@ -188,7 +189,7 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
                 {item.timeSpentSeconds ? (
                   <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[11px] font-bold">
                     <Clock size={11} className="text-blue-600" />
-                    <span>{item.timeSpentSeconds}s</span>
+                    <span>{fmtSec(item.timeSpentSeconds)}</span>
                   </span>
                 ) : null}
                 <Badge variant={item.status === 'unattempted' ? 'default' : 'danger'} size="sm">
@@ -312,7 +313,7 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
           {item.timeSpentSeconds ? (
             <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[11px] font-semibold">
               <Clock size={11} className="text-amber-600" />
-              <span>{item.timeSpentSeconds}s</span>
+              <span>{fmtSec(item.timeSpentSeconds)}</span>
             </span>
           ) : null}
           <Badge variant={item.status === 'unattempted' ? 'default' : 'danger'} size="sm">

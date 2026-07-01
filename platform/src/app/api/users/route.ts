@@ -63,7 +63,18 @@ export async function GET(request: NextRequest) {
           parentPhone: perms.parentPhone ?? null,
           dob: perms.dob ?? null,
           schoolName: perms.schoolName ?? null,
+          board: perms.board ?? null,
+          timezone: perms.timezone ?? null,
+          firstClassDate: perms.firstClassDate ?? null,
+          programVariant: perms.programVariant ?? null,
+          mockVariant: perms.mockVariant ?? null,
+          accommodation: perms.accommodation ?? null,
+          stage: perms.stage ?? null,
+          onboarded: perms.onboarded ?? null,
           diagnosticDecision: perms.diagnosticDecision ?? null,
+          manualDiagTotal: perms.manualDiagTotal ?? null,
+          manualDiagRW: perms.manualDiagRW ?? null,
+          manualDiagMath: perms.manualDiagMath ?? null,
         }
       }),
     })
@@ -91,7 +102,12 @@ export async function POST(request: NextRequest) {
     if (auth instanceof NextResponse) return auth
 
     const body = await request.json()
-    const { name, email, role, grade, targetScore, targetDate, tutorId, specialization, phone, parentPhone, dob, schoolName } = body as {
+    const {
+      name, email, role, grade, targetScore, targetDate, tutorId, specialization,
+      phone, parentPhone, dob, schoolName, board, timezone, firstClassDate,
+      programVariant, mockVariant, accommodation, stage, onboarded,
+      manualDiagTotal, manualDiagRW, manualDiagMath,
+    } = body as {
       name: string
       email: string
       role: string
@@ -104,6 +120,17 @@ export async function POST(request: NextRequest) {
       parentPhone?: string
       dob?: string
       schoolName?: string
+      board?: string
+      timezone?: string
+      firstClassDate?: string
+      programVariant?: string
+      mockVariant?: string
+      accommodation?: boolean
+      stage?: number
+      onboarded?: boolean
+      manualDiagTotal?: number | null
+      manualDiagRW?: number | null
+      manualDiagMath?: number | null
     }
 
     // 1. Validation
@@ -179,6 +206,17 @@ export async function POST(request: NextRequest) {
     if (dob) permissions.dob = dob
     if (schoolName) permissions.schoolName = schoolName
     if (targetDate) permissions.targetDate = targetDate
+    if (board) permissions.board = board
+    if (timezone) permissions.timezone = timezone
+    if (firstClassDate) permissions.firstClassDate = firstClassDate
+    if (programVariant) permissions.programVariant = programVariant
+    if (mockVariant) permissions.mockVariant = mockVariant
+    if (accommodation !== undefined) permissions.accommodation = accommodation
+    if (stage !== undefined) permissions.stage = stage
+    if (onboarded !== undefined) permissions.onboarded = onboarded
+    if (manualDiagTotal != null) permissions.manualDiagTotal = manualDiagTotal
+    if (manualDiagRW != null) permissions.manualDiagRW = manualDiagRW
+    if (manualDiagMath != null) permissions.manualDiagMath = manualDiagMath
 
     const user = await prisma.user.create({
       data: {

@@ -1,3 +1,4 @@
+import { fmtSec } from '../../lib/utils';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle, Maximize2, X, HelpCircle, Calculator } from 'lucide-react';
@@ -265,7 +266,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {studentAnswer?.timeSpentSeconds ? (
-                  <span className="text-xs font-bold text-blue-600 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                  <span className="text-xs font-bold text-blue-600 hidden sm:flex items-center gap-1"><Clock size={9} />{fmtSec(studentAnswer.timeSpentSeconds)}</span>
                 ) : null}
                 {correct ? (
                   <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
@@ -343,7 +344,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {studentAnswer?.timeSpentSeconds ? (
-            <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+            <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1"><Clock size={9} />{fmtSec(studentAnswer.timeSpentSeconds)}</span>
           ) : null}
           {correct ? (
             <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>

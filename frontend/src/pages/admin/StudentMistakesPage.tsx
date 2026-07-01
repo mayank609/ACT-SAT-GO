@@ -1,3 +1,4 @@
+import { fmtSec } from '../../lib/utils';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -291,7 +292,7 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
                 {item.timeSpentSeconds ? (
                   <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[11px] font-semibold">
                     <Clock size={11} className="text-blue-600" />
-                    <span>{item.timeSpentSeconds}s</span>
+                    <span>{fmtSec(item.timeSpentSeconds)}</span>
                   </span>
                 ) : null}
                 <Badge variant={item.status === 'unattempted' ? 'default' : 'danger'} size="sm">
@@ -321,7 +322,7 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
           {item.timeSpentSeconds ? (
             <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded text-[11px] font-semibold">
               <Clock size={11} className="text-blue-600" />
-              <span>{item.timeSpentSeconds}s</span>
+              <span>{fmtSec(item.timeSpentSeconds)}</span>
             </span>
           ) : null}
           <Badge variant={item.status === 'unattempted' ? 'default' : 'danger'} size="sm">

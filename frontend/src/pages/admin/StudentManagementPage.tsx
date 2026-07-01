@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { fmtSec } from '../../lib/utils';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark, TrendingUp } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -335,7 +336,7 @@ export function StudentManagementPage() {
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false });
+  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
@@ -701,16 +702,27 @@ export function StudentManagementPage() {
       );
 
       setStudentAnalysisData(allStudentData);
+      try {
+        sessionStorage.setItem('adminAnalysisCache', JSON.stringify({ data: allStudentData, ts: Date.now() }));
+      } catch {}
     } finally {
       setAnalysisLoading(false);
     }
   };
 
-  // Load comprehensive analysis when on analysis view and students are ready
+  // Load comprehensive analysis when on analysis view and students are ready.
+  // On back-navigation the component remounts with empty state — restore from
+  // sessionStorage first (valid for 5 min) to avoid re-fetching everything.
   useEffect(() => {
-    if (mainView === 'analysis' && students.length > 0 && studentAnalysisData.length === 0) {
-      loadComprehensiveAnalysis();
-    }
+    if (mainView !== 'analysis' || students.length === 0 || studentAnalysisData.length > 0) return;
+    try {
+      const cached = JSON.parse(sessionStorage.getItem('adminAnalysisCache') ?? 'null');
+      if (cached && Date.now() - cached.ts < 5 * 60 * 1000) {
+        setStudentAnalysisData(cached.data);
+        return;
+      }
+    } catch {}
+    loadComprehensiveAnalysis();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainView, students.length]);
 
@@ -790,9 +802,12 @@ export function StudentManagementPage() {
           accommodation: addForm.accommodation,
           stage: addForm.stage ? Number(addForm.stage) : undefined,
           onboarded: addForm.onboarded,
+          manualDiagTotal: addForm.manualDiagTotal ? Number(addForm.manualDiagTotal) : null,
+          manualDiagRW: addForm.manualDiagRW ? Number(addForm.manualDiagRW) : null,
+          manualDiagMath: addForm.manualDiagMath ? Number(addForm.manualDiagMath) : null,
         });
         setShowAddModal(false); setIsEditing(false); setEditingStudentId(null);
-        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false });
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
         reload();
       } else {
         const res = await api.createUser({
@@ -813,9 +828,12 @@ export function StudentManagementPage() {
           accommodation: addForm.accommodation,
           stage: addForm.stage ? Number(addForm.stage) : undefined,
           onboarded: addForm.onboarded,
+          manualDiagTotal: addForm.manualDiagTotal ? Number(addForm.manualDiagTotal) : null,
+          manualDiagRW: addForm.manualDiagRW ? Number(addForm.manualDiagRW) : null,
+          manualDiagMath: addForm.manualDiagMath ? Number(addForm.manualDiagMath) : null,
         });
         setShowAddModal(false);
-        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false });
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
         reload();
         if (res.tempPassword) setCreatedPassword({ name: fullName, email: addForm.email, password: res.tempPassword });
       }
@@ -849,6 +867,9 @@ export function StudentManagementPage() {
       accommodation: student.accommodation ?? false,
       stage: student.stage != null ? String(student.stage) : '',
       onboarded: student.onboarded ?? false,
+      manualDiagTotal: student.manualDiagTotal != null ? String(student.manualDiagTotal) : '',
+      manualDiagRW: student.manualDiagRW != null ? String(student.manualDiagRW) : '',
+      manualDiagMath: student.manualDiagMath != null ? String(student.manualDiagMath) : '',
     });
     setIsEditing(true);
     setEditingStudentId(student.id);
@@ -1046,13 +1067,31 @@ export function StudentManagementPage() {
                           {formatTargetDate(row.targetDate)}
                         </td>
                         <td className="px-3 py-3 text-center font-semibold text-blue-900 border-l border-blue-100">
-                          {row.scaledScoreTotal ?? '—'}
+                          {(() => {
+                            const computed = row.scaledScoreTotal;
+                            const manual = students.find(s => s.id === row.studentId)?.manualDiagTotal;
+                            if (computed != null) return computed;
+                            if (manual != null) return <span title="Manually entered score" className="text-violet-700">{manual}<sup className="text-[9px] ml-0.5">M</sup></span>;
+                            return '—';
+                          })()}
                         </td>
                         <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
-                          {row.scaledScoreEnglish ?? '—'}
+                          {(() => {
+                            const computed = row.scaledScoreEnglish;
+                            const manual = students.find(s => s.id === row.studentId)?.manualDiagRW;
+                            if (computed != null) return computed;
+                            if (manual != null) return <span title="Manually entered score" className="text-violet-700">{manual}<sup className="text-[9px] ml-0.5">M</sup></span>;
+                            return '—';
+                          })()}
                         </td>
                         <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
-                          {row.scaledScoreMath ?? '—'}
+                          {(() => {
+                            const computed = row.scaledScoreMath;
+                            const manual = students.find(s => s.id === row.studentId)?.manualDiagMath;
+                            if (computed != null) return computed;
+                            if (manual != null) return <span title="Manually entered score" className="text-violet-700">{manual}<sup className="text-[9px] ml-0.5">M</sup></span>;
+                            return '—';
+                          })()}
                         </td>
                         <td className="px-3 py-3 text-center text-sm text-slate-600 border-l border-blue-100">
                           {row.mockTests || '—'}
@@ -1683,7 +1722,7 @@ export function StudentManagementPage() {
                                   </div>
                                   <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
                                     {studentAnswer?.timeSpentSeconds ? (
-                                      <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                                      <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{fmtSec(studentAnswer.timeSpentSeconds)}</span>
                                     ) : null}
                                     {correct ? (
                                       <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
@@ -1753,7 +1792,7 @@ export function StudentManagementPage() {
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
                                   {studentAnswer?.timeSpentSeconds ? (
-                                    <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                                    <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{fmtSec(studentAnswer.timeSpentSeconds)}</span>
                                   ) : null}
                                   {correct ? (
                                     <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
@@ -2103,6 +2142,37 @@ export function StudentManagementPage() {
             </div>
           </div>
 
+          {/* Manual Diagnostic Score */}
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+              <TrendingUp size={12} /> Diagnostic Score (Manual)
+            </div>
+            <p className="text-[11px] text-slate-400 mb-2">For students who took a diagnostic elsewhere — scores will appear in the analysis table.</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Total (400–1600)</label>
+                <input type="number" min={400} max={1600} step={10} value={addForm.manualDiagTotal}
+                  onChange={(e) => setAddForm(f => ({ ...f, manualDiagTotal: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. 1200" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">RW (200–800)</label>
+                <input type="number" min={200} max={800} step={10} value={addForm.manualDiagRW}
+                  onChange={(e) => setAddForm(f => ({ ...f, manualDiagRW: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. 600" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Math (200–800)</label>
+                <input type="number" min={200} max={800} step={10} value={addForm.manualDiagMath}
+                  onChange={(e) => setAddForm(f => ({ ...f, manualDiagMath: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. 600" />
+              </div>
+            </div>
+          </div>
+
           {!isEditing && (
             <p className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
               A temporary password will be generated and shown to you after creation. Share it with the student for first login.
@@ -2128,7 +2198,7 @@ export function StudentManagementPage() {
               onClick={() => {
                 setIsEditing(false);
                 setEditingStudentId(null);
-                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false });
+                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
                 setShowManageModal(false);
                 setShowAddModal(true);
               }}
@@ -2515,7 +2585,7 @@ export function StudentManagementPage() {
                         {studentAnswer?.timeSpentSeconds ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
                             <Clock size={11} />
-                            Time Spent: {studentAnswer.timeSpentSeconds}s
+                            Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}
                           </span>
                         ) : null}
                       </div>
@@ -2601,7 +2671,7 @@ export function StudentManagementPage() {
                         {studentAnswer?.timeSpentSeconds ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
                             <Clock size={11} />
-                            Time Spent: {studentAnswer.timeSpentSeconds}s
+                            Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}
                           </span>
                         ) : null}
                       </div>

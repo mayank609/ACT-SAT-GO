@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtSec } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, User2, TrendingUp, Filter, Loader2, ClipboardList, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
@@ -1347,7 +1348,7 @@ export function MyStudentsPage() {
                                   </div>
                                   <div className="flex items-center gap-1.5 flex-shrink-0">
                                     {studentAnswer?.timeSpentSeconds ? (
-                                      <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                                      <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{fmtSec(studentAnswer.timeSpentSeconds)}</span>
                                     ) : null}
                                     {correct ? (
                                       <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
@@ -1403,7 +1404,7 @@ export function MyStudentsPage() {
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                   {studentAnswer?.timeSpentSeconds ? (
-                                    <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                                    <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{fmtSec(studentAnswer.timeSpentSeconds)}</span>
                                   ) : null}
                                   {correct ? (
                                     <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
@@ -1819,7 +1820,7 @@ export function MyStudentsPage() {
                       {studentAnswer?.timeSpentSeconds ? (
                         <span className="text-xs text-slate-500 flex items-center gap-1">
                           <Clock size={12} />
-                          Time Spent: {studentAnswer.timeSpentSeconds}s
+                          Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}
                         </span>
                       ) : null}
                     </div>
@@ -1896,7 +1897,7 @@ export function MyStudentsPage() {
                       {studentAnswer?.timeSpentSeconds ? (
                         <span className="text-xs text-slate-500 flex items-center gap-1">
                           <Clock size={12} />
-                          Time Spent: {studentAnswer.timeSpentSeconds}s
+                          Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}
                         </span>
                       ) : null}
                     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtSec } from '../../lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Target, TrendingUp, Clock, Phone, School, Calendar,
@@ -1061,7 +1062,7 @@ export function AdminStudentProfilePage() {
                                             </div>
                                             <div className="flex items-center gap-1.5 flex-shrink-0">
                                               {studentAnswer?.timeSpentSeconds ? (
-                                                <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{studentAnswer.timeSpentSeconds}s</span>
+                                                <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={9} />{fmtSec(studentAnswer.timeSpentSeconds)}</span>
                                               ) : null}
                                               {correct ? (
                                                 <Badge variant="info" className="bg-blue-600 text-white border-none font-semibold">Correct</Badge>
@@ -1579,7 +1580,7 @@ export function AdminStudentProfilePage() {
                         </span>
                       </div>
                       {studentAnswer?.timeSpentSeconds ? (
-                        <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {studentAnswer.timeSpentSeconds}s</span>
+                        <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}</span>
                       ) : null}
                     </div>
                     <div className="text-[15px] text-slate-900 leading-relaxed font-normal">
@@ -1626,7 +1627,7 @@ export function AdminStudentProfilePage() {
                         </span>
                       </div>
                       {studentAnswer?.timeSpentSeconds ? (
-                        <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {studentAnswer.timeSpentSeconds}s</span>
+                        <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}</span>
                       ) : null}
                     </div>
                     <div className="text-[16px] text-slate-900 leading-relaxed font-normal">

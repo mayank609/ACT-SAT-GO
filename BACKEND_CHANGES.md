@@ -8,7 +8,28 @@ gracefully until the backend pieces below are in place.
 
 ---
 
-## 2026-06-28 — New student profile fields (admin-filled at profile creation)
+## ✅ 2026-07-01 — Manual diagnostic score fields on student profile (DONE)
+
+**Why:** Some students take a diagnostic test outside the platform (e.g., College Board, Khan Academy, or a paper test). Admins can now enter these scores manually when creating or editing a student. The scores show in the analysis table as a fallback when no in-platform diagnostic attempt exists (displayed in purple with a small "M" superscript to distinguish them from computed scores).
+
+**New columns on the `User` model** — all nullable integers:
+| Field | Type | Notes |
+|---|---|---|
+| `manualDiagTotal` | int | Total SAT score (400–1600) |
+| `manualDiagRW` | int | Reading & Writing section score (200–800) |
+| `manualDiagMath` | int | Math section score (200–800) |
+
+**API wiring needed:**
+- `POST /api/users` and `PATCH /api/users/[id]` should accept + persist the 3 fields (frontend already sends them).
+- `GET /api/users` and `GET /api/users/[id]` should return them on the user payload.
+
+**Frontend (already merged):**
+- `frontend/src/lib/api.ts` — `DbUser`, `createUser`, and `updateUser` extended with the 3 fields.
+- `frontend/src/pages/admin/StudentManagementPage.tsx` — Add/Edit form has a new "Diagnostic Score (Manual)" section with Total/RW/Math inputs; analysis table falls back to manual score (purple + M) when no computed score exists.
+
+---
+
+## ✅ 2026-06-28 — New student profile fields (admin-filled at profile creation) (DONE)
 
 **Why:** Admins now capture richer student details when creating/editing a
 student. The Add/Edit Student form (`StudentManagementPage`) sends these, and the

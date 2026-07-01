@@ -66,6 +66,9 @@ export interface DbUser {
   stage?: number | null
   onboarded?: boolean | null
   diagnosticDecision?: 'keep' | 'leave' | null
+  manualDiagTotal?: number | null
+  manualDiagRW?: number | null
+  manualDiagMath?: number | null
 }
 
 export interface DbTestPackageItem {
@@ -119,6 +122,9 @@ export const api = {
     accommodation?: boolean
     stage?: number
     onboarded?: boolean
+    manualDiagTotal?: number | null
+    manualDiagRW?: number | null
+    manualDiagMath?: number | null
   }) => request<{ user: DbUser; tempPassword?: string; warning?: string }>('/api/users', { method: 'POST', body: JSON.stringify(body) }),
   updateUser: (userId: string, body: {
     name?: string
@@ -141,6 +147,9 @@ export const api = {
     stage?: number
     onboarded?: boolean
     diagnosticDecision?: 'keep' | 'leave' | null
+    manualDiagTotal?: number | null
+    manualDiagRW?: number | null
+    manualDiagMath?: number | null
   }) => request<{ user: DbUser }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteUser: (userId: string) =>
     request<{ success: boolean }>(`/api/users/${userId}`, { method: 'DELETE' }),

@@ -1,3 +1,4 @@
+import { fmtSec } from '../../lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
@@ -454,7 +455,7 @@ export function ReportsPage() {
                         </td>
                         <td className="px-3 py-2.5">
                           <span className={`font-bold ${q.timeSpentSeconds >= 90 ? 'text-red-500' : q.timeSpentSeconds < 20 ? 'text-amber-500' : 'text-gray-700'}`}>
-                            {q.timeSpentSeconds}s
+                            {fmtSec(q.timeSpentSeconds)}
                           </span>
                         </td>
                         <td className="px-3 py-2.5">
@@ -620,7 +621,7 @@ export function ReportsPage() {
                         </span>
                       </div>
                       {studentAnswer?.timeSpentSeconds ? (
-                        <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {studentAnswer.timeSpentSeconds}s</span>
+                        <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}</span>
                       ) : null}
                     </div>
                     <div className="text-[15px] text-slate-900 leading-relaxed font-normal">
@@ -651,7 +652,7 @@ export function ReportsPage() {
                       </span>
                     </div>
                     {studentAnswer?.timeSpentSeconds ? (
-                      <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {studentAnswer.timeSpentSeconds}s</span>
+                      <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={12} />Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}</span>
                     ) : null}
                   </div>
                   <div className="text-[16px] text-slate-900 leading-relaxed font-normal mb-8">

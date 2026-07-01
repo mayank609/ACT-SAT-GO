@@ -1,3 +1,4 @@
+import { fmtSec } from '../../lib/utils';
 import { useState } from 'react';
 import {
   ChevronLeft, ChevronRight, ChevronDown,
@@ -253,7 +254,7 @@ function QuestionDisplay({
     <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
       {studentAnswer?.timeSpentSeconds ? (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 border border-blue-300 rounded-full text-xs font-bold text-blue-800">
-          <Clock size={12} strokeWidth={2.5} /> Time Spent: {studentAnswer.timeSpentSeconds}s
+          <Clock size={12} strokeWidth={2.5} /> Time Spent: {fmtSec(studentAnswer.timeSpentSeconds)}
         </span>
       ) : null}
       {correct ? (

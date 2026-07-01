@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Clock, AlertTriangle, Zap } from 'lucide-react';
+import { fmtSec } from '../../lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type QuestionTimeStat = {
@@ -126,7 +127,7 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
           const barW    = Math.max(x2 - x1, 1.5);
           const fill    = STATUS_COLOR[r.status] || STATUS_COLOR.skipped;
           const label   = `Q${r.questionIndex}`;
-          const tipText = `Q${r.questionIndex} | ${r.topicName || '—'} | ${r.status} | ${r.timeSpentSeconds}s`;
+          const tipText = `Q${r.questionIndex} | ${r.topicName || '—'} | ${r.status} | ${fmtSec(r.timeSpentSeconds)}`;
 
           return (
             <g key={r.questionIndex}>
@@ -244,18 +245,18 @@ export function QuestionTimeChart({ stats }: { stats: QuestionTimeStat[] }) {
       <div className="flex flex-wrap gap-2">
         <div className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-xs">
           <Clock size={14} className="text-gray-400" />
-          <span className="text-sm font-bold text-gray-900">{avgTime}s</span>
+          <span className="text-sm font-bold text-gray-900">{fmtSec(avgTime)}</span>
           <span className="text-[11px] text-gray-500">avg / question</span>
         </div>
         <div className="bg-red-50/50 border border-red-100 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-xs">
           <AlertTriangle size={14} className="text-red-600" />
           <span className="text-sm font-bold text-red-600">{slowCount}</span>
-          <span className="text-[11px] text-red-500">slow &ge; {SLOW_THRESHOLD}s</span>
+          <span className="text-[11px] text-red-500">slow &ge; {fmtSec(SLOW_THRESHOLD)}</span>
         </div>
         <div className="bg-amber-50/50 border border-amber-100 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-xs">
           <Zap size={14} className="text-amber-600" />
           <span className="text-sm font-bold text-amber-600">{rushedCount}</span>
-          <span className="text-[11px] text-amber-500">rushed &lt; {RUSHED_THRESHOLD}s</span>
+          <span className="text-[11px] text-amber-500">rushed &lt; {fmtSec(RUSHED_THRESHOLD)}</span>
         </div>
       </div>
 
@@ -284,7 +285,7 @@ export function QuestionTimeChart({ stats }: { stats: QuestionTimeStat[] }) {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-5 border-t-2 border-dashed border-blue-400 inline-block" />
-              Avg ({avgTime}s)
+              Avg ({fmtSec(avgTime)})
             </div>
           </div>
 
