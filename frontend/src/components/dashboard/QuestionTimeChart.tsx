@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Clock, AlertTriangle, Zap } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -23,6 +23,9 @@ const STATUS_COLOR: Record<string, string> = {
 
 // ─── Gantt chart ──────────────────────────────────────────────────────────────
 function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: number }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [crosshair, setCrosshair] = useState<{ x: number; timeSec: number } | null>(null);
+
   // Build cumulative start times
   const rows = useMemo(() => {
     let cursor = 0;
@@ -72,14 +75,29 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
 
   const svgH = chartH + TICK_H + 8;
 
-  // Tooltip state managed purely with CSS title (SVG native)
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const svgPt = pt.matrixTransform(svg.getScreenCTM()!.inverse());
+    const x = svgPt.x;
+    if (x < LABEL_W || x > IW - PADDING) { setCrosshair(null); return; }
+    const timeSec = Math.round(((x - LABEL_W) / plotW) * domainSec);
+    setCrosshair({ x, timeSec });
+  };
+
   return (
     <div className="overflow-x-auto w-full">
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${IW} ${svgH}`}
-        className="w-full"
+        className="w-full cursor-crosshair"
         style={{ minWidth: Math.max(500, sorted.length * 8) }}
         xmlns="http://www.w3.org/2000/svg"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setCrosshair(null)}
       >
         {/* ── Grid lines ── */}
         {ticks.map(m => {
@@ -175,6 +193,29 @@ function GanttChart({ sorted, avgTime }: { sorted: QuestionTimeStat[]; avgTime: 
         >
           Time (in minutes)
         </text>
+
+        {/* ── Hover crosshair ── */}
+        {crosshair && (() => {
+          const { x, timeSec } = crosshair;
+          const mins = Math.floor(timeSec / 60);
+          const secs = timeSec % 60;
+          const label = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+          const tipW = 52;
+          const tipX = x + tipW + 8 > IW - PADDING ? x - tipW - 6 : x + 6;
+          return (
+            <g pointerEvents="none">
+              <line x1={x} y1={0} x2={x} y2={chartH} stroke="#475569" strokeWidth={1} strokeDasharray="4 3" />
+              <rect x={tipX} y={4} width={tipW} height={18} rx={4} fill="#1e293b" fillOpacity={0.88} />
+              <text
+                x={tipX + tipW / 2} y={16}
+                textAnchor="middle" fontSize={9} fill="white"
+                fontFamily="system-ui, sans-serif" fontWeight="600"
+              >
+                {label}
+              </text>
+            </g>
+          );
+        })()}
       </svg>
     </div>
   );

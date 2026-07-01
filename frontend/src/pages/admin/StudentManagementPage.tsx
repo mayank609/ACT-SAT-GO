@@ -910,67 +910,46 @@ export function StudentManagementPage() {
 
       {mainView === 'analysis' && (
         <>
-      {/* ── Stat Cards + Header actions ── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl flex-1">
-        {/* Total Students – with Active / Inactive / Pending status toggle */}
-        {(() => {
-          const activeCount = students.filter(s => s.diagnosticDecision === 'keep').length;
-          const inactiveCount = students.filter(s => s.diagnosticDecision === 'leave').length;
-          const pendingCount = students.filter(s => !s.diagnosticDecision).length;
-          return (
-            <div className={`rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 flex flex-col gap-1.5`}>
-              <div className="flex items-center gap-2">
-                <div className="text-xl font-bold text-blue-600">
-                  {activityFilter === 'active' ? activeCount : activityFilter === 'inactive' ? inactiveCount : activityFilter === 'pending' ? pendingCount : students.length}
-                </div>
-                <div className="text-xs text-slate-600 font-bold">Total Students</div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  onClick={() => setActivityFilter(f => f === 'active' ? 'all' : 'active')}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                    activityFilter === 'active' ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                  }`}
-                >
-                  {activeCount} Active
-                </button>
-                <button
-                  onClick={() => setActivityFilter(f => f === 'inactive' ? 'all' : 'inactive')}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                    activityFilter === 'inactive' ? 'bg-rose-500 text-white' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                  }`}
-                >
-                  {inactiveCount} Inactive
-                </button>
-                <button
-                  onClick={() => setActivityFilter(f => f === 'pending' ? 'all' : 'pending')}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                    activityFilter === 'pending' ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                  }`}
-                >
-                  {pendingCount} Pending
-                </button>
-              </div>
+      {/* ── Stat chips + Header actions ── */}
+      {(() => {
+        const activeCount = students.filter(s => s.diagnosticDecision === 'keep').length;
+        const inactiveCount = students.filter(s => s.diagnosticDecision === 'leave').length;
+        const pendingCount = students.filter(s => !s.diagnosticDecision).length;
+        return (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Total Students chip */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-sm">
+              <span className="font-bold text-blue-600">
+                {activityFilter === 'active' ? activeCount : activityFilter === 'inactive' ? inactiveCount : activityFilter === 'pending' ? pendingCount : students.length}
+              </span>
+              <span className="text-slate-600 font-medium">Total Students</span>
+              <span className="text-blue-200 mx-0.5">|</span>
+              <button
+                onClick={() => setActivityFilter(f => f === 'active' ? 'all' : 'active')}
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold transition-colors ${activityFilter === 'active' ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}`}
+              >{activeCount} Active</button>
+              <button
+                onClick={() => setActivityFilter(f => f === 'inactive' ? 'all' : 'inactive')}
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold transition-colors ${activityFilter === 'inactive' ? 'bg-rose-500 text-white' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'}`}
+              >{inactiveCount} Inactive</button>
+              <button
+                onClick={() => setActivityFilter(f => f === 'pending' ? 'all' : 'pending')}
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold transition-colors ${activityFilter === 'pending' ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+              >{pendingCount} Pending</button>
             </div>
-          );
-        })()}
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 flex items-center gap-3">
-          <div className="text-xl font-bold text-emerald-600">
-            {students.filter(s => s.tutorId).length}
-          </div>
-          <div className="flex flex-col">
-            <div className="text-xs text-slate-600 font-bold">With Tutors</div>
-          </div>
-        </div>
-      </div>
 
-      {/* Header actions – aligned with the stat cards */}
-      <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto">
-        <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
-        <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => { setManageSearch(''); setShowManageModal(true); }}>Manage Students</Button>
-      </div>
-      </div>
+            {/* With Tutors chip */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-sm">
+              <span className="font-bold text-emerald-600">{students.filter(s => s.tutorId).length}</span>
+              <span className="text-slate-600 font-medium">With Tutors</span>
+            </div>
+
+            {/* Action buttons */}
+            <Button variant="secondary" size="sm" icon={<Upload size={13} />} onClick={() => setShowBulkModal(true)}>Bulk Upload</Button>
+            <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => { setManageSearch(''); setShowManageModal(true); }}>Manage Students</Button>
+          </div>
+        );
+      })()}
 
       {/* ── COMPREHENSIVE ANALYSIS VIEW ── */}
       <div className="space-y-5">
