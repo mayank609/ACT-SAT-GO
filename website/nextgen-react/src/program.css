@@ -490,13 +490,18 @@
 
 /* ── Help you choose ─────────────────────────────────────────────── */
 .prog-choose {
-  padding: 16px 0 64px;
+  /* Keep the bottom space tight so there isn't a large empty white band
+     before the dark CTA section that follows. */
+  padding: 16px 0 28px;
 }
 
 .choose-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 16px;
+  /* Inset the columns from the shell edges so the first/last cards'
+     drop-shadows aren't clipped against the window edge. */
+  padding: 12px 20px;
 }
 
 .choose-card {

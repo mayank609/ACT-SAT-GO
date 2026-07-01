@@ -3,7 +3,7 @@ import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import type { ProgramPageData } from '../data/programs';
-import programsImg from '../assets/programs.png';
+import apHeroImg from '../assets/ap-hero.png';
 import satHeroImg from '../assets/sat-hero.png';
 
 const CONSULT_HREF = '/#consultation';
@@ -105,17 +105,10 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
             
             {isAp ? (
               <div className="prog-hero-art ap-hero-art" aria-hidden="true">
-                <div 
-                  className="ap-hero-illustration" 
-                  style={{ backgroundImage: `url(${programsImg})` }} 
+                <div
+                  className="ap-hero-illustration"
+                  style={{ backgroundImage: `url(${apHeroImg})` }}
                 />
-                
-                {/* SVG dashed connector lines */}
-                <svg className="ap-hero-lines" viewBox="0 0 400 400" fill="none">
-                  <path d="M60,140 Q100,240 180,240" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeDasharray="5,5" />
-                  <path d="M200,90 Q200,160 200,200" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeDasharray="5,5" />
-                  <path d="M340,140 Q300,240 220,240" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeDasharray="5,5" />
-                </svg>
 
                 <div className="orbit-card badge-ap-strategy">
                   <div className="badge-icon-bg">
