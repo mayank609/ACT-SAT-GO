@@ -1,10 +1,12 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Header } from './components/Header';
 import { Brand } from './components/Brand';
 import { Testimonials } from './components/Testimonials';
 import { useScrollReveal } from './hooks/useScrollReveal';
 import { ACT_PAGE } from './data/programs';
 import heroImg from './assets/hero.png';
+import { QUERY_API_BASE } from './config';
+
 
 export default function App() {
   useScrollReveal();
@@ -31,7 +33,7 @@ export default function App() {
 
     setSubmitStatus('submitting');
     try {
-      const response = await fetch('http://localhost:5005/api/queries', {
+      const response = await fetch(`${QUERY_API_BASE}/api/queries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

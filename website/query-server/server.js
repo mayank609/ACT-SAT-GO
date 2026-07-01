@@ -1,16 +1,66 @@
-﻿import express from 'express';
+import 'dotenv/config';
+import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import dns from 'dns';
 import { fileURLToPath } from 'url';
+import { MongoClient } from 'mongodb';
+
+// Configure DNS resolver to use reliable public servers first. This prevents 
+// querySrv ECONNREFUSED issues on networks with problematic local DNS setups.
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4']);
+} catch (e) {
+  console.warn('Warning: Could not configure custom DNS servers:', e.message);
+}
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5005;
-const DB_FILE = path.join(__dirname, 'queries.json');
+
+// ─── MongoDB configuration (credentials come from .env) ───────────────────────
+const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB || 'actsatgo';
+if (!MONGODB_URI) {
+  console.error('✗ MONGODB_URI is not set. Create a .env file (see .env.example).');
+  process.exit(1);
+}
+
+const client = new MongoClient(MONGODB_URI);
+let leads = null; // the "leads" collection, set on connect
+
+async function connectDb() {
+  await client.connect();
+  const db = client.db(MONGODB_DB);
+  leads = db.collection('leads');
+  // Unique business id + fast sort by date
+  await leads.createIndex({ id: 1 }, { unique: true });
+  await leads.createIndex({ createdAt: -1 });
+  console.log(`✓ Connected to MongoDB → ${MONGODB_DB}.leads`);
+  await seedFromJsonIfEmpty();
+}
+
+// One-time, non-destructive migration: if the collection is empty and an old
+// queries.json exists, import those leads so history carries over.
+async function seedFromJsonIfEmpty() {
+  try {
+    if ((await leads.countDocuments()) > 0) return;
+    const file = path.join(__dirname, 'queries.json');
+    if (!fs.existsSync(file)) return;
+    const data = JSON.parse(fs.readFileSync(file, 'utf8') || '[]');
+    if (Array.isArray(data) && data.length) {
+      await leads.insertMany(data.map((d) => ({ ...d })));
+      console.log(`✓ Seeded ${data.length} lead(s) from queries.json`);
+    }
+  } catch (err) {
+    console.error('Seed skipped:', err.message);
+  }
+}
 
 // ─── Admin users & auth secret ────────────────────────────────────────────────
 // Dummy admin accounts for now. Replace with a real user store before production.
@@ -34,30 +84,6 @@ app.use(express.json());
 
 // Serve static admin files
 app.use('/admin', express.static(path.join(__dirname, 'public')));
-
-// Helper to read database
-function readDb() {
-  try {
-    if (!fs.existsSync(DB_FILE)) {
-      fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2));
-      return [];
-    }
-    const data = fs.readFileSync(DB_FILE, 'utf8');
-    return JSON.parse(data || '[]');
-  } catch (error) {
-    console.error('Error reading database file:', error);
-    return [];
-  }
-}
-
-// Helper to write database
-function writeDb(data) {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-  } catch (error) {
-    console.error('Error writing to database file:', error);
-  }
-}
 
 // ─── Admin authentication ─────────────────────────────────────────────────────
 // JWT-style HS256 token implemented with Node's built-in crypto (no extra deps).
@@ -136,85 +162,104 @@ app.get('/api/admin/me', requireAuth, (req, res) => {
 });
 
 // GET API: Retrieve all queries (admin only)
-app.get('/api/queries', requireAuth, (req, res) => {
-  const queries = readDb();
-  // Sort queries by date descending (newest first)
-  queries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  res.json(queries);
+app.get('/api/queries', requireAuth, async (_req, res) => {
+  try {
+    const all = await leads.find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
+    res.json(all);
+  } catch (err) {
+    console.error('GET /api/queries:', err);
+    res.status(500).json({ error: 'Failed to fetch leads' });
+  }
 });
 
-// POST API: Create a new query (public from website form; admin can also call this with a status)
-app.post('/api/queries', (req, res) => {
-  const { name, email, phone, exam, message, type, status } = req.body;
+// POST API: Create a new query (public from website form; admin can also send a status)
+app.post('/api/queries', async (req, res) => {
+  const { name, email, phone, exam, message, type, status } = req.body || {};
 
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
 
   const validStatuses = ['Pending', 'In Progress', 'Contacted', 'Resolved'];
-  const queries = readDb();
   const newQuery = {
-    id: 'q_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now(),
+    id: 'q_' + crypto.randomBytes(6).toString('hex') + '_' + Date.now(),
     name: name || 'Anonymous',
-    email: email.trim(),
+    email: String(email).trim(),
     phone: phone || '',
     exam: exam || 'General',
     message: message || '',
     type: type || 'Consultation',
     status: validStatuses.includes(status) ? status : 'Pending',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
   };
 
-  queries.push(newQuery);
-  writeDb(queries);
-
-  res.status(201).json({ message: 'Query submitted successfully', query: newQuery });
+  try {
+    await leads.insertOne({ ...newQuery }); // spread so newQuery stays free of _id
+    res.status(201).json({ message: 'Query submitted successfully', query: newQuery });
+  } catch (err) {
+    console.error('POST /api/queries:', err);
+    res.status(500).json({ error: 'Failed to save query' });
+  }
 });
 
 // PUT API: Update query status (admin only)
-app.put('/api/queries/:id', requireAuth, (req, res) => {
+app.put('/api/queries/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status } = req.body || {};
 
   const validStatuses = ['Pending', 'In Progress', 'Contacted', 'Resolved'];
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ error: 'Invalid status value' });
   }
 
-  const queries = readDb();
-  const queryIndex = queries.findIndex(q => q.id === id);
-
-  if (queryIndex === -1) {
-    return res.status(404).json({ error: 'Query not found' });
+  try {
+    const result = await leads.updateOne({ id }, { $set: { status } });
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Query not found' });
+    }
+    const updated = await leads.findOne({ id }, { projection: { _id: 0 } });
+    res.json({ message: 'Query status updated successfully', query: updated });
+  } catch (err) {
+    console.error('PUT /api/queries/:id:', err);
+    res.status(500).json({ error: 'Failed to update query' });
   }
-
-  queries[queryIndex].status = status;
-  writeDb(queries);
-
-  res.json({ message: 'Query status updated successfully', query: queries[queryIndex] });
 });
 
 // DELETE API: Delete query (admin only)
-app.delete('/api/queries/:id', requireAuth, (req, res) => {
+app.delete('/api/queries/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
-
-  const queries = readDb();
-  const filteredQueries = queries.filter(q => q.id !== id);
-
-  if (queries.length === filteredQueries.length) {
-    return res.status(404).json({ error: 'Query not found' });
+  try {
+    const result = await leads.deleteOne({ id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Query not found' });
+    }
+    res.json({ message: 'Query deleted successfully' });
+  } catch (err) {
+    console.error('DELETE /api/queries/:id:', err);
+    res.status(500).json({ error: 'Failed to delete query' });
   }
-
-  writeDb(filteredQueries);
-  res.json({ message: 'Query deleted successfully' });
 });
 
 // Redirect root admin to public index
-app.get('/admin', (req, res) => {
+app.get('/admin', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Query server is running on http://localhost:${PORT}`);
-  console.log(`Admin dashboard: http://localhost:${PORT}/admin`);
+// ─── Start server only after the DB connection is ready ───────────────────────
+connectDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Query server is running on http://localhost:${PORT}`);
+      console.log(`Admin dashboard: http://localhost:${PORT}/admin`);
+    });
+  })
+  .catch((err) => {
+    console.error('✗ Failed to connect to MongoDB:', err.message);
+    process.exit(1);
+  });
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await client.close().catch(() => {});
+  process.exit(0);
 });

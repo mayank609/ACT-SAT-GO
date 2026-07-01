@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { QUERY_API_BASE } from '../config';
 
 export function Newsletter() {
   const [email, setEmail] = useState('');
@@ -11,7 +12,7 @@ export function Newsletter() {
     setSubscribed(true);
     
     try {
-      await fetch('http://localhost:5005/api/queries', {
+      await fetch(`${QUERY_API_BASE}/api/queries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
