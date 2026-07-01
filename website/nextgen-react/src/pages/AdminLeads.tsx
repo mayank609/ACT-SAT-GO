@@ -4,6 +4,7 @@ import {
   AuthError,
   LEAD_STATUSES,
   clearToken,
+  createLead,
   deleteLead,
   fetchLeads,
   isAuthed,
@@ -11,6 +12,11 @@ import {
   type Lead,
   type LeadStatus,
 } from '../admin/api';
+
+const EXAM_OPTIONS = ['SAT', 'ACT', 'SAT & ACT', 'General'];
+const TYPE_OPTIONS = ['Consultation', 'Newsletter', 'Manual'];
+
+const EMPTY_FORM = { name: '', email: '', phone: '', exam: 'SAT', message: '', type: 'Consultation', status: 'Pending' as LeadStatus };
 
 const statusClass = (s: LeadStatus) => 's-' + s.toLowerCase().replace(/\s+/g, '-');
 
@@ -33,6 +39,10 @@ export function AdminLeads() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | LeadStatus>('All');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_FORM);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState('');
 
   const logout = () => {
     clearToken();
@@ -74,6 +84,23 @@ export function AdminLeads() {
       setLeads(prev); // revert on failure
       if (err instanceof AuthError) logout();
       else setError(err instanceof Error ? err.message : 'Failed to update status');
+    }
+  };
+
+  const handleAddLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addForm.email) { setAddError('Email is required'); return; }
+    setAddError(''); setAddLoading(true);
+    try {
+      const newLead = await createLead(addForm);
+      setLeads((cur) => [newLead, ...cur]);
+      setShowAddModal(false);
+      setAddForm(EMPTY_FORM);
+    } catch (err) {
+      if (err instanceof AuthError) logout();
+      else setAddError(err instanceof Error ? err.message : 'Failed to create lead');
+    } finally {
+      setAddLoading(false);
     }
   };
 
@@ -158,6 +185,9 @@ export function AdminLeads() {
               </option>
             ))}
           </select>
+          <button className="admin-add-btn" onClick={() => { setAddForm(EMPTY_FORM); setAddError(''); setShowAddModal(true); }}>
+            + Add Lead
+          </button>
         </div>
 
         {error && <div className="admin-error">{error}</div>}
@@ -228,6 +258,88 @@ export function AdminLeads() {
           )}
         </div>
       </div>
+
+      {/* ── Add Lead Modal ── */}
+      {showAddModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowAddModal(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h2>Add Lead Manually</h2>
+              <button className="admin-modal-close" onClick={() => setShowAddModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleAddLead} className="admin-modal-form">
+              {addError && <div className="admin-error">{addError}</div>}
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Name</label>
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={addForm.name}
+                    onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    placeholder="email@example.com"
+                    value={addForm.email}
+                    onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Phone</label>
+                  <input
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    value={addForm.phone}
+                    onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Exam Interest</label>
+                  <select value={addForm.exam} onChange={(e) => setAddForm((f) => ({ ...f, exam: e.target.value }))}>
+                    {EXAM_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Type</label>
+                  <select value={addForm.type} onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value }))}>
+                    {TYPE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="admin-form-field">
+                  <label>Initial Status</label>
+                  <select value={addForm.status} onChange={(e) => setAddForm((f) => ({ ...f, status: e.target.value as LeadStatus }))}>
+                    {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="admin-form-field">
+                <label>Notes / Message</label>
+                <textarea
+                  rows={3}
+                  placeholder="Any notes about this lead…"
+                  value={addForm.message}
+                  onChange={(e) => setAddForm((f) => ({ ...f, message: e.target.value }))}
+                />
+              </div>
+              <div className="admin-modal-footer">
+                <button type="button" className="admin-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="submit" className="admin-btn-primary" disabled={addLoading}>
+                  {addLoading ? 'Adding…' : 'Add Lead'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

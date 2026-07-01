@@ -143,14 +143,15 @@ app.get('/api/queries', requireAuth, (req, res) => {
   res.json(queries);
 });
 
-// POST API: Create a new query
+// POST API: Create a new query (public from website form; admin can also call this with a status)
 app.post('/api/queries', (req, res) => {
-  const { name, email, phone, exam, message, type } = req.body;
+  const { name, email, phone, exam, message, type, status } = req.body;
 
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
 
+  const validStatuses = ['Pending', 'In Progress', 'Contacted', 'Resolved'];
   const queries = readDb();
   const newQuery = {
     id: 'q_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now(),
@@ -159,8 +160,8 @@ app.post('/api/queries', (req, res) => {
     phone: phone || '',
     exam: exam || 'General',
     message: message || '',
-    type: type || 'Consultation', // 'Consultation' or 'Newsletter'
-    status: 'Pending', // 'Pending' | 'In Progress' | 'Contacted' | 'Resolved'
+    type: type || 'Consultation',
+    status: validStatuses.includes(status) ? status : 'Pending',
     createdAt: new Date().toISOString()
   };
 

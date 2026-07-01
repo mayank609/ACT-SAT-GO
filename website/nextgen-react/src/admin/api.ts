@@ -103,3 +103,24 @@ export async function deleteLead(id: string): Promise<void> {
   const res = await authFetch(`/api/queries/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete lead');
 }
+
+export async function createLead(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  exam?: string;
+  message?: string;
+  type?: string;
+  status?: LeadStatus;
+}): Promise<Lead> {
+  const res = await authFetch('/api/queries', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).error || 'Failed to create lead');
+  }
+  const json = await res.json();
+  return json.query;
+}
