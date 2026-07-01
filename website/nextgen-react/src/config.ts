@@ -7,5 +7,7 @@ export const APP_LOGIN_URL =
 
 // Base URL of the Node query-server that stores consultation leads and powers
 // the admin dashboard. Override with VITE_QUERY_API_BASE in a .env file.
+// In production on Vercel, this defaults to an empty string so requests are routed
+// relatively on the same domain, preventing CORS issues.
 export const QUERY_API_BASE =
-  import.meta.env.VITE_QUERY_API_BASE ?? 'http://localhost:5005';
+  import.meta.env.VITE_QUERY_API_BASE ?? (import.meta.env.PROD ? '' : 'http://localhost:5005');

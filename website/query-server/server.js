@@ -82,6 +82,19 @@ function findAdmin(username, password) {
 app.use(cors());
 app.use(express.json());
 
+// Middleware to ensure MongoDB is connected before handling any request (critical for serverless like Vercel)
+app.use(async (req, res, next) => {
+  if (!leads) {
+    try {
+      await connectDb();
+    } catch (err) {
+      console.error('Failed to lazy-connect to MongoDB:', err.message);
+      return res.status(500).json({ error: 'Database connection failed' });
+    }
+  }
+  next();
+});
+
 // Serve static admin files
 app.use('/admin', express.static(path.join(__dirname, 'public')));
 
@@ -246,20 +259,24 @@ app.get('/admin', (_req, res) => {
 });
 
 // ─── Start server only after the DB connection is ready ───────────────────────
-connectDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Query server is running on http://localhost:${PORT}`);
-      console.log(`Admin dashboard: http://localhost:${PORT}/admin`);
+if (!process.env.VERCEL) {
+  connectDb()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Query server is running on http://localhost:${PORT}`);
+        console.log(`Admin dashboard: http://localhost:${PORT}/admin`);
+      });
+    })
+    .catch((err) => {
+      console.error('✗ Failed to connect to MongoDB:', err.message);
+      process.exit(1);
     });
-  })
-  .catch((err) => {
-    console.error('✗ Failed to connect to MongoDB:', err.message);
-    process.exit(1);
-  });
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await client.close().catch(() => {});
-  process.exit(0);
-});
+  // Graceful shutdown
+  process.on('SIGINT', async () => {
+    await client.close().catch(() => {});
+    process.exit(0);
+  });
+}
+
+export default app;
