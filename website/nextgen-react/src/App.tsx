@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Header } from './components/Header';
 import { Brand } from './components/Brand';
 import { Testimonials } from './components/Testimonials';
+import { Universities } from './components/Universities';
 import { useScrollReveal } from './hooks/useScrollReveal';
 import { ACT_PAGE } from './data/programs';
 import heroImg from './assets/hero.png';
@@ -231,9 +232,7 @@ export default function App() {
             <article><div className="portrait">A</div><h3>Arjun D.</h3><strong>1510 / 1600</strong><p>+210 points improvement</p><span>UC Berkeley</span></article>
           </div>
           <p className="uni-strip-label">Our students have been accepted to top universities worldwide.</p>
-          <div className="university-strip">
-            <span>Harvard</span><span>Stanford</span><span>MIT</span><span>Berkeley</span><span>NYU</span><span>Georgia Tech</span>
-          </div>
+          <Universities />
         </section>
 
         {/* Why Families Choose ASG — Comparison Table */}
