@@ -124,44 +124,6 @@ export default function App() {
           <div><strong>50+</strong><span>Countries Reached</span></div>
         </section>
 
-        {/* Our Programs */}
-        <section className="prog-tiers" id="programs">
-          <div className="shell">
-            <div className="section-heading center reveal">
-              <p className="eyebrow">— {ACT_PAGE.tiersEyebrow} —</p>
-              <h2>{ACT_PAGE.tiersHeading}</h2>
-              <p>{ACT_PAGE.tiersText}</p>
-            </div>
-            <div className="tier-grid">
-              {ACT_PAGE.tiers.map((t, i) => (
-                <article
-                  key={t.name}
-                  className={`tier-card reveal${t.featured ? ' featured' : ''}`}
-                  style={{ transitionDelay: `${i * 60}ms`, ['--accent' as string]: t.accent }}
-                >
-                  {t.featured && <span className="tier-flag">Most Popular</span>}
-                  <span className="tier-icon" aria-hidden="true">{t.icon}</span>
-                  <h3>{t.name}</h3>
-                  {t.tag && <span className="tier-tag">{t.tag}</span>}
-                  <span className="tier-weeks">📅 {t.weeks}</span>
-                  <ul>
-                    {t.features.map((f) => (
-                      <li key={f}>{f}</li>
-                    ))}
-                  </ul>
-                  <div className="tier-price">
-                    <strong>{t.price}</strong>
-                    {t.oldPrice && <s>{t.oldPrice}</s>}
-                  </div>
-                  <a className="btn tier-btn" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal(t.name); }}>
-                    View Details <span aria-hidden="true">-&gt;</span>
-                  </a>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Every Step is Personalised */}
         <section className="features shell" id="about">
           <article>
