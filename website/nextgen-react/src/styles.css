@@ -200,8 +200,8 @@ a {
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 0.82fr 1.18fr;
-  gap: 34px;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 40px;
   align-items: center;
 }
 
@@ -223,9 +223,9 @@ p {
 
 h1 {
   margin-bottom: 22px;
-  font-size: clamp(42px, 5vw, 74px);
-  line-height: 1.06;
-  letter-spacing: 0;
+  font-size: clamp(38px, 4.5vw, 64px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
 h1 span,

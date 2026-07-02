@@ -198,26 +198,59 @@ export default function App() {
         </section>
 
         {/* Why Families Choose ASG — Comparison Table */}
-        <section className="comparison shell">
-          <aside className="note-card">
-            <span className="note-badge">★ Why Us?</span>
-            <strong>We don't just teach.<em>We transform.</em></strong>
-            <p>Every student gets a personalized path built for real results — not one-size-fits-all lessons.</p>
-            <div className="note-card-check">✓</div>
+        <section className="comparison shell" id="why-us">
+          <div className="section-heading center" style={{ gridColumn: '1 / -1', marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '32px', color: '#000000', fontWeight: 800, textAlign: 'center' }}>Why Families Choose ACT SAT GO</h2>
+          </div>
+          <aside className="note-card-new">
+            <p className="note-card-text">
+              We don't just<br />
+              <strong>teach.</strong>
+            </p>
+            <p className="note-card-text">
+              We transform<br />
+              <strong>potential into</strong><br />
+              <strong>performance.</strong>
+            </p>
+            <div className="note-card-check-orange">✓</div>
           </aside>
-          <div className="compare-table" role="table" aria-label="ACT SAT GO comparison">
-            <h2>Why Families Choose ACT SAT GO</h2>
-            <div className="table-row table-head" role="row">
-              <span>Others</span><span>ACT SAT GO</span>
+          <div className="compare-table-new" role="table" aria-label="ACT SAT GO comparison">
+            <div className="table-row-new table-head-new" role="row">
+              <div className="col-others">OTHERS</div>
+              <div className="col-asg">
+                <svg className="asg-triangle-logo" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="12 3 21 20 3 20" />
+                </svg>
+                ACT SAT GO
+              </div>
             </div>
-            <div className="table-row" role="row"><span>One-size-fits-all approach</span><strong>Personalized learning for every student</strong></div>
-            <div className="table-row" role="row"><span>Focus only on tutoring</span><strong>End-to-end academic success partner</strong></div>
-            <div className="table-row" role="row"><span>Limited performance insights</span><strong>AI-powered progress analytics</strong></div>
-            <div className="table-row" role="row"><span>Doubt support with limits</span><strong>Unlimited doubt solving and mentor support</strong></div>
-            <div className="table-row" role="row"><span>Minimal parent communication</span><strong>Weekly reports &amp; regular PTMs</strong></div>
-            <div className="table-row" role="row"><span>Disconnected tools &amp; platforms</span><strong>All-in-one learning ecosystem</strong></div>
+            <div className="table-row-new" role="row">
+              <div className="col-others-val">One-size-fits-all approach</div>
+              <div className="col-asg-val">Personalized learning for every student</div>
+            </div>
+            <div className="table-row-new" role="row">
+              <div className="col-others-val">Focus only on tutoring</div>
+              <div className="col-asg-val">End-to-end academic success partner</div>
+            </div>
+            <div className="table-row-new" role="row">
+              <div className="col-others-val">Limited performance insights</div>
+              <div className="col-asg-val">AI-powered progress analytics</div>
+            </div>
+            <div className="table-row-new" role="row">
+              <div className="col-others-val">Doubt support with limits</div>
+              <div className="col-asg-val">Unlimited doubt solving &amp; mentor support</div>
+            </div>
+            <div className="table-row-new" role="row">
+              <div className="col-others-val">Minimal parent communication</div>
+              <div className="col-asg-val">Weekly reports &amp; regular PTMs</div>
+            </div>
+            <div className="table-row-new" role="row">
+              <div className="col-others-val">Disconnected tools &amp; platforms</div>
+              <div className="col-asg-val">All-in-one learning ecosystem</div>
+            </div>
           </div>
         </section>
+
 
         {/* What Our Students & Parents Say — Testimonials */}
         <Testimonials />
