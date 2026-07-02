@@ -443,14 +443,16 @@
 
 .curriculum-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 320px));
+  justify-content: center;
   gap: 18px;
 }
 
 .curriculum-card {
   padding: 28px;
+  text-align: center;
   border: 1px solid var(--line);
-  border-left: 5px solid var(--accent);
+  border-top: 5px solid var(--accent);
   border-radius: 14px;
   background: white;
   box-shadow: 0 12px 32px rgba(18, 42, 70, 0.08);
@@ -463,6 +465,7 @@
 
 .curriculum-card ul {
   display: grid;
+  justify-items: center;
   gap: 10px;
   margin: 0;
   padding: 0;
@@ -470,16 +473,15 @@
 }
 
 .curriculum-card li {
-  position: relative;
-  padding-left: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--ink);
   font-size: 14.5px;
 }
 
 .curriculum-card li::before {
   content: "\203A";
-  position: absolute;
-  left: 4px;
   color: var(--accent);
   font-weight: 900;
 }

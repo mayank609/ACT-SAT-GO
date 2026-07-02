@@ -1833,23 +1833,6 @@ h1 span,
   }
 }
 
-/* Curriculum overrides for 4 areas layout */
-.curriculum-grid {
-  grid-template-columns: repeat(4, 1fr) !important;
-}
-
-@media (max-width: 1040px) {
-  .curriculum-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-}
-
-@media (max-width: 680px) {
-  .curriculum-grid {
-    grid-template-columns: 1fr !important;
-  }
-}
-
 /* ── AP Hero Page Custom Layout overrides ────────────────────────── */
 .ap-hero-illustration {
   width: 100%;
