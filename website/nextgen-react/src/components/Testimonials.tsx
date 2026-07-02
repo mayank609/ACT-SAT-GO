@@ -21,7 +21,6 @@ export function Testimonials() {
     <section className="testimonials section-dark">
       <div className="shell">
         <div className="section-heading inverse">
-          <p className="eyebrow">Testimonials</p>
           <h2>What Our Students &amp; Parents Say</h2>
         </div>
         <div className="testimonial-controls" aria-label="Testimonial type">

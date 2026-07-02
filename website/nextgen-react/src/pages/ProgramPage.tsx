@@ -5,8 +5,75 @@ import { useScrollReveal } from '../hooks/useScrollReveal';
 import type { ProgramPageData } from '../data/programs';
 import apHeroImg from '../assets/ap-hero.png';
 import satHeroImg from '../assets/sat-hero.png';
+import highlightsImg from '../assets/cta.png';
 
 const CONSULT_HREF = '/#consultation';
+
+function getHighlightIcon(label: string, value: string) {
+  const t = (label + ' ' + value).toLowerCase();
+  if (t.includes('college') || t.includes('credit')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9 12 3l9 6" />
+        <path d="M5 9v10M9 9v10M15 9v10M19 9v10" />
+        <path d="M3 21h18" />
+      </svg>
+    );
+  }
+  if (t.includes('recogni') || t.includes('global')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18" />
+        <path d="M12 3a14 14 0 0 1 0 18" />
+        <path d="M12 3a14 14 0 0 0 0 18" />
+      </svg>
+    );
+  }
+  if (t.includes('scholarship') || t.includes('tuition') || t.includes('saved')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 20h18" />
+        <path d="M6 20v-6" />
+        <path d="M12 20V8" />
+        <path d="M18 20v-10" />
+        <path d="M14 4 20 4 20 10" />
+        <path d="M20 4 12 12" />
+      </svg>
+    );
+  }
+  if (t.includes('date') || t.includes('flexible')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="9" r="6" />
+        <path d="m8.5 14-2 7 5.5-3 5.5 3-2-7" />
+      </svg>
+    );
+  }
+  if (t.includes('composite') || t.includes('score') || t.includes('perfect')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="5" />
+        <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+  if (t.includes('mentor') || t.includes('support')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
 
 function getHeroBulletIcon(title: string) {
   const t = title.toLowerCase();
@@ -209,16 +276,45 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
 
         {/* Highlights band */}
         <section className="prog-highlights shell" aria-label={`${data.exam} highlights`}>
-          <div className="section-heading reveal">
-            <h2>{data.highlightsHeading}</h2>
+          <div className="highlights-row">
+            <div className="highlights-text">
+              <div className="section-heading reveal">
+                <p className="eyebrow">{data.highlightsEyebrow}</p>
+                <h2>{data.highlightsHeading}</h2>
+                <p>{data.highlightsText}</p>
+              </div>
+              <div className="highlight-grid">
+                {data.highlights.map((h, i) => (
+                  <article key={h.label} className="highlight-card reveal" style={{ transitionDelay: `${i * 70}ms` }}>
+                    <span className="highlight-icon" aria-hidden="true">{getHighlightIcon(h.label, h.value)}</span>
+                    <strong>{h.value}</strong>
+                    <span>{h.label}</span>
+                  </article>
+                ))}
+              </div>
+            </div>
+            <div className="highlights-photo reveal" aria-hidden="true">
+              <img src={highlightsImg} alt="" />
+            </div>
           </div>
-          <div className="highlight-grid">
-            {data.highlights.map((h, i) => (
-              <article key={h.label} className="highlight-card reveal" style={{ transitionDelay: `${i * 70}ms` }}>
-                <strong>{h.value}</strong>
-                <span>{h.label}</span>
-              </article>
-            ))}
+        </section>
+
+        {/* 5-step approach */}
+        <section className="prog-steps section-light">
+          <div className="shell">
+            <div className="section-heading center reveal">
+              <p className="eyebrow">Our {data.exam} Prep Approach</p>
+              <h2>{data.stepsHeading}</h2>
+            </div>
+            <div className="step-flow">
+              {data.steps.map((s, i) => (
+                <article key={s.n} className="step-card reveal" style={{ transitionDelay: `${i * 70}ms` }}>
+                  <span className="step-num">Step {s.n}</span>
+                  <h3>{s.title}</h3>
+                  <p>{s.text}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -258,28 +354,9 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
           </div>
         </section>
 
-        {/* 5-step approach */}
-        <section className="prog-steps section-light">
-          <div className="shell">
-            <div className="section-heading center reveal">
-              <p className="eyebrow">Our {data.exam} Prep Approach</p>
-              <h2>{data.stepsHeading}</h2>
-            </div>
-            <div className="step-flow">
-              {data.steps.map((s, i) => (
-                <article key={s.n} className="step-card reveal" style={{ transitionDelay: `${i * 70}ms` }}>
-                  <span className="step-num">Step {s.n}</span>
-                  <h3>{s.title}</h3>
-                  <p>{s.text}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Curriculum */}
         <section className="prog-curriculum shell">
-          <div className="section-heading reveal">
+          <div className="section-heading center reveal">
             <h2>{data.curriculumHeading}</h2>
           </div>
           <div className="curriculum-grid">

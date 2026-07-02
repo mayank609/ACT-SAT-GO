@@ -27,7 +27,6 @@ export function Programs() {
     <section className="programs section-dark" id="programs">
       <div className="shell">
         <div className="section-heading inverse">
-          <p className="eyebrow">Programs</p>
           <h2>Our Programs</h2>
           <p>Comprehensive support for every academic goal.</p>
         </div>

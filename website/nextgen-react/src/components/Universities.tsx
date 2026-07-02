@@ -17,11 +17,11 @@ function UniLogo({ name, domain }: { name: string; domain: string }) {
     <div className="uni-logo-chip" style={{
       display: 'flex',
       alignItems: 'center',
-      gap: '10px',
-      padding: '8px 18px',
+      gap: '14px',
+      padding: '14px 26px',
       background: '#f8fafc',
       border: '1px solid #e2e8f0',
-      borderRadius: '30px',
+      borderRadius: '16px',
       transition: 'all 0.25s ease',
       cursor: 'default'
     }}>
@@ -33,8 +33,8 @@ function UniLogo({ name, domain }: { name: string; domain: string }) {
           loading="lazy"
           onError={() => setFailed(true)}
           style={{
-            height: '22px',
-            width: '22px',
+            height: '40px',
+            width: '40px',
             objectFit: 'contain',
             filter: 'none',
             opacity: 1,
@@ -44,7 +44,7 @@ function UniLogo({ name, domain }: { name: string; domain: string }) {
         />
       )}
       <span style={{
-        fontSize: '13.5px',
+        fontSize: '17px',
         fontWeight: '700',
         color: '#334155',
         padding: 0,
@@ -61,7 +61,7 @@ export function Universities() {
       display: 'flex',
       flexWrap: 'wrap',
       justifyContent: 'center',
-      gap: '12px',
+      gap: '16px',
       marginTop: '26px',
       padding: '20px',
       border: '1px solid #e2e8f0',

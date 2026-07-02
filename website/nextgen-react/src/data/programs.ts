@@ -57,7 +57,9 @@ export interface ProgramPageData {
   heroBullets: { title: string; text: string }[];
   primaryCta: string;
   secondaryCta: string;
+  highlightsEyebrow: string;
   highlightsHeading: string;
+  highlightsText: string;
   highlights: Highlight[];
   tiersEyebrow: string;
   tiersHeading: string;
@@ -102,7 +104,10 @@ export const ACT_PAGE: ProgramPageData = {
   ],
   primaryCta: 'Explore ACT Programs',
   secondaryCta: 'Download ACT Guide',
+  highlightsEyebrow: 'WHAT IS THE ACT?',
   highlightsHeading: 'Why Prep With ACT SAT GO?',
+  highlightsText:
+    'The ACT is a globally recognized test accepted by every 4-year college in the US. It measures your readiness across English, Math, Reading, and Science.',
   highlights: [
     { value: '36', label: 'Target a Perfect Composite' },
     { value: '12+', label: 'Full-Length ACT Mocks' },
@@ -247,11 +252,14 @@ export const SAT_PAGE: ProgramPageData = {
   ],
   primaryCta: 'Enroll Now',
   secondaryCta: 'Download Syllabus',
+  highlightsEyebrow: 'WHAT IS THE SAT?',
   highlightsHeading: 'Your Gateway to Global Opportunities',
+  highlightsText:
+    'The SAT is a globally recognized test accepted by 4,000+ colleges and universities worldwide. It assesses your readiness for college by evaluating your skills in Evidence-Based Reading, Writing & Language, and Mathematics.',
   highlights: [
     { value: '4,000+', label: 'Colleges Accepting SAT' },
-    { value: '1600', label: 'Target a Perfect Score' },
-    { value: '12+', label: 'Full-Length Mock Tests' },
+    { value: 'Global', label: 'Recognition' },
+    { value: 'Better', label: 'Scholarship Chances' },
     { value: 'Flexible', label: 'Test Dates' },
   ],
   tiersEyebrow: 'Our SAT Prep Programs',
@@ -393,7 +401,10 @@ export const AP_PAGE: ProgramPageData = {
   ],
   primaryCta: 'Explore AP Programs',
   secondaryCta: 'Download AP Guide',
+  highlightsEyebrow: 'WHAT ARE AP COURSES?',
   highlightsHeading: 'Get Ahead. Get Credit. Get Noticed.',
+  highlightsText:
+    'AP courses let you take college-level classes in high school. Score well on the exam and you can earn real college credit while boosting your application.',
   highlights: [
     { value: '3,000+', label: 'Colleges Accept AP Credit' },
     { value: '$1000s', label: 'Saved in College Tuition' },

@@ -3,10 +3,12 @@ import { Header } from './components/Header';
 import { Brand } from './components/Brand';
 import { Testimonials } from './components/Testimonials';
 import { Universities } from './components/Universities';
+import { Programs } from './components/Programs';
 import { useScrollReveal } from './hooks/useScrollReveal';
 import { ACT_PAGE } from './data/programs';
 import heroImg from './assets/hero.png';
 import { QUERY_API_BASE } from './config';
+import { IconGlobe, IconUser, IconUsers, IconHeartCheck, IconGraduationCap, IconChart, IconDocument, IconClipboardCheck } from './components/Icons';
 
 
 export default function App() {
@@ -115,42 +117,97 @@ export default function App() {
         {/* Stats Band — Why ASG (bars only, no heading) */}
         <section className="stats-band shell" aria-label="Impact statistics">
           <div className="stats-band-reach">
+            <span className="stat-icon" aria-hidden="true"><IconGlobe /></span>
             <strong>Students Across</strong>
             <span>USA · Canada · India · UAE · Singapore · UK</span>
           </div>
-          <div><strong>5,000+</strong><span>Students Mentored</span></div>
-          <div><strong>300+</strong><span>Expert Tutors</span></div>
-          <div><strong>98%</strong><span>Parent Satisfaction</span></div>
-          <div><strong>50+</strong><span>Countries Reached</span></div>
+          <div><span className="stat-icon" aria-hidden="true"><IconUser /></span><strong>5,000+</strong><span>Students Mentored</span></div>
+          <div><span className="stat-icon" aria-hidden="true"><IconUsers /></span><strong>300+</strong><span>Expert Tutors</span></div>
+          <div><span className="stat-icon" aria-hidden="true"><IconHeartCheck /></span><strong>98%</strong><span>Parent Satisfaction</span></div>
+          <div><span className="stat-icon" aria-hidden="true"><IconGlobe /></span><strong>50+</strong><span>Countries Reached</span></div>
         </section>
 
         {/* Every Step is Personalised */}
         <section className="features shell" id="about">
           <article>
-            <span className="icon">1:1</span>
+            <span className="icon"><IconUsers /></span>
             <h3>Personalized One-to-One Learning</h3>
             <p>Each roadmap is built around goals, diagnostics, pace, and learning style.</p>
           </article>
           <article>
-            <span className="icon">UNI</span>
+            <span className="icon"><IconGraduationCap /></span>
             <h3>Expert Mentors from Top Universities</h3>
             <p>Work with skilled tutors from top academic backgrounds and exam tracks.</p>
           </article>
           <article>
-            <span className="icon">AI</span>
+            <span className="icon"><IconChart /></span>
             <h3>Data-Driven Progress Tracking</h3>
             <p>Progress analytics reveal strengths, gaps, and next-best actions.</p>
           </article>
           <article>
-            <span className="icon">★</span>
+            <span className="icon"><IconDocument /></span>
             <h3>Proven Strategies &amp; Study Plans</h3>
             <p>Battle-tested methods for every exam section, structured for consistent score gains.</p>
           </article>
           <article>
-            <span className="icon">24/7</span>
+            <span className="icon"><IconClipboardCheck /></span>
             <h3>Beyond Classes Complete Support Ecosystem</h3>
             <p>Doubt support, parent updates, and resources keep momentum alive.</p>
           </article>
+        </section>
+
+        <Programs />
+
+        <section className="cta-section shell">
+          <div className="process-cta">
+            <div>
+              <h3>Every step is personalized.<br />Every action is guided.<br />Every goal is achievable.</h3>
+              <a className="btn btn-primary" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal('General'); }}>
+                Book Free Consultation <span aria-hidden="true">→</span>
+              </a>
+            </div>
+            <div className="cta-graphic" aria-hidden="true">
+              <svg viewBox="0 0 220 150" width="100%" height="100%">
+                <defs>
+                  <linearGradient id="ctaGoldBar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ffe29a" />
+                    <stop offset="45%" stopColor="#f2a92e" />
+                    <stop offset="100%" stopColor="#b9781a" />
+                  </linearGradient>
+                  <radialGradient id="ctaRingGold" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#ffe9ae" />
+                    <stop offset="55%" stopColor="#efa62e" />
+                    <stop offset="100%" stopColor="#a8690f" />
+                  </radialGradient>
+                  <radialGradient id="ctaRingCream" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#fff6e2" />
+                    <stop offset="100%" stopColor="#f2ddb2" />
+                  </radialGradient>
+                  <linearGradient id="ctaArrow" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#ffe29a" />
+                    <stop offset="100%" stopColor="#b9781a" />
+                  </linearGradient>
+                </defs>
+
+                <rect x="12" y="104" width="18" height="30" rx="4" fill="url(#ctaGoldBar)" opacity="0.75" />
+                <rect x="36" y="86" width="18" height="48" rx="4" fill="url(#ctaGoldBar)" opacity="0.85" />
+                <rect x="60" y="66" width="18" height="68" rx="4" fill="url(#ctaGoldBar)" opacity="0.92" />
+                <rect x="84" y="42" width="18" height="92" rx="4" fill="url(#ctaGoldBar)" />
+                <rect x="108" y="16" width="18" height="118" rx="4" fill="url(#ctaGoldBar)" />
+
+                <circle cx="168" cy="70" r="50" fill="none" stroke="url(#ctaRingGold)" strokeWidth="1.5" opacity="0.6" />
+                <circle cx="168" cy="70" r="46" fill="url(#ctaRingGold)" />
+                <circle cx="168" cy="70" r="36" fill="url(#ctaRingCream)" />
+                <circle cx="168" cy="70" r="26" fill="url(#ctaRingGold)" />
+                <circle cx="168" cy="70" r="16" fill="url(#ctaRingCream)" />
+                <circle cx="168" cy="70" r="6" fill="#c9860f" />
+
+                <path d="M209 9 199 11M209 9 207 19" stroke="url(#ctaArrow)" strokeWidth="4" strokeLinecap="round" />
+                <line x1="209" y1="9" x2="176" y2="53" stroke="url(#ctaArrow)" strokeWidth="5" strokeLinecap="round" />
+                <path d="M166 57 178 52 174 66Z" fill="url(#ctaArrow)" />
+              </svg>
+            </div>
+          </div>
         </section>
 
         {/* Our Personalised Learning Process (7 steps) */}
@@ -183,15 +240,18 @@ export default function App() {
 
         {/* Success Stories */}
         <section className="success shell" id="results">
-          <div className="section-heading">
-            <p className="eyebrow">Success stories</p>
-            <h2>Real Students. Real Results.</h2>
+          <div className="success-heading-row">
+            <div className="section-heading">
+              <h2>Success Stories</h2>
+              <p>Real students. Real results.</p>
+            </div>
+            <a className="view-all-link" href="#results">View all stories <span aria-hidden="true">→</span></a>
           </div>
           <div className="story-grid">
-            <article><div className="portrait">A</div><h3>Ananya K.</h3><strong>1540 / 1600</strong><p>+230 points improvement</p><span>University of Michigan</span></article>
-            <article><div className="portrait">R</div><h3>Rohan S.</h3><strong>33 / 36</strong><p>+6 points improvement</p><span>Georgia Tech</span></article>
-            <article><div className="portrait">M</div><h3>Meera P.</h3><strong>5 / 5</strong><p>AP Calculus BC</p><span>Stanford University</span></article>
-            <article><div className="portrait">A</div><h3>Arjun D.</h3><strong>1510 / 1600</strong><p>+210 points improvement</p><span>UC Berkeley</span></article>
+            <article><div className="portrait">A</div><h3>Ananya K.</h3><span className="exam-type">SAT Score</span><strong>1540 / 1600</strong><p>+230 points improvement</p><span>University of Michigan</span></article>
+            <article><div className="portrait">R</div><h3>Rohan S.</h3><span className="exam-type">ACT Score</span><strong>33 / 36</strong><p>+6 points improvement</p><span>Georgia Tech</span></article>
+            <article><div className="portrait">M</div><h3>Meera P.</h3><span className="exam-type">AP Score</span><strong>5 / 5</strong><p>AP Calculus BC</p><span>Stanford University</span></article>
+            <article><div className="portrait">A</div><h3>Arjun D.</h3><span className="exam-type">SAT Score</span><strong>1510 / 1600</strong><p>+210 points improvement</p><span>UC Berkeley</span></article>
           </div>
           <p className="uni-strip-label">Our students have been accepted to top universities worldwide.</p>
           <Universities />
