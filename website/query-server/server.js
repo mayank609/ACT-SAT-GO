@@ -187,22 +187,33 @@ app.get('/api/queries', requireAuth, async (_req, res) => {
 
 // POST API: Create a new query (public from website form; admin can also send a status)
 app.post('/api/queries', async (req, res) => {
-  const { name, email, phone, exam, message, type, status } = req.body || {};
+  const {
+    name, email, phone, exam, message, type, status,
+    grade, source, stage, counselor, lastActivity, nextFollowup, leadScore
+  } = req.body || {};
 
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
 
-  const validStatuses = ['Pending', 'In Progress', 'Contacted', 'Resolved'];
+  const validStatuses = ['Pending', 'In Progress', 'Contacted', 'Resolved', 'Active', 'Archived'];
+  const validStages = ['New Lead', 'Contacted', 'Qualified', 'Proposal Sent', 'Interested', 'Uncontacted', 'Enrolled', 'Lost/Drop'];
   const newQuery = {
     id: 'q_' + crypto.randomBytes(6).toString('hex') + '_' + Date.now(),
     name: name || 'Anonymous',
+    grade: grade || '',
     email: String(email).trim(),
     phone: phone || '',
     exam: exam || 'General',
+    source: source || 'Website',
+    stage: validStages.includes(stage) ? stage : 'New Lead',
+    counselor: counselor || '',
+    lastActivity: lastActivity || { date: '-', type: 'Lead Created', icon: 'plus' },
+    nextFollowup: nextFollowup || { date: '-', type: 'Call', icon: 'clock' },
+    leadScore: typeof leadScore === 'number' ? leadScore : 50,
     message: message || '',
     type: type || 'Consultation',
-    status: validStatuses.includes(status) ? status : 'Pending',
+    status: validStatuses.includes(status) ? status : 'Active',
     createdAt: new Date().toISOString(),
   };
 
@@ -215,26 +226,33 @@ app.post('/api/queries', async (req, res) => {
   }
 });
 
-// PUT API: Update query status (admin only)
+// PUT API: Update any lead fields (admin only)
 app.put('/api/queries/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body || {};
-
-  const validStatuses = ['Pending', 'In Progress', 'Contacted', 'Resolved'];
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ error: 'Invalid status value' });
+  const allowedFields = [
+    'status', 'stage', 'counselor', 'grade', 'source', 'exam',
+    'leadScore', 'lastActivity', 'nextFollowup', 'name', 'email', 'phone', 'message'
+  ];
+  const updates = {};
+  for (const field of allowedFields) {
+    if (req.body && req.body[field] !== undefined) {
+      updates[field] = req.body[field];
+    }
+  }
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
   }
 
   try {
-    const result = await leads.updateOne({ id }, { $set: { status } });
+    const result = await leads.updateOne({ id }, { $set: updates });
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Query not found' });
     }
     const updated = await leads.findOne({ id }, { projection: { _id: 0 } });
-    res.json({ message: 'Query status updated successfully', query: updated });
+    res.json({ message: 'Lead updated successfully', query: updated });
   } catch (err) {
     console.error('PUT /api/queries/:id:', err);
-    res.status(500).json({ error: 'Failed to update query' });
+    res.status(500).json({ error: 'Failed to update lead' });
   }
 });
 

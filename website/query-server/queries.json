@@ -1,24 +1,210 @@
 [
   {
-    "id": "q_u6tg5pr9c_1782827757730",
-    "name": "Rohan Verma",
-    "email": "rohan@example.com",
-    "phone": "+919876543210",
+    "id": "q_lead_riya_kapoor",
+    "name": "Riya Kapoor",
+    "grade": "11th Grade",
+    "email": "riya.kapoor@gmail.com",
+    "phone": "+1 98765 43210",
     "exam": "SAT",
-    "message": "I want to target a 1550+ score on SAT math and english.",
+    "source": "Website",
+    "stage": "Contacted",
+    "counselor": "Neha Sharma",
+    "lastActivity": {
+      "date": "May 25, 11:00 AM",
+      "type": "Called",
+      "icon": "phone"
+    },
+    "nextFollowup": {
+      "date": "May 26, 11:00 AM",
+      "type": "Call",
+      "icon": "clock"
+    },
+    "leadScore": 85,
+    "message": "Interested in intensive SAT math and verbal preparation classes starting next month. Aiming for a 1550+ score.",
     "type": "Consultation",
-    "status": "Pending",
-    "createdAt": "2026-06-30T13:55:57.730Z"
+    "status": "Active",
+    "createdAt": "2026-05-25T05:30:00.000Z"
   },
   {
-    "id": "q_p9kkrn18c_1782827770753",
-    "name": "Newsletter Subscriber",
-    "email": "riya@example.com",
-    "phone": "",
-    "exam": "General",
-    "message": "Signed up for newsletter resources & tips.",
-    "type": "Newsletter",
-    "status": "Pending",
-    "createdAt": "2026-06-30T13:56:10.753Z"
+    "id": "q_lead_aarav_singh",
+    "name": "Aarav Singh",
+    "grade": "12th Grade",
+    "email": "aaravsingh@gmail.com",
+    "phone": "+1 98765 12345",
+    "exam": "ACT",
+    "source": "Facebook Ads",
+    "stage": "Qualified",
+    "counselor": "Arjun Mehta",
+    "lastActivity": {
+      "date": "May 25, 10:15 AM",
+      "type": "Brochure Sent",
+      "icon": "mail"
+    },
+    "nextFollowup": {
+      "date": "May 26, 02:00 PM",
+      "type": "Call",
+      "icon": "clock"
+    },
+    "leadScore": 78,
+    "message": "Needs guidance on ACT English and Science sections. Looking for online coaching options.",
+    "type": "Consultation",
+    "status": "Active",
+    "createdAt": "2026-05-25T04:45:00.000Z"
+  },
+  {
+    "id": "q_lead_mehak_bansal",
+    "name": "Mehak Bansal",
+    "grade": "11th Grade",
+    "email": "mehakbansal@gmail.com",
+    "phone": "+1 91234 56789",
+    "exam": "AP",
+    "source": "Instagram",
+    "stage": "Proposal Sent",
+    "counselor": "Priya Nair",
+    "lastActivity": {
+      "date": "May 24, 06:30 PM",
+      "type": "Zoom Meeting",
+      "icon": "video"
+    },
+    "nextFollowup": {
+      "date": "May 26, 10:30 AM",
+      "type": "Follow-up",
+      "icon": "clock"
+    },
+    "leadScore": 72,
+    "message": "Planning to take AP Calculus BC and AP Physics C. Wants to register for prep courses.",
+    "type": "Consultation",
+    "status": "Active",
+    "createdAt": "2026-05-24T13:00:00.000Z"
+  },
+  {
+    "id": "q_lead_vivaan_jain",
+    "name": "Vivaan Jain",
+    "grade": "12th Grade",
+    "email": "vivaanjain@gmail.com",
+    "phone": "+1 99876 54321",
+    "exam": "SAT",
+    "source": "Referral",
+    "stage": "Interested",
+    "counselor": "Rohan Verma",
+    "lastActivity": {
+      "date": "May 24, 03:45 PM",
+      "type": "Interested",
+      "icon": "user"
+    },
+    "nextFollowup": {
+      "date": "May 27, 03:00 PM",
+      "type": "Call",
+      "icon": "clock"
+    },
+    "leadScore": 65,
+    "message": "Vivaan's cousin recommended your courses. Wants to take a free diagnostic test first.",
+    "type": "Consultation",
+    "status": "Active",
+    "createdAt": "2026-05-24T10:15:00.000Z"
+  },
+  {
+    "id": "q_lead_ishita_verma",
+    "name": "Ishita Verma",
+    "grade": "10th Grade",
+    "email": "ishitaverma@gmail.com",
+    "phone": "+1 98712 34567",
+    "exam": "GMAT",
+    "source": "Google Ads",
+    "stage": "New Lead",
+    "counselor": "Karan Malhotra",
+    "lastActivity": {
+      "date": "May 23, 05:20 PM",
+      "type": "Lead Created",
+      "icon": "plus"
+    },
+    "nextFollowup": {
+      "date": "May 26, 11:00 AM",
+      "type": "Call",
+      "icon": "clock"
+    },
+    "leadScore": 60,
+    "message": "Early preparation for future business studies. Interested in online learning resources.",
+    "type": "Consultation",
+    "status": "Active",
+    "createdAt": "2026-05-23T11:50:00.000Z"
+  },
+  {
+    "id": "q_lead_divya_patel",
+    "name": "Divya Patel",
+    "grade": "11th Grade",
+    "email": "divyapatel@gmail.com",
+    "phone": "+1 91234 88990",
+    "exam": "ACT",
+    "source": "Website",
+    "stage": "Contacted",
+    "counselor": "Neha Sharma",
+    "lastActivity": {
+      "date": "May 23, 02:10 PM",
+      "type": "Called",
+      "icon": "phone"
+    },
+    "nextFollowup": {
+      "date": "May 25, 04:00 PM",
+      "type": "Call",
+      "icon": "clock"
+    },
+    "leadScore": 55,
+    "message": "Needs guidance for complete ACT package courses. Wants info regarding fees and schedule.",
+    "type": "Consultation",
+    "status": "Active",
+    "createdAt": "2026-05-23T08:40:00.000Z"
+  },
+  {
+    "id": "q_lead_krish_mehta",
+    "name": "Krish Mehta",
+    "grade": "12th Grade",
+    "email": "krishmehta@gmail.com",
+    "phone": "+1 90000 12345",
+    "exam": "SAT",
+    "source": "Facebook Ads",
+    "stage": "Uncontacted",
+    "counselor": "Arjun Mehta",
+    "lastActivity": {
+      "date": "-",
+      "type": "No Activity",
+      "icon": "minus"
+    },
+    "nextFollowup": {
+      "date": "May 25, 11:00 AM",
+      "type": "Call",
+      "icon": "clock"
+    },
+    "leadScore": 40,
+    "message": "Signed up from Facebook lead form, needs to schedule basic consultation callback.",
+    "type": "Consultation",
+    "status": "Active",
+    "createdAt": "2026-05-22T14:20:00.000Z"
+  },
+  {
+    "id": "q_lead_saanvi_iyer",
+    "name": "Saanvi Iyer",
+    "grade": "11th Grade",
+    "email": "saanviiyer@gmail.com",
+    "phone": "+1 98760 23456",
+    "exam": "AP",
+    "source": "Webinar",
+    "stage": "Interested",
+    "counselor": "Priya Nair",
+    "lastActivity": {
+      "date": "May 22, 07:45 PM",
+      "type": "Email Opened",
+      "icon": "mail"
+    },
+    "nextFollowup": {
+      "date": "May 26, 03:00 PM",
+      "type": "Follow-up",
+      "icon": "clock"
+    },
+    "leadScore": 45,
+    "message": "Attended our SAT/AP intro webinar. Clicked register link in the follow-up email.",
+    "type": "Consultation",
+    "status": "Active",
+    "createdAt": "2026-05-22T14:15:00.000Z"
   }
 ]

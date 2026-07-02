@@ -111,7 +111,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* Stats Band */}
+        {/* Stats Band — Why ASG (bars only, no heading) */}
         <section className="stats-band shell" aria-label="Impact statistics">
           <div className="stats-band-reach">
             <strong>Students Across</strong>
@@ -123,76 +123,7 @@ export default function App() {
           <div><strong>50+</strong><span>Countries Reached</span></div>
         </section>
 
-        {/* Features */}
-        <section className="features shell" id="about">
-          <article>
-            <span className="icon">1:1</span>
-            <h3>Personalized One-to-One Learning</h3>
-            <p>Each roadmap is built around goals, diagnostics, pace, and learning style.</p>
-          </article>
-          <article>
-            <span className="icon">UNI</span>
-            <h3>Expert Mentors from Top Universities</h3>
-            <p>Work with skilled tutors from top academic backgrounds and exam tracks.</p>
-          </article>
-          <article>
-            <span className="icon">AI</span>
-            <h3>Data-Driven Progress Tracking</h3>
-            <p>Progress analytics reveal strengths, gaps, and next-best actions.</p>
-          </article>
-          <article>
-            <span className="icon">★</span>
-            <h3>Proven Strategies &amp; Study Plans</h3>
-            <p>Battle-tested methods for every exam section, structured for consistent score gains.</p>
-          </article>
-          <article>
-            <span className="icon">24/7</span>
-            <h3>Beyond Classes Complete Support Ecosystem</h3>
-            <p>Doubt support, parent updates, and resources keep momentum alive.</p>
-          </article>
-        </section>
-
-        {/* Why Different */}
-        <section className="difference shell" id="why">
-          <div className="section-heading">
-            <p className="eyebrow">Why families choose us</p>
-            <h2>Why ACT SAT GO Is Different</h2>
-            <p>A learning experience designed around student confidence, parent clarity, and measurable outcomes.</p>
-          </div>
-          <div className="benefit-grid">
-            <article><span className="icon">MAP</span><h3>Personalized Roadmap</h3><p>Custom plans based on skill level, test date, and target score.</p></article>
-            <article><span className="icon">PRO</span><h3>Top 1% Expert Tutors</h3><p>Mentors with proven coaching experience and focused feedback.</p></article>
-            <article><span className="icon">AI</span><h3>AI-Powered Insights</h3><p>Track progress, patterns, and readiness with clear dashboards.</p></article>
-            <article><span className="icon">SUP</span><h3>Comprehensive Support</h3><p>From concepts to strategy, every step is guided and visible.</p></article>
-            <article><span className="icon">FLEX</span><h3>Flexible &amp; Convenient</h3><p>Learn at your pace with flexible scheduling across time zones.</p></article>
-            <article><span className="icon">WIN</span><h3>Proven Results</h3><p>High score improvements, strong applications, and better confidence.</p></article>
-          </div>
-        </section>
-
-        {/* Comparison Table */}
-        <section className="comparison shell">
-          <aside className="note-card">
-            <span className="note-badge">★ Why Us?</span>
-            <strong>We don't just teach.<em>We transform.</em></strong>
-            <p>Every student gets a personalized path built for real results — not one-size-fits-all lessons.</p>
-            <div className="note-card-check">✓</div>
-          </aside>
-          <div className="compare-table" role="table" aria-label="ACT SAT GO comparison">
-            <h2>Why Families Choose ACT SAT GO</h2>
-            <div className="table-row table-head" role="row">
-              <span>Others</span><span>ACT SAT GO</span>
-            </div>
-            <div className="table-row" role="row"><span>One-size-fits-all approach</span><strong>Personalized learning for every student</strong></div>
-            <div className="table-row" role="row"><span>Focus only on tutoring</span><strong>End-to-end academic success partner</strong></div>
-            <div className="table-row" role="row"><span>Limited performance insights</span><strong>AI-powered progress analytics</strong></div>
-            <div className="table-row" role="row"><span>Doubt support with limits</span><strong>Unlimited doubt solving and mentor support</strong></div>
-            <div className="table-row" role="row"><span>Minimal parent communication</span><strong>Weekly reports &amp; regular PTMs</strong></div>
-            <div className="table-row" role="row"><span>Disconnected tools &amp; platforms</span><strong>All-in-one learning ecosystem</strong></div>
-          </div>
-        </section>
-
-
-        {/* Program Tiers */}
+        {/* Our Programs */}
         <section className="prog-tiers" id="programs">
           <div className="shell">
             <div className="section-heading center reveal">
@@ -230,12 +161,41 @@ export default function App() {
           </div>
         </section>
 
-        {/* Personalized Learning Process (7 steps) */}
+        {/* Every Step is Personalised */}
+        <section className="features shell" id="about">
+          <article>
+            <span className="icon">1:1</span>
+            <h3>Personalized One-to-One Learning</h3>
+            <p>Each roadmap is built around goals, diagnostics, pace, and learning style.</p>
+          </article>
+          <article>
+            <span className="icon">UNI</span>
+            <h3>Expert Mentors from Top Universities</h3>
+            <p>Work with skilled tutors from top academic backgrounds and exam tracks.</p>
+          </article>
+          <article>
+            <span className="icon">AI</span>
+            <h3>Data-Driven Progress Tracking</h3>
+            <p>Progress analytics reveal strengths, gaps, and next-best actions.</p>
+          </article>
+          <article>
+            <span className="icon">★</span>
+            <h3>Proven Strategies &amp; Study Plans</h3>
+            <p>Battle-tested methods for every exam section, structured for consistent score gains.</p>
+          </article>
+          <article>
+            <span className="icon">24/7</span>
+            <h3>Beyond Classes Complete Support Ecosystem</h3>
+            <p>Doubt support, parent updates, and resources keep momentum alive.</p>
+          </article>
+        </section>
+
+        {/* Our Personalised Learning Process (7 steps) */}
         <section className="process section-light" id="process">
           <div className="shell">
             <div className="section-heading">
               <p className="eyebrow">Our method</p>
-              <h2>Our Personalized Learning Process</h2>
+              <h2>Our Personalised Learning Process</h2>
               <p>A proven 7-step journey that keeps students, mentors, and families aligned.</p>
             </div>
             <div className="process-flow">
@@ -276,21 +236,30 @@ export default function App() {
           </div>
         </section>
 
-        {/* Testimonials */}
-        <Testimonials />
-
-        {/* Newsletter */}
-        <section className="newsletter shell" id="resources">
-          <div>
-            <h2>Stay Updated with Free Resources &amp; Tips</h2>
-            <p>Get the latest study tips, resources, and exam updates delivered to your inbox.</p>
+        {/* Why Families Choose ASG — Comparison Table */}
+        <section className="comparison shell">
+          <aside className="note-card">
+            <span className="note-badge">★ Why Us?</span>
+            <strong>We don't just teach.<em>We transform.</em></strong>
+            <p>Every student gets a personalized path built for real results — not one-size-fits-all lessons.</p>
+            <div className="note-card-check">✓</div>
+          </aside>
+          <div className="compare-table" role="table" aria-label="ACT SAT GO comparison">
+            <h2>Why Families Choose ACT SAT GO</h2>
+            <div className="table-row table-head" role="row">
+              <span>Others</span><span>ACT SAT GO</span>
+            </div>
+            <div className="table-row" role="row"><span>One-size-fits-all approach</span><strong>Personalized learning for every student</strong></div>
+            <div className="table-row" role="row"><span>Focus only on tutoring</span><strong>End-to-end academic success partner</strong></div>
+            <div className="table-row" role="row"><span>Limited performance insights</span><strong>AI-powered progress analytics</strong></div>
+            <div className="table-row" role="row"><span>Doubt support with limits</span><strong>Unlimited doubt solving and mentor support</strong></div>
+            <div className="table-row" role="row"><span>Minimal parent communication</span><strong>Weekly reports &amp; regular PTMs</strong></div>
+            <div className="table-row" role="row"><span>Disconnected tools &amp; platforms</span><strong>All-in-one learning ecosystem</strong></div>
           </div>
-          <form onSubmit={(e) => e.preventDefault()}>
-            <label htmlFor="nl-email">Email address</label>
-            <input id="nl-email" type="email" placeholder="Enter your email" />
-            <button className="btn btn-primary" type="submit">Subscribe</button>
-          </form>
         </section>
+
+        {/* What Our Students & Parents Say — Testimonials */}
+        <Testimonials />
 
         {/* CTA + Stats */}
         <section className="prog-cta section-dark" id="consultation">
@@ -339,6 +308,21 @@ export default function App() {
             <p className="footer-desc">
               ACT SAT GO offers expert guidance and resources to help students excel in their ACT | SAT | AP | and other academic courses. Join our community and unlock your potential with tailored learning strategies and comprehensive support.
             </p>
+            {/* Social Media Links */}
+            <div className="footer-social">
+              <a href="https://www.facebook.com/actsatgousa" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+              </a>
+              <a href="https://www.instagram.com/act_sat_go" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+              </a>
+              <a href="https://www.youtube.com/@ACTSATGOTutoring" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#04111f"/></svg>
+              </a>
+              <a href="https://www.linkedin.com/company/act-sat-go/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+              </a>
+            </div>
           </div>
 
           {/* Courses */}

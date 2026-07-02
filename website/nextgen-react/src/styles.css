@@ -1003,6 +1003,77 @@ h1 span,
   color: white;
 }
 
+/* Social media icon row in footer */
+.footer-social {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.footer-social a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.2s, background 0.2s, transform 0.2s, border-color 0.2s;
+}
+
+.footer-social a svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.footer-social a:hover {
+  color: var(--gold);
+  background: rgba(245, 174, 0, 0.1);
+  border-color: rgba(245, 174, 0, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Social icons strip in mobile nav drawer */
+.nav-social {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 4px;
+}
+
+.nav-social a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.65);
+  transition: color 0.2s, background 0.2s;
+}
+
+.nav-social a svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.nav-social a:hover {
+  color: var(--gold);
+  background: rgba(245, 174, 0, 0.1);
+  border-color: rgba(245, 174, 0, 0.2);
+}
+
+
+
 .footer-bottom {
   display: flex;
   align-items: center;
