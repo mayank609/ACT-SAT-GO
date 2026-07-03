@@ -37,7 +37,7 @@ a {
 }
 
 .shell {
-  width: min(1200px, calc(100% - 36px));
+  width: min(1440px, calc(100% - 36px));
   margin-inline: auto;
 }
 
@@ -713,6 +713,232 @@ h1 span,
   max-width: 280px;
   height: auto;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+/* ── Programs hub (3 category cards) ─────────────────────────────── */
+.hub {
+  position: relative;
+  padding: 64px 0;
+}
+
+.hub-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 40px;
+}
+
+.hub-header h2 {
+  margin: 8px 0 14px;
+  font-size: clamp(28px, 3.4vw, 44px);
+  line-height: 1.15;
+  color: white;
+}
+
+.hub-header h2 span {
+  color: var(--gold);
+}
+
+.hub-subtitle {
+  max-width: 460px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.hub-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+  padding: 18px 26px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+
+.hub-badge-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--gold);
+  background: linear-gradient(135deg, var(--navy-2), #06172a);
+  box-shadow: 0 0 0 1px rgba(255, 180, 0, 0.35), 0 8px 20px rgba(255, 180, 0, 0.18);
+}
+
+.hub-badge-icon::before,
+.hub-badge-icon::after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(255, 180, 0, 0.28);
+  border-radius: 50%;
+}
+
+.hub-badge-icon::before {
+  inset: -12px;
+}
+
+.hub-badge-icon::after {
+  inset: -24px;
+}
+
+.hub-badge-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.hub-badge p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.hub-badge p span {
+  color: var(--gold);
+  font-weight: 800;
+}
+
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.hub-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 340px;
+  padding: 28px 26px 26px;
+  border-radius: 18px;
+  background: #f5f8fc;
+  border-bottom: 5px solid transparent;
+  border-image: var(--hub-accent) 1;
+}
+
+.hub-icon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  color: white;
+  background: var(--hub-accent);
+}
+
+.hub-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.hub-card h3 {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 10px;
+  font-size: 24px;
+  line-height: 1.2;
+  color: var(--navy);
+}
+
+.hub-underline {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 36px;
+  height: 3px;
+  margin-bottom: 14px;
+  border-radius: 2px;
+  background: var(--hub-accent);
+}
+
+.hub-card > p {
+  position: relative;
+  z-index: 1;
+  max-width: 62%;
+  margin-bottom: 20px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.hub-explore-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  max-width: 54%;
+  margin-top: auto;
+  color: var(--navy);
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.hub-pills-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  max-width: 68%;
+  margin-top: auto;
+  gap: 6px 8px;
+}
+
+.hub-pill {
+  padding: 6px 12px;
+  border: 1px solid var(--hub-solid, var(--line));
+  border-radius: 999px;
+  color: var(--navy);
+  font-weight: 800;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hub-photo {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  width: 32%;
+  height: 52%;
+  background-repeat: no-repeat;
+  background-size: 300% 200%;
+  border-top-left-radius: 28px;
+  mask-image: linear-gradient(to left, black 55%, transparent 100%);
+}
+
+@media (max-width: 1040px) {
+  .hub-header {
+    flex-direction: column;
+  }
+  .hub-badge {
+    white-space: normal;
+  }
+  .hub-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .hub-card > p {
+    max-width: 100%;
+  }
+  .hub-photo {
+    display: none;
+  }
 }
 
 .programs {

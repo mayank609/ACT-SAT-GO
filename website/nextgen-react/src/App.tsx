@@ -3,7 +3,7 @@ import { Header } from './components/Header';
 import { Brand } from './components/Brand';
 import { Testimonials } from './components/Testimonials';
 import { Universities } from './components/Universities';
-import { Programs } from './components/Programs';
+import { ProgramsHub } from './components/ProgramsHub';
 import { useScrollReveal } from './hooks/useScrollReveal';
 import { ACT_PAGE } from './data/programs';
 import heroImg from './assets/hero.png';
@@ -156,7 +156,7 @@ export default function App() {
           </article>
         </section>
 
-        <Programs />
+        <ProgramsHub />
 
         <section className="cta-section shell">
           <div className="process-cta">

@@ -88,3 +88,32 @@ export function IconClipboardCheck() {
     </svg>
   );
 }
+
+export function IconTarget() {
+  return (
+    <svg {...base}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5.2" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function IconOpenBookSquare() {
+  return (
+    <svg {...base}>
+      <path d="M12 6.5C10.5 5.3 8 4.5 5 4.5v13c3 0 5.5.8 7 2 1.5-1.2 4-2 7-2v-13c-3 0-5.5.8-7 2Z" />
+    </svg>
+  );
+}
+
+export function IconRocket() {
+  return (
+    <svg {...base}>
+      <path d="M13.5 3.5c3 .5 5 2.5 5.5 5.5-3 3-7 6-9 8l-4-4c2-2 5-6 8-9.5Z" />
+      <circle cx="14.5" cy="9.5" r="1.4" />
+      <path d="M9 15l-2 5-2.5-2.5L9 15Z" />
+      <path d="M8 13c-1.5-.5-3 0-4 1-1 1.5-1 3-1 3s1.5 0 3-1c1-1 1.5-2.5 1-3Z" fill="var(--gold)" stroke="none" />
+    </svg>
+  );
+}
