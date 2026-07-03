@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
+import { CountUp } from '../components/CountUp';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import type { ProgramPageData } from '../data/programs';
 import apHeroImg from '../assets/ap-hero.png';
@@ -441,7 +442,7 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
             <div className="prog-stats">
               {data.stats.map((s) => (
                 <div key={s.label}>
-                  <strong>{s.value}</strong>
+                  <CountUp value={s.value} />
                   <span>{s.label}</span>
                 </div>
               ))}

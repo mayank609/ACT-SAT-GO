@@ -166,8 +166,25 @@
   padding: 60px 0;
 }
 
-.k12-grades .section-heading h2 {
+.k12-grades .section-heading h2,
+.k12-skills .section-heading h2 {
   font-size: clamp(24px, 2.8vw, 34px);
+}
+
+.k12-grades .section-heading .eyebrow,
+.k12-skills .section-heading .eyebrow {
+  color: #1c5fa5;
+}
+
+.k12-grades .section-heading::after,
+.k12-skills .section-heading::after {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 3px;
+  margin: 14px auto 0;
+  border-radius: 2px;
+  background: var(--gold);
 }
 
 .k12-grade-grid {

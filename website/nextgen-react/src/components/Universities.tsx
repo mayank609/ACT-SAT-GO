@@ -14,17 +14,7 @@ function UniLogo({ name, domain }: { name: string; domain: string }) {
   const logoUrl = `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`;
 
   return (
-    <div className="uni-logo-chip" style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '14px',
-      padding: '14px 26px',
-      background: '#f8fafc',
-      border: '1px solid #e2e8f0',
-      borderRadius: '16px',
-      transition: 'all 0.25s ease',
-      cursor: 'default'
-    }}>
+    <div className="uni-logo-chip">
       {!failed && (
         <img
           src={logoUrl}
@@ -32,47 +22,21 @@ function UniLogo({ name, domain }: { name: string; domain: string }) {
           title={name}
           loading="lazy"
           onError={() => setFailed(true)}
-          style={{
-            height: '40px',
-            width: '40px',
-            objectFit: 'contain',
-            filter: 'none',
-            opacity: 1,
-            margin: 0,
-            transform: 'none'
-          }}
         />
       )}
-      <span style={{
-        fontSize: '17px',
-        fontWeight: '700',
-        color: '#334155',
-        padding: 0,
-        borderRadius: 0,
-        background: 'none'
-      }}>{name}</span>
+      <span>{name}</span>
     </div>
   );
 }
 
 export function Universities() {
   return (
-    <div className="university-strip" style={{
-      display: 'flex',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      gap: '16px',
-      marginTop: '26px',
-      padding: '20px',
-      border: '1px solid #e2e8f0',
-      borderRadius: '12px',
-      background: '#ffffff',
-      fontWeight: 'bold'
-    }}>
-      {UNIVERSITIES.map((u) => (
-        <UniLogo key={u.name} name={u.name} domain={u.domain} />
-      ))}
+    <div className="university-marquee">
+      <div className="university-track">
+        {[...UNIVERSITIES, ...UNIVERSITIES].map((u, i) => (
+          <UniLogo key={`${u.name}-${i}`} name={u.name} domain={u.domain} />
+        ))}
+      </div>
     </div>
   );
 }
-

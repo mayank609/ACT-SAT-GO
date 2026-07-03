@@ -4,11 +4,12 @@ import { Brand } from './components/Brand';
 import { Testimonials } from './components/Testimonials';
 import { Universities } from './components/Universities';
 import { ProgramsHub } from './components/ProgramsHub';
+import { CountUp } from './components/CountUp';
 import { useScrollReveal } from './hooks/useScrollReveal';
 import { ACT_PAGE } from './data/programs';
 import heroImg from './assets/hero.png';
 import { QUERY_API_BASE } from './config';
-import { IconGlobe, IconUser, IconUsers, IconHeartCheck, IconGraduationCap, IconChart, IconDocument, IconClipboardCheck } from './components/Icons';
+import { IconGlobe, IconUser, IconUsers, IconHeartCheck, IconGraduationCap, IconChart, IconDocument, IconClipboardCheck, IconLink, IconRoute, IconMonitor, IconFlag, IconNetwork, IconTrophy } from './components/Icons';
 
 
 export default function App() {
@@ -68,7 +69,7 @@ export default function App() {
           <span className="orb orb-dot" aria-hidden="true" />
           <div className="shell hero-grid">
             <div className="hero-copy">
-              <span className="eyebrow-hero">SAT · ACT · AP · K-12 TUTORING</span>
+              <span className="eyebrow-hero"></span>
               <h1>The Right Guidance.<br />The Right Plan.<br /><span>The Right Future.</span></h1>
               <p className="hero-text">Personalized online tutoring for SAT, ACT, AP and K-12 students designed to unlock potential and achieve real results.</p>
 
@@ -102,7 +103,7 @@ export default function App() {
                 <strong>Concepts<br />Made Simple</strong>
               </div>
 
-<div className="floating-card card-tags">
+              <div className="floating-card card-tags">
                 <span>SAT</span><span>ACT</span><span>AP</span>
               </div>
 
@@ -118,13 +119,27 @@ export default function App() {
         <section className="stats-band shell" aria-label="Impact statistics">
           <div className="stats-band-reach">
             <span className="stat-icon" aria-hidden="true"><IconGlobe /></span>
-            <strong>Students Across</strong>
-            <span>USA · Canada · India · UAE · Singapore · UK</span>
+            <div className="stat-text">
+              <strong>Students Across</strong>
+              <span>USA · Canada · India · UAE · Singapore · UK</span>
+            </div>
           </div>
-          <div><span className="stat-icon" aria-hidden="true"><IconUser /></span><strong>5,000+</strong><span>Students Mentored</span></div>
-          <div><span className="stat-icon" aria-hidden="true"><IconUsers /></span><strong>300+</strong><span>Expert Tutors</span></div>
-          <div><span className="stat-icon" aria-hidden="true"><IconHeartCheck /></span><strong>98%</strong><span>Parent Satisfaction</span></div>
-          <div><span className="stat-icon" aria-hidden="true"><IconGlobe /></span><strong>50+</strong><span>Countries Reached</span></div>
+          <div>
+            <span className="stat-icon" aria-hidden="true"><IconUser /></span>
+            <div className="stat-text"><CountUp value="5,000+" /><span>Students Mentored</span></div>
+          </div>
+          <div>
+            <span className="stat-icon" aria-hidden="true"><IconUsers /></span>
+            <div className="stat-text"><CountUp value="300+" /><span>Expert Tutors</span></div>
+          </div>
+          <div>
+            <span className="stat-icon" aria-hidden="true"><IconHeartCheck /></span>
+            <div className="stat-text"><CountUp value="98%" /><span>Parent Satisfaction</span></div>
+          </div>
+          <div>
+            <span className="stat-icon" aria-hidden="true"><IconGlobe /></span>
+            <div className="stat-text"><CountUp value="50+" /><span>Countries Reached</span></div>
+          </div>
         </section>
 
         {/* Every Step is Personalised */}
@@ -160,14 +175,20 @@ export default function App() {
 
         <section className="cta-section shell">
           <div className="process-cta">
+            <span className="process-cta-dots process-cta-dots-tr" aria-hidden="true" />
+            <span className="process-cta-dots process-cta-dots-bl" aria-hidden="true" />
             <div>
-              <h3>Every step is personalized.<br />Every action is guided.<br />Every goal is achievable.</h3>
+              <h3>
+                <span className="cta-line">Every step is <em>personalized.</em></span>
+                <span className="cta-line">Every action is <em>guided.</em></span>
+                <span className="cta-line">Every goal is <em>achievable.</em></span>
+              </h3>
               <a className="btn btn-primary" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal('General'); }}>
                 Book Free Consultation <span aria-hidden="true">→</span>
               </a>
             </div>
             <div className="cta-graphic" aria-hidden="true">
-              <svg viewBox="0 0 220 150" width="100%" height="100%">
+              <svg viewBox="0 0 260 170" width="100%" height="100%">
                 <defs>
                   <linearGradient id="ctaGoldBar" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#ffe29a" />
@@ -187,48 +208,63 @@ export default function App() {
                     <stop offset="0%" stopColor="#ffe29a" />
                     <stop offset="100%" stopColor="#b9781a" />
                   </linearGradient>
+                  <radialGradient id="ctaGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#ffb400" stopOpacity="0.55" />
+                    <stop offset="100%" stopColor="#ffb400" stopOpacity="0" />
+                  </radialGradient>
                 </defs>
 
-                <rect x="12" y="104" width="18" height="30" rx="4" fill="url(#ctaGoldBar)" opacity="0.75" />
-                <rect x="36" y="86" width="18" height="48" rx="4" fill="url(#ctaGoldBar)" opacity="0.85" />
-                <rect x="60" y="66" width="18" height="68" rx="4" fill="url(#ctaGoldBar)" opacity="0.92" />
-                <rect x="84" y="42" width="18" height="92" rx="4" fill="url(#ctaGoldBar)" />
-                <rect x="108" y="16" width="18" height="118" rx="4" fill="url(#ctaGoldBar)" />
+                {/* ambient rings */}
+                <circle cx="205" cy="70" r="88" fill="none" stroke="#ffffff" strokeOpacity="0.06" />
+                <circle cx="205" cy="70" r="68" fill="none" stroke="#ffffff" strokeOpacity="0.08" />
 
-                <circle cx="168" cy="70" r="50" fill="none" stroke="url(#ctaRingGold)" strokeWidth="1.5" opacity="0.6" />
-                <circle cx="168" cy="70" r="46" fill="url(#ctaRingGold)" />
-                <circle cx="168" cy="70" r="36" fill="url(#ctaRingCream)" />
-                <circle cx="168" cy="70" r="26" fill="url(#ctaRingGold)" />
-                <circle cx="168" cy="70" r="16" fill="url(#ctaRingCream)" />
-                <circle cx="168" cy="70" r="6" fill="#c9860f" />
+                {/* ground glow */}
+                <ellipse cx="150" cy="146" rx="105" ry="14" fill="url(#ctaGlow)" />
 
-                <path d="M209 9 199 11M209 9 207 19" stroke="url(#ctaArrow)" strokeWidth="4" strokeLinecap="round" />
-                <line x1="209" y1="9" x2="176" y2="53" stroke="url(#ctaArrow)" strokeWidth="5" strokeLinecap="round" />
-                <path d="M166 57 178 52 174 66Z" fill="url(#ctaArrow)" />
+                {/* bars */}
+                <rect x="6" y="108" width="18" height="26" rx="4" fill="url(#ctaGoldBar)" opacity="0.7" />
+                <rect x="30" y="94" width="18" height="40" rx="4" fill="url(#ctaGoldBar)" opacity="0.8" />
+                <rect x="54" y="78" width="18" height="56" rx="4" fill="url(#ctaGoldBar)" opacity="0.88" />
+                <rect x="78" y="60" width="18" height="74" rx="4" fill="url(#ctaGoldBar)" opacity="0.94" />
+                <rect x="102" y="40" width="18" height="94" rx="4" fill="url(#ctaGoldBar)" />
+                <rect x="126" y="18" width="18" height="116" rx="4" fill="url(#ctaGoldBar)" />
+
+                {/* target */}
+                <circle cx="205" cy="70" r="54" fill="none" stroke="#06172a" strokeOpacity="0.5" strokeWidth="2" />
+                <circle cx="205" cy="70" r="51" fill="url(#ctaRingGold)" />
+                <circle cx="205" cy="70" r="40" fill="url(#ctaRingCream)" />
+                <circle cx="205" cy="70" r="29" fill="url(#ctaRingGold)" />
+                <circle cx="205" cy="70" r="18" fill="url(#ctaRingCream)" />
+                <circle cx="205" cy="70" r="7" fill="#c9860f" />
+
+                {/* arrow */}
+                <path d="M251 6 239 9M251 6 248 18" stroke="url(#ctaArrow)" strokeWidth="4.5" strokeLinecap="round" />
+                <line x1="251" y1="6" x2="211" y2="63" stroke="url(#ctaArrow)" strokeWidth="5.5" strokeLinecap="round" />
+                <path d="M200 68 214 62 209 79Z" fill="url(#ctaArrow)" />
               </svg>
             </div>
           </div>
         </section>
 
-        {/* Our Personalised Learning Process (7 steps) */}
+        {/* Our Personalized Learning Process (7 steps) */}
         <section className="process section-light" id="process">
           <div className="shell">
             <div className="section-heading">
-              <p className="eyebrow">Our method</p>
-              <h2>Our Personalised Learning Process</h2>
-              <p>A proven 7-step journey that keeps students, mentors, and families aligned.</p>
+              <h2>Our Personalized Learning Process</h2>
+              <p>A proven 7-step journey to help every student succeed.</p>
             </div>
             <div className="process-flow">
               {[
-                { n: '01', title: 'Understand', text: 'We learn about your goals & challenges.' },
-                { n: '02', title: 'Assess', text: 'Diagnostic test to analyze strengths & weaknesses.' },
-                { n: '03', title: 'Create', text: 'We create a customized learning roadmap just for you.' },
-                { n: '04', title: 'Learn', text: 'Live classes, practice & resources with expert guidance.' },
-                { n: '05', title: 'Track', text: 'In-stream tracking of progress and performance.' },
-                { n: '06', title: 'Feedback', text: 'Continuous feedback & data insights for improvement.' },
-                { n: '07', title: 'Improve', text: 'Reach your target score & unlock future opportunities.' },
+                { n: '01', title: 'Understand', text: 'We learn about your goals & challenges.', icon: <IconLink /> },
+                { n: '02', title: 'Assess', text: 'Diagnostic tests to analyze strengths & weaknesses.', icon: <IconDocument /> },
+                { n: '03', title: 'Plan', text: 'We create a custom learning roadmap just for you.', icon: <IconRoute /> },
+                { n: '04', title: 'Learn', text: 'Live classes, practice & resources with expert guidance.', icon: <IconMonitor /> },
+                { n: '05', title: 'Track', text: 'AI-driven tracking of progress and performance.', icon: <IconFlag /> },
+                { n: '06', title: 'Improve', text: 'Continuous feedback & data insights for continuous improvement.', icon: <IconNetwork /> },
+                { n: '07', title: 'Achieve', text: 'Reach your target score & unlock your future.', icon: <IconTrophy /> },
               ].map((s, i) => (
                 <article key={s.n} className="process-step reveal" style={{ transitionDelay: `${i * 60}ms` }}>
+                  <span className="process-icon" aria-hidden="true">{s.icon}</span>
                   <span className="process-num">{s.n}</span>
                   <h3>{s.title}</h3>
                   <p>{s.text}</p>
@@ -365,16 +401,16 @@ export default function App() {
             {/* Social Media Links */}
             <div className="footer-social">
               <a href="https://www.facebook.com/actsatgousa" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
               </a>
               <a href="https://www.instagram.com/act_sat_go" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
               </a>
               <a href="https://www.youtube.com/@ACTSATGOTutoring" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#04111f"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" /><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#04111f" /></svg>
               </a>
               <a href="https://www.linkedin.com/company/act-sat-go/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></svg>
               </a>
             </div>
           </div>
@@ -410,11 +446,11 @@ export default function App() {
             <h4 className="footer-heading">Get In Touch</h4>
             <ul className="footer-contact">
               <li>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.61 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.61 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
                 <a href="tel:+13322314081">+1 (332) 231-4081</a>
               </li>
               <li>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
                 <a href="mailto:info@actsatgo.com">info@actsatgo.com</a>
               </li>
             </ul>
@@ -431,7 +467,7 @@ export default function App() {
       <div className={`c-modal-overlay${isModalOpen ? ' is-active' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) closeConsultationModal(); }}>
         <div className="c-modal">
           <button className="c-modal-close" onClick={closeConsultationModal}>&times;</button>
-          
+
           {submitStatus === 'success' ? (
             <div className="c-success-state">
               <div className="c-success-icon">✓</div>

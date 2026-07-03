@@ -117,3 +117,61 @@ export function IconRocket() {
     </svg>
   );
 }
+
+export function IconLink() {
+  return (
+    <svg {...base}>
+      <rect x="3" y="8.5" width="10" height="7" rx="3.5" />
+      <rect x="11" y="8.5" width="10" height="7" rx="3.5" fill="var(--gold)" stroke="none" />
+    </svg>
+  );
+}
+
+export function IconRoute() {
+  return (
+    <svg {...base}>
+      <path d="M4 19V6l6-2v13l6-2V4l4 2v13l-6 2V6l-6 2v13Z" />
+      <circle cx="17" cy="9" r="1.3" fill="var(--gold)" stroke="none" />
+    </svg>
+  );
+}
+
+export function IconMonitor() {
+  return (
+    <svg {...base}>
+      <rect x="3" y="4" width="18" height="13" rx="2" />
+      <path d="M9 21h6M12 17v4" />
+      <path d="M9.5 8.5 13 11l-3.5 2.5Z" fill="var(--gold)" stroke="var(--gold)" />
+    </svg>
+  );
+}
+
+export function IconFlag() {
+  return (
+    <svg {...base}>
+      <path d="M6 21V4" />
+      <path d="M6 5c3-1.5 5 1.5 8 0l1 5.5c-3 1.5-5-1.5-8 0Z" fill="var(--gold)" stroke="var(--gold)" />
+    </svg>
+  );
+}
+
+export function IconNetwork() {
+  return (
+    <svg {...base}>
+      <circle cx="6" cy="7" r="2.6" />
+      <circle cx="18" cy="7" r="2.6" fill="var(--gold)" stroke="none" />
+      <circle cx="12" cy="18" r="2.6" />
+      <path d="M8 8.5 10 16M16 8.5 14 16M8.5 7h7" />
+    </svg>
+  );
+}
+
+export function IconTrophy() {
+  return (
+    <svg {...base}>
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" fill="var(--gold)" stroke="var(--gold)" />
+      <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3" />
+      <path d="M12 13v3M9 20h6M10 20c0-2 .5-2.5 2-2.5s2 .5 2 2.5" />
+    </svg>
+  );
+}
