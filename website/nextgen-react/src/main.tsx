@@ -3,11 +3,15 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import App from './App';
 import { ProgramPage } from './pages/ProgramPage';
+import { FutureProgramsPage } from './pages/FutureProgramsPage';
+import { K12TutoringPage } from './pages/K12TutoringPage';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminLeads } from './pages/AdminLeads';
 import { ACT_PAGE, SAT_PAGE, AP_PAGE } from './data/programs';
 import './styles.css';
 import './program.css';
+import './future-programs.css';
+import './k12-tutoring.css';
 import './admin.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -18,6 +22,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/act" element={<ProgramPage data={ACT_PAGE} />} />
         <Route path="/sat" element={<ProgramPage data={SAT_PAGE} />} />
         <Route path="/ap" element={<ProgramPage data={AP_PAGE} />} />
+        <Route path="/future-programs" element={<FutureProgramsPage />} />
+        <Route path="/k-12-tutoring" element={<K12TutoringPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/leads" element={<AdminLeads />} />
         <Route path="/admin" element={<Navigate to="/admin/leads" replace />} />

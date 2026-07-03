@@ -126,6 +126,22 @@ a {
   color: var(--gold);
 }
 
+.nav-home {
+  display: inline-flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.88);
+  transition: color 0.2s ease;
+}
+
+.nav-home svg {
+  width: 19px;
+  height: 19px;
+}
+
+.nav-home:hover {
+  color: var(--gold);
+}
+
 .nav-actions,
 .hero-actions {
   display: flex;

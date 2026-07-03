@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { Brand } from './Brand';
 import { APP_LOGIN_URL } from '../config';
 
-const PROGRAM_LINKS = [
-  { to: '/sat', label: 'SAT Preparation' },
-  { to: '/act', label: 'ACT Preparation' },
-  { to: '/ap', label: 'AP Preparation' },
+const PROGRAM_LINKS: { to?: string; href?: string; label: string }[] = [
+  { to: '/sat', label: 'SAT' },
+  { to: '/act', label: 'ACT' },
+  { to: '/ap', label: 'AP' },
+  { to: '/k-12-tutoring', label: 'K-12 Tutoring' },
+  { to: '/future-programs', label: 'Future Programs' },
 ];
 
 const RESOURCE_LINKS = [
@@ -40,8 +42,16 @@ export function Header() {
           <span></span><span></span><span></span>
         </button>
         <div className="nav-links" data-nav>
-          <a href="/#home" onClick={close}>Home</a>
-          
+          <a href="/#home" onClick={close} className="nav-home" aria-label="Home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 11.5 12 4l9 7.5" />
+              <path d="M5.5 9.5V20h13V9.5" />
+              <path d="M10 20v-6h4v6" />
+            </svg>
+          </a>
+
+          <a href="/#about" onClick={close}>About Us</a>
+
           <div
             className={`nav-dropdown${programsOpen ? ' is-open' : ''}`}
             onMouseEnter={() => setProgramsOpen(true)}
@@ -57,12 +67,14 @@ export function Header() {
             </button>
             <div className="nav-dropdown-menu" role="menu">
               {PROGRAM_LINKS.map((p) => (
-                <Link key={p.to} to={p.to} role="menuitem" onClick={close}>{p.label}</Link>
+                p.to ? (
+                  <Link key={p.label} to={p.to} role="menuitem" onClick={close}>{p.label}</Link>
+                ) : (
+                  <a key={p.label} href={p.href} role="menuitem" onClick={close}>{p.label}</a>
+                )
               ))}
             </div>
           </div>
-
-          <a href="/#programs" onClick={close}>Practice</a>
 
           <div
             className={`nav-dropdown${resourcesOpen ? ' is-open' : ''}`}
@@ -84,13 +96,12 @@ export function Header() {
             </div>
           </div>
 
-          <a href="/#about" onClick={close}>About Us</a>
+          <a href="/#programs" onClick={close}>Career</a>
+
+          <a href={APP_LOGIN_URL} onClick={close}>Login</a>
 
           {/* Mobile-only actions inside the drawer */}
           <div className="nav-links-mobile-actions">
-            <a className="nav-login" href={APP_LOGIN_URL} onClick={close}>
-              Log in
-            </a>
             <a className="btn btn-primary" href="/#consultation" onClick={close}>
               Enroll Now <span aria-hidden="true">→</span>
             </a>
@@ -112,9 +123,6 @@ export function Header() {
           </div>
         </div>
         <div className="nav-actions">
-          <a className="nav-login" href={APP_LOGIN_URL} onClick={close}>
-            Log in
-          </a>
           <a className="btn btn-primary" href="/#consultation" onClick={close}>
             Enroll Now <span aria-hidden="true">→</span>
           </a>
