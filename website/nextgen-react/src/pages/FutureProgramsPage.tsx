@@ -3,7 +3,6 @@ import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { IconGlobe, IconGraduationCap, IconChart } from '../components/Icons';
-import programsImg from '../assets/programs.png';
 import img9 from '../assets/9.jpeg';
 import img3 from '../assets/3.jpeg';
 import img7 from '../assets/7.jpeg';
@@ -111,21 +110,7 @@ const EXPLORE_PROGRAMS = [
   },
 ];
 
-const LANGUAGES = [
-  { flag: '🇬🇧', label: 'English' },
-  { flag: '🇫🇷', label: 'French' },
-  { flag: '🇪🇸', label: 'Spanish' },
-  { flag: '🇩🇪', label: 'German' },
-  { flag: '🇨🇳', label: 'Mandarin' },
-  { flag: '🇯🇵', label: 'Japanese' },
-  { flag: '🇸🇦', label: 'Arabic' },
-  { flag: '🇮🇳', label: 'Hindi' },
-];
 
-const EXAM_BADGES = [
-  { label: 'IELTS', color: '#1c5fa5' },
-  { label: 'TOEFL', color: '#6d28d9' },
-];
 
 const WHY_MATTERS = [
   { icon: <IconGlobe />, title: 'Global Recognition', text: 'Accepted by top universities and institutions around the world.' },
