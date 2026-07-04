@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { IconGlobe, IconGraduationCap, IconUser, IconChart } from '../components/Icons';
 import programsImg from '../assets/programs.png';
+import k12HeroImg from '../assets/k12-hero.png';
 
 const CONSULT_HREF = '/#consultation';
 
@@ -198,10 +199,36 @@ const BOTTOM_STATS = [
 
 export function K12TutoringPage() {
   useScrollReveal();
+  const heroArtRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = 'K-12 Tutoring — ACT SAT GO';
+  }, []);
+
+  useEffect(() => {
+    const el = heroArtRef.current;
+    if (!el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const handleMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width - 0.5;
+      const y = (e.clientY - rect.top) / rect.height - 0.5;
+      el.style.setProperty('--tilt-x', `${(-y * 6).toFixed(2)}deg`);
+      el.style.setProperty('--tilt-y', `${(x * 6).toFixed(2)}deg`);
+    };
+    const handleLeave = () => {
+      el.style.setProperty('--tilt-x', '0deg');
+      el.style.setProperty('--tilt-y', '0deg');
+    };
+
+    el.addEventListener('mousemove', handleMove);
+    el.addEventListener('mouseleave', handleLeave);
+    return () => {
+      el.removeEventListener('mousemove', handleMove);
+      el.removeEventListener('mouseleave', handleLeave);
+    };
   }, []);
 
   return (
@@ -211,6 +238,7 @@ export function K12TutoringPage() {
       <main>
         {/* Hero */}
         <section className="k12-hero section-dark">
+          <span className="k12-hero-texture" aria-hidden="true" />
           <span className="orb orb-gold" aria-hidden="true" />
           <span className="orb orb-ring" aria-hidden="true" />
           <div className="shell k12-hero-grid">
@@ -226,6 +254,11 @@ export function K12TutoringPage() {
                 at every step of their academic journey.
               </p>
 
+              <div className="k12-hero-actions">
+                <a className="btn btn-primary" href={CONSULT_HREF}>Book a Free Consultation <span aria-hidden="true">→</span></a>
+                <a className="btn btn-outline" href="/#programs">Explore Programs</a>
+              </div>
+
               <div className="k12-feature-row">
                 {HERO_FEATURES.map((f) => (
                   <div key={f.label} className="k12-feature-item">
@@ -236,21 +269,17 @@ export function K12TutoringPage() {
               </div>
             </div>
 
-            <div className="k12-hero-art" aria-hidden="true">
+            <div className="k12-hero-art" ref={heroArtRef} aria-hidden="true">
               <span className="k12-blob k12-blob-gold"></span>
               <span className="k12-blob k12-blob-blue"></span>
+              <span className="k12-ring-glow"></span>
               <span className="k12-doodle k12-doodle-bulb">💡</span>
               <span className="k12-doodle k12-doodle-book">📖</span>
-              <img className="k12-hero-photo" src={programsImg} alt="Three students supported by ACT SAT GO tutoring" />
-              <div className="k12-trust-card">
-                <div className="k12-trust-avatars">
-                  <span>A</span><span>M</span><span>R</span>
-                </div>
-                <div>
-                  <strong>10,000+ Students</strong>
-                  <span>Trust ACT SAT GO</span>
-                </div>
-              </div>
+              <span className="k12-doodle k12-doodle-cap">🎓</span>
+              <span className="k12-doodle k12-doodle-formula">∑</span>
+              <span className="k12-doodle k12-doodle-star">✦</span>
+              <span className="k12-doodle k12-doodle-pi">π</span>
+              <img className="k12-hero-photo" src={k12HeroImg} alt="Three students supported by ACT SAT GO tutoring" />
             </div>
           </div>
         </section>
