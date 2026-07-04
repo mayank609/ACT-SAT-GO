@@ -4,7 +4,6 @@ import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { IconGlobe, IconGraduationCap, IconUser, IconChart } from '../components/Icons';
 import programsImg from '../assets/programs.png';
-import ctaImg6 from '../assets/6.jpeg';
 import k12HeroImg from '../assets/k12-hero.png';
 import k12ElementaryImg from '../assets/k12-elementary.jpg';
 import k12MiddleImg from '../assets/k12-middle.jpg';
