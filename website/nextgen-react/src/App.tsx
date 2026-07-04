@@ -8,6 +8,10 @@ import { CountUp } from './components/CountUp';
 import { useScrollReveal } from './hooks/useScrollReveal';
 import { ACT_PAGE } from './data/programs';
 import heroImg from './assets/hero.png';
+import avatar1 from './assets/avatar1.png';
+import avatar2 from './assets/avatar2.png';
+import avatar3 from './assets/avatar3.png';
+import avatar4 from './assets/avatar4.png';
 import { QUERY_API_BASE } from './config';
 import { IconGlobe, IconUser, IconUsers, IconHeartCheck, IconGraduationCap, IconChart, IconDocument, IconClipboardCheck, IconLink, IconRoute, IconMonitor, IconFlag, IconNetwork, IconTrophy } from './components/Icons';
 
@@ -81,8 +85,11 @@ export default function App() {
               </div>
 
               <div className="hero-trust">
-                <div className="hero-avatars" aria-hidden="true">
-                  <span>A</span><span>M</span><span>R</span><span>S</span>
+                <div className="hero-avatars">
+                  <img src={avatar1} alt="Student avatar 1" />
+                  <img src={avatar2} alt="Student avatar 2" />
+                  <img src={avatar3} alt="Student avatar 3" />
+                  <img src={avatar4} alt="Student avatar 4" />
                 </div>
                 <div>
                   <div className="stars">★★★★★</div>
@@ -92,24 +99,111 @@ export default function App() {
             </div>
 
             <div className="hero-art">
+              {/* Background artwork decorations */}
+              <div className="hero-decorations" aria-hidden="true">
+                {/* Dotted globe wireframe background */}
+                <svg className="globe-bg" viewBox="0 0 400 400" fill="none" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1.2">
+                  <circle cx="200" cy="200" r="160" />
+                  <path d="M200,40 A200,160 0 0,0 200,360" />
+                  <path d="M200,40 A200,160 0 0,1 200,360" />
+                  <path d="M200,40 A80,160 0 0,0 200,360" />
+                  <path d="M200,40 A80,160 0 0,1 200,360" />
+                  <line x1="200" y1="40" x2="200" y2="360" />
+                  <line x1="40" y1="200" x2="360" y2="200" />
+                  <path d="M70,100 Q200,140 330,100" />
+                  <path d="M70,300 Q200,260 330,300" />
+                </svg>
+
+                {/* Curved dotted line */}
+                <svg className="dotted-path" viewBox="0 0 500 300" fill="none" stroke="var(--gold)" strokeWidth="2.5" strokeDasharray="5 5">
+                  <path d="M50,150 Q130,40 230,130 T390,60" />
+                </svg>
+
+                {/* Graduation cap */}
+                <div className="decor-item cap-item">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2 1 7l11 5 9-4.09V14a1 1 0 0 0 2 0V7.91L23 7ZM4.18 11.58A8 8 0 0 0 12 16a8 8 0 0 0 7.82-4.42L12 15Z" />
+                  </svg>
+                </div>
+
+                {/* Paper airplane */}
+                <div className="decor-item plane-item">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M2 21 23 12 2 3v7l15 2-15 2Z" />
+                  </svg>
+                </div>
+
+                {/* Sparkles / Stars */}
+                <div className="decor-item star-item-1">✦</div>
+                <div className="decor-item star-item-2">✦</div>
+              </div>
+
               <img src={heroImg} alt="Students studying online with tutoring support" />
 
-              <div className="floating-card card-concepts">
-                <span className="concepts-check" aria-hidden="true">
+              {/* Concepts Made Simple check badge */}
+              <div className="floating-card card-concepts-new">
+                <span className="concepts-check-new" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 </span>
-                <strong>Concepts<br />Made Simple</strong>
+                <div>
+                  <span className="concept-title">Concepts</span>
+                  <span className="concept-sub">Made Simple</span>
+                </div>
               </div>
 
-              <div className="floating-card card-tags">
-                <span>SAT</span><span>ACT</span><span>AP</span>
+              {/* Score Improvement chart card */}
+              <div className="floating-card card-score-new">
+                <span className="score-title">Score Improvement</span>
+                <span className="score-value">+230 Points</span>
+                <svg className="score-chart" viewBox="0 0 160 50">
+                  <path
+                    d="M10,40 Q35,28 60,32 T110,22 L150,8"
+                    fill="none"
+                    stroke="var(--gold)"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="10" cy="40" r="3.5" fill="var(--gold)" />
+                  <circle cx="35" cy="28" r="3.5" fill="var(--gold)" />
+                  <circle cx="60" cy="32" r="3.5" fill="var(--gold)" />
+                  <circle cx="85" cy="25" r="3.5" fill="var(--gold)" />
+                  <circle cx="110" cy="22" r="3.5" fill="var(--gold)" />
+                  <circle cx="150" cy="8" r="4.5" fill="var(--gold)" />
+                </svg>
               </div>
 
-              <div className="floating-card card-plan">
-                <strong>Personalized Plan</strong>
-                <i></i><i></i><i></i>
+              {/* Exam tag stack */}
+              <div className="floating-card card-exams-new">
+                <span className="exam-tag active">SAT</span>
+                <span className="exam-tag active">ACT</span>
+                <span className="exam-tag">AP</span>
+              </div>
+
+              {/* Personalized Plan lines checklist card */}
+              <div className="floating-card card-plan-new">
+                <span className="plan-title">Personalized Plan</span>
+                <div className="plan-items">
+                  <div className="plan-item">
+                    <svg className="plan-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    <span className="plan-line line-long"></span>
+                  </div>
+                  <div className="plan-item">
+                    <svg className="plan-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    <span className="plan-line line-medium"></span>
+                  </div>
+                  <div className="plan-item">
+                    <svg className="plan-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    <span className="plan-line line-short"></span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -447,7 +541,7 @@ export default function App() {
             <ul className="footer-contact">
               <li>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.61 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
-                <a href="tel:+13322314081">+1 (332) 231-4081</a>
+                <a href="tel:+13322314081">+91 80855 59439</a>
               </li>
               <li>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>

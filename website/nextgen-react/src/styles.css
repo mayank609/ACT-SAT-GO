@@ -3307,4 +3307,287 @@ html, body {
   }
 }
 
+/* ── Hero Artwork Decorations & Cards ────────────────────────────────── */
+.hero-decorations {
+  position: absolute;
+  inset: -40px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.globe-bg {
+  position: absolute;
+  right: 5%;
+  top: 5%;
+  width: 80%;
+  height: 80%;
+  opacity: 0.75;
+}
+
+.dotted-path {
+  position: absolute;
+  left: 0;
+  top: 10%;
+  width: 90%;
+  height: 60%;
+}
+
+.decor-item {
+  position: absolute;
+  color: var(--gold);
+}
+
+.cap-item {
+  top: 8%;
+  right: 38%;
+  width: 32px;
+  height: 32px;
+  opacity: 0.8;
+  transform: rotate(-10deg);
+  animation: floatY-soft 6s ease-in-out infinite;
+}
+
+.plane-item {
+  top: 5%;
+  right: 12%;
+  width: 28px;
+  height: 28px;
+  color: rgba(255, 255, 255, 0.75);
+  animation: floatY-soft 8s ease-in-out infinite 1s;
+}
+
+.star-item-1 {
+  top: 18%;
+  right: 48%;
+  font-size: 20px;
+  animation: pulse-soft 4s ease-in-out infinite;
+}
+
+.star-item-2 {
+  top: 25%;
+  right: 44%;
+  font-size: 14px;
+  color: #fff;
+  opacity: 0.6;
+  animation: pulse-soft 4s ease-in-out infinite 1.5s;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Base floating card overrides for the new cards */
+.floating-card {
+  background: rgba(7, 25, 46, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 12px;
+  color: #fff;
+}
+
+/* Concepts Made Simple Card */
+.card-concepts-new {
+  position: absolute;
+  left: -20px;
+  top: 20%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  animation: floatY-soft 6.5s ease-in-out infinite;
+}
+
+.concepts-check-new {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #0b1e36;
+  background: #fff;
+}
+
+.concepts-check-new svg {
+  width: 14px;
+  height: 14px;
+}
+
+.card-concepts-new div {
+  display: flex;
+  flex-direction: column;
+}
+
+.concept-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.concept-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Score Improvement Card */
+.card-score-new {
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  z-index: 3;
+  width: 198px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: floatY-soft 7.5s ease-in-out infinite 0.5s;
+}
+
+.score-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.score-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.score-chart {
+  width: 100%;
+  height: auto;
+  margin-top: 8px;
+  overflow: visible;
+}
+
+/* Exam Tags stack */
+.card-exams-new {
+  position: absolute;
+  right: -25px;
+  top: 48%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.exam-tag {
+  min-width: 86px;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 25, 46, 0.88);
+  color: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s ease;
+}
+
+.exam-tag.active {
+  background: var(--gold);
+  color: #0b1e36;
+  border-color: var(--gold);
+  transform: scale(1.03);
+}
+
+/* Personalized Plan Card */
+.card-plan-new {
+  position: absolute;
+  right: -25px;
+  bottom: 8%;
+  z-index: 3;
+  width: 178px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: floatY-soft 7s ease-in-out infinite 1s;
+}
+
+.plan-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.plan-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-check {
+  width: 14px;
+  height: 14px;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.plan-line {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+}
+
+.line-long { width: 100%; }
+.line-medium { width: 80%; }
+.line-short { width: 60%; }
+
+/* Avatars Overlap */
+.hero-avatars img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-left: -8px;
+  border: 2px solid rgba(6, 23, 42, 0.9);
+  object-fit: cover;
+}
+.hero-avatars img:first-child {
+  margin-left: 0;
+}
+
+@media (max-width: 900px) {
+  .card-concepts-new {
+    left: 0;
+    top: 10%;
+  }
+  .card-score-new {
+    left: 0;
+    top: 38%;
+  }
+  .card-exams-new {
+    right: 0;
+    top: 30%;
+  }
+  .card-plan-new {
+    right: 0;
+    bottom: 2%;
+  }
+}
+
+
 
