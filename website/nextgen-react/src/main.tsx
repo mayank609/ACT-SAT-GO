@@ -7,6 +7,7 @@ import { FutureProgramsPage } from './pages/FutureProgramsPage';
 import { K12TutoringPage } from './pages/K12TutoringPage';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminLeads } from './pages/AdminLeads';
+import { WhatsAppButton } from './components/WhatsAppButton';
 import { ACT_PAGE, SAT_PAGE, AP_PAGE } from './data/programs';
 import './styles.css';
 import './program.css';
@@ -29,6 +30,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/admin" element={<Navigate to="/admin/leads" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <WhatsAppButton />
     </BrowserRouter>
   </StrictMode>,
 );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Testimonial = { name: string; quote: string; videoId?: string };
 
@@ -12,6 +12,9 @@ const VIDEO_TESTIMONIALS: Testimonial[] = [
   { name: 'Student Review 1', videoId: '25-pOE_ujqc', quote: 'How I prepped and boosted my score with ACT SAT GO.' },
   { name: 'Parent Feedback', videoId: 'Jl9fY1Y480s', quote: 'The impact of personalized mentoring and roadmap clarity.' },
   { name: 'Student Review 2', videoId: 'akMyFKiMhTo', quote: 'AP preparation coaching and confidence building success.' },
+  { name: 'Student Review 3', videoId: 'y6Yio5nkXV4', quote: 'Real talk on the ACT SAT GO experience and results.' },
+  { name: 'Student Review 4', videoId: 'vnaWzyAuTbU', quote: 'How personalized mentoring made the difference for me.' },
+  { name: 'Student Review 5', videoId: 'YNSQmcPqfCc', quote: 'My honest review after working with ACT SAT GO.' },
 ];
 
 function VideoTestimonial({ videoId, name }: { videoId: string; name: string }) {
@@ -45,8 +48,40 @@ function VideoTestimonial({ videoId, name }: { videoId: string; name: string }) 
 
 export function Testimonials() {
   const [mode, setMode] = useState<'video' | 'written'>('video');
+  const [active, setActive] = useState(0);
+  const trackRef = useRef<HTMLDivElement>(null);
 
   const list = mode === 'video' ? VIDEO_TESTIMONIALS : WRITTEN_TESTIMONIALS;
+
+  // Switching between video/written swaps the item count entirely, so snap
+  // the track back to the start rather than leaving it mid-scroll.
+  useEffect(() => {
+    setActive(0);
+    trackRef.current?.scrollTo({ left: 0 });
+  }, [mode]);
+
+  const scrollToIndex = (i: number) => {
+    const clamped = Math.max(0, Math.min(list.length - 1, i));
+    const el = trackRef.current;
+    const card = el?.children[clamped] as HTMLElement | undefined;
+    card?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    setActive(clamped);
+  };
+
+  const handleScroll = () => {
+    const el = trackRef.current;
+    if (!el) return;
+    let closest = 0;
+    let minDist = Infinity;
+    Array.from(el.children).forEach((child, i) => {
+      const dist = Math.abs((child as HTMLElement).offsetLeft - el.scrollLeft);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = i;
+      }
+    });
+    setActive(closest);
+  };
 
   return (
     <section className="testimonials section-dark">
@@ -62,16 +97,53 @@ export function Testimonials() {
             Written Testimonials
           </button>
         </div>
-        <div className="testimonial-slider" data-slider>
-          {list.map((t) => (
-            <article key={t.name} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              {mode === 'video' && t.videoId && <VideoTestimonial videoId={t.videoId} name={t.name} />}
-              {mode === 'written' && (
-                <div className="written-quotes-icon" aria-hidden="true" style={{ fontSize: '32px', color: 'var(--gold)', marginBottom: '16px' }}>“</div>
-              )}
-              <h3 style={{ marginTop: 'auto', marginBottom: '8px', fontSize: '16px', fontWeight: '700' }}>{t.name}</h3>
-              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)' }}>{t.quote}</p>
-            </article>
+
+        <div className="testimonial-carousel">
+          <button
+            className="testimonial-arrow prev"
+            type="button"
+            onClick={() => scrollToIndex(active - 1)}
+            disabled={active === 0}
+            aria-label="Previous testimonial"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+          </button>
+
+          <div className="testimonial-slider" ref={trackRef} onScroll={handleScroll}>
+            {list.map((t) => (
+              <article key={t.name}>
+                {mode === 'video' && t.videoId && <VideoTestimonial videoId={t.videoId} name={t.name} />}
+                {mode === 'written' && (
+                  <div className="written-quotes-icon" aria-hidden="true" style={{ fontSize: '32px', color: 'var(--gold)', marginBottom: '16px' }}>“</div>
+                )}
+                <h3 style={{ marginTop: 'auto', marginBottom: '8px', fontSize: '16px', fontWeight: '700' }}>{t.name}</h3>
+                <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)' }}>{t.quote}</p>
+              </article>
+            ))}
+          </div>
+
+          <button
+            className="testimonial-arrow next"
+            type="button"
+            onClick={() => scrollToIndex(active + 1)}
+            disabled={active === list.length - 1}
+            aria-label="Next testimonial"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+        </div>
+
+        <div className="testimonial-dots" role="tablist" aria-label="Testimonial slides">
+          {list.map((t, i) => (
+            <button
+              key={t.name}
+              type="button"
+              role="tab"
+              aria-selected={i === active}
+              aria-label={`Go to testimonial ${i + 1}`}
+              className={i === active ? 'active' : undefined}
+              onClick={() => scrollToIndex(i)}
+            />
           ))}
         </div>
       </div>

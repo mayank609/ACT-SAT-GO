@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Brand } from './Brand';
 import { APP_LOGIN_URL } from '../config';
+import { WHATSAPP_HREF, CALL_HREF } from './WhatsAppButton';
 
 const PROGRAM_LINKS: { to?: string; href?: string; label: string }[] = [
   { to: '/sat', label: 'SAT' },
@@ -16,6 +17,52 @@ const RESOURCE_LINKS = [
   { href: '/#results', label: 'Success Stories' },
   { href: '/#consultation', label: 'ACT Guide' },
 ];
+
+function ContactDropdown({ onNavigate }: { onNavigate?: () => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      className={`nav-dropdown contact-dropdown${open ? ' is-open' : ''}`}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        className="btn btn-primary"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Contact Us <span aria-hidden="true">→</span>
+      </button>
+      <div className="nav-dropdown-menu contact-menu" role="menu">
+        <a
+          href={WHATSAPP_HREF}
+          target="_blank"
+          rel="noopener noreferrer"
+          role="menuitem"
+          onClick={() => { setOpen(false); onNavigate?.(); }}
+        >
+          <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+            <path d="M16.01 3C9.38 3 4 8.38 4 15.01c0 2.35.65 4.55 1.79 6.43L3 29l7.76-2.71a12.9 12.9 0 0 0 5.25 1.12h.01c6.63 0 12-5.38 12-12.01C28.02 8.38 22.65 3 16.01 3zm0 22.02h-.01a9.98 9.98 0 0 1-5.09-1.39l-.36-.21-4.6 1.61 1.55-4.48-.24-.37a9.96 9.96 0 0 1-1.55-5.35c0-5.53 4.5-10.02 10.03-10.02a9.95 9.95 0 0 1 7.09 2.94 9.94 9.94 0 0 1 2.94 7.08c0 5.53-4.5 10.19-10.03 10.19z" />
+            <path d="M21.62 17.66c-.29-.15-1.73-.86-2-.95-.27-.1-.46-.15-.66.15-.2.29-.75.95-.92 1.14-.17.2-.34.22-.63.07-.29-.15-1.22-.45-2.33-1.44-.86-.77-1.44-1.72-1.61-2.01-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.2-.29.29-.49.1-.2.05-.37-.02-.51-.07-.15-.66-1.59-.9-2.18-.24-.57-.48-.5-.66-.51h-.56c-.2 0-.51.07-.78.37-.27.29-1.02 1-1.02 2.44s1.05 2.83 1.19 3.03c.15.2 2.06 3.14 4.99 4.4.7.3 1.24.48 1.67.61.7.22 1.34.19 1.84.12.56-.08 1.73-.71 1.97-1.39.24-.68.24-1.27.17-1.39-.07-.12-.26-.2-.55-.35z" />
+          </svg>
+          WhatsApp Us
+        </a>
+        <a
+          href={CALL_HREF}
+          role="menuitem"
+          onClick={() => { setOpen(false); onNavigate?.(); }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.61 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+          </svg>
+          Call Us
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -102,9 +149,7 @@ export function Header() {
 
           {/* Mobile-only actions inside the drawer */}
           <div className="nav-links-mobile-actions">
-            <a className="btn btn-primary" href="/#consultation" onClick={close}>
-              Enroll Now <span aria-hidden="true">→</span>
-            </a>
+            <ContactDropdown onNavigate={close} />
             {/* Social icons strip in mobile drawer */}
             <div className="nav-social">
               <a href="https://www.facebook.com/actsatgousa" target="_blank" rel="noopener noreferrer" aria-label="Facebook" onClick={close}>
@@ -123,9 +168,7 @@ export function Header() {
           </div>
         </div>
         <div className="nav-actions">
-          <a className="btn btn-primary" href="/#consultation" onClick={close}>
-            Enroll Now <span aria-hidden="true">→</span>
-          </a>
+          <ContactDropdown onNavigate={close} />
         </div>
       </nav>
     </header>

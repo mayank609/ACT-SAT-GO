@@ -1170,13 +1170,31 @@ h1 span,
   padding: 64px 0;
 }
 
+.testimonial-carousel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .testimonial-slider {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex: 1;
   gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.testimonial-slider::-webkit-scrollbar {
+  display: none;
 }
 
 .testimonial-slider article {
+  flex: 0 0 calc((100% - 2 * 18px) / 3);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
   min-height: 230px;
   padding: 24px;
   color: white;
@@ -1184,6 +1202,60 @@ h1 span,
     linear-gradient(rgba(4, 17, 31, 0.45), rgba(4, 17, 31, 0.9)),
     linear-gradient(135deg, #173b63, #0a1f37);
   border-color: rgba(255, 255, 255, 0.16);
+}
+
+.testimonial-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.testimonial-arrow svg {
+  width: 20px;
+  height: 20px;
+}
+
+.testimonial-arrow:hover:not(:disabled) {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--navy);
+}
+
+.testimonial-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.testimonial-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.testimonial-dots button {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.testimonial-dots button.active {
+  background: var(--gold);
+  transform: scale(1.2);
 }
 
 .video-wrapper {
@@ -1532,9 +1604,12 @@ h1 span,
     grid-template-columns: repeat(4, 1fr);
   }
 
-  .program-grid,
-  .testimonial-slider {
+  .program-grid {
     grid-template-columns: 1fr;
+  }
+
+  .testimonial-slider article {
+    flex-basis: calc((100% - 18px) / 2);
   }
 }
 
@@ -1622,8 +1697,8 @@ h1 span,
     height: 300px;
   }
 
-  .testimonial-slider {
-    grid-template-columns: 1fr;
+  .testimonial-slider article {
+    flex-basis: 100%;
   }
 
   .comparison.shell {
@@ -3175,6 +3250,59 @@ html, body {
 @media (max-width: 480px) {
   .process-flow {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── WhatsApp floating button ─────────────────────────────────────── */
+.whatsapp-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
+  animation: whatsapp-pulse 2.4s ease-in-out infinite;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.whatsapp-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.36);
+}
+
+.whatsapp-fab svg {
+  width: 30px;
+  height: 30px;
+}
+
+@keyframes whatsapp-pulse {
+  0%, 100% { box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(37, 211, 102, 0.55); }
+  50% { box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3), 0 0 0 10px rgba(37, 211, 102, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp-fab {
+    animation: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .whatsapp-fab {
+    right: 16px;
+    bottom: 16px;
+    width: 52px;
+    height: 52px;
+  }
+  .whatsapp-fab svg {
+    width: 26px;
+    height: 26px;
   }
 }
 

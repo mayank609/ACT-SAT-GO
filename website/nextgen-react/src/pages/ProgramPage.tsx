@@ -112,6 +112,137 @@ function getHeroBulletIcon(title: string) {
   );
 }
 
+function getStepIcon(title: string) {
+  const t = title.toLowerCase();
+  if (t.includes('diagnostic')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="4" width="14" height="17" rx="2" />
+        <path d="M9 4V3.5A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5V4" />
+        <path d="M9 12h6M9 15.5h6M9 8.5h4" />
+      </svg>
+    );
+  }
+  if (t.includes('plan')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 6.5C10.5 5.3 8 4.5 5 4.5v13c3 0 5.5.8 7 2 1.5-1.2 4-2 7-2v-13c-3 0-5.5.8-7 2Z" />
+      </svg>
+    );
+  }
+  if (t.includes('learn')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 5h16v11H9l-5 4V5Z" />
+        <circle cx="8.5" cy="10.5" r="0.8" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="10.5" r="0.8" fill="currentColor" stroke="none" />
+        <circle cx="15.5" cy="10.5" r="0.8" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+  if (t.includes('practice') || t.includes('analy')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="12" rx="1.5" />
+        <path d="M8 20h8M12 16v4" />
+        <path d="M6 12.5l3-3.2 2.6 2 4.4-4.8" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 4h10v4a5 5 0 0 1-10 0Z" />
+      <path d="M7 5H4.5A1.5 1.5 0 0 0 3 6.5c0 1.8 1.4 3.3 3.2 3.5" />
+      <path d="M17 5h2.5A1.5 1.5 0 0 1 21 6.5c0 1.8-1.4 3.3-3.2 3.5" />
+      <path d="M12 13v3M9 20h6M10 16h4l.6 4H9.4Z" />
+    </svg>
+  );
+}
+
+function getCurriculumIcon(title: string) {
+  const t = title.toLowerCase();
+  if (t.includes('read') || t.includes('literat') || t.includes('english') || t.includes('humanities')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 6.5C10.5 5.3 8 4.5 5 4.5v13c3 0 5.5.8 7 2 1.5-1.2 4-2 7-2v-13c-3 0-5.5.8-7 2Z" />
+      </svg>
+    );
+  }
+  if (t.includes('writ') || t.includes('grammar') || t.includes('language')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </svg>
+    );
+  }
+  if (t.includes('math')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="M8 7h8M8 11h2M12.5 11h2M17 11h0M8 15h2M12.5 15h2M17 15h0" />
+      </svg>
+    );
+  }
+  if (t.includes('science')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 2h6M10 2v6.5L4.8 18a1.8 1.8 0 0 0 1.6 2.7h11.2a1.8 1.8 0 0 0 1.6-2.7L14 8.5V2" />
+        <path d="M7.5 14.5h9" />
+      </svg>
+    );
+  }
+  if (t.includes('credit') || t.includes('college')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3 2 8l10 5 10-5-10-5Z" />
+        <path d="M6 10.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.5" />
+      </svg>
+    );
+  }
+  if (t.includes('gpa') || t.includes('boost')) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="12" rx="1.5" />
+        <path d="M8 20h8M12 16v4" />
+        <path d="M6 12.5l3-3.2 2.6 2 4.4-4.8" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m12 3 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.8 6.1 21l1.2-6.5-4.8-4.6 6.6-.9Z" />
+    </svg>
+  );
+}
+
+function getChooseIcon(index: number) {
+  const icons = [
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" /></svg>,
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>,
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h2M12.5 11h2M17 11h0M8 15h2M12.5 15h2M17 15h0" /></svg>,
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6M10 22h4" /><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2.3h6c0-1.1.4-1.8 1-2.3A7 7 0 0 0 12 2Z" /></svg>,
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>,
+  ];
+  return icons[index % icons.length];
+}
+
+const WHY_CHOOSE_ITEMS = [
+  { title: 'Expert Ivy League Mentors', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5Z" /><path d="M6 10.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.5" /></svg> },
+  { title: 'Live Interactive Classes', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M9 21h6M12 17v4" /><path d="M9.5 8.5 13 11l-3.5 2.5Z" /></svg> },
+  { title: '1000+ Practice Questions', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6Z" /><path d="M14 3v4h4" /><path d="M9 15.5h6M9 12h6M9 8.5h2" /></svg> },
+  { title: '100+ Full Length Mocks', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3.5A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5V4" /><path d="M9 13l2 2 4-4.2" /></svg> },
+  { title: 'Performance Tracking', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M8 20h8M12 16v4" /><path d="M6 12.5l3-3.2 2.6 2 4.4-4.8" /></svg> },
+  { title: 'Dedicated Student Support', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v11H9l-5 4V5Z" /><circle cx="8.5" cy="10.5" r="0.8" fill="currentColor" stroke="none" /><circle cx="12" cy="10.5" r="0.8" fill="currentColor" stroke="none" /><circle cx="15.5" cy="10.5" r="0.8" fill="currentColor" stroke="none" /></svg> },
+];
+
+const CTA_BENEFITS = [
+  { title: 'Expert Counselors', text: 'Ivy League Trained', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5" /></svg> },
+  { title: 'Personalized Roadmap', text: 'For Your Target Score', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /></svg> },
+  { title: 'Proven Results', text: '90%+ Students Improve', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M8 20h8M12 16v4" /><path d="M6 12.5l3-3.2 2.6 2 4.4-4.8" /></svg> },
+  { title: 'Ongoing Support', text: 'Till You Achieve', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0Z" /><path d="M7 5H4.5A1.5 1.5 0 0 0 3 6.5c0 1.8 1.4 3.3 3.2 3.5" /><path d="M17 5h2.5A1.5 1.5 0 0 1 21 6.5c0 1.8-1.4 3.3-3.2 3.5" /><path d="M12 13v3M9 20h6M10 16h4l.6 4H9.4Z" /></svg> },
+];
+
 export function ProgramPage({ data }: { data: ProgramPageData }) {
   useScrollReveal();
 
@@ -310,6 +441,8 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
             <div className="step-flow">
               {data.steps.map((s, i) => (
                 <article key={s.n} className="step-card reveal" style={{ transitionDelay: `${i * 70}ms` }}>
+                  {i > 0 && <span className="step-connector" aria-hidden="true" />}
+                  <span className="step-icon" aria-hidden="true">{getStepIcon(s.title)}</span>
                   <span className="step-num">Step {s.n}</span>
                   <h3>{s.title}</h3>
                   <p>{s.text}</p>
@@ -327,30 +460,53 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
               <h2>{data.tiersHeading}</h2>
               <p>{data.tiersText}</p>
             </div>
-            <div className="tier-grid">
-              {data.tiers.map((t, i) => (
-                <article
-                  key={t.name}
-                  className={`tier-card reveal${t.featured ? ' featured' : ''}`}
-                  style={{ transitionDelay: `${i * 60}ms`, ['--accent' as string]: t.accent }}
-                >
-                  {t.featured && <span className="tier-flag">Most Popular</span>}
-                  <span className="tier-icon" aria-hidden="true">{t.icon}</span>
-                  <h3>{t.name}</h3>
-                  {t.tag && <span className="tier-tag">{t.tag}</span>}
-                  <span className="tier-weeks">📅 {t.weeks}</span>
-                  <ul>
-                    {t.features.map((f) => (
-                      <li key={f}>{f}</li>
-                    ))}
-                  </ul>
-                  <div className="tier-price">
-                    <strong>{t.price}</strong>
-                    {t.oldPrice && <s>{t.oldPrice}</s>}
-                  </div>
-                  <a className="btn tier-btn" href={CONSULT_HREF}>View Details <span aria-hidden="true">-&gt;</span></a>
-                </article>
-              ))}
+            <p className="tier-table-kicker reveal">— Our {data.exam} Prep Programs —</p>
+            <div className="tier-table-wrap reveal">
+              <table className="tier-table">
+                <thead>
+                  <tr>
+                    <th className="tt-num">#</th>
+                    <th className="tt-program">Program</th>
+                    <th>Duration</th>
+                    <th>Ideal For</th>
+                    <th>Key Highlights</th>
+                    <th>Price (USD)</th>
+                    <th>Explore</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.tiers.map((t, i) => (
+                    <tr key={t.name} style={{ ['--accent' as string]: t.accent }}>
+                      <td className="tt-num"><span className="tt-num-badge">{i + 1}</span></td>
+                      <td className="tt-program">
+                        <span className="tt-program-icon" aria-hidden="true">{t.icon}</span>
+                        <div>
+                          <strong>{t.name}</strong>
+                          {t.tag && <span className="tt-tag">{t.tag}</span>}
+                        </div>
+                      </td>
+                      <td className="tt-duration">{t.weeks}</td>
+                      <td className="tt-ideal">{t.idealFor}</td>
+                      <td className="tt-highlights">
+                        <ul>
+                          {t.features.map((f) => (
+                            <li key={f}>{f}</li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="tt-price">
+                        <strong>{t.price}</strong>
+                        {t.oldPrice && <s>{t.oldPrice}</s>}
+                      </td>
+                      <td className="tt-explore">
+                        <a className="tt-explore-btn" href={CONSULT_HREF} aria-label={`Explore ${t.name}`}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </section>
@@ -358,18 +514,38 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
         {/* Curriculum */}
         <section className="prog-curriculum shell">
           <div className="section-heading center reveal">
+            <p className="eyebrow">What You'll Learn</p>
             <h2>{data.curriculumHeading}</h2>
           </div>
           <div className="curriculum-grid">
             {data.curriculum.map((c, i) => (
               <article key={c.title} className="curriculum-card reveal" style={{ transitionDelay: `${i * 70}ms`, ['--accent' as string]: c.accent }}>
-                <h3>{c.title}</h3>
+                <div className="curriculum-card-head">
+                  <span className="curriculum-icon" aria-hidden="true">{getCurriculumIcon(c.title)}</span>
+                  <h3>{c.title}</h3>
+                </div>
                 <ul>
                   {c.points.map((p) => (
                     <li key={p}>{p}</li>
                   ))}
                 </ul>
               </article>
+            ))}
+          </div>
+        </section>
+
+        {/* Everything you need */}
+        <section className="prog-why shell">
+          <div className="section-heading center reveal">
+            <p className="eyebrow">Why Choose ACT SAT GO?</p>
+            <h2>Everything You Need. All in One Place.</h2>
+          </div>
+          <div className="why-grid">
+            {WHY_CHOOSE_ITEMS.map((w, i) => (
+              <div key={w.title} className="why-item reveal" style={{ transitionDelay: `${i * 60}ms` }}>
+                <span className="why-icon" aria-hidden="true">{w.icon}</span>
+                <span>{w.title}</span>
+              </div>
             ))}
           </div>
         </section>
@@ -414,6 +590,8 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
           <div className="choose-grid">
             {data.chooseItems.map((c, i) => (
               <article key={c.choose} className="choose-card reveal" style={{ transitionDelay: `${i * 70}ms`, ['--accent' as string]: c.accent }}>
+                {i > 0 && <span className="choose-connector" aria-hidden="true" />}
+                <span className="choose-icon" aria-hidden="true">{getChooseIcon(i)}</span>
                 <p>{c.prompt}</p>
                 <span className="choose-label">Choose</span>
                 <strong>{c.choose}</strong>
@@ -438,6 +616,17 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
                 <a className="btn btn-primary" href={CONSULT_HREF}>Book Free Consultation <span aria-hidden="true">-&gt;</span></a>
                 <a className="btn btn-outline" href={CONSULT_HREF}>Talk to an Expert</a>
               </div>
+            </div>
+            <div className="prog-cta-benefits">
+              {CTA_BENEFITS.map((b) => (
+                <div key={b.title} className="prog-cta-benefit">
+                  <span className="prog-cta-benefit-icon" aria-hidden="true">{b.icon}</span>
+                  <div>
+                    <strong>{b.title}</strong>
+                    <span>{b.text}</span>
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="prog-stats">
               {data.stats.map((s) => (

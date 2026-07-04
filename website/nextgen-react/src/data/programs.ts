@@ -7,6 +7,7 @@ export interface ProgramTier {
   tag?: string;
   icon: string;
   weeks: string;
+  idealFor: string;
   features: string[];
   price: string;
   oldPrice?: string;
@@ -123,6 +124,7 @@ export const ACT_PAGE: ProgramPageData = {
       name: 'ACT Mastery Program',
       icon: '♛',
       weeks: '12 – 16 Weeks',
+      idealFor: 'Students seeking a comprehensive, high-impact ACT preparation plan.',
       accent: '#1c5fa5',
       featured: true,
       price: '$1299',
@@ -139,6 +141,7 @@ export const ACT_PAGE: ProgramPageData = {
       name: 'ACT Accelerator Program',
       icon: '⚡',
       weeks: '4 – 6 Weeks',
+      idealFor: 'Students with limited time who want to boost their score quickly.',
       accent: '#16a34a',
       price: '$1199',
       oldPrice: '$1599',
@@ -154,6 +157,7 @@ export const ACT_PAGE: ProgramPageData = {
       name: 'ACT Test Series+',
       icon: '▤',
       weeks: '6 – 8 Weeks',
+      idealFor: 'Students who have already prepared and need rigorous practice and analysis.',
       accent: '#6d28d9',
       price: '$599',
       oldPrice: '$799',
@@ -169,6 +173,7 @@ export const ACT_PAGE: ProgramPageData = {
       name: 'ACT Math Program',
       icon: '∑',
       weeks: '6 – 8 Weeks',
+      idealFor: 'Students looking to strengthen ACT Math fundamentals and aim for a perfect score.',
       accent: '#f59b00',
       price: '$699',
       oldPrice: '$899',
@@ -184,6 +189,7 @@ export const ACT_PAGE: ProgramPageData = {
       name: 'ACT English Program',
       icon: '✎',
       weeks: '6 – 8 Weeks',
+      idealFor: 'Students who need targeted improvement in English, Reading & Science sections.',
       accent: '#dc2626',
       price: '$699',
       oldPrice: '$899',
@@ -272,6 +278,7 @@ export const SAT_PAGE: ProgramPageData = {
       tag: 'Flagship Program',
       icon: '♛',
       weeks: '12 – 16 Weeks',
+      idealFor: 'Students seeking a comprehensive, high-impact SAT preparation plan.',
       accent: '#1c5fa5',
       featured: true,
       price: '$1200',
@@ -288,6 +295,7 @@ export const SAT_PAGE: ProgramPageData = {
       tag: 'FastTrack Program',
       icon: '⚡',
       weeks: '4 – 6 Weeks',
+      idealFor: 'Students with limited time who want to boost their score quickly.',
       accent: '#16a34a',
       price: '$1200',
       oldPrice: '$1500',
@@ -303,6 +311,7 @@ export const SAT_PAGE: ProgramPageData = {
       tag: 'Only Mocks Program',
       icon: '▤',
       weeks: '6 – 8 Weeks',
+      idealFor: 'Students who have already prepared and need rigorous practice and analysis.',
       accent: '#6d28d9',
       price: '$500',
       oldPrice: '$600',
@@ -318,6 +327,7 @@ export const SAT_PAGE: ProgramPageData = {
       tag: 'Math Program',
       icon: '∑',
       weeks: '6 – 8 Weeks',
+      idealFor: 'Students looking to strengthen SAT Math fundamentals and aim for a perfect score.',
       accent: '#f59b00',
       price: '$700',
       oldPrice: '$850',
@@ -333,6 +343,7 @@ export const SAT_PAGE: ProgramPageData = {
       tag: 'Verbal Program',
       icon: '✎',
       weeks: '6 – 8 Weeks',
+      idealFor: 'Students who need targeted improvement in Reading & Writing sections.',
       accent: '#dc2626',
       price: '$700',
       oldPrice: '$850',
@@ -421,6 +432,7 @@ export const AP_PAGE: ProgramPageData = {
       tag: 'STEM Track',
       icon: '∫',
       weeks: '12 – 20 Weeks',
+      idealFor: 'Students aiming for STEM majors who want a top AP Calculus score.',
       accent: '#1c5fa5',
       featured: true,
       price: '$699',
@@ -436,6 +448,7 @@ export const AP_PAGE: ProgramPageData = {
       tag: 'Biology · Physics · Chemistry',
       icon: '⚗',
       weeks: '12 – 16 Weeks',
+      idealFor: 'Students on a pre-med or engineering track covering biology, physics & chemistry.',
       accent: '#16a34a',
       price: '$649',
       features: [
@@ -450,6 +463,7 @@ export const AP_PAGE: ProgramPageData = {
       tag: 'Language & Literature',
       icon: '✎',
       weeks: '8 – 12 Weeks',
+      idealFor: 'Students who need targeted improvement in rhetorical analysis & literary skills.',
       accent: '#6d28d9',
       price: '$499',
       features: [
@@ -464,6 +478,7 @@ export const AP_PAGE: ProgramPageData = {
       tag: 'History · Psych · Econ',
       icon: '🏛',
       weeks: '8 – 12 Weeks',
+      idealFor: 'Students on a political science or business track covering history, psych & economics.',
       accent: '#f59b00',
       price: '$499',
       features: [
@@ -478,6 +493,7 @@ export const AP_PAGE: ProgramPageData = {
       tag: '30+ Subjects',
       icon: '✦',
       weeks: 'Varies',
+      idealFor: 'Students who need a custom plan for any other AP subject combination.',
       accent: '#dc2626',
       price: 'Contact Us',
       features: [

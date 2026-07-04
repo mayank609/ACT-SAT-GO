@@ -76,24 +76,28 @@ const EXPLORE_PROGRAMS = [
     title: 'IB Diploma Programme',
     text: 'A globally recognized program that develops inquiring, knowledgeable and compassionate young people.',
     points: ['6 Subject Groups', 'TOK, EE & CAS', 'Holistic Learning Approach', 'Global University Recognition'],
+    photoPos: '0% 0%',
   },
   {
     badge: 'IGCSE',
     title: 'IGCSE / GCSE',
     text: 'Build strong academic foundations with internationally respected qualifications.',
     points: ['Wide Range of Subjects', 'Exam Board Alignment', 'Concept Clarity', 'Excellent University Pathway'],
+    photoPos: '100% 100%',
   },
   {
     badge: 'AS',
     title: 'AS Level',
     text: 'The first step of Advanced Level studies that helps you build depth in your chosen subjects.',
     points: ['3–4 Subject Focus', 'In-depth Concept Building', 'Exam Preparation', 'Smooth Transition to A Level'],
+    photoPos: '50% 0%',
   },
   {
     badge: 'A',
     title: 'A Level',
     text: 'Advanced pre-university qualification accepted by top universities worldwide.',
     points: ['Subject Specialization', 'Critical Thinking & Analysis', 'University Preparation', 'High Academic Rigor'],
+    photoPos: '50% 100%',
   },
 ];
 
@@ -106,6 +110,11 @@ const LANGUAGES = [
   { flag: '🇯🇵', label: 'Japanese' },
   { flag: '🇸🇦', label: 'Arabic' },
   { flag: '🇮🇳', label: 'Hindi' },
+];
+
+const EXAM_BADGES = [
+  { label: 'IELTS', color: '#1c5fa5' },
+  { label: 'TOEFL', color: '#6d28d9' },
 ];
 
 const WHY_MATTERS = [
@@ -223,8 +232,10 @@ export function FutureProgramsPage() {
           <div className="future-program-grid">
             {EXPLORE_PROGRAMS.map((p, i) => (
               <article key={p.title} className="future-program-card reveal" style={{ transitionDelay: `${i * 70}ms` }}>
-                <div className="future-program-photo">
-                  <img src={programsImg} alt="" />
+                <div
+                  className="future-program-photo"
+                  style={{ backgroundImage: `url(${programsImg})`, backgroundPosition: p.photoPos }}
+                >
                   <span className="future-program-badge">{p.badge}</span>
                 </div>
                 <div className="future-program-body">
@@ -268,11 +279,17 @@ export function FutureProgramsPage() {
                   <span>{l.label}</span>
                 </div>
               ))}
+              {EXAM_BADGES.map((e) => (
+                <div key={e.label} className="future-flag-chip future-exam-chip">
+                  <span className="future-exam-logo" style={{ color: e.color }}>{e.label}</span>
+                </div>
+              ))}
               <p className="future-languages-footer">IELTS &middot; TOEFL &middot; PTE &middot; Duolingo &middot; DELF &middot; TEF &amp; more</p>
             </div>
-            <div className="future-languages-photo">
-              <img src={programsImg} alt="" />
-            </div>
+            <div
+              className="future-languages-photo"
+              style={{ backgroundImage: `url(${programsImg})`, backgroundPosition: '100% 0%' }}
+            />
           </div>
         </section>
 
@@ -296,6 +313,11 @@ export function FutureProgramsPage() {
         {/* Bottom CTA */}
         <section className="future-cta shell">
           <div className="future-cta-card">
+            <div
+              className="future-cta-photo"
+              aria-hidden="true"
+              style={{ backgroundImage: `url(${programsImg})`, backgroundPosition: '0% 100%' }}
+            />
             <div className="future-cta-text">
               <h2>Stay Ahead. Be Future Ready.</h2>
               <p>Join ACT SAT GO and be the first to know when our new programs launch.</p>
