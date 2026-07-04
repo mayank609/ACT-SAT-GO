@@ -373,9 +373,7 @@ export function K12TutoringPage() {
         {/* Bottom CTA */}
         <section className="k12-cta shell" id="consultation">
           <div className="k12-cta-card">
-            <div className="k12-cta-photo">
-              <img src={ctaImg6} alt="Students learning" />
-            </div>
+
             <div className="k12-cta-text">
               <h2>Every Child Has Potential.<br /><span>We Help Them Unlock It.</span></h2>
               <p>Book a free consultation and get a personalized learning plan for your child.</p>

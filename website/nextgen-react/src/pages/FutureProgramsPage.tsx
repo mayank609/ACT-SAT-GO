@@ -4,6 +4,12 @@ import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { IconGlobe, IconGraduationCap, IconChart } from '../components/Icons';
 import programsImg from '../assets/programs.png';
+import img9 from '../assets/9.jpeg';
+import img3 from '../assets/3.jpeg';
+import img7 from '../assets/7.jpeg';
+import img8 from '../assets/8.jpeg';
+import langImg from '../assets/10.png';
+import heroImg from '../assets/4.png';
 
 const CONSULT_HREF = '/#consultation';
 
@@ -76,28 +82,32 @@ const EXPLORE_PROGRAMS = [
     title: 'IB Diploma Programme',
     text: 'A globally recognized program that develops inquiring, knowledgeable and compassionate young people.',
     points: ['6 Subject Groups', 'TOK, EE & CAS', 'Holistic Learning Approach', 'Global University Recognition'],
-    photoPos: '0% 0%',
+    image: img9,
+    photoPos: 'center center',
   },
   {
     badge: 'IGCSE',
     title: 'IGCSE / GCSE',
     text: 'Build strong academic foundations with internationally respected qualifications.',
     points: ['Wide Range of Subjects', 'Exam Board Alignment', 'Concept Clarity', 'Excellent University Pathway'],
-    photoPos: '100% 100%',
+    image: img3,
+    photoPos: 'center 30%',
   },
   {
     badge: 'AS',
     title: 'AS Level',
     text: 'The first step of Advanced Level studies that helps you build depth in your chosen subjects.',
     points: ['3–4 Subject Focus', 'In-depth Concept Building', 'Exam Preparation', 'Smooth Transition to A Level'],
-    photoPos: '50% 0%',
+    image: img7,
+    photoPos: 'center 20%',
   },
   {
     badge: 'A',
     title: 'A Level',
     text: 'Advanced pre-university qualification accepted by top universities worldwide.',
     points: ['Subject Specialization', 'Critical Thinking & Analysis', 'University Preparation', 'High Academic Rigor'],
-    photoPos: '50% 100%',
+    image: img8,
+    photoPos: 'center 25%',
   },
 ];
 
@@ -169,55 +179,7 @@ export function FutureProgramsPage() {
               </div>
 
               <div className="future-hero-art" aria-hidden="true">
-                <svg className="future-globe-svg" viewBox="0 0 360 360">
-                  <defs>
-                    <pattern id="globeDots" width="10" height="10" patternUnits="userSpaceOnUse">
-                      <circle cx="2" cy="2" r="1.1" fill="rgba(255,255,255,0.35)" />
-                    </pattern>
-                    <linearGradient id="orbitGold" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="rgba(255,180,0,0)" />
-                      <stop offset="50%" stopColor="rgba(255,180,0,0.9)" />
-                      <stop offset="100%" stopColor="rgba(255,180,0,0)" />
-                    </linearGradient>
-                  </defs>
-
-                  <circle cx="180" cy="170" r="120" fill="#0b2744" />
-                  <circle cx="180" cy="170" r="120" fill="url(#globeDots)" />
-                  <circle cx="180" cy="170" r="120" fill="none" stroke="rgba(255,255,255,0.12)" />
-
-                  <ellipse cx="180" cy="170" rx="170" ry="60" fill="none" stroke="url(#orbitGold)" strokeWidth="1.5" transform="rotate(-18 180 170)" />
-                  <ellipse cx="180" cy="170" rx="150" ry="45" fill="none" stroke="url(#orbitGold)" strokeWidth="1.5" transform="rotate(12 180 170)" />
-
-                  <g fill="var(--gold)">
-                    <path d="M300 70 302 76 308 78 302 80 300 86 298 80 292 78 298 76Z" />
-                    <path d="M70 230 271.5 232 275 236 271.5 232 268 234Z" />
-                    <circle cx="60" cy="90" r="2.4" />
-                    <circle cx="320" cy="230" r="2" />
-                    <circle cx="90" cy="260" r="2" />
-                  </g>
-                </svg>
-
-                <div className="future-book-stack">
-                  <div className="future-cap"><IconGraduationCap /></div>
-                  <div className="future-book book-ib">IB</div>
-                  <div className="future-book book-igcse">IGCSE</div>
-                  <div className="future-book book-alevel">A LEVEL</div>
-                  <div className="future-book book-lang">LANGUAGES</div>
-                </div>
-
-                <div className="future-desk-props">
-                  <svg viewBox="0 0 60 60" className="future-pencil-cup">
-                    <rect x="8" y="26" width="30" height="26" rx="3" fill="#1c2b3a" />
-                    <line x1="14" y1="8" x2="20" y2="30" stroke="#f5b93a" strokeWidth="4" strokeLinecap="round" />
-                    <line x1="22" y1="4" x2="26" y2="30" stroke="#e2e8f0" strokeWidth="4" strokeLinecap="round" />
-                    <line x1="30" y1="10" x2="32" y2="30" stroke="#9aa5b1" strokeWidth="4" strokeLinecap="round" />
-                  </svg>
-                  <svg viewBox="0 0 60 60" className="future-plant">
-                    <rect x="16" y="38" width="28" height="18" rx="3" fill="#2a3b4d" />
-                    <path d="M30 38c-10-6-14-18-8-30 8 6 12 18 8 30Z" fill="#2f7d5a" />
-                    <path d="M30 38c8-4 12-14 8-24-8 4-12 14-8 24Z" fill="#3a9a6e" />
-                  </svg>
-                </div>
+                <img className="future-hero-photo" src={heroImg} alt="Future Programs" />
               </div>
             </div>
           </div>
@@ -234,7 +196,7 @@ export function FutureProgramsPage() {
               <article key={p.title} className="future-program-card reveal" style={{ transitionDelay: `${i * 70}ms` }}>
                 <div
                   className="future-program-photo"
-                  style={{ backgroundImage: `url(${programsImg})`, backgroundPosition: p.photoPos }}
+                  style={{ backgroundImage: `url(${p.image})`, backgroundPosition: p.photoPos, backgroundSize: 'cover' }}
                 >
                   <span className="future-program-badge">{p.badge}</span>
                 </div>
@@ -272,24 +234,10 @@ export function FutureProgramsPage() {
                 Coming Soon <IconCalendar />
               </span>
             </div>
-            <div className="future-languages-flags">
-              {LANGUAGES.map((l) => (
-                <div key={l.label} className="future-flag-chip">
-                  <span className="future-flag-emoji" aria-hidden="true">{l.flag}</span>
-                  <span>{l.label}</span>
-                </div>
-              ))}
-              {EXAM_BADGES.map((e) => (
-                <div key={e.label} className="future-flag-chip future-exam-chip">
-                  <span className="future-exam-logo" style={{ color: e.color }}>{e.label}</span>
-                </div>
-              ))}
-              <p className="future-languages-footer">IELTS &middot; TOEFL &middot; PTE &middot; Duolingo &middot; DELF &middot; TEF &amp; more</p>
+
+            <div className="future-languages-photo">
+              <img src={langImg} alt="Language courses" />
             </div>
-            <div
-              className="future-languages-photo"
-              style={{ backgroundImage: `url(${programsImg})`, backgroundPosition: '100% 0%' }}
-            />
           </div>
         </section>
 
@@ -313,11 +261,7 @@ export function FutureProgramsPage() {
         {/* Bottom CTA */}
         <section className="future-cta shell">
           <div className="future-cta-card">
-            <div
-              className="future-cta-photo"
-              aria-hidden="true"
-              style={{ backgroundImage: `url(${programsImg})`, backgroundPosition: '0% 100%' }}
-            />
+
             <div className="future-cta-text">
               <h2>Stay Ahead. Be Future Ready.</h2>
               <p>Join ACT SAT GO and be the first to know when our new programs launch.</p>

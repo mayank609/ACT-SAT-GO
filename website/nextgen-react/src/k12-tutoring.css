@@ -6,7 +6,7 @@
 .k12-hero {
   position: relative;
   overflow: hidden;
-  padding: 40px 0 32px;
+  padding: 15px 0 10px;
 }
 
 .k12-hero-texture {
@@ -512,10 +512,10 @@
 
 .k12-cta-card {
   display: grid;
-  grid-template-columns: 220px 1fr auto;
-  gap: 28px;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 40px;
   align-items: center;
-  padding: 28px;
+  padding: 40px;
   border-radius: 20px;
   background: linear-gradient(135deg, var(--navy), var(--navy-2));
 }
