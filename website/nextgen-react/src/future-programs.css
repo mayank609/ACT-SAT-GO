@@ -92,11 +92,11 @@
 }
 
 .future-hero-photo {
-  width: 170%;
+  width: 155%;
   max-width: none;
-  height: 190%;
+  height: 175%;
   position: absolute;
-  bottom: -140px;
+  bottom: -110px;
   right: -40px;
   object-fit: contain;
   object-position: bottom right;

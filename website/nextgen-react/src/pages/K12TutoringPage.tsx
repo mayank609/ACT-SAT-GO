@@ -4,7 +4,6 @@ import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { IconGlobe, IconGraduationCap, IconUser, IconChart } from '../components/Icons';
 import programsImg from '../assets/programs.png';
-import ctaImg6 from '../assets/6.jpeg';
 import k12HeroImg from '../assets/k12-hero.png';
 import k12ElementaryImg from '../assets/k12-elementary.jpg';
 import k12MiddleImg from '../assets/k12-middle.jpg';
@@ -280,12 +279,6 @@ export function K12TutoringPage() {
               <span className="k12-blob k12-blob-gold"></span>
               <span className="k12-blob k12-blob-blue"></span>
               <span className="k12-ring-glow"></span>
-              <span className="k12-doodle k12-doodle-bulb">💡</span>
-              <span className="k12-doodle k12-doodle-book">📖</span>
-              <span className="k12-doodle k12-doodle-cap">🎓</span>
-              <span className="k12-doodle k12-doodle-formula">∑</span>
-              <span className="k12-doodle k12-doodle-star">✦</span>
-              <span className="k12-doodle k12-doodle-pi">π</span>
               <img className="k12-hero-photo" src={k12HeroImg} alt="Three students supported by ACT SAT GO tutoring" />
             </div>
           </div>

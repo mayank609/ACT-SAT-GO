@@ -6,7 +6,7 @@
 .k12-hero {
   position: relative;
   overflow: hidden;
-  padding: 15px 0 10px;
+  padding: 0;
 }
 
 .k12-hero-texture {
@@ -35,7 +35,7 @@
 }
 
 .k12-hero-copy h1 {
-  margin: 18px 0 20px;
+  margin: 6px 0 10px;
   font-size: clamp(30px, 3.6vw, 46px);
   line-height: 1.22;
   color: white;
@@ -113,7 +113,7 @@
 .k12-hero-art {
   position: relative;
   z-index: 1;
-  min-height: 420px;
+  min-height: 360px;
   margin-left: -90px;
   display: grid;
   place-items: center;
