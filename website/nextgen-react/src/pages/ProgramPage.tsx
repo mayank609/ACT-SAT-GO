@@ -6,7 +6,7 @@ import { useScrollReveal } from '../hooks/useScrollReveal';
 import type { ProgramPageData } from '../data/programs';
 import apHeroImg from '../assets/ap-hero.png';
 import satHeroImg from '../assets/sat-hero.png';
-import highlightsImg from '../assets/cta.png';
+import highlightsImg from '../assets/highlights-girl-cutout.png';
 
 const CONSULT_HREF = '/#consultation';
 

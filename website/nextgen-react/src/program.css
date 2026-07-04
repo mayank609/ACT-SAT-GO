@@ -206,13 +206,13 @@
 
 /* ── Highlights band ─────────────────────────────────────────────── */
 .prog-highlights {
-  padding: 56px 0 8px;
+  padding: 36px 0 28px;
 }
 
 .prog-highlights .section-heading {
   text-align: left;
   max-width: 760px;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
 }
 
 .prog-highlights .section-heading p:not(.eyebrow) {
@@ -222,23 +222,28 @@
 
 .highlights-row {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 40px;
+  grid-template-columns: minmax(0, 680px) minmax(0, 420px);
+  justify-content: center;
+  gap: 24px;
   align-items: center;
 }
 
 .highlights-photo {
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 24px 48px rgba(6, 26, 47, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  min-height: 260px;
 }
 
 .highlights-photo img {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   height: 100%;
-  min-height: 320px;
-  object-fit: cover;
+  max-height: 340px;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 24px rgba(6, 26, 47, 0.22));
 }
 
 @media (max-width: 900px) {
@@ -247,23 +252,24 @@
   }
   .highlights-photo {
     order: -1;
+    min-height: 240px;
   }
   .highlights-photo img {
-    min-height: 220px;
+    max-height: 280px;
   }
 }
 
 .highlight-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
+  gap: 14px;
 }
 
 .highlight-card {
   display: grid;
   justify-items: center;
-  gap: 10px;
-  padding: 24px 18px;
+  gap: 6px;
+  padding: 16px 14px;
   text-align: center;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -275,8 +281,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   color: var(--navy);
   background: #eef4fb;
@@ -284,8 +290,8 @@
 }
 
 .highlight-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 19px;
+  height: 19px;
 }
 
 .highlight-card strong {
@@ -490,7 +496,7 @@
 
 /* ── 5-step approach ─────────────────────────────────────────────── */
 .prog-steps {
-  padding: 64px 0;
+  padding: 44px 0 64px;
 }
 
 .step-flow {
