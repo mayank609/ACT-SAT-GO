@@ -163,6 +163,7 @@ model TestSection {
   name            String
   durationMinutes Int
   orderIndex      Int
+  config          Json?
 
   test            Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
   questions       TestQuestion[]

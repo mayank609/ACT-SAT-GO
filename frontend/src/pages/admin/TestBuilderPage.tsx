@@ -51,13 +51,21 @@ function getNumericAnswers(correctAnswer: Question['correctAnswer']): string[] {
   if (typeof correctAnswer === 'string' && correctAnswer !== '') return [correctAnswer];
   return [''];
 }
+function getDefaultSectionConfig(name: string) {
+  const isMath = /math/i.test(name);
+  return {
+    hasDesmos: isMath,
+    hasReference: isMath,
+  };
+}
+
 function newSection(): Section {
-  return { id: generateId(), name: 'New Section', timeLimit: 45, questions: [newQuestion()] };
+  return { id: generateId(), name: 'New Section', timeLimit: 45, questions: [newQuestion()], config: { hasDesmos: false, hasReference: false } };
 }
 
 // An empty module/section (no starter question, default 45 min).
 function emptyModule(name: string): Section {
-  return { id: generateId(), name, timeLimit: 45, questions: [] };
+  return { id: generateId(), name, timeLimit: 45, questions: [], config: getDefaultSectionConfig(name) };
 }
 
 // Each test type dictates its own fixed module structure. Modules are auto-built
@@ -1974,6 +1982,7 @@ export function TestBuilderPage() {
         id: generateId(),
         name: sec.name,
         timeLimit: sec.durationMinutes,
+        config: sec.config || null,
         // Skip child question rows: passage children have their own TestQuestion
         // rows AND are reachable via their parent's childQuestions. Mapping both
         // would load each child twice (once nested in linkedQuestions, once as a
@@ -2056,8 +2065,25 @@ export function TestBuilderPage() {
   const [secDragSrcIdx, setSecDragSrcIdx] = useState<number | null>(null);
   const [secDragOverIdx, setSecDragOverIdx] = useState<number | null>(null);
 
-  const updateSection = (idx: number, updates: Partial<Section>) =>
-    setSections((prev) => prev.map((s, i) => i === idx ? { ...s, ...updates } : s));
+  const updateSection = (idx: number, updates: Partial<Section>) => {
+    setSections((prev) => prev.map((s, i) => {
+      if (i === idx) {
+        const updated = { ...s, ...updates };
+        if (updates.name !== undefined) {
+          const currentConfig = s.config || {};
+          const defaultOld = getDefaultSectionConfig(s.name);
+          const hasNoCustomization =
+            (currentConfig.hasDesmos === defaultOld.hasDesmos || currentConfig.hasDesmos === undefined) &&
+            (currentConfig.hasReference === defaultOld.hasReference || currentConfig.hasReference === undefined);
+          if (hasNoCustomization) {
+            updated.config = getDefaultSectionConfig(updates.name);
+          }
+        }
+        return updated;
+      }
+      return s;
+    }));
+  };
 
   const updateQuestion = (qId: string, updated: Question) => {
     const qs = activeSection.questions.map((q) => q.id === qId ? updated : q);
@@ -2438,6 +2464,38 @@ export function TestBuilderPage() {
                       </div>
                     </div>
                     <p className="text-xs text-slate-500 pb-2">{activeSection.questions.length} questions</p>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-4 items-center">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Section Tools:</span>
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none font-medium">
+                      <input
+                        type="checkbox"
+                        checked={!!activeSection.config?.hasDesmos}
+                        onChange={(e) => {
+                          const currentConfig = activeSection.config || {};
+                          updateSection(activeSectionIdx, {
+                            config: { ...currentConfig, hasDesmos: e.target.checked }
+                          });
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                      />
+                      <span>Desmos Calculator</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none font-medium">
+                      <input
+                        type="checkbox"
+                        checked={!!activeSection.config?.hasReference}
+                        onChange={(e) => {
+                          const currentConfig = activeSection.config || {};
+                          updateSection(activeSectionIdx, {
+                            config: { ...currentConfig, hasReference: e.target.checked }
+                          });
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                      />
+                      <span>Reference Sheet</span>
+                    </label>
                   </div>
                 </Card>
 

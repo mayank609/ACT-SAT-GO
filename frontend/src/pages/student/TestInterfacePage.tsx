@@ -1120,6 +1120,9 @@ export function TestInterfacePage() {
   const currentQState = getQuestionState(currentSection.id, currentQuestion.id);
   const isMarked = currentQState === 'marked_review' || currentQState === 'answered_marked';
   const isMath = /math/i.test(currentSection.name);
+  const currentConfig = (currentSection as any).config || {};
+  const hasDesmos = currentConfig.hasDesmos !== undefined ? currentConfig.hasDesmos : isMath;
+  const hasReference = currentConfig.hasReference !== undefined ? currentConfig.hasReference : isMath;
 
   // Bluebook-style question header (number badge + Mark for Review + annotate)
   const questionHeaderBar = (
@@ -1218,15 +1221,15 @@ export function TestInterfacePage() {
 
         {/* Right: tools */}
         <div className="flex items-center gap-5">
-          {isMath && (
-            <>
-              <button onClick={() => setShowReference(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
-                <BookOpen size={18} /> Reference
-              </button>
-              <button onClick={() => setShowCalculator((v) => !v)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
-                <Calculator size={18} /> Calculator
-              </button>
-            </>
+          {hasReference && (
+            <button onClick={() => setShowReference(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
+              <BookOpen size={18} /> Reference
+            </button>
+          )}
+          {hasDesmos && (
+            <button onClick={() => setShowCalculator((v) => !v)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
+              <Calculator size={18} /> Calculator
+            </button>
           )}
           {!isMath && (
             <button onClick={() => setShowHighlightsNotes(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]" title="Highlights & Notes">

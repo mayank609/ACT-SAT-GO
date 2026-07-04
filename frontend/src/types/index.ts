@@ -38,11 +38,17 @@ export interface Question {
   linkedQuestions?: Question[];   // For passage questions containing multiple questions
 }
 
+export interface SectionConfig {
+  hasDesmos?: boolean;
+  hasReference?: boolean;
+}
+
 export interface Section {
   id: string;
   name: string;
   timeLimit: number; // minutes
   questions: Question[];
+  config?: SectionConfig | null;
 }
 
 export type TestStatus = 'draft' | 'published' | 'archived';

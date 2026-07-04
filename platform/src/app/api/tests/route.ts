@@ -97,6 +97,7 @@ interface FrontendQuestion {
 interface FrontendSection {
   name: string
   timeLimit: number
+  config?: any
   questions: FrontendQuestion[]
 }
 
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
     for (let sIdx = 0; sIdx < sections.length; sIdx++) {
       const sec = sections[sIdx]
       const sectionId = randomUUID()
-      sectionRows.push({ id: sectionId, testId, name: sec.name, durationMinutes: sec.timeLimit, orderIndex: sIdx })
+      sectionRows.push({ id: sectionId, testId, name: sec.name, durationMinutes: sec.timeLimit, orderIndex: sIdx, config: sec.config ?? null })
 
       for (let qIdx = 0; qIdx < sec.questions.length; qIdx++) {
         const q = sec.questions[qIdx]

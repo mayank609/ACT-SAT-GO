@@ -123,6 +123,7 @@ export async function PATCH(
     sections?: Array<{
       name: string
       timeLimit: number
+      config?: any
       questions: Array<FrontendQuestion>
     }>
   }
@@ -235,7 +236,7 @@ export async function PATCH(
     for (let sIdx = 0; sIdx < body.sections!.length; sIdx++) {
       const sec = body.sections![sIdx]
       const sectionId = randomUUID()
-      sectionRows.push({ id: sectionId, testId, name: sec.name, durationMinutes: sec.timeLimit, orderIndex: sIdx })
+      sectionRows.push({ id: sectionId, testId, name: sec.name, durationMinutes: sec.timeLimit, orderIndex: sIdx, config: sec.config ?? null })
 
       for (let qIdx = 0; qIdx < sec.questions.length; qIdx++) {
         const q = sec.questions[qIdx]
