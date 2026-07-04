@@ -11,7 +11,6 @@ const WRITTEN_TESTIMONIALS: Testimonial[] = [
 const VIDEO_TESTIMONIALS: Testimonial[] = [
   { name: 'Student Review 1', videoId: '25-pOE_ujqc', quote: 'How I prepped and boosted my score with ACT SAT GO.' },
   { name: 'Parent Feedback', videoId: 'Jl9fY1Y480s', quote: 'The impact of personalized mentoring and roadmap clarity.' },
-  { name: 'Student Review 2', videoId: 'akMyFKiMhTo', quote: 'AP preparation coaching and confidence building success.' },
   { name: 'Student Review 3', videoId: 'y6Yio5nkXV4', quote: 'Real talk on the ACT SAT GO experience and results.' },
   { name: 'Student Review 4', videoId: 'vnaWzyAuTbU', quote: 'How personalized mentoring made the difference for me.' },
   { name: 'Student Review 5', videoId: 'YNSQmcPqfCc', quote: 'My honest review after working with ACT SAT GO.' },
