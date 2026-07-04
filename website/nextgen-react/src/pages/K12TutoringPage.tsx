@@ -4,7 +4,11 @@ import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { IconGlobe, IconGraduationCap, IconUser, IconChart } from '../components/Icons';
 import programsImg from '../assets/programs.png';
+import ctaImg6 from '../assets/6.jpeg';
 import k12HeroImg from '../assets/k12-hero.png';
+import k12ElementaryImg from '../assets/k12-elementary.jpg';
+import k12MiddleImg from '../assets/k12-middle.jpg';
+import k12HighImg from '../assets/k12-high.jpg';
 
 const CONSULT_HREF = '/#consultation';
 
@@ -143,6 +147,7 @@ const GRADE_LEVELS = [
     accent: '#f59b00',
     tint: '#fff3d6',
     badge: <IconBackpack />,
+    photo: k12ElementaryImg,
     eyebrow: 'GRADES K–5',
     title: 'Elementary School',
     text: 'We help young learners build strong foundations in core subjects while developing confidence and curiosity.',
@@ -154,6 +159,7 @@ const GRADE_LEVELS = [
     accent: '#1c5fa5',
     tint: '#e2edf9',
     badge: <IconBookSquare />,
+    photo: k12MiddleImg,
     eyebrow: 'GRADES 6–8',
     title: 'Middle School',
     text: 'We strengthen concepts and habits to help students become independent, organized learners.',
@@ -165,6 +171,7 @@ const GRADE_LEVELS = [
     accent: '#6d28d9',
     tint: '#ece6fb',
     badge: <IconGraduationCap />,
+    photo: k12HighImg,
     eyebrow: 'GRADES 9–12',
     title: 'High School',
     text: 'We provide advanced academic support to help students achieve college and career goals.',
@@ -302,7 +309,7 @@ export function K12TutoringPage() {
                 <h3>{g.title}</h3>
                 <p className="k12-grade-text">{g.text}</p>
                 <div className="k12-grade-photo">
-                  <img src={programsImg} alt="" />
+                  <img src={g.photo ?? programsImg} alt="" />
                 </div>
                 <p className="k12-focus-label">Focus Areas</p>
                 <ul>
@@ -367,7 +374,7 @@ export function K12TutoringPage() {
         <section className="k12-cta shell" id="consultation">
           <div className="k12-cta-card">
             <div className="k12-cta-photo">
-              <img src={programsImg} alt="" />
+              <img src={ctaImg6} alt="Students learning" />
             </div>
             <div className="k12-cta-text">
               <h2>Every Child Has Potential.<br /><span>We Help Them Unlock It.</span></h2>
