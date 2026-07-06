@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Brand } from './components/Brand';
 import { Testimonials } from './components/Testimonials';
@@ -513,9 +514,9 @@ export default function App() {
           <div className="footer-col">
             <h4 className="footer-heading">Courses</h4>
             <ul className="footer-links">
-              <li><a href="/act">ACT</a></li>
-              <li><a href="/sat">SAT</a></li>
-              <li><a href="/ap">AP</a></li>
+              <li><Link to="/act">ACT</Link></li>
+              <li><Link to="/sat">SAT</Link></li>
+              <li><Link to="/ap">AP</Link></li>
               <li><a href="/#programs">Elementary School</a></li>
               <li><a href="/#programs">Middle School</a></li>
               <li><a href="/#programs">High School</a></li>
@@ -527,7 +528,7 @@ export default function App() {
             <h4 className="footer-heading">Quick Links</h4>
             <ul className="footer-links">
               <li><a href="/#home">Home</a></li>
-              <li><a href="/#about">About Us</a></li>
+              <li><Link to="/about-us">About Us</Link></li>
               <li><a href="/#programs">Courses</a></li>
               <li><a href="/#programs">Career</a></li>
               <li><a href="/#resources">Blogs</a></li>

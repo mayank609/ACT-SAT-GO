@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
@@ -413,12 +414,12 @@ export function K12TutoringPage() {
           <div className="footer-col">
             <h4 className="footer-heading">Courses</h4>
             <ul className="footer-links">
-              <li><a href="/act">ACT</a></li>
-              <li><a href="/sat">SAT</a></li>
-              <li><a href="/ap">AP</a></li>
-              <li><a href="/k-12-tutoring">Elementary School</a></li>
-              <li><a href="/k-12-tutoring">Middle School</a></li>
-              <li><a href="/k-12-tutoring">High School</a></li>
+              <li><Link to="/act">ACT</Link></li>
+              <li><Link to="/sat">SAT</Link></li>
+              <li><Link to="/ap">AP</Link></li>
+              <li><Link to="/k-12-tutoring">Elementary School</Link></li>
+              <li><Link to="/k-12-tutoring">Middle School</Link></li>
+              <li><Link to="/k-12-tutoring">High School</Link></li>
             </ul>
           </div>
 
@@ -426,7 +427,7 @@ export function K12TutoringPage() {
             <h4 className="footer-heading">Quick Links</h4>
             <ul className="footer-links">
               <li><a href="/#home">Home</a></li>
-              <li><a href="/#about">About Us</a></li>
+              <li><Link to="/about-us">About Us</Link></li>
               <li><a href="/#programs">Courses</a></li>
               <li><a href="/#programs">Career</a></li>
               <li><a href="/#resources">Blogs</a></li>

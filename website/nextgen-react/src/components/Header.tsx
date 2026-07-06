@@ -97,7 +97,7 @@ export function Header() {
             </svg>
           </a>
 
-          <a href="/#about" onClick={close}>About Us</a>
+          <Link to="/about-us" onClick={close}>About Us</Link>
 
           <div
             className={`nav-dropdown${programsOpen ? ' is-open' : ''}`}
