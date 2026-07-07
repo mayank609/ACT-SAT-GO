@@ -5,7 +5,7 @@ import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
 import aboutUsImg from '../../images/about us.jpeg';
-import abImg from '../../images/ab.jpeg';
+import abImg from '../../images/ab b.png';
 
 
 

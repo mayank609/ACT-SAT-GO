@@ -12,10 +12,10 @@ const PROGRAM_LINKS: { to?: string; href?: string; label: string }[] = [
   { to: '/future-programs', label: 'Future Programs' },
 ];
 
-const RESOURCE_LINKS = [
-  { href: '/#process', label: 'Our Method' },
-  { href: '/#results', label: 'Success Stories' },
-  { href: '/#consultation', label: 'ACT Guide' },
+const RESOURCE_LINKS: { to?: string; href?: string; label: string }[] = [
+  { to: '/resources', label: 'Blog & Articles' },
+  { href: '/resources', label: 'Guides & Downloads' },
+  { href: '/resources', label: 'Webinars & Videos' },
 ];
 
 function ContactDropdown({ onNavigate }: { onNavigate?: () => void }) {
@@ -128,20 +128,26 @@ export function Header() {
             onMouseEnter={() => setResourcesOpen(true)}
             onMouseLeave={() => setResourcesOpen(false)}
           >
-            <button
-              type="button"
+            <Link
+              to="/resources"
               className="nav-dropdown-toggle"
               aria-expanded={resourcesOpen}
-              onClick={() => setResourcesOpen((v) => !v)}
+              onClick={() => { close(); setResourcesOpen(false); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
             >
               Resources <span aria-hidden="true">▾</span>
-            </button>
+            </Link>
             <div className="nav-dropdown-menu" role="menu">
               {RESOURCE_LINKS.map((r) => (
-                <a key={r.href} href={r.href} role="menuitem" onClick={close}>{r.label}</a>
+                r.to ? (
+                  <Link key={r.to + r.label} to={r.to} role="menuitem" onClick={close}>{r.label}</Link>
+                ) : (
+                  <a key={r.label} href={r.href} role="menuitem" onClick={close}>{r.label}</a>
+                )
               ))}
             </div>
           </div>
+
 
           <a href="/#programs" onClick={close}>Career</a>
 
