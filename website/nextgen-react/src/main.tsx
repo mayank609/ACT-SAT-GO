@@ -9,6 +9,7 @@ import { AboutUsPage } from './pages/AboutUsPage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminLeads } from './pages/AdminLeads';
+import { CareersPage } from './pages/CareersPage';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { ACT_PAGE, SAT_PAGE, AP_PAGE } from './data/programs';
 import './styles.css';
@@ -18,6 +19,7 @@ import './k12-tutoring.css';
 import './about-us.css';
 import './resources.css';
 import './admin.css';
+import './careers.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -35,6 +37,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/leads" element={<AdminLeads />} />
         <Route path="/admin" element={<Navigate to="/admin/leads" replace />} />
+        <Route path="/careers" element={<CareersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <WhatsAppButton />

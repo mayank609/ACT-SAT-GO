@@ -149,7 +149,7 @@ export function Header() {
           </div>
 
 
-          <a href="/#programs" onClick={close}>Career</a>
+          <Link to="/careers" onClick={close}>Career</Link>
 
           <a href={APP_LOGIN_URL} onClick={close}>Login</a>
 
