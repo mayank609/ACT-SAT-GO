@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 
-type Testimonial = { name: string; quote: string; videoId?: string };
+type Testimonial = { name: string; quote: string; details?: string; videoId?: string };
 
 const WRITTEN_TESTIMONIALS: Testimonial[] = [
-  { name: 'Riya Sharma', quote: 'ACT SAT GO has been a game changer for my daughter.' },
-  { name: 'Vihan Malhotra', quote: 'The personalized attention helped me improve my ACT score from 28 to 32.' },
-  { name: 'Neha Iyer', quote: 'AP strategy sessions were extremely helpful and clear.' },
+  { name: 'Riya Sharma', quote: 'ACT SAT GO has been a game changer for my daughter.', details: 'Parent of AP/SAT Student' },
+  { name: 'Vihan Malhotra', quote: 'The personalized attention helped me improve my ACT score from 28 to 32.', details: 'ACT Prep Student' },
+  { name: 'Neha Iyer', quote: 'AP strategy sessions were extremely helpful and clear.', details: 'AP Course Student' },
 ];
 
 const VIDEO_TESTIMONIALS: Testimonial[] = [
-  { name: 'Student Review 1', videoId: '25-pOE_ujqc', quote: 'How I prepped and boosted my score with ACT SAT GO.' },
-  { name: 'Parent Feedback', videoId: 'Jl9fY1Y480s', quote: 'The impact of personalized mentoring and roadmap clarity.' },
-  { name: 'Student Review 3', videoId: 'y6Yio5nkXV4', quote: 'Real talk on the ACT SAT GO experience and results.' },
-  { name: 'Student Review 4', videoId: 'vnaWzyAuTbU', quote: 'How personalized mentoring made the difference for me.' },
-  { name: 'Student Review 5', videoId: 'YNSQmcPqfCc', quote: 'My honest review after working with ACT SAT GO.' },
+  { name: 'Dhwani', videoId: '25-pOE_ujqc', quote: 'How I prepped and boosted my score with ACT SAT GO.', details: 'SAT Prep Student' },
+  { name: 'Sudiksha', videoId: 'Jl9fY1Y480s', quote: 'The impact of personalized mentoring and roadmap clarity.', details: 'Parent of Student' },
+  { name: 'Abigail', videoId: 'y6Yio5nkXV4', quote: 'Real talk on the ACT SAT GO experience and results.', details: 'ACT Prep Student' },
+  { name: 'Kyla', videoId: 'vnaWzyAuTbU', quote: 'How personalized mentoring made the difference for me.', details: 'Academic Mentoring Student' },
+  { name: 'Mary', videoId: 'YNSQmcPqfCc', quote: 'My honest review after working with ACT SAT GO.', details: 'SAT Prep Student' },
 ];
 
 function VideoTestimonial({ videoId, name }: { videoId: string; name: string }) {
@@ -110,13 +110,14 @@ export function Testimonials() {
 
           <div className="testimonial-slider" ref={trackRef} onScroll={handleScroll}>
             {list.map((t) => (
-              <article key={t.name}>
+              <article key={t.name} className={mode === 'video' ? 'video-card' : 'written-card'}>
                 {mode === 'video' && t.videoId && <VideoTestimonial videoId={t.videoId} name={t.name} />}
                 {mode === 'written' && (
                   <div className="written-quotes-icon" aria-hidden="true" style={{ fontSize: '32px', color: 'var(--gold)', marginBottom: '16px' }}>“</div>
                 )}
-                <h3 style={{ marginTop: 'auto', marginBottom: '8px', fontSize: '16px', fontWeight: '700' }}>{t.name}</h3>
-                <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)' }}>{t.quote}</p>
+                <h3 className="testimonial-name">{t.name}</h3>
+                {t.details && <p className="testimonial-details">{t.details}</p>}
+                <p className="testimonial-quote">{t.quote}</p>
               </article>
             ))}
           </div>

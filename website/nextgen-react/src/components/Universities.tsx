@@ -1,10 +1,22 @@
 import { useState } from 'react';
 
 const UNIVERSITIES = [
-  { name: 'Harvard', domain: 'harvard.edu' },
-  { name: 'Stanford', domain: 'stanford.edu' },
-  { name: 'MIT', domain: 'mit.edu' },
-  { name: 'Berkeley', domain: 'berkeley.edu' },
+  { name: 'Harvard University', domain: 'harvard.edu' },
+  { name: 'Yale University', domain: 'yale.edu' },
+  { name: 'Dartmouth College', domain: 'dartmouth.edu' },
+  { name: 'Brown University', domain: 'brown.edu' },
+  { name: 'Cornell University', domain: 'cornell.edu' },
+  { name: 'University of Pennsylvania', domain: 'upenn.edu' },
+  { name: 'Massachusetts Institute of Technology (MIT)', domain: 'mit.edu' },
+  { name: 'California Institute of Technology (Caltech)', domain: 'caltech.edu' },
+  { name: 'Stanford University', domain: 'stanford.edu' },
+  { name: 'Georgetown University', domain: 'georgetown.edu' },
+  { name: 'University of Florida', domain: 'ufl.edu' },
+  { name: 'University of Texas at Austin', domain: 'utexas.edu' },
+  { name: 'University of Alabama', domain: 'ua.edu' },
+  { name: 'Auburn University', domain: 'auburn.edu' },
+  { name: 'Louisiana State University', domain: 'lsu.edu' },
+  { name: 'UC Berkeley', domain: 'berkeley.edu' },
   { name: 'NYU', domain: 'nyu.edu' },
   { name: 'Georgia Tech', domain: 'gatech.edu' },
 ];

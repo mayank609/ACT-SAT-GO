@@ -1201,7 +1201,49 @@ h1 span,
   background:
     linear-gradient(rgba(4, 17, 31, 0.45), rgba(4, 17, 31, 0.9)),
     linear-gradient(135deg, #173b63, #0a1f37);
-  border-color: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.testimonial-name {
+  margin-top: auto;
+  margin-bottom: 2px;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+}
+
+.testimonial-details {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.testimonial-quote {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* White background override for video cards */
+.testimonial-slider article.video-card {
+  background: white;
+  border-color: var(--line);
+  box-shadow: 0 10px 30px rgba(18, 42, 70, 0.06);
+}
+
+.testimonial-slider article.video-card .testimonial-name {
+  color: var(--navy);
+}
+
+.testimonial-slider article.video-card .testimonial-details {
+  color: var(--gold-2);
+}
+
+.testimonial-slider article.video-card .testimonial-quote,
+.testimonial-slider article.video-card p {
+  color: #475569;
 }
 
 .testimonial-arrow {

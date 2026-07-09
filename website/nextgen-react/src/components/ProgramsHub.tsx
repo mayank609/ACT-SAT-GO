@@ -26,7 +26,11 @@ const CARDS = [
     title: <>School<br />Academics</>,
     text: 'Build strong concepts, improve grades, and develop skills for academic excellence at every level.',
     photoPos: '100% 100%',
-    pills: null,
+    pills: [
+      { label: 'Elementary', to: '/k-12-tutoring#elementary' },
+      { label: 'Middle School', to: '/k-12-tutoring#middle' },
+      { label: 'High School', to: '/k-12-tutoring#high' },
+    ],
     to: '/k-12-tutoring',
   },
   {
@@ -37,7 +41,9 @@ const CARDS = [
     title: <>Future<br />Programs</>,
     text: "Expanding horizons with international curricula and language courses for tomorrow's leaders.",
     photoPos: '50% 0%',
-    pills: null,
+    pills: [
+      { label: 'Future Programs', to: '/future-programs' },
+    ],
     to: '/future-programs',
   },
 ];

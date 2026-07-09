@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
@@ -144,6 +144,7 @@ const HERO_FEATURES = [
 
 const GRADE_LEVELS = [
   {
+    id: 'elementary',
     accent: '#f59b00',
     tint: '#fff3d6',
     badge: <IconBackpack />,
@@ -156,6 +157,7 @@ const GRADE_LEVELS = [
     goal: 'Build strong basics. Spark a love for learning.',
   },
   {
+    id: 'middle',
     accent: '#1c5fa5',
     tint: '#e2edf9',
     badge: <IconBookSquare />,
@@ -168,6 +170,7 @@ const GRADE_LEVELS = [
     goal: 'Build strong skills. Prepare for high school success.',
   },
   {
+    id: 'high',
     accent: '#6d28d9',
     tint: '#ece6fb',
     badge: <IconGraduationCap />,
@@ -207,9 +210,24 @@ const BOTTOM_STATS = [
 export function K12TutoringPage() {
   useScrollReveal();
   const heroArtRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (location.hash) {
+      setTimeout(() => {
+        const element = document.querySelector(location.hash);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          window.scrollTo(0, 0);
+        }
+      }, 100);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [location.hash]);
+
+  useEffect(() => {
     document.title = 'K-12 Tutoring — ACT SAT GO';
   }, []);
 
@@ -295,6 +313,7 @@ export function K12TutoringPage() {
             {GRADE_LEVELS.map((g, i) => (
               <article
                 key={g.title}
+                id={g.id}
                 className="k12-grade-card reveal"
                 style={{ transitionDelay: `${i * 70}ms`, ['--accent' as string]: g.accent, ['--tint' as string]: g.tint }}
               >
@@ -407,6 +426,14 @@ export function K12TutoringPage() {
               </a>
               <a href="https://www.linkedin.com/company/act-sat-go/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
                 <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></svg>
+              </a>
+              <a href="https://www.google.com/search?q=ACT+SAT+GO+reviews" target="_blank" rel="noopener noreferrer" aria-label="Google Reviews">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
               </a>
             </div>
           </div>
