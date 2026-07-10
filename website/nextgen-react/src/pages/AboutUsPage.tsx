@@ -27,7 +27,6 @@ export function AboutUsPage() {
         {/* Hero Section */}
         <section className="about-hero section-dark">
           <span className="orb orb-gold" aria-hidden="true" />
-          <span className="orb orb-ring" aria-hidden="true" />
           <div className="shell">
             <nav className="about-breadcrumb" aria-label="Breadcrumb">
               <Link to="/">Home</Link> &gt; <span>About Us</span>
