@@ -386,3 +386,105 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   border-color: var(--gold, #f59b00);
   background: rgba(245, 155, 0, 0.08);
 }
+
+/* ── View switcher tabs for student vs tutor leads ── */
+.admin-view-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--a-border);
+}
+.admin-view-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--a-muted);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.admin-view-tab:hover {
+  color: var(--a-text);
+}
+.admin-view-tab.active {
+  color: var(--a-gold);
+  border-bottom-color: var(--a-gold);
+}
+
+/* Tutor dashboard styling elements */
+.admin-tutor-city {
+  font-size: 12px;
+  color: var(--a-muted);
+  margin-top: 4px;
+}
+.admin-tutor-subject {
+  font-weight: 600;
+  color: var(--a-text);
+  margin-bottom: 6px;
+}
+.admin-tutor-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.admin-tutor-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--a-border);
+  color: var(--a-muted);
+}
+.admin-tutor-rate {
+  font-weight: 600;
+  color: var(--a-gold);
+  margin-top: 4px;
+}
+.admin-cv-download-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(245, 155, 0, 0.08);
+  border: 1px solid rgba(245, 155, 0, 0.25);
+  color: var(--a-gold);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+}
+.admin-cv-download-btn:hover {
+  background: var(--a-gold);
+  color: #1a1205;
+  border-color: var(--a-gold);
+}
+.admin-video-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  width: 100%;
+  text-align: center;
+}
+.admin-video-link:hover {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}

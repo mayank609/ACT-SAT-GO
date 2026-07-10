@@ -11,9 +11,23 @@ export interface Lead {
   phone: string;
   exam: string;
   message: string;
-  type: string; // 'Consultation' | 'Newsletter'
+  type: string; // 'Consultation' | 'Newsletter' | 'Tutor'
   status: LeadStatus;
   createdAt: string;
+
+  // Tutor fields
+  city?: string;
+  subject?: string;
+  testPrep?: string[];
+  grades?: string;
+  hourlyRate?: string;
+  cvFile?: {
+    name: string;
+    type: string;
+    data: string; // base64 string
+  } | null;
+  videoUrl?: string;
+  remarks?: string;
 }
 
 export const LEAD_STATUSES: LeadStatus[] = ['Pending', 'In Progress', 'Contacted', 'Resolved'];
@@ -112,6 +126,18 @@ export async function createLead(data: {
   message?: string;
   type?: string;
   status?: LeadStatus;
+  city?: string;
+  subject?: string;
+  testPrep?: string[];
+  grades?: string;
+  hourlyRate?: string;
+  cvFile?: {
+    name: string;
+    type: string;
+    data: string;
+  } | null;
+  videoUrl?: string;
+  remarks?: string;
 }): Promise<Lead> {
   const res = await authFetch('/api/queries', {
     method: 'POST',

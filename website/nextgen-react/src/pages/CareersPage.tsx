@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Header } from '../components/Header';
 import careerHeroImg from '../assets/career-hero.jpeg';
 import careerPartnerImg from '../assets/career-partner.png';
+import { QUERY_API_BASE } from '../config';
 
 /* ─────────────────────────────────────────────
    DATA
@@ -175,10 +176,161 @@ const PARTNER_PERKS = [
 ───────────────────────────────────────────── */
 export function CareersPage() {
   const [activeTab, setActiveTab] = useState('All Departments');
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    city: '',
+    subject: '',
+    testPrep: [] as string[],
+    grades: '',
+    hourlyRate: '',
+    videoUrl: '',
+    remarks: '',
+  });
+  const [cvFile, setCvFile] = useState<{ name: string; type: string; data: string } | null>(null);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const TEST_PREP_OPTIONS = ['SAT', 'ACT', 'AP', 'K-12', 'Other'];
 
   const filtered = activeTab === 'All Departments'
     ? JOBS
     : JOBS.filter((j) => j.dept === activeTab);
+
+  const handleApplyClick = (jobTitle: string) => {
+    let subject = '';
+    let testPrep: string[] = [];
+    
+    if (jobTitle === 'SAT/ACT Mentor') {
+      subject = 'SAT/ACT tutoring';
+      testPrep = ['SAT', 'ACT'];
+    } else if (jobTitle === 'Academic Coordinator') {
+      subject = 'Academic Coordination';
+    } else if (jobTitle === 'Student Success Specialist') {
+      subject = 'Student Success';
+    } else if (jobTitle === 'Growth Marketing Associate') {
+      subject = 'Marketing';
+    } else {
+      subject = jobTitle;
+    }
+
+    setForm((f) => ({
+      ...f,
+      subject,
+      testPrep,
+    }));
+
+    const formEl = document.getElementById('apply-form');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleTestPrepChange = (option: string) => {
+    setForm(f => {
+      const exists = f.testPrep.includes(option);
+      const testPrep = exists 
+        ? f.testPrep.filter(t => t !== option)
+        : [...f.testPrep, option];
+      return { ...f, testPrep };
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg('CV file size must be under 5MB.');
+      return;
+    }
+
+    const validExtensions = ['pdf', 'doc', 'docx'];
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!fileExt || !validExtensions.includes(fileExt)) {
+      setErrorMsg('Only PDF, DOC, or DOCX files are allowed.');
+      return;
+    }
+
+    setErrorMsg('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCvFile({
+        name: file.name,
+        type: file.type,
+        data: reader.result as string,
+      });
+    };
+    reader.onerror = () => {
+      setErrorMsg('Failed to read the CV file.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
+      setErrorMsg('Name, Email, and WhatsApp number are required.');
+      return;
+    }
+    if (!cvFile) {
+      setErrorMsg('Please upload your CV.');
+      return;
+    }
+
+    setSubmitStatus('submitting');
+    setErrorMsg('');
+
+    try {
+      const response = await fetch(`${QUERY_API_BASE}/api/queries`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          city: form.city,
+          subject: form.subject,
+          testPrep: form.testPrep,
+          grades: form.grades,
+          hourlyRate: form.hourlyRate,
+          cvFile,
+          videoUrl: form.videoUrl,
+          message: form.remarks,
+          remarks: form.remarks,
+          type: 'Tutor',
+        }),
+      });
+
+      if (response.ok) {
+        setSubmitStatus('success');
+        setForm({
+          name: '',
+          email: '',
+          phone: '',
+          city: '',
+          subject: '',
+          testPrep: [],
+          grades: '',
+          hourlyRate: '',
+          videoUrl: '',
+          remarks: '',
+        });
+        setCvFile(null);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setErrorMsg(data.error || 'Failed to submit application.');
+        setSubmitStatus('error');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Network error. Failed to reach the server.');
+      setSubmitStatus('error');
+    }
+  };
 
   return (
     <>
@@ -237,9 +389,13 @@ export function CareersPage() {
                   <p className="careers-job-desc">{job.desc}</p>
                   <div className="careers-job-footer">
                     <span className="careers-job-badge">{job.type}</span>
-                    <a href="mailto:careers@actsatgo.com" className="careers-job-apply">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyClick(job.title)}
+                      className="careers-job-apply-btn"
+                    >
                       Apply Now →
-                    </a>
+                    </button>
                   </div>
                 </article>
               ))}
@@ -290,9 +446,16 @@ export function CareersPage() {
                   </div>
                 ))}
               </div>
-              <a href="mailto:partners@actsatgo.com" className="careers-partner-btn">
+              <button
+                type="button"
+                onClick={() => {
+                  const formEl = document.getElementById('apply-form');
+                  if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="careers-partner-btn"
+              >
                 Learn More →
-              </a>
+              </button>
             </div>
 
             {/* Right image */}
@@ -322,6 +485,234 @@ export function CareersPage() {
           </div>
         </section>
 
+        {/* ── Tutor Application Form ── */}
+        <section id="apply-form" className="careers-form-section">
+          <div className="shell">
+            <div className="careers-form-grid">
+              
+              {/* Form Info Panel */}
+              <div className="careers-form-info">
+                <span className="careers-section-eyebrow">WORK WITH US</span>
+                <h2 className="careers-form-title">
+                  Become an ACT SAT GO Tutor
+                </h2>
+                <p className="careers-form-desc">
+                  We are always looking for exceptional, student-first mentors. Join our network of elite educators, set your own flexible hours, and tutor students globally from the comfort of your home.
+                </p>
+                
+                <div className="careers-form-requirements">
+                  <h3>What we look for:</h3>
+                  <ul>
+                    <li>
+                      <span className="req-check">✓</span> High-scoring academic backgrounds (SAT 1500+, ACT 34+, or AP 5/5 preferred).
+                    </li>
+                    <li>
+                      <span className="req-check">✓</span> Empathy, patience, and strong communication skills.
+                    </li>
+                    <li>
+                      <span className="req-check">✓</span> Ability to teach in a structured, interactive 1-on-1 online format.
+                    </li>
+                    <li>
+                      <span className="req-check">✓</span> A reliable, quiet workspace with high-speed internet and tutoring equipment.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Form Card */}
+              <div className="careers-form-card">
+                {submitStatus === 'success' ? (
+                  <div className="careers-form-success animate-fade-in">
+                    <div className="success-icon-badge">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <h3>Application Submitted!</h3>
+                    <p>
+                      Thank you for applying. Our academic coordinators will review your CV and video introduction. We will contact you via WhatsApp or Email if your profile matches our requirements.
+                    </p>
+                    <button className="btn-reset-form" onClick={() => setSubmitStatus('idle')}>
+                      Submit Another Application
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="careers-application-form">
+                    <h3 className="form-legend">Apply for Tutoring Position</h3>
+                    
+                    {errorMsg && (
+                      <div className="careers-form-error-banner animate-fade-in" role="alert">
+                        {errorMsg}
+                      </div>
+                    )}
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="name">Full Name *</label>
+                        <input
+                          type="text"
+                          id="name"
+                          placeholder="e.g. Jane Doe"
+                          required
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="email">Email Address *</label>
+                        <input
+                          type="email"
+                          id="email"
+                          placeholder="name@example.com"
+                          required
+                          value={form.email}
+                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="phone">Contact Number (WhatsApp) *</label>
+                        <input
+                          type="tel"
+                          id="phone"
+                          placeholder="e.g. +1 555 123 4567"
+                          required
+                          value={form.phone}
+                          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="city">City / Location *</label>
+                        <input
+                          type="text"
+                          id="city"
+                          placeholder="e.g. Boston, USA"
+                          required
+                          value={form.city}
+                          onChange={(e) => setForm({ ...form, city: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="subject">Subject / Expertise *</label>
+                        <input
+                          type="text"
+                          id="subject"
+                          placeholder="e.g. SAT Math, AP Physics"
+                          required
+                          value={form.subject}
+                          onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="hourlyRate">Expected Hourly Rate (USD) *</label>
+                        <input
+                          type="text"
+                          id="hourlyRate"
+                          placeholder="e.g. $35/hr"
+                          required
+                          value={form.hourlyRate}
+                          onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="grades">Grades / Target Audiences *</label>
+                      <input
+                        type="text"
+                        id="grades"
+                        placeholder="e.g. Grades 9-12, College"
+                        required
+                        value={form.grades}
+                        onChange={(e) => setForm({ ...form, grades: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Test Prep Specializations (Select Multiple) *</label>
+                      <div className="test-prep-checklist">
+                        {TEST_PREP_OPTIONS.map((option) => (
+                          <label key={option} className="checklist-item">
+                            <input
+                              type="checkbox"
+                              checked={form.testPrep.includes(option)}
+                              onChange={() => handleTestPrepChange(option)}
+                            />
+                            <span className="checklist-label">{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="cv-upload" className="cv-upload-label">
+                        Upload CV (PDF, DOC, DOCX - Max 5MB) *
+                      </label>
+                      <div className="file-uploader-box">
+                        <input
+                          type="file"
+                          id="cv-upload"
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleFileChange}
+                          style={{ display: 'none' }}
+                        />
+                        <button
+                          type="button"
+                          className="file-select-btn"
+                          onClick={() => document.getElementById('cv-upload')?.click()}
+                        >
+                          Select CV File
+                        </button>
+                        <span className="file-name-display">
+                          {cvFile ? cvFile.name : 'No file chosen'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="videoUrl">Tutoring Video Introduction Link *</label>
+                      <input
+                        type="url"
+                        id="videoUrl"
+                        placeholder="e.g. Loom, YouTube, Google Drive link"
+                        required
+                        value={form.videoUrl}
+                        onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+                      />
+                      <span className="field-hint">Please provide a 2-3 min video link explaining a concept or introducing yourself.</span>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="remarks">Remarks (If Any)</label>
+                      <textarea
+                        id="remarks"
+                        rows={3}
+                        placeholder="Any additional details or schedule preferences..."
+                        value={form.remarks}
+                        onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submitStatus === 'submitting'}
+                      className="form-submit-btn"
+                    >
+                      {submitStatus === 'submitting' ? 'Submitting...' : 'Submit Application'}
+                    </button>
+                  </form>
+                )}
+              </div>
+
+            </div>
+          </div>
+        </section>
+
         {/* ── CTA Banner ── */}
         <section className="careers-cta-section">
           <div className="shell careers-cta-inner">
@@ -333,9 +724,16 @@ export function CareersPage() {
               <p className="careers-cta-desc">
                 Join a team where your work empowers students, supports families and creates a lasting impact.
               </p>
-              <a href="mailto:careers@actsatgo.com" className="careers-cta-btn">
-                Explore Openings →
-              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  const formEl = document.getElementById('apply-form');
+                  if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="careers-cta-btn"
+              >
+                Apply Now →
+              </button>
             </div>
             {/* decorative illustration */}
             <div className="careers-cta-illustration" aria-hidden="true">

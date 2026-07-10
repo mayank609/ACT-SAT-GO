@@ -560,3 +560,295 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Tutor Application Form ── */
+.careers-form-section {
+  padding: 80px 0;
+  background-color: var(--navy);
+  background-image: radial-gradient(circle at 80% 20%, rgba(245, 155, 0, 0.05) 0%, transparent 40%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+.careers-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 48px;
+  align-items: start;
+}
+.careers-form-info {
+  position: sticky;
+  top: 100px;
+}
+.careers-form-title {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 10px 0 20px;
+  color: white;
+}
+.careers-form-desc {
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 30px;
+}
+.careers-form-requirements h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--gold-2);
+}
+.careers-form-requirements ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.careers-form-requirements li {
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.req-check {
+  color: var(--gold-2);
+  font-weight: 900;
+}
+
+/* Form Card */
+.careers-form-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 40px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+.form-legend {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+}
+.careers-application-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.careers-application-form .form-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.careers-application-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+}
+.careers-application-form input[type="text"],
+.careers-application-form input[type="email"],
+.careers-application-form input[type="tel"],
+.careers-application-form input[type="url"],
+.careers-application-form textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: white;
+  font-size: 14.5px;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.careers-application-form input:focus,
+.careers-application-form textarea:focus {
+  border-color: var(--gold-2);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(245, 168, 0, 0.15);
+}
+.field-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 6px;
+}
+
+/* Test Prep Checklist */
+.test-prep-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 14px;
+  border-radius: 8px;
+}
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 0 !important;
+}
+.checklist-item input {
+  cursor: pointer;
+  accent-color: var(--gold-2);
+  width: 16px;
+  height: 16px;
+}
+.checklist-label {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* File Uploader */
+.file-uploader-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  padding: 12px;
+  border-radius: 8px;
+}
+.file-select-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: white;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.file-select-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.file-name-display {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Submit Button */
+.form-submit-btn {
+  background: var(--gold-2);
+  color: #1a1205;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-align: center;
+  margin-top: 10px;
+}
+.form-submit-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.form-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Errors & Success */
+.careers-form-error-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+.careers-form-success {
+  text-align: center;
+  padding: 40px 20px;
+}
+.success-icon-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  border: 2px solid #10b981;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+.success-icon-badge svg {
+  width: 32px;
+  height: 32px;
+}
+.careers-form-success h3 {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  color: white;
+}
+.careers-form-success p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 24px;
+}
+.btn-reset-form {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-reset-form:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: white;
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive updates for form */
+@media (max-width: 960px) {
+  .careers-form-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .careers-form-info {
+    position: static;
+  }
+}
+@media (max-width: 600px) {
+  .careers-form-card {
+    padding: 24px;
+  }
+  .careers-application-form .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+

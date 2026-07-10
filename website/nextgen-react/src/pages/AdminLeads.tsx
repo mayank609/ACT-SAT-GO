@@ -43,6 +43,7 @@ export function AdminLeads() {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
+  const [activeTab, setActiveTab] = useState<'students' | 'tutors'>('students');
 
   const logout = () => {
     clearToken();
@@ -120,20 +121,54 @@ export function AdminLeads() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return leads.filter((l) => {
-      if (statusFilter !== 'All' && l.status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        l.name.toLowerCase().includes(q) ||
-        l.email.toLowerCase().includes(q) ||
-        l.phone.toLowerCase().includes(q) ||
-        l.exam.toLowerCase().includes(q) ||
-        l.message.toLowerCase().includes(q)
-      );
-    });
-  }, [leads, search, statusFilter]);
+      // 1. Separate students and tutors
+      const isTutor = l.type === 'Tutor';
+      if (activeTab === 'students' && isTutor) return false;
+      if (activeTab === 'tutors' && !isTutor) return false;
 
-  const pendingCount = leads.filter((l) => l.status === 'Pending').length;
-  const consultations = leads.filter((l) => l.type === 'Consultation').length;
+      // 2. Status filter
+      if (statusFilter !== 'All' && l.status !== statusFilter) return false;
+
+      // 3. Search query filter
+      if (!q) return true;
+      
+      const searchFields = [
+        l.name,
+        l.email,
+        l.phone,
+        l.exam,
+        l.message,
+        l.city,
+        l.subject,
+        l.grades,
+        l.hourlyRate,
+        l.remarks,
+        ...(l.testPrep || [])
+      ].map(f => (f || '').toLowerCase());
+
+      return searchFields.some(f => f.includes(q));
+    });
+  }, [leads, search, statusFilter, activeTab]);
+
+  // Split leads for stats calculation
+  const studentLeads = leads.filter((l) => l.type !== 'Tutor');
+  const tutorLeads = leads.filter((l) => l.type === 'Tutor');
+
+  // Stats calculation
+  const totalCount = activeTab === 'students' ? studentLeads.length : tutorLeads.length;
+  const pendingCount = activeTab === 'students' 
+    ? studentLeads.filter((l) => l.status === 'Pending').length 
+    : tutorLeads.filter((l) => l.status === 'Pending').length;
+    
+  const stat3Label = activeTab === 'students' ? 'Consultations' : 'In Progress';
+  const stat3Val = activeTab === 'students' 
+    ? studentLeads.filter((l) => l.type === 'Consultation').length 
+    : tutorLeads.filter((l) => l.status === 'In Progress').length;
+
+  const stat4Label = activeTab === 'students' ? 'Newsletter' : 'Contacted / Resolved';
+  const stat4Val = activeTab === 'students'
+    ? studentLeads.filter((l) => l.type === 'Newsletter').length
+    : tutorLeads.filter((l) => l.status === 'Contacted' || l.status === 'Resolved').length;
 
   return (
     <div className="admin-root">
@@ -144,36 +179,54 @@ export function AdminLeads() {
               ACT SAT GO
             </div>
             <h1>Leads &amp; Enquiries</h1>
-            <p className="admin-muted">Consultation requests and newsletter sign-ups from the website.</p>
+            <p className="admin-muted">Consultation requests, newsletter sign-ups, and tutor applications from the website.</p>
           </div>
           <button className="admin-logout" onClick={logout}>
             Log out
           </button>
         </div>
 
+        {/* View Switcher Tabs */}
+        <div className="admin-view-tabs">
+          <button 
+            type="button"
+            className={`admin-view-tab ${activeTab === 'students' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('students'); setStatusFilter('All'); setSearch(''); }}
+          >
+            Student Leads
+          </button>
+          <button 
+            type="button"
+            className={`admin-view-tab ${activeTab === 'tutors' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('tutors'); setStatusFilter('All'); setSearch(''); }}
+          >
+            Tutor Applications
+          </button>
+        </div>
+
         <div className="admin-stats">
           <div className="admin-stat is-total">
-            <strong>{leads.length}</strong>
-            <span>Total leads</span>
+            <strong>{totalCount}</strong>
+            <span>{activeTab === 'students' ? 'Total leads' : 'Total applicants'}</span>
           </div>
           <div className="admin-stat is-pending">
             <strong>{pendingCount}</strong>
             <span>Pending</span>
           </div>
           <div className="admin-stat">
-            <strong>{consultations}</strong>
-            <span>Consultations</span>
+            <strong>{stat3Val}</strong>
+            <span>{stat3Label}</span>
           </div>
           <div className="admin-stat">
-            <strong>{leads.length - consultations}</strong>
-            <span>Newsletter</span>
+            <strong>{stat4Val}</strong>
+            <span>{stat4Label}</span>
           </div>
         </div>
 
         <div className="admin-toolbar">
           <input
             type="text"
-            placeholder="Search by name, email, phone, exam…"
+            placeholder={activeTab === 'students' ? "Search by name, email, phone, exam…" : "Search by name, subject, city, grade…"}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -185,9 +238,11 @@ export function AdminLeads() {
               </option>
             ))}
           </select>
-          <button className="admin-add-btn" onClick={() => { setAddForm(EMPTY_FORM); setAddError(''); setShowAddModal(true); }}>
-            + Add Lead
-          </button>
+          {activeTab === 'students' && (
+            <button className="admin-add-btn" onClick={() => { setAddForm(EMPTY_FORM); setAddError(''); setShowAddModal(true); }}>
+              + Add Lead
+            </button>
+          )}
         </div>
 
         {error && <div className="admin-error">{error}</div>}
@@ -201,59 +256,173 @@ export function AdminLeads() {
             </div>
           ) : (
             <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Contact</th>
-                  <th>Interest</th>
-                  <th>Message</th>
-                  <th>Type</th>
-                  <th>Received</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((l) => (
-                  <tr key={l.id}>
-                    <td className="admin-name">{l.name}</td>
-                    <td className="admin-contact">
-                      <div>
-                        <a href={`mailto:${l.email}`}>{l.email}</a>
-                      </div>
-                      {l.phone && (
-                        <div>
-                          <a href={`tel:${l.phone}`}>{l.phone}</a>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <span className="admin-tag">{l.exam}</span>
-                    </td>
-                    <td className="admin-msg">{l.message || <span className="admin-muted">—</span>}</td>
-                    <td>{l.type}</td>
-                    <td className="admin-contact">{formatDate(l.createdAt)}</td>
-                    <td>
-                      <select
-                        className={`admin-status-select ${statusClass(l.status)}`}
-                        value={l.status}
-                        onChange={(e) => handleStatusChange(l.id, e.target.value as LeadStatus)}
-                      >
-                        {LEAD_STATUSES.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <button className="admin-del" onClick={() => handleDelete(l.id)}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              {activeTab === 'students' ? (
+                <>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Contact</th>
+                      <th>Interest</th>
+                      <th>Message</th>
+                      <th>Type</th>
+                      <th>Received</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((l) => (
+                      <tr key={l.id}>
+                        <td className="admin-name">{l.name}</td>
+                        <td className="admin-contact">
+                          <div>
+                            <a href={`mailto:${l.email}`}>{l.email}</a>
+                          </div>
+                          {l.phone && (
+                            <div>
+                              <a href={`tel:${l.phone}`}>{l.phone}</a>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span className="admin-tag">{l.exam}</span>
+                        </td>
+                        <td className="admin-msg">{l.message || <span className="admin-muted">—</span>}</td>
+                        <td>{l.type}</td>
+                        <td className="admin-contact">{formatDate(l.createdAt)}</td>
+                        <td>
+                          <select
+                            className={`admin-status-select ${statusClass(l.status)}`}
+                            value={l.status}
+                            onChange={(e) => handleStatusChange(l.id, e.target.value as LeadStatus)}
+                          >
+                            {LEAD_STATUSES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <button className="admin-del" onClick={() => handleDelete(l.id)}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </>
+              ) : (
+                <>
+                  <thead>
+                    <tr>
+                      <th>Tutor Name</th>
+                      <th>Contact &amp; Location</th>
+                      <th>Expertise / Test Prep</th>
+                      <th>Grades &amp; Rate</th>
+                      <th>CV &amp; Video</th>
+                      <th>Remarks</th>
+                      <th>Applied Date</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((l) => (
+                      <tr key={l.id}>
+                        <td className="admin-name">{l.name}</td>
+                        <td className="admin-contact">
+                          <div>
+                            <a href={`mailto:${l.email}`}>{l.email}</a>
+                          </div>
+                          {l.phone && (
+                            <div>
+                              <a href={`tel:${l.phone}`}>{l.phone}</a>
+                            </div>
+                          )}
+                          {l.city && (
+                            <div className="admin-tutor-city">
+                              📍 {l.city}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div className="admin-tutor-subject">{l.subject}</div>
+                          {l.testPrep && l.testPrep.length > 0 && (
+                            <div className="admin-tutor-tags">
+                              {l.testPrep.map((p) => (
+                                <span key={p} className="admin-tutor-tag">{p}</span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td className="admin-contact">
+                          <div>Grades: {l.grades || '—'}</div>
+                          <div className="admin-tutor-rate">Rate: {l.hourlyRate || '—'}</div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {l.cvFile ? (
+                              <button
+                                type="button"
+                                className="admin-cv-download-btn"
+                                onClick={() => {
+                                  if (!l.cvFile) return;
+                                  const link = document.createElement('a');
+                                  link.href = l.cvFile.data;
+                                  link.download = l.cvFile.name || 'CV.pdf';
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}
+                              >
+                                📄 Download CV
+                              </button>
+                            ) : (
+                              <span className="admin-muted">No CV</span>
+                            )}
+                            
+                            {l.videoUrl ? (
+                              <a
+                                href={l.videoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="admin-video-link"
+                              >
+                                🎥 View Video ↗
+                              </a>
+                            ) : (
+                              <span className="admin-muted">No Video</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="admin-msg">
+                          {l.remarks || <span className="admin-muted">—</span>}
+                        </td>
+                        <td className="admin-contact">{formatDate(l.createdAt)}</td>
+                        <td>
+                          <select
+                            className={`admin-status-select ${statusClass(l.status)}`}
+                            value={l.status}
+                            onChange={(e) => handleStatusChange(l.id, e.target.value as LeadStatus)}
+                          >
+                            {LEAD_STATUSES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <button className="admin-del" onClick={() => handleDelete(l.id)}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </>
+              )}
             </table>
           )}
         </div>

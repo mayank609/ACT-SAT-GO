@@ -189,7 +189,8 @@ app.get('/api/queries', requireAuth, async (_req, res) => {
 app.post('/api/queries', async (req, res) => {
   const {
     name, email, phone, exam, message, type, status,
-    grade, source, stage, counselor, lastActivity, nextFollowup, leadScore
+    grade, source, stage, counselor, lastActivity, nextFollowup, leadScore,
+    city, subject, testPrep, grades, hourlyRate, cvFile, videoUrl, remarks
   } = req.body || {};
 
   if (!email) {
@@ -213,8 +214,17 @@ app.post('/api/queries', async (req, res) => {
     leadScore: typeof leadScore === 'number' ? leadScore : 50,
     message: message || '',
     type: type || 'Consultation',
-    status: validStatuses.includes(status) ? status : 'Active',
+    status: validStatuses.includes(status) ? status : (type === 'Tutor' ? 'Pending' : 'Active'),
     createdAt: new Date().toISOString(),
+    // Tutor specific fields
+    city: city || '',
+    subject: subject || '',
+    testPrep: Array.isArray(testPrep) ? testPrep : [],
+    grades: grades || '',
+    hourlyRate: hourlyRate || '',
+    cvFile: cvFile || null,
+    videoUrl: videoUrl || '',
+    remarks: remarks || '',
   };
 
   try {
@@ -231,7 +241,8 @@ app.put('/api/queries/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const allowedFields = [
     'status', 'stage', 'counselor', 'grade', 'source', 'exam',
-    'leadScore', 'lastActivity', 'nextFollowup', 'name', 'email', 'phone', 'message'
+    'leadScore', 'lastActivity', 'nextFollowup', 'name', 'email', 'phone', 'message',
+    'city', 'subject', 'testPrep', 'grades', 'hourlyRate', 'cvFile', 'videoUrl', 'remarks'
   ];
   const updates = {};
   for (const field of allowedFields) {
