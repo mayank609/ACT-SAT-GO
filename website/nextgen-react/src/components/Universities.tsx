@@ -16,9 +16,6 @@ const UNIVERSITIES = [
   { name: 'University of Alabama', domain: 'ua.edu' },
   { name: 'Auburn University', domain: 'auburn.edu' },
   { name: 'Louisiana State University', domain: 'lsu.edu' },
-  { name: 'UC Berkeley', domain: 'berkeley.edu' },
-  { name: 'NYU', domain: 'nyu.edu' },
-  { name: 'Georgia Tech', domain: 'gatech.edu' },
 ];
 
 function UniLogo({ name, domain }: { name: string; domain: string }) {

@@ -70,9 +70,9 @@ export interface ProgramPageData {
   steps: Step[];
   curriculumHeading: string;
   curriculum: CurriculumArea[];
-  compareHeading: string;
-  compareCols: string[];
-  compareRows: CompareRow[];
+  compareHeading?: string;
+  compareCols?: string[];
+  compareRows?: CompareRow[];
   chooseHeading: string;
   chooseItems: ChooseItem[];
   stats: Stat[];
@@ -369,18 +369,7 @@ export const SAT_PAGE: ProgramPageData = {
     { title: 'Writing & Language', accent: '#16a34a', points: ['Grammar & Usage', 'Rhetorical Skills', 'Transitions & Coherence', 'Revision & Editing'] },
     { title: 'Math', accent: '#f59b00', points: ['Algebra', 'Advanced Math', 'Problem Solving & Data Analysis', 'Geometry & Trigonometry'] },
   ],
-  compareHeading: 'Program Comparison',
-  compareCols: ['SAT Mastery', 'SAT Accelerator', 'SAT Test Series+', 'SAT Math Pro', 'SAT Verbal Edge'],
-  compareRows: [
-    { feature: 'Duration', values: ['12 – 16 Weeks', '4 – 6 Weeks', '6 – 8 Weeks', '6 – 8 Weeks', '6 – 8 Weeks'] },
-    { feature: 'Live Classes', values: ['3 – 4 / Week', '3 – 4 / Week', '—', '2 – 3 / Week', '2 – 3 / Week'] },
-    { feature: 'Full Curriculum', values: ['All Sections', 'Condensed All Sections', '—', 'Math Only', 'Reading & Writing'] },
-    { feature: 'Full-Length Mocks', values: ['12+', '8', '12', 'Topic Tests', 'Topic Tests'] },
-    { feature: 'Personal Mentor', values: ['✓', '✓', 'Optional', '✗', '✓'] },
-    { feature: 'Performance Analytics', values: ['✓', '✓', '✓', '✓', '✓'] },
-    { feature: 'Best For', values: ['Complete Preparation', 'Quick Score Boost', 'Practice & Fine Tune', 'Math Improvement', 'Reading & Writing Focus'] },
-    { feature: 'Fees (USD)', values: ['$1200', '$1200', '$500', '$700', '$700'] },
-  ],
+
   chooseHeading: "We'll Help You Choose",
   chooseItems: [
     { prompt: "I'm starting my SAT preparation.", choose: 'SAT Mastery Track', accent: '#1c5fa5' },
