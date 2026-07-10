@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Header } from '../components/Header';
-import careerHeroImg from '../assets/career-hero.jpeg';
+import img4 from '../assets/4.png';
 import careerPartnerImg from '../assets/career-partner.png';
 import { QUERY_API_BASE } from '../config';
 import { fetchJobs, type Job } from '../admin/api';
@@ -354,18 +354,72 @@ export function CareersPage() {
 
       <main>
         {/* ── Hero ── */}
-        <section className="careers-hero-section">
-          <div className="careers-hero-img-wrap">
-            <img
-              src={careerHeroImg}
-              alt="Build the Future of Student Success — Careers at ACT SAT GO"
-              className="careers-hero-img"
-            />
+        <section className="careers-hero-section section-dark">
+          <span className="orb orb-gold" aria-hidden="true" />
+          <span className="orb orb-ring" aria-hidden="true" />
+          <div className="shell careers-hero-grid">
+            <div className="careers-hero-copy">
+              <span className="careers-eyebrow">CAREERS AT ACT SAT GO</span>
+              <h1 className="careers-hero-title">
+                Build the Future<br />of Student <span>Success.</span>
+              </h1>
+              <p className="careers-hero-desc">
+                We're a team of educators, innovators and problem-solvers passionate about helping
+                students achieve their highest potential. If you're driven to make an impact,
+                you'll feel right at home here.
+              </p>
+              <a
+                href="#open-positions"
+                className="careers-hero-cta"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const el = document.getElementById('open-positions');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                View Open Positions
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
+
+            <div className="careers-hero-art">
+              <div className="careers-hero-art-wrapper">
+                <img
+                  src={img4}
+                  alt="Build the Future of Student Success — Careers at ACT SAT GO"
+                />
+                
+                {/* Floating Icons */}
+                <div className="careers-hero-icons-absolute">
+                  <div className="careers-deco-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 10v6M2 10l10 5 10-5-10-5z" />
+                      <path d="M6 12v5c0 2 2.7 3.5 6 3.5s6-1.5 6-3.5v-5" />
+                    </svg>
+                  </div>
+                  <div className="careers-deco-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="20" x2="18" y2="10" />
+                      <line x1="12" y1="20" x2="12" y2="4" />
+                      <line x1="6" y1="20" x2="6" y2="14" />
+                    </svg>
+                  </div>
+                  <div className="careers-deco-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* ── Open Positions ── */}
-        <section className="careers-jobs-section">
+        <section className="careers-jobs-section" id="open-positions">
           <div className="shell">
             <p className="careers-section-eyebrow">OPEN POSITIONS</p>
             <h2 className="careers-jobs-title">

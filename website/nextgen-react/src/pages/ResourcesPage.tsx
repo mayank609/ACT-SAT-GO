@@ -5,7 +5,7 @@ import { useScrollReveal } from '../hooks/useScrollReveal';
 import { fetchBlogs, type BlogPost } from '../admin/api';
 
 // Image assets
-import heroImg from '../assets/resources_hero.png';
+import heroImg from '../../images/resouces hero.png';
 import satReviewImg from '../assets/sat_review_cover.png';
 import actChecklistImg from '../assets/act_checklist_cover.png';
 import apOverviewImg from '../assets/ap_overview_cover.png';
@@ -323,7 +323,6 @@ export function ResourcesPage() {
         {/* Hero */}
         <section className="resources-hero section-dark">
           <span className="orb orb-gold" aria-hidden="true" />
-          <span className="orb orb-ring" aria-hidden="true" />
           <div className="shell">
             <p className="resources-breadcrumb">
               <a href="/#home">Home</a> <span aria-hidden="true">›</span> <span>Resources</span>
