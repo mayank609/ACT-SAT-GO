@@ -22,10 +22,14 @@ export default function App() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', exam: 'General', message: '' });
+  const [phoneCountryCode, setPhoneCountryCode] = useState('+1');
+  const [phoneLocalNumber, setPhoneLocalNumber] = useState('');
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
 
   const openConsultationModal = (defaultExam = 'General') => {
     setFormData({ name: '', email: '', phone: '', exam: defaultExam, message: '' });
+    setPhoneCountryCode('+1');
+    setPhoneLocalNumber('');
     setSubmitStatus('idle');
     setIsModalOpen(true);
     document.body.classList.add('modal-open-body');
@@ -47,6 +51,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          phone: `${phoneCountryCode} ${phoneLocalNumber}`.trim(),
           type: 'Consultation'
         })
       });
@@ -612,14 +617,36 @@ export default function App() {
 
               <div className="c-form-group">
                 <label htmlFor="modal-phone">Phone Number</label>
-                <input
-                  id="modal-phone"
-                  type="tel"
-                  className="c-input"
-                  placeholder="e.g. +91 98765 43210"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <select
+                    className="c-input"
+                    style={{ width: '110px', padding: '0 8px', backgroundColor: '#0d1b31', color: 'white' }}
+                    value={phoneCountryCode}
+                    onChange={(e) => setPhoneCountryCode(e.target.value)}
+                  >
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+1">+1 (US)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+91">+91 (IN)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+44">+44 (UK)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+971">+971 (AE)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+65">+65 (SG)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+61">+61 (AU)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+966">+966 (SA)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+974">+974 (QA)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+968">+968 (OM)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+965">+965 (KW)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+973">+973 (BH)</option>
+                    <option style={{ backgroundColor: '#0d1b31', color: 'white' }} value="+852">+852 (HK)</option>
+                  </select>
+                  <input
+                    id="modal-phone"
+                    type="tel"
+                    className="c-input"
+                    style={{ flex: 1 }}
+                    placeholder="555 123 4567"
+                    value={phoneLocalNumber}
+                    onChange={(e) => setPhoneLocalNumber(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="c-form-group">

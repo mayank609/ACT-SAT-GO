@@ -51,10 +51,10 @@ const WRITTEN_TESTIMONIALS: Testimonial[] = [
 ];
 
 const VIDEO_TESTIMONIALS: Testimonial[] = [
-  { name: 'Dhwani', videoId: '25-pOE_ujqc', quote: 'How I prepped and boosted my score with ACT SAT GO.', details: 'SAT Prep Student' },
-  { name: 'Sudiksha', videoId: 'Jl9fY1Y480s', quote: 'The impact of personalized mentoring and roadmap clarity.', details: 'Parent of Student' },
   { name: 'Abigail', videoId: 'y6Yio5nkXV4', quote: 'Real talk on the ACT SAT GO experience and results.', details: 'ACT Prep Student' },
+  { name: 'Sudiksha', videoId: 'Jl9fY1Y480s', quote: 'The impact of personalized mentoring and roadmap clarity.', details: 'Parent of Student' },
   { name: 'Kyla', videoId: 'vnaWzyAuTbU', quote: 'How personalized mentoring made the difference for me.', details: 'Academic Mentoring Student' },
+  { name: 'Dhwani', videoId: '25-pOE_ujqc', quote: 'How I prepped and boosted my score with ACT SAT GO.', details: 'SAT Prep Student' },
   { name: 'Mary', videoId: 'YNSQmcPqfCc', quote: 'My honest review after working with ACT SAT GO.', details: 'SAT Prep Student' },
 ];
 

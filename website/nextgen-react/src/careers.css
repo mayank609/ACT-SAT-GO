@@ -657,6 +657,7 @@
 .careers-application-form input[type="email"],
 .careers-application-form input[type="tel"],
 .careers-application-form input[type="url"],
+.careers-application-form select,
 .careers-application-form textarea {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -669,6 +670,7 @@
   transition: all 0.15s ease;
 }
 .careers-application-form input:focus,
+.careers-application-form select:focus,
 .careers-application-form textarea:focus {
   border-color: var(--gold-2);
   background: rgba(255, 255, 255, 0.08);

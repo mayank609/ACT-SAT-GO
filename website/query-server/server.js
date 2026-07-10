@@ -60,42 +60,93 @@ async function connectDb() {
 
 async function seedJobsAndBlogsIfEmpty() {
   try {
+    const hasOldJobs = await jobsCollection.findOne({ title: 'SAT/ACT Mentor' });
+    if (hasOldJobs) {
+      console.log('Old jobs found in MongoDB. Wiping and re-seeding with updated list...');
+      await jobsCollection.deleteMany({});
+    }
+
     if ((await jobsCollection.countDocuments()) === 0) {
       const defaultJobs = [
         {
           id: 'job_1',
           dept: 'Academics',
-          title: 'SAT/ACT Mentor',
+          title: 'SAT / ACT Tutor (Math)',
           location: 'Remote (Global)',
-          type: 'Full-time',
-          desc: 'Guide students to master concepts, ace tests and achieve their dream scores.',
+          type: 'Full-time / Part-time',
+          desc: 'Guide students to master math concepts, ace standardized tests and achieve their dream scores.',
           createdAt: new Date().toISOString()
         },
         {
           id: 'job_2',
-          dept: 'Operations',
-          title: 'Academic Coordinator',
+          dept: 'Academics',
+          title: 'SAT/ACT Tutor (Verbal)',
           location: 'Remote (Global)',
-          type: 'Full-time',
-          desc: 'Ensure smooth learning journeys by coordinating classes, mentors and students.',
+          type: 'Full-time / Part-time',
+          desc: 'Help students excel in Reading & Writing sections of SAT and ACT with proven strategies.',
           createdAt: new Date().toISOString()
         },
         {
           id: 'job_3',
-          dept: 'Student Success',
-          title: 'Student Success Specialist',
+          dept: 'Academics',
+          title: 'AP Calculus',
           location: 'Remote (Global)',
-          type: 'Full-time',
-          desc: 'Be the go-to person who ensures students and parents have an exceptional experience.',
+          type: 'Full-time / Part-time',
+          desc: 'Teach AP Calculus AB/BC, preparing high school students for top AP scores.',
           createdAt: new Date().toISOString()
         },
         {
           id: 'job_4',
-          dept: 'Marketing',
-          title: 'Growth Marketing Associate',
+          dept: 'Academics',
+          title: 'AP Biology',
+          location: 'Remote (Global)',
+          type: 'Full-time / Part-time',
+          desc: 'Deliver comprehensive coaching in AP Biology concepts and experimental design.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'job_5',
+          dept: 'Academics',
+          title: 'AP Computer Science',
+          location: 'Remote (Global)',
+          type: 'Full-time / Part-time',
+          desc: 'Help students master coding, algorithms, and AP Computer Science exam topics.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'job_6',
+          dept: 'Operations',
+          title: 'Operations Manager',
           location: 'Remote (Global)',
           type: 'Full-time',
-          desc: 'Help more students discover us through data-driven and creative marketing.',
+          desc: 'Oversee daily operations, optimize scheduling, and manage coordinator teams.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'job_7',
+          dept: 'Student Success',
+          title: 'Student Success Specialist',
+          location: 'Remote (Global)',
+          type: 'Full-time',
+          desc: 'Support student academic journeys, coordinate between parents and mentors.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'job_8',
+          dept: 'Student Success',
+          title: 'Student Success Executive',
+          location: 'Remote (Global)',
+          type: 'Full-time',
+          desc: 'Manage onboarding, build parent relationships, and ensure high student satisfaction.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'job_9',
+          dept: 'Operations',
+          title: 'Assessment and Testing Coordinator',
+          location: 'Remote (Global)',
+          type: 'Full-time',
+          desc: 'Schedule and coordinate practice tests, analyze student performance metrics.',
           createdAt: new Date().toISOString()
         }
       ];

@@ -9,49 +9,78 @@ import { fetchJobs, type Job } from '../admin/api';
    DATA
 ───────────────────────────────────────────── */
 
-const DEPARTMENTS = [
-  'All Departments',
-  'Academics',
-  'Operations',
-  'Marketing',
-  'Student Success',
-  'Technology',
-  'Design',
-  'Others',
-];
-
 const DEFAULT_JOBS = [
   {
     id: 'job_1',
     dept: 'Academics',
-    title: 'SAT/ACT Mentor',
+    title: 'SAT / ACT Tutor (Math)',
     location: 'Remote (Global)',
-    type: 'Full-time',
-    desc: 'Guide students to master concepts, ace tests and achieve their dream scores.',
+    type: 'Full-time / Part-time',
+    desc: 'Guide students to master math concepts, ace standardized tests and achieve their dream scores.',
   },
   {
     id: 'job_2',
-    dept: 'Operations',
-    title: 'Academic Coordinator',
+    dept: 'Academics',
+    title: 'SAT/ACT Tutor (Verbal)',
     location: 'Remote (Global)',
-    type: 'Full-time',
-    desc: 'Ensure smooth learning journeys by coordinating classes, mentors and students.',
+    type: 'Full-time / Part-time',
+    desc: 'Help students excel in Reading & Writing sections of SAT and ACT with proven strategies.',
   },
   {
     id: 'job_3',
+    dept: 'Academics',
+    title: 'AP Calculus',
+    location: 'Remote (Global)',
+    type: 'Full-time / Part-time',
+    desc: 'Teach AP Calculus AB/BC, preparing high school students for top AP scores.',
+  },
+  {
+    id: 'job_4',
+    dept: 'Academics',
+    title: 'AP Biology',
+    location: 'Remote (Global)',
+    type: 'Full-time / Part-time',
+    desc: 'Deliver comprehensive coaching in AP Biology concepts and experimental design.',
+  },
+  {
+    id: 'job_5',
+    dept: 'Academics',
+    title: 'AP Computer Science',
+    location: 'Remote (Global)',
+    type: 'Full-time / Part-time',
+    desc: 'Help students master coding, algorithms, and AP Computer Science exam topics.',
+  },
+  {
+    id: 'job_6',
+    dept: 'Operations',
+    title: 'Operations Manager',
+    location: 'Remote (Global)',
+    type: 'Full-time',
+    desc: 'Oversee daily operations, optimize scheduling, and manage coordinator teams.',
+  },
+  {
+    id: 'job_7',
     dept: 'Student Success',
     title: 'Student Success Specialist',
     location: 'Remote (Global)',
     type: 'Full-time',
-    desc: 'Be the go-to person who ensures students and parents have an exceptional experience.',
+    desc: 'Support student academic journeys, coordinate between parents and mentors.',
   },
   {
-    id: 'job_4',
-    dept: 'Marketing',
-    title: 'Growth Marketing Associate',
+    id: 'job_8',
+    dept: 'Student Success',
+    title: 'Student Success Executive',
     location: 'Remote (Global)',
     type: 'Full-time',
-    desc: 'Help more students discover us through data-driven and creative marketing.',
+    desc: 'Manage onboarding, build parent relationships, and ensure high student satisfaction.',
+  },
+  {
+    id: 'job_9',
+    dept: 'Operations',
+    title: 'Assessment and Testing Coordinator',
+    location: 'Remote (Global)',
+    type: 'Full-time',
+    desc: 'Schedule and coordinate practice tests, analyze student performance metrics.',
   },
 ];
 
@@ -145,75 +174,13 @@ const PARTNER_PERKS = [
 
 /* ─────────────────────────────────────────────
    PAGE
-───────────────────────────────────────────── */
-const getDeptStyling = (dept: string) => {
-  const name = dept.toLowerCase();
-  if (name.includes('academic')) {
-    return {
-      color: '#eef4ff',
-      text: '#2563eb',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 10v6M17 8v8M12 11v5M7 15v1M2 17v1" />
-        </svg>
-      )
-    };
-  }
-  if (name.includes('operation')) {
-    return {
-      color: '#fff7ed',
-      text: '#ea580c',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="9" y="2" width="6" height="6" rx="1" />
-          <path d="M5 12h14M5 17h14" />
-          <path d="M3 7h18v3H3z" />
-        </svg>
-      )
-    };
-  }
-  if (name.includes('success') || name.includes('student')) {
-    return {
-      color: '#f0fdf4',
-      text: '#16a34a',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      )
-    };
-  }
-  if (name.includes('marketing')) {
-    return {
-      color: '#fdf4ff',
-      text: '#9333ea',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 11l19-9-9 19-2-8-8-2z" />
-        </svg>
-      )
-    };
-  }
-  return {
-    color: '#f1f5f9',
-    text: '#475569',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="16" />
-        <line x1="8" y1="12" x2="16" y2="12" />
-      </svg>
-    )
-  };
-};
+ ───────────────────────────────────────────── */
 
 export function CareersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState('All Departments');
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [phoneCountryCode, setPhoneCountryCode] = useState('+1');
+  const [phoneLocalNumber, setPhoneLocalNumber] = useState('');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -252,25 +219,14 @@ export function CareersPage() {
     };
   }, []);
 
-  const filtered = activeTab === 'All Departments'
-    ? jobs
-    : jobs.filter((j) => j.dept === activeTab);
-
   const handleApplyClick = (jobTitle: string) => {
-    let subject = '';
+    let subject = jobTitle;
     let testPrep: string[] = [];
     
-    if (jobTitle === 'SAT/ACT Mentor') {
-      subject = 'SAT/ACT tutoring';
+    if (jobTitle.toLowerCase().includes('sat') || jobTitle.toLowerCase().includes('act')) {
       testPrep = ['SAT', 'ACT'];
-    } else if (jobTitle === 'Academic Coordinator') {
-      subject = 'Academic Coordination';
-    } else if (jobTitle === 'Student Success Specialist') {
-      subject = 'Student Success';
-    } else if (jobTitle === 'Growth Marketing Associate') {
-      subject = 'Marketing';
-    } else {
-      subject = jobTitle;
+    } else if (jobTitle.toLowerCase().includes('ap')) {
+      testPrep = ['AP'];
     }
 
     setForm((f) => ({
@@ -328,7 +284,7 @@ export function CareersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
+    if (!form.name.trim() || !form.email.trim() || !phoneLocalNumber.trim()) {
       setErrorMsg('Name, Email, and WhatsApp number are required.');
       return;
     }
@@ -349,7 +305,7 @@ export function CareersPage() {
         body: JSON.stringify({
           name: form.name,
           email: form.email,
-          phone: form.phone,
+          phone: `${phoneCountryCode} ${phoneLocalNumber}`.trim(),
           city: form.city,
           subject: form.subject,
           testPrep: form.testPrep,
@@ -365,6 +321,8 @@ export function CareersPage() {
 
       if (response.ok) {
         setSubmitStatus('success');
+        setPhoneCountryCode('+1');
+        setPhoneLocalNumber('');
         setForm({
           name: '',
           email: '',
@@ -414,52 +372,25 @@ export function CareersPage() {
               Find your opportunity<br />to make an impact.
             </h2>
 
-            {/* Filter tabs */}
-            <div className="careers-tabs" role="tablist" aria-label="Filter by department">
-              {DEPARTMENTS.map((dept) => (
-                <button
-                  key={dept}
-                  role="tab"
-                  aria-selected={activeTab === dept}
-                  className={`careers-tab${activeTab === dept ? ' is-active' : ''}`}
-                  onClick={() => setActiveTab(dept)}
-                >
-                  {dept}
-                </button>
-              ))}
-            </div>
-
             {/* Job cards */}
             <div className="careers-jobs-grid">
-              {filtered.map((job) => {
-                const styling = getDeptStyling(job.dept);
-                return (
-                  <article key={job.id || job.title} className="careers-job-card">
-                    <div
-                      className="careers-job-icon"
-                      style={{ background: styling.color, color: styling.text }}
+              {jobs.map((job) => (
+                <article key={job.id || job.title} className="careers-job-card">
+                  <h3 className="careers-job-title" style={{ marginTop: 0 }}>{job.title}</h3>
+                  <p className="careers-job-location">{job.location}</p>
+                  <p className="careers-job-desc">{job.desc}</p>
+                  <div className="careers-job-footer">
+                    <span className="careers-job-badge">{job.type}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyClick(job.title)}
+                      className="careers-job-apply-btn"
                     >
-                      {styling.icon}
-                    </div>
-                    <p className="careers-job-dept" style={{ color: styling.text }}>
-                      {job.dept.toUpperCase()}
-                    </p>
-                    <h3 className="careers-job-title">{job.title}</h3>
-                    <p className="careers-job-location">{job.location}</p>
-                    <p className="careers-job-desc">{job.desc}</p>
-                    <div className="careers-job-footer">
-                      <span className="careers-job-badge">{job.type}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyClick(job.title)}
-                        className="careers-job-apply-btn"
-                      >
-                        Apply Now →
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
+                      Apply Now →
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           </div>
         </section>
@@ -635,14 +566,45 @@ export function CareersPage() {
                     <div className="form-row">
                       <div className="form-group">
                         <label htmlFor="phone">Contact Number (WhatsApp) *</label>
-                        <input
-                          type="tel"
-                          id="phone"
-                          placeholder="e.g. +1 555 123 4567"
-                          required
-                          value={form.phone}
-                          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                        />
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <select
+                            style={{
+                              width: '120px',
+                              padding: '0 8px',
+                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '8px',
+                              color: 'white',
+                              outline: 'none',
+                              fontFamily: 'inherit',
+                              fontSize: '14.5px',
+                            }}
+                            value={phoneCountryCode}
+                            onChange={(e) => setPhoneCountryCode(e.target.value)}
+                          >
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+1">+1 (US)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+91">+91 (IN)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+44">+44 (UK)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+971">+971 (AE)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+65">+65 (SG)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+61">+61 (AU)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+966">+966 (SA)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+974">+974 (QA)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+968">+968 (OM)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+965">+965 (KW)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+973">+973 (BH)</option>
+                            <option style={{ backgroundColor: '#111827', color: 'white' }} value="+852">+852 (HK)</option>
+                          </select>
+                          <input
+                            type="tel"
+                            id="phone"
+                            placeholder="555 123 4567"
+                            required
+                            style={{ flex: 1 }}
+                            value={phoneLocalNumber}
+                            onChange={(e) => setPhoneLocalNumber(e.target.value)}
+                          />
+                        </div>
                       </div>
                       <div className="form-group">
                         <label htmlFor="city">City / Location *</label>
