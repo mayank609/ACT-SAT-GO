@@ -228,7 +228,7 @@ The **Test Review Page** (`/test-review/:attemptId`) gives a complete post-test 
 **Score summary banner:**
 - Composite score (large, prominent)
 - Per-section accuracy percentage
-- Overall accuracy, percentile, total time used
+- Overall accuracy, percentile, total time used.
 
 **Section-level breakdown:**
 - Tab switcher to jump between sections
