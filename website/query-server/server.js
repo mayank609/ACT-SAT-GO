@@ -61,8 +61,9 @@ async function connectDb() {
 async function seedJobsAndBlogsIfEmpty() {
   try {
     const hasOldJobs = await jobsCollection.findOne({ title: 'SAT/ACT Mentor' });
-    if (hasOldJobs) {
-      console.log('Old jobs found in MongoDB. Wiping and re-seeding with updated list...');
+    const hasOldTypes = await jobsCollection.findOne({ type: 'Full-time / Part-time' });
+    if (hasOldJobs || hasOldTypes) {
+      console.log('Old jobs or types found in MongoDB. Wiping and re-seeding with updated list...');
       await jobsCollection.deleteMany({});
     }
 
@@ -73,7 +74,7 @@ async function seedJobsAndBlogsIfEmpty() {
           dept: 'Academics',
           title: 'SAT / ACT Tutor (Math)',
           location: 'Remote (Global)',
-          type: 'Full-time / Part-time',
+          type: 'Freelancer',
           desc: 'Guide students to master math concepts, ace standardized tests and achieve their dream scores.',
           createdAt: new Date().toISOString()
         },
@@ -82,7 +83,7 @@ async function seedJobsAndBlogsIfEmpty() {
           dept: 'Academics',
           title: 'SAT/ACT Tutor (Verbal)',
           location: 'Remote (Global)',
-          type: 'Full-time / Part-time',
+          type: 'Freelancer',
           desc: 'Help students excel in Reading & Writing sections of SAT and ACT with proven strategies.',
           createdAt: new Date().toISOString()
         },
@@ -91,7 +92,7 @@ async function seedJobsAndBlogsIfEmpty() {
           dept: 'Academics',
           title: 'AP Calculus',
           location: 'Remote (Global)',
-          type: 'Full-time / Part-time',
+          type: 'Freelancer',
           desc: 'Teach AP Calculus AB/BC, preparing high school students for top AP scores.',
           createdAt: new Date().toISOString()
         },
@@ -100,7 +101,7 @@ async function seedJobsAndBlogsIfEmpty() {
           dept: 'Academics',
           title: 'AP Biology',
           location: 'Remote (Global)',
-          type: 'Full-time / Part-time',
+          type: 'Freelancer',
           desc: 'Deliver comprehensive coaching in AP Biology concepts and experimental design.',
           createdAt: new Date().toISOString()
         },
@@ -109,7 +110,7 @@ async function seedJobsAndBlogsIfEmpty() {
           dept: 'Academics',
           title: 'AP Computer Science',
           location: 'Remote (Global)',
-          type: 'Full-time / Part-time',
+          type: 'Freelancer',
           desc: 'Help students master coding, algorithms, and AP Computer Science exam topics.',
           createdAt: new Date().toISOString()
         },
