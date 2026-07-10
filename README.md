@@ -101,7 +101,7 @@ The platform implements **Role-Based Access Control (RBAC)** with four roles:
 
 **Tutor visibility:**
 - Tutors see a `my-students` page that surfaces only their assigned students
-- Student detail page (`/student/:id`) shows full analytics for one student, accessible only by their assigned tutor or admins
+- Student detail page (`/student/:id`) shows full analytics for one student, accessible only by their assigned tutor or admins..
 
 ### 3. Test Creation Module
 
