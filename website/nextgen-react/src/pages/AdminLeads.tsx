@@ -11,12 +11,22 @@ import {
   updateLeadStatus,
   type Lead,
   type LeadStatus,
+  fetchJobs,
+  createJob,
+  deleteJob,
+  fetchBlogs,
+  createBlog,
+  deleteBlog,
+  type Job,
+  type BlogPost,
 } from '../admin/api';
 
 const EXAM_OPTIONS = ['SAT', 'ACT', 'SAT & ACT', 'General'];
 const TYPE_OPTIONS = ['Consultation', 'Newsletter', 'Manual'];
 
 const EMPTY_FORM = { name: '', email: '', phone: '', exam: 'SAT', message: '', type: 'Consultation', status: 'Pending' as LeadStatus };
+const EMPTY_JOB_FORM = { dept: 'Academics', title: '', location: 'Remote (Global)', type: 'Full-time', desc: '' };
+const EMPTY_BLOG_FORM = { tag: 'STUDY TIPS', title: '', text: '', image: '', date: '', read: '5 min read', tagsString: '' };
 
 const statusClass = (s: LeadStatus) => 's-' + s.toLowerCase().replace(/\s+/g, '-');
 
@@ -35,15 +45,31 @@ function formatDate(iso: string): string {
 export function AdminLeads() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | LeadStatus>('All');
+  const [activeTab, setActiveTab] = useState<'students' | 'tutors' | 'hirings' | 'blogs'>('students');
+
+  // Leads Modal State
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
-  const [activeTab, setActiveTab] = useState<'students' | 'tutors'>('students');
+
+  // Job Modal State
+  const [showAddJobModal, setShowAddJobModal] = useState(false);
+  const [addJobForm, setAddJobForm] = useState(EMPTY_JOB_FORM);
+  const [addJobLoading, setAddJobLoading] = useState(false);
+  const [addJobError, setAddJobError] = useState('');
+
+  // Blog Modal State
+  const [showAddBlogModal, setShowAddBlogModal] = useState(false);
+  const [addBlogForm, setAddBlogForm] = useState(EMPTY_BLOG_FORM);
+  const [addBlogLoading, setAddBlogLoading] = useState(false);
+  const [addBlogError, setAddBlogError] = useState('');
 
   const logout = () => {
     clearToken();
@@ -58,15 +84,23 @@ export function AdminLeads() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await fetchLeads();
-        if (!cancelled) setLeads(data);
+        const [leadsData, jobsData, blogsData] = await Promise.all([
+          fetchLeads(),
+          fetchJobs().catch((e) => { console.error(e); return []; }),
+          fetchBlogs().catch((e) => { console.error(e); return []; }),
+        ]);
+        if (!cancelled) {
+          setLeads(leadsData);
+          setJobs(jobsData);
+          setBlogs(blogsData);
+        }
       } catch (err) {
         if (cancelled) return;
         if (err instanceof AuthError) {
           navigate('/admin/login', { replace: true });
           return;
         }
-        setError(err instanceof Error ? err.message : 'Failed to load leads');
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -118,57 +152,191 @@ export function AdminLeads() {
     }
   };
 
+  const handleAddJob = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addJobForm.title || !addJobForm.desc) {
+      setAddJobError('Title and Description are required.');
+      return;
+    }
+    setAddJobError('');
+    setAddJobLoading(true);
+    try {
+      const newJob = await createJob(addJobForm);
+      setJobs((cur) => [newJob, ...cur]);
+      setShowAddJobModal(false);
+      setAddJobForm(EMPTY_JOB_FORM);
+    } catch (err) {
+      if (err instanceof AuthError) logout();
+      else setAddJobError(err instanceof Error ? err.message : 'Failed to create job opening.');
+    } finally {
+      setAddJobLoading(false);
+    }
+  };
+
+  const handleDeleteJob = async (id: string) => {
+    if (!window.confirm('Delete this job opening permanently?')) return;
+    const prev = jobs;
+    setJobs((cur) => cur.filter((j) => j.id !== id));
+    try {
+      await deleteJob(id);
+    } catch (err) {
+      setJobs(prev);
+      if (err instanceof AuthError) logout();
+      else setError(err instanceof Error ? err.message : 'Failed to delete job opening.');
+    }
+  };
+
+  const handleAddBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addBlogForm.title || !addBlogForm.text) {
+      setAddBlogError('Title and Text Content are required.');
+      return;
+    }
+    setAddBlogError('');
+    setAddBlogLoading(true);
+    try {
+      const tagsArray = addBlogForm.tagsString
+        ? addBlogForm.tagsString.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+        : [];
+      
+      const newBlog = await createBlog({
+        tag: addBlogForm.tag,
+        title: addBlogForm.title,
+        text: addBlogForm.text,
+        image: addBlogForm.image,
+        date: addBlogForm.date || undefined,
+        read: addBlogForm.read,
+        tags: tagsArray,
+      });
+      
+      setBlogs((cur) => [newBlog, ...cur]);
+      setShowAddBlogModal(false);
+      setAddBlogForm(EMPTY_BLOG_FORM);
+    } catch (err) {
+      if (err instanceof AuthError) logout();
+      else setAddBlogError(err instanceof Error ? err.message : 'Failed to create blog post.');
+    } finally {
+      setAddBlogLoading(false);
+    }
+  };
+
+  const handleDeleteBlog = async (id: string) => {
+    if (!window.confirm('Delete this blog post permanently?')) return;
+    const prev = blogs;
+    setBlogs((cur) => cur.filter((b) => b.id !== id));
+    try {
+      await deleteBlog(id);
+    } catch (err) {
+      setBlogs(prev);
+      if (err instanceof AuthError) logout();
+      else setError(err instanceof Error ? err.message : 'Failed to delete blog post.');
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return leads.filter((l) => {
-      // 1. Separate students and tutors
-      const isTutor = l.type === 'Tutor';
-      if (activeTab === 'students' && isTutor) return false;
-      if (activeTab === 'tutors' && !isTutor) return false;
+    
+    if (activeTab === 'students' || activeTab === 'tutors') {
+      return leads.filter((l) => {
+        const isTutor = l.type === 'Tutor';
+        if (activeTab === 'students' && isTutor) return false;
+        if (activeTab === 'tutors' && !isTutor) return false;
+        if (statusFilter !== 'All' && l.status !== statusFilter) return false;
+        if (!q) return true;
+        const searchFields = [
+          l.name,
+          l.email,
+          l.phone,
+          l.exam,
+          l.message,
+          l.city,
+          l.subject,
+          l.grades,
+          l.hourlyRate,
+          l.remarks,
+          ...(l.testPrep || []),
+        ].map((f) => (f || '').toLowerCase());
+        return searchFields.some((f) => f.includes(q));
+      });
+    }
 
-      // 2. Status filter
-      if (statusFilter !== 'All' && l.status !== statusFilter) return false;
+    if (activeTab === 'hirings') {
+      return jobs.filter((j) => {
+        if (!q) return true;
+        return (
+          j.title.toLowerCase().includes(q) ||
+          j.dept.toLowerCase().includes(q) ||
+          j.location.toLowerCase().includes(q) ||
+          j.desc.toLowerCase().includes(q)
+        );
+      });
+    }
 
-      // 3. Search query filter
-      if (!q) return true;
-      
-      const searchFields = [
-        l.name,
-        l.email,
-        l.phone,
-        l.exam,
-        l.message,
-        l.city,
-        l.subject,
-        l.grades,
-        l.hourlyRate,
-        l.remarks,
-        ...(l.testPrep || [])
-      ].map(f => (f || '').toLowerCase());
+    if (activeTab === 'blogs') {
+      return blogs.filter((b) => {
+        if (!q) return true;
+        return (
+          b.title.toLowerCase().includes(q) ||
+          b.tag.toLowerCase().includes(q) ||
+          b.text.toLowerCase().includes(q) ||
+          b.tags.some((t) => t.toLowerCase().includes(q))
+        );
+      });
+    }
 
-      return searchFields.some(f => f.includes(q));
-    });
-  }, [leads, search, statusFilter, activeTab]);
+    return [];
+  }, [leads, jobs, blogs, search, statusFilter, activeTab]);
 
   // Split leads for stats calculation
   const studentLeads = leads.filter((l) => l.type !== 'Tutor');
   const tutorLeads = leads.filter((l) => l.type === 'Tutor');
 
   // Stats calculation
-  const totalCount = activeTab === 'students' ? studentLeads.length : tutorLeads.length;
+  const totalCount = activeTab === 'students' 
+    ? studentLeads.length 
+    : activeTab === 'tutors' 
+      ? tutorLeads.length
+      : activeTab === 'hirings'
+        ? jobs.length
+        : blogs.length;
+
   const pendingCount = activeTab === 'students' 
     ? studentLeads.filter((l) => l.status === 'Pending').length 
-    : tutorLeads.filter((l) => l.status === 'Pending').length;
+    : activeTab === 'tutors'
+      ? tutorLeads.filter((l) => l.status === 'Pending').length
+      : activeTab === 'hirings'
+        ? jobs.filter((j) => j.dept === 'Academics').length
+        : blogs.filter((b) => b.tag === 'STUDY TIPS').length;
     
-  const stat3Label = activeTab === 'students' ? 'Consultations' : 'In Progress';
+  const stat3Label = activeTab === 'students' 
+    ? 'Consultations' 
+    : activeTab === 'tutors'
+      ? 'In Progress'
+      : activeTab === 'hirings'
+        ? 'Operations'
+        : 'SAT/ACT Tags';
   const stat3Val = activeTab === 'students' 
     ? studentLeads.filter((l) => l.type === 'Consultation').length 
-    : tutorLeads.filter((l) => l.status === 'In Progress').length;
+    : activeTab === 'tutors'
+      ? tutorLeads.filter((l) => l.status === 'In Progress').length
+      : activeTab === 'hirings'
+        ? jobs.filter((j) => j.dept === 'Operations').length
+        : blogs.filter((b) => b.tag === 'SAT' || b.tag === 'ACT').length;
 
-  const stat4Label = activeTab === 'students' ? 'Newsletter' : 'Contacted / Resolved';
+  const stat4Label = activeTab === 'students' 
+    ? 'Newsletter' 
+    : activeTab === 'tutors'
+      ? 'Contacted / Resolved'
+      : activeTab === 'hirings'
+        ? 'Marketing & Others'
+        : 'Other Tags';
   const stat4Val = activeTab === 'students'
     ? studentLeads.filter((l) => l.type === 'Newsletter').length
-    : tutorLeads.filter((l) => l.status === 'Contacted' || l.status === 'Resolved').length;
+    : activeTab === 'tutors'
+      ? tutorLeads.filter((l) => l.status === 'Contacted' || l.status === 'Resolved').length
+      : activeTab === 'hirings'
+        ? jobs.filter((j) => j.dept !== 'Academics' && j.dept !== 'Operations').length
+        : blogs.filter((b) => b.tag !== 'STUDY TIPS' && b.tag !== 'SAT' && b.tag !== 'ACT').length;
 
   return (
     <div className="admin-root">
@@ -178,8 +346,8 @@ export function AdminLeads() {
             <div className="admin-logo">
               ACT SAT GO
             </div>
-            <h1>Leads &amp; Enquiries</h1>
-            <p className="admin-muted">Consultation requests, newsletter sign-ups, and tutor applications from the website.</p>
+            <h1>Leads &amp; CMS Panel</h1>
+            <p className="admin-muted">Manage website consultation queries, tutor applicants, job openings, and blog contents.</p>
           </div>
           <button className="admin-logout" onClick={logout}>
             Log out
@@ -202,16 +370,44 @@ export function AdminLeads() {
           >
             Tutor Applications
           </button>
+          <button 
+            type="button"
+            className={`admin-view-tab ${activeTab === 'hirings' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('hirings'); setStatusFilter('All'); setSearch(''); }}
+          >
+            Manage Hirings
+          </button>
+          <button 
+            type="button"
+            className={`admin-view-tab ${activeTab === 'blogs' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('blogs'); setStatusFilter('All'); setSearch(''); }}
+          >
+            Manage Blogs
+          </button>
         </div>
 
         <div className="admin-stats">
           <div className="admin-stat is-total">
             <strong>{totalCount}</strong>
-            <span>{activeTab === 'students' ? 'Total leads' : 'Total applicants'}</span>
+            <span>
+              {activeTab === 'students' 
+                ? 'Total leads' 
+                : activeTab === 'tutors' 
+                  ? 'Total applicants' 
+                  : activeTab === 'hirings' 
+                    ? 'Total Job Roles' 
+                    : 'Total Blog Posts'}
+            </span>
           </div>
           <div className="admin-stat is-pending">
             <strong>{pendingCount}</strong>
-            <span>Pending</span>
+            <span>
+              {activeTab === 'students' || activeTab === 'tutors' 
+                ? 'Pending' 
+                : activeTab === 'hirings' 
+                  ? 'Academics' 
+                  : 'Study Tips'}
+            </span>
           </div>
           <div className="admin-stat">
             <strong>{stat3Val}</strong>
@@ -226,21 +422,41 @@ export function AdminLeads() {
         <div className="admin-toolbar">
           <input
             type="text"
-            placeholder={activeTab === 'students' ? "Search by name, email, phone, exam…" : "Search by name, subject, city, grade…"}
+            placeholder={
+              activeTab === 'students' 
+                ? "Search by name, email, phone, exam…" 
+                : activeTab === 'tutors'
+                  ? "Search by name, subject, city, grade…"
+                  : activeTab === 'hirings'
+                    ? "Search job openings by title, dept…"
+                    : "Search blogs by title, tag, keywords…"
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'All' | LeadStatus)}>
-            <option value="All">All statuses</option>
-            {LEAD_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          {(activeTab === 'students' || activeTab === 'tutors') && (
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'All' | LeadStatus)}>
+              <option value="All">All statuses</option>
+              {LEAD_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
           {activeTab === 'students' && (
             <button className="admin-add-btn" onClick={() => { setAddForm(EMPTY_FORM); setAddError(''); setShowAddModal(true); }}>
               + Add Lead
+            </button>
+          )}
+          {activeTab === 'hirings' && (
+            <button className="admin-add-btn" onClick={() => { setAddJobForm(EMPTY_JOB_FORM); setAddJobError(''); setShowAddJobModal(true); }}>
+              + Add Job
+            </button>
+          )}
+          {activeTab === 'blogs' && (
+            <button className="admin-add-btn" onClick={() => { setAddBlogForm(EMPTY_BLOG_FORM); setAddBlogError(''); setShowAddBlogModal(true); }}>
+              + Add Blog Post
             </button>
           )}
         </div>
@@ -249,14 +465,14 @@ export function AdminLeads() {
 
         <div className="admin-table-wrap">
           {loading ? (
-            <div className="admin-loading">Loading leads…</div>
+            <div className="admin-loading">Loading data…</div>
           ) : filtered.length === 0 ? (
             <div className="admin-empty">
-              {leads.length === 0 ? 'No leads yet.' : 'No leads match your filters.'}
+              No listings found matching your parameters.
             </div>
           ) : (
             <table className="admin-table">
-              {activeTab === 'students' ? (
+              {activeTab === 'students' && (
                 <>
                   <thead>
                     <tr>
@@ -271,7 +487,7 @@ export function AdminLeads() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((l) => (
+                    {(filtered as Lead[]).map((l) => (
                       <tr key={l.id}>
                         <td className="admin-name">{l.name}</td>
                         <td className="admin-contact">
@@ -312,7 +528,9 @@ export function AdminLeads() {
                     ))}
                   </tbody>
                 </>
-              ) : (
+              )}
+
+              {activeTab === 'tutors' && (
                 <>
                   <thead>
                     <tr>
@@ -328,7 +546,7 @@ export function AdminLeads() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((l) => (
+                    {(filtered as Lead[]).map((l) => (
                       <tr key={l.id}>
                         <td className="admin-name">{l.name}</td>
                         <td className="admin-contact">
@@ -381,7 +599,6 @@ export function AdminLeads() {
                             ) : (
                               <span className="admin-muted">No CV</span>
                             )}
-                            
                             {l.videoUrl ? (
                               <a
                                 href={l.videoUrl}
@@ -415,6 +632,82 @@ export function AdminLeads() {
                         </td>
                         <td>
                           <button className="admin-del" onClick={() => handleDelete(l.id)}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </>
+              )}
+
+              {activeTab === 'hirings' && (
+                <>
+                  <thead>
+                    <tr>
+                      <th>Dept</th>
+                      <th>Job Title</th>
+                      <th>Location</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th>Date Created</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(filtered as Job[]).map((j) => (
+                      <tr key={j.id}>
+                        <td><span className="admin-tag">{j.dept}</span></td>
+                        <td className="admin-name">{j.title}</td>
+                        <td>{j.location}</td>
+                        <td>{j.type}</td>
+                        <td className="admin-msg">{j.desc}</td>
+                        <td className="admin-contact">{formatDate(j.createdAt)}</td>
+                        <td>
+                          <button className="admin-del" onClick={() => handleDeleteJob(j.id)}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </>
+              )}
+
+              {activeTab === 'blogs' && (
+                <>
+                  <thead>
+                    <tr>
+                      <th>Tag</th>
+                      <th>Blog Title</th>
+                      <th>Excerpt / Text</th>
+                      <th>Read Time</th>
+                      <th>Keywords</th>
+                      <th>Posted Date</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(filtered as BlogPost[]).map((b) => (
+                      <tr key={b.id}>
+                        <td><span className="admin-tag">{b.tag}</span></td>
+                        <td className="admin-name">{b.title}</td>
+                        <td className="admin-msg">{b.text}</td>
+                        <td>{b.read}</td>
+                        <td>
+                          {b.tags && b.tags.length > 0 ? (
+                            <div className="admin-tutor-tags">
+                              {b.tags.map((t) => (
+                                <span key={t} className="admin-tutor-tag">{t}</span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="admin-muted">—</span>
+                          )}
+                        </td>
+                        <td className="admin-contact">{b.date}</td>
+                        <td>
+                          <button className="admin-del" onClick={() => handleDeleteBlog(b.id)}>
                             Delete
                           </button>
                         </td>
@@ -503,6 +796,190 @@ export function AdminLeads() {
                 <button type="button" className="admin-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
                 <button type="submit" className="admin-btn-primary" disabled={addLoading}>
                   {addLoading ? 'Adding…' : 'Add Lead'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Job Modal ── */}
+      {showAddJobModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowAddJobModal(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h2>Add Job Opening</h2>
+              <button className="admin-modal-close" onClick={() => setShowAddJobModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleAddJob} className="admin-modal-form">
+              {addJobError && <div className="admin-error">{addJobError}</div>}
+              
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Job Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Senior Math Tutor"
+                    value={addJobForm.title}
+                    onChange={(e) => setAddJobForm((f) => ({ ...f, title: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Department *</label>
+                  <select
+                    value={addJobForm.dept}
+                    onChange={(e) => setAddJobForm((f) => ({ ...f, dept: e.target.value }))}
+                  >
+                    <option value="Academics">Academics</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Student Success">Student Success</option>
+                    <option value="Technology">Technology</option>
+                    <option value="Design">Design</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Location *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Remote (Global)"
+                    value={addJobForm.location}
+                    onChange={(e) => setAddJobForm((f) => ({ ...f, location: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Job Type *</label>
+                  <select
+                    value={addJobForm.type}
+                    onChange={(e) => setAddJobForm((f) => ({ ...f, type: e.target.value }))}
+                  >
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Internship">Internship</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="admin-form-field">
+                <label>Job Description *</label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Explain the role, requirements, and responsibilities..."
+                  value={addJobForm.desc}
+                  onChange={(e) => setAddJobForm((f) => ({ ...f, desc: e.target.value }))}
+                />
+              </div>
+
+              <div className="admin-modal-footer">
+                <button type="button" className="admin-btn-secondary" onClick={() => setShowAddJobModal(false)}>Cancel</button>
+                <button type="submit" className="admin-btn-primary" disabled={addJobLoading}>
+                  {addJobLoading ? 'Adding...' : 'Add Job'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Blog Modal ── */}
+      {showAddBlogModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowAddBlogModal(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h2>Add Blog Post</h2>
+              <button className="admin-modal-close" onClick={() => setShowAddBlogModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleAddBlog} className="admin-modal-form">
+              {addBlogError && <div className="admin-error">{addBlogError}</div>}
+              
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Blog Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Tips to Crack the SAT Math"
+                    value={addBlogForm.title}
+                    onChange={(e) => setAddBlogForm((f) => ({ ...f, title: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Tag / Category *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. STUDY TIPS, SAT, COLLEGE ADMISSIONS"
+                    value={addBlogForm.tag}
+                    onChange={(e) => setAddBlogForm((f) => ({ ...f, tag: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Read Time *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 5 min read"
+                    value={addBlogForm.read}
+                    onChange={(e) => setAddBlogForm((f) => ({ ...f, read: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Date (Default: Today)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. June 10, 2026"
+                    value={addBlogForm.date}
+                    onChange={(e) => setAddBlogForm((f) => ({ ...f, date: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="admin-form-field">
+                <label>Keywords (Comma separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. sat prep, math tips, study habits"
+                  value={addBlogForm.tagsString}
+                  onChange={(e) => setAddBlogForm((f) => ({ ...f, tagsString: e.target.value }))}
+                />
+              </div>
+
+              <div className="admin-form-field">
+                <label>Image URL (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/image.jpg"
+                  value={addBlogForm.image}
+                  onChange={(e) => setAddBlogForm((f) => ({ ...f, image: e.target.value }))}
+                />
+              </div>
+
+              <div className="admin-form-field">
+                <label>Excerpt / Content *</label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Write a brief excerpt or summary of the blog post..."
+                  value={addBlogForm.text}
+                  onChange={(e) => setAddBlogForm((f) => ({ ...f, text: e.target.value }))}
+                />
+              </div>
+
+              <div className="admin-modal-footer">
+                <button type="button" className="admin-btn-secondary" onClick={() => setShowAddBlogModal(false)}>Cancel</button>
+                <button type="submit" className="admin-btn-primary" disabled={addBlogLoading}>
+                  {addBlogLoading ? 'Adding...' : 'Add Blog'}
                 </button>
               </div>
             </form>

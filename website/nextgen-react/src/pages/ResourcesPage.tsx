@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
+import { fetchBlogs, type BlogPost } from '../admin/api';
 
 // Image assets
 import heroImg from '../assets/resources_hero.png';
@@ -118,6 +119,37 @@ export function ResourcesPage() {
   const [activeTopic, setActiveTopic] = useState('');
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
+
+  const getBlogImage = (post: BlogPost) => {
+    if (post.image) return post.image;
+    const tag = post.tag.toLowerCase();
+    if (tag.includes('tips') || tag.includes('habit')) return blogStudyHabitsImg;
+    if (tag.includes('sat') || tag.includes('act')) return blogSatDiffImg;
+    if (tag.includes('essay') || tag.includes('college')) return blogCollegeEssayImg;
+    if (tag.includes('ap')) return blogApWorthImg;
+    return blogStudyHabitsImg;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchBlogs();
+        if (!cancelled) {
+          setBlogs(data.length > 0 ? data : (DEFAULT_BLOGS as unknown as BlogPost[]));
+        }
+      } catch (err) {
+        console.error('Failed to load blogs, using defaults:', err);
+        if (!cancelled) {
+          setBlogs(DEFAULT_BLOGS as unknown as BlogPost[]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -215,39 +247,43 @@ export function ResourcesPage() {
     }
   ];
 
-  const BLOG_POSTS = [
+  const DEFAULT_BLOGS = [
     {
+      id: 'blog_1',
       tag: 'STUDY TIPS',
       title: '10 Proven Study Habits That Actually Work',
       text: 'Simple habits that can transform the way you study and help you retain more information for tests.',
-      image: blogStudyHabitsImg,
+      image: '',
       date: 'June 5, 2025',
       read: '5 min read',
       tags: ['study tips', 'study strategies']
     },
     {
+      id: 'blog_2',
       tag: 'SAT',
       title: 'Digital SAT vs Paper SAT: Key Differences',
       text: 'Understand the major changes, formatting differences, and how to prepare smartly for the Digital SAT.',
-      image: blogSatDiffImg,
+      image: '',
       date: 'June 3, 2025',
       read: '6 min read',
       tags: ['sat', 'sat prep']
     },
     {
+      id: 'blog_3',
       tag: 'COLLEGE ADMISSIONS',
       title: 'How to Write a Standout College Essay',
       text: 'Tips and storytelling techniques to help your unique personality and experiences shine through your admissions essay.',
-      image: blogCollegeEssayImg,
+      image: '',
       date: 'May 30, 2025',
       read: '7 min read',
       tags: ['college admissions', 'college essay']
     },
     {
+      id: 'blog_4',
       tag: 'AP',
       title: 'Is AP Worth It? Benefits Explained',
       text: 'Everything you need to know about Advanced Placement courses, college credits, and their long-term benefits.',
-      image: blogApWorthImg,
+      image: '',
       date: 'May 27, 2025',
       read: '4 min read',
       tags: ['ap', 'ap guides']
@@ -266,7 +302,7 @@ export function ResourcesPage() {
     );
   });
 
-  const filteredBlogs = BLOG_POSTS.filter(post => {
+  const filteredBlogs = blogs.filter(post => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -450,7 +486,7 @@ export function ResourcesPage() {
               {filteredBlogs.map(post => (
                 <article key={post.title} className="blog-card" onClick={() => alert(`Opening blog post: "${post.title}"`)}>
                   <div className="blog-image-wrapper">
-                    <img src={post.image} alt={post.title} />
+                    <img src={getBlogImage(post)} alt={post.title} />
                   </div>
                   <div className="blog-content-area">
                     <span className="blog-post-tag">{post.tag}</span>

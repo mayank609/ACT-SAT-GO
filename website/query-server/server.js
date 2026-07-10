@@ -33,16 +33,129 @@ if (!MONGODB_URI) {
 
 const client = new MongoClient(MONGODB_URI);
 let leads = null; // the "leads" collection, set on connect
+let jobsCollection = null; // the "jobs" collection
+let blogsCollection = null; // the "blogs" collection
 
 async function connectDb() {
   await client.connect();
   const db = client.db(MONGODB_DB);
   leads = db.collection('leads');
+  jobsCollection = db.collection('jobs');
+  blogsCollection = db.collection('blogs');
+
   // Unique business id + fast sort by date
   await leads.createIndex({ id: 1 }, { unique: true });
   await leads.createIndex({ createdAt: -1 });
-  console.log(`✓ Connected to MongoDB → ${MONGODB_DB}.leads`);
+  
+  await jobsCollection.createIndex({ id: 1 }, { unique: true });
+  await jobsCollection.createIndex({ createdAt: -1 });
+
+  await blogsCollection.createIndex({ id: 1 }, { unique: true });
+  await blogsCollection.createIndex({ createdAt: -1 });
+
+  console.log(`✓ Connected to MongoDB → ${MONGODB_DB}.leads, jobs, blogs`);
   await seedFromJsonIfEmpty();
+  await seedJobsAndBlogsIfEmpty();
+}
+
+async function seedJobsAndBlogsIfEmpty() {
+  try {
+    if ((await jobsCollection.countDocuments()) === 0) {
+      const defaultJobs = [
+        {
+          id: 'job_1',
+          dept: 'Academics',
+          title: 'SAT/ACT Mentor',
+          location: 'Remote (Global)',
+          type: 'Full-time',
+          desc: 'Guide students to master concepts, ace tests and achieve their dream scores.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'job_2',
+          dept: 'Operations',
+          title: 'Academic Coordinator',
+          location: 'Remote (Global)',
+          type: 'Full-time',
+          desc: 'Ensure smooth learning journeys by coordinating classes, mentors and students.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'job_3',
+          dept: 'Student Success',
+          title: 'Student Success Specialist',
+          location: 'Remote (Global)',
+          type: 'Full-time',
+          desc: 'Be the go-to person who ensures students and parents have an exceptional experience.',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'job_4',
+          dept: 'Marketing',
+          title: 'Growth Marketing Associate',
+          location: 'Remote (Global)',
+          type: 'Full-time',
+          desc: 'Help more students discover us through data-driven and creative marketing.',
+          createdAt: new Date().toISOString()
+        }
+      ];
+      await jobsCollection.insertMany(defaultJobs);
+      console.log('✓ Seeded default jobs in MongoDB');
+    }
+    
+    if ((await blogsCollection.countDocuments()) === 0) {
+      const defaultBlogs = [
+        {
+          id: 'blog_1',
+          tag: 'STUDY TIPS',
+          title: '10 Proven Study Habits That Actually Work',
+          text: 'Simple habits that can transform the way you study and help you retain more information for tests.',
+          image: '',
+          date: 'June 5, 2025',
+          read: '5 min read',
+          tags: ['study tips', 'study strategies'],
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'blog_2',
+          tag: 'SAT',
+          title: 'Digital SAT vs Paper SAT: Key Differences',
+          text: 'Understand the major changes, formatting differences, and how to prepare smartly for the Digital SAT.',
+          image: '',
+          date: 'June 3, 2025',
+          read: '6 min read',
+          tags: ['sat', 'sat prep'],
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'blog_3',
+          tag: 'COLLEGE ADMISSIONS',
+          title: 'How to Write a Standout College Essay',
+          text: 'Tips and storytelling techniques to help your unique personality and experiences shine through your admissions essay.',
+          image: '',
+          date: 'May 30, 2025',
+          read: '7 min read',
+          tags: ['college admissions', 'college essay'],
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'blog_4',
+          tag: 'AP',
+          title: 'Is AP Worth It? Benefits Explained',
+          text: 'Everything you need to know about Advanced Placement courses, college credits, and their long-term benefits.',
+          image: '',
+          date: 'May 27, 2025',
+          read: '4 min read',
+          tags: ['ap', 'ap guides'],
+          createdAt: new Date().toISOString()
+        }
+      ];
+      await blogsCollection.insertMany(defaultBlogs);
+      console.log('✓ Seeded default blogs in MongoDB');
+    }
+  } catch (err) {
+    console.error('Jobs/Blogs seed skipped:', err.message);
+  }
 }
 
 // One-time, non-destructive migration: if the collection is empty and an old
@@ -80,7 +193,8 @@ function findAdmin(username, password) {
 }
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Middleware to ensure MongoDB is connected before handling any request (critical for serverless like Vercel)
 app.use(async (req, res, next) => {
@@ -279,6 +393,104 @@ app.delete('/api/queries/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('DELETE /api/queries/:id:', err);
     res.status(500).json({ error: 'Failed to delete query' });
+  }
+});
+
+// ─── Jobs API ─────────────────────────────────────────────────────────────────
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const list = await jobsCollection.find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
+    res.json(list);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch jobs' });
+  }
+});
+
+app.post('/api/jobs', requireAuth, async (req, res) => {
+  const { dept, title, location, type, desc } = req.body || {};
+  if (!dept || !title || !desc) {
+    return res.status(400).json({ error: 'Department, title, and description are required' });
+  }
+  const newJob = {
+    id: 'job_' + crypto.randomBytes(4).toString('hex') + '_' + Date.now(),
+    dept,
+    title,
+    location: location || 'Remote (Global)',
+    type: type || 'Full-time',
+    desc,
+    createdAt: new Date().toISOString()
+  };
+  try {
+    await jobsCollection.insertOne({ ...newJob });
+    res.status(201).json(newJob);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save job' });
+  }
+});
+
+app.delete('/api/jobs/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await jobsCollection.deleteOne({ id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    res.json({ message: 'Job deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete job' });
+  }
+});
+
+// ─── Blogs API ────────────────────────────────────────────────────────────────
+app.get('/api/blogs', async (req, res) => {
+  try {
+    const list = await blogsCollection.find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
+    res.json(list);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch blogs' });
+  }
+});
+
+app.post('/api/blogs', requireAuth, async (req, res) => {
+  const { tag, title, text, image, date, read, tags } = req.body || {};
+  if (!tag || !title || !text) {
+    return res.status(400).json({ error: 'Tag, title, and text content are required' });
+  }
+  const newBlog = {
+    id: 'blog_' + crypto.randomBytes(4).toString('hex') + '_' + Date.now(),
+    tag,
+    title,
+    text,
+    image: image || '',
+    date: date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    read: read || '5 min read',
+    tags: Array.isArray(tags) ? tags : [],
+    createdAt: new Date().toISOString()
+  };
+  try {
+    await blogsCollection.insertOne({ ...newBlog });
+    res.status(201).json(newBlog);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save blog' });
+  }
+});
+
+app.delete('/api/blogs/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await blogsCollection.deleteOne({ id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Blog not found' });
+    }
+    res.json({ message: 'Blog deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete blog' });
   }
 });
 

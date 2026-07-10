@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Header } from '../components/Header';
 import careerHeroImg from '../assets/career-hero.jpeg';
 import careerPartnerImg from '../assets/career-partner.png';
 import { QUERY_API_BASE } from '../config';
+import { fetchJobs, type Job } from '../admin/api';
 
 /* ─────────────────────────────────────────────
    DATA
@@ -19,63 +20,34 @@ const DEPARTMENTS = [
   'Others',
 ];
 
-const JOBS = [
+const DEFAULT_JOBS = [
   {
+    id: 'job_1',
     dept: 'Academics',
-    deptColor: '#eef4ff',
-    deptText: '#2563eb',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 10v6M17 8v8M12 11v5M7 15v1M2 17v1" />
-      </svg>
-    ),
     title: 'SAT/ACT Mentor',
     location: 'Remote (Global)',
     type: 'Full-time',
     desc: 'Guide students to master concepts, ace tests and achieve their dream scores.',
   },
   {
+    id: 'job_2',
     dept: 'Operations',
-    deptColor: '#fff7ed',
-    deptText: '#ea580c',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="9" y="2" width="6" height="6" rx="1" />
-        <path d="M5 12h14M5 17h14" />
-        <path d="M3 7h18v3H3z" />
-      </svg>
-    ),
     title: 'Academic Coordinator',
     location: 'Remote (Global)',
     type: 'Full-time',
     desc: 'Ensure smooth learning journeys by coordinating classes, mentors and students.',
   },
   {
+    id: 'job_3',
     dept: 'Student Success',
-    deptColor: '#f0fdf4',
-    deptText: '#16a34a',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
     title: 'Student Success Specialist',
     location: 'Remote (Global)',
     type: 'Full-time',
     desc: 'Be the go-to person who ensures students and parents have an exceptional experience.',
   },
   {
+    id: 'job_4',
     dept: 'Marketing',
-    deptColor: '#fdf4ff',
-    deptText: '#9333ea',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 11l19-9-9 19-2-8-8-2z" />
-      </svg>
-    ),
     title: 'Growth Marketing Associate',
     location: 'Remote (Global)',
     type: 'Full-time',
@@ -174,8 +146,74 @@ const PARTNER_PERKS = [
 /* ─────────────────────────────────────────────
    PAGE
 ───────────────────────────────────────────── */
+const getDeptStyling = (dept: string) => {
+  const name = dept.toLowerCase();
+  if (name.includes('academic')) {
+    return {
+      color: '#eef4ff',
+      text: '#2563eb',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 10v6M17 8v8M12 11v5M7 15v1M2 17v1" />
+        </svg>
+      )
+    };
+  }
+  if (name.includes('operation')) {
+    return {
+      color: '#fff7ed',
+      text: '#ea580c',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="2" width="6" height="6" rx="1" />
+          <path d="M5 12h14M5 17h14" />
+          <path d="M3 7h18v3H3z" />
+        </svg>
+      )
+    };
+  }
+  if (name.includes('success') || name.includes('student')) {
+    return {
+      color: '#f0fdf4',
+      text: '#16a34a',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      )
+    };
+  }
+  if (name.includes('marketing')) {
+    return {
+      color: '#fdf4ff',
+      text: '#9333ea',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 11l19-9-9 19-2-8-8-2z" />
+        </svg>
+      )
+    };
+  }
+  return {
+    color: '#f1f5f9',
+    text: '#475569',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="16" />
+        <line x1="8" y1="12" x2="16" y2="12" />
+      </svg>
+    )
+  };
+};
+
 export function CareersPage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('All Departments');
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -194,9 +232,29 @@ export function CareersPage() {
 
   const TEST_PREP_OPTIONS = ['SAT', 'ACT', 'AP', 'K-12', 'Other'];
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchJobs();
+        if (!cancelled) {
+          setJobs(data.length > 0 ? data : (DEFAULT_JOBS as unknown as Job[]));
+        }
+      } catch (err) {
+        console.error('Failed to load jobs, using defaults:', err);
+        if (!cancelled) {
+          setJobs(DEFAULT_JOBS as unknown as Job[]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = activeTab === 'All Departments'
-    ? JOBS
-    : JOBS.filter((j) => j.dept === activeTab);
+    ? jobs
+    : jobs.filter((j) => j.dept === activeTab);
 
   const handleApplyClick = (jobTitle: string) => {
     let subject = '';
@@ -373,32 +431,35 @@ export function CareersPage() {
 
             {/* Job cards */}
             <div className="careers-jobs-grid">
-              {filtered.map((job) => (
-                <article key={job.title} className="careers-job-card">
-                  <div
-                    className="careers-job-icon"
-                    style={{ background: job.deptColor, color: job.deptText }}
-                  >
-                    {job.icon}
-                  </div>
-                  <p className="careers-job-dept" style={{ color: job.deptText }}>
-                    {job.dept.toUpperCase()}
-                  </p>
-                  <h3 className="careers-job-title">{job.title}</h3>
-                  <p className="careers-job-location">{job.location}</p>
-                  <p className="careers-job-desc">{job.desc}</p>
-                  <div className="careers-job-footer">
-                    <span className="careers-job-badge">{job.type}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyClick(job.title)}
-                      className="careers-job-apply-btn"
+              {filtered.map((job) => {
+                const styling = getDeptStyling(job.dept);
+                return (
+                  <article key={job.id || job.title} className="careers-job-card">
+                    <div
+                      className="careers-job-icon"
+                      style={{ background: styling.color, color: styling.text }}
                     >
-                      Apply Now →
-                    </button>
-                  </div>
-                </article>
-              ))}
+                      {styling.icon}
+                    </div>
+                    <p className="careers-job-dept" style={{ color: styling.text }}>
+                      {job.dept.toUpperCase()}
+                    </p>
+                    <h3 className="careers-job-title">{job.title}</h3>
+                    <p className="careers-job-location">{job.location}</p>
+                    <p className="careers-job-desc">{job.desc}</p>
+                    <div className="careers-job-footer">
+                      <span className="careers-job-badge">{job.type}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyClick(job.title)}
+                        className="careers-job-apply-btn"
+                      >
+                        Apply Now →
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -656,6 +717,7 @@ export function CareersPage() {
                       <div className="file-uploader-box">
                         <input
                           type="file"
+                          ref={fileInputRef}
                           id="cv-upload"
                           accept=".pdf,.doc,.docx"
                           onChange={handleFileChange}
@@ -664,7 +726,7 @@ export function CareersPage() {
                         <button
                           type="button"
                           className="file-select-btn"
-                          onClick={() => document.getElementById('cv-upload')?.click()}
+                          onClick={() => fileInputRef.current?.click()}
                         >
                           Select CV File
                         </button>

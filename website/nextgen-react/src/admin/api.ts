@@ -30,6 +30,28 @@ export interface Lead {
   remarks?: string;
 }
 
+export interface Job {
+  id: string;
+  dept: string;
+  title: string;
+  location: string;
+  type: string;
+  desc: string;
+  createdAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  tag: string;
+  title: string;
+  text: string;
+  image: string;
+  date: string;
+  read: string;
+  tags: string[];
+  createdAt: string;
+}
+
 export const LEAD_STATUSES: LeadStatus[] = ['Pending', 'In Progress', 'Contacted', 'Resolved'];
 
 // ─── Token storage ────────────────────────────────────────────────────────────
@@ -149,4 +171,60 @@ export async function createLead(data: {
   }
   const json = await res.json();
   return json.query;
+}
+
+// ─── Jobs CRUD ───────────────────────────────────────────────────────────────
+export async function fetchJobs(): Promise<Job[]> {
+  const res = await fetch(`${QUERY_API_BASE}/api/jobs`);
+  if (!res.ok) throw new Error('Failed to load jobs');
+  return res.json();
+}
+
+export async function createJob(data: {
+  dept: string;
+  title: string;
+  location?: string;
+  type?: string;
+  desc: string;
+}): Promise<Job> {
+  const res = await authFetch('/api/jobs', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create job');
+  return res.json();
+}
+
+export async function deleteJob(id: string): Promise<void> {
+  const res = await authFetch(`/api/jobs/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete job');
+}
+
+// ─── Blogs CRUD ──────────────────────────────────────────────────────────────
+export async function fetchBlogs(): Promise<BlogPost[]> {
+  const res = await fetch(`${QUERY_API_BASE}/api/blogs`);
+  if (!res.ok) throw new Error('Failed to load blogs');
+  return res.json();
+}
+
+export async function createBlog(data: {
+  tag: string;
+  title: string;
+  text: string;
+  image?: string;
+  date?: string;
+  read?: string;
+  tags?: string[];
+}): Promise<BlogPost> {
+  const res = await authFetch('/api/blogs', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create blog');
+  return res.json();
+}
+
+export async function deleteBlog(id: string): Promise<void> {
+  const res = await authFetch(`/api/blogs/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete blog');
 }
