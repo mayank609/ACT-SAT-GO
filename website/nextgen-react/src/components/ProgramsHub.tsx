@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { IconGraduationCap, IconTarget, IconOpenBookSquare, IconRocket } from './Icons';
-import programsImg from '../assets/programs.png';
+import img1 from '../../images/1.png';
+import img2 from '../../images/2.jpg.png';
+import img3 from '../../images/3.png';
 
 const CARDS = [
   {
@@ -10,7 +12,7 @@ const CARDS = [
     solid: '#e08a1e',
     title: <>Test<br />Preparation</>,
     text: 'Ace standardized tests with proven strategies, expert guidance, and personalized study plans.',
-    photoPos: '100% 0%',
+    photo: img1,
     pills: [
       { label: 'SAT', to: '/sat' },
       { label: 'ACT', to: '/act' },
@@ -25,7 +27,7 @@ const CARDS = [
     solid: '#2f7bd1',
     title: <>School<br />Academics</>,
     text: 'Build strong concepts, improve grades, and develop skills for academic excellence at every level.',
-    photoPos: '100% 100%',
+    photo: img2,
     pills: [
       { label: 'Elementary', to: '/k-12-tutoring#elementary' },
       { label: 'Middle School', to: '/k-12-tutoring#middle' },
@@ -40,7 +42,7 @@ const CARDS = [
     solid: '#8b5cf6',
     title: <>Future<br />Programs</>,
     text: "Expanding horizons with international curricula and language courses for tomorrow's leaders.",
-    photoPos: '50% 0%',
+    photo: img3,
     pills: [
       { label: 'Future Programs', to: '/future-programs' },
     ],
@@ -94,7 +96,7 @@ export function ProgramsHub() {
               <span
                 className="hub-photo"
                 aria-hidden="true"
-                style={{ backgroundImage: `url(${programsImg})`, backgroundPosition: c.photoPos }}
+                style={{ backgroundImage: `url(${c.photo})`, backgroundPosition: 'center', backgroundSize: 'contain' }}
               />
             </article>
           ))}

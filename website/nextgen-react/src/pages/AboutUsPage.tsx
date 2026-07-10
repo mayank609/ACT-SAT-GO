@@ -4,7 +4,7 @@ import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
-import aboutUsImg from '../../images/about us.jpeg';
+import abHeroImg from '../../images/ab hero.png';
 import abImg from '../../images/ab b.png';
 
 
@@ -74,7 +74,7 @@ export function AboutUsPage() {
                     className="about-hero-photo-cropped"
                     role="img"
                     aria-label="About ACT SAT GO — Personalized Learning, Intelligent Technology, Expert Mentorship"
-                    style={{ backgroundImage: `url(${aboutUsImg})` }}
+                    style={{ backgroundImage: `url(${abHeroImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                   />
                 </div>
               </div>
@@ -254,7 +254,7 @@ export function AboutUsPage() {
                     className="about-tech-orbit-photo"
                     role="img"
                     aria-label="Mentor and student working together with technology"
-                    style={{ backgroundImage: `url(${aboutUsImg})` }}
+                    style={{ backgroundImage: `url(${abHeroImg})` }}
                   />
                 </div>
 
