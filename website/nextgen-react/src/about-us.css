@@ -336,14 +336,14 @@
 .about-tech-inner {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  gap: 60px;
+  gap: 48px;
 }
 
 .about-tech-left {
-  flex: 1 1 460px;
-  max-width: 500px;
+  flex: 1 1 520px;
+  max-width: 560px;
 }
 
 /* Left column */
@@ -377,7 +377,7 @@
   line-height: 1.65;
   color: var(--muted);
   margin: 0 0 18px;
-  max-width: 420px;
+  max-width: 460px;
 }
 
 .about-tech-tagline {
@@ -386,7 +386,7 @@
   color: var(--navy);
   line-height: 1.5;
   margin: 0 0 28px;
-  max-width: 420px;
+  max-width: 460px;
 }
 
 /* Blue tech card */
@@ -396,7 +396,7 @@
   padding: 22px 24px;
   position: relative;
   overflow: hidden;
-  max-width: 420px;
+  max-width: 480px;
   box-shadow: 0 12px 32px rgba(6, 26, 47, 0.18);
 }
 
@@ -460,8 +460,8 @@
 .about-tech-right {
   display: flex;
   flex-direction: column;
-  flex: 1 1 480px;
-  max-width: 500px;
+  flex: 1 1 520px;
+  max-width: 540px;
   gap: 16px;
 }
 
@@ -469,7 +469,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  max-width: 480px;
+  max-width: 540px;
   margin: 0 auto;
 }
 
