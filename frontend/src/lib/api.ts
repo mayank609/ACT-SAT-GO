@@ -350,6 +350,11 @@ export const api = {
     request<{
       activityData: Array<{ date: string; attempts: number; completions: number }>
       scoreDistribution: Array<{ range: string; count: number }>
+      hasSAT: boolean
+      hasACT: boolean
+      avgScoreImprovement: number | null
+      subjectStrength: { rw: number | null; math: number | null }
+      openDoubtsCount: number
     }>('/api/analytics/platform'),
 
   // Attempts (for monitoring & assignments)
