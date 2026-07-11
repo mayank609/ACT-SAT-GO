@@ -183,9 +183,7 @@ export function FutureProgramsPage() {
                 <div
                   className="future-program-photo"
                   style={{ backgroundImage: `url(${p.image})`, backgroundPosition: p.photoPos, backgroundSize: 'cover' }}
-                >
-                  <span className="future-program-badge">{p.badge}</span>
-                </div>
+                />
                 <div className="future-program-body">
                   <h3>{p.title}</h3>
                   <p>{p.text}</p>

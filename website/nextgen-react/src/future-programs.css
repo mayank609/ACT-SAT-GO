@@ -199,23 +199,6 @@
   background-size: 300% 200%;
 }
 
-.future-program-badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  height: 34px;
-  padding: 0 8px;
-  border-radius: 50%;
-  background: white;
-  color: var(--navy);
-  font-weight: 900;
-  font-size: 13px;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
-}
 
 .future-program-body {
   padding: 20px 18px 22px;
