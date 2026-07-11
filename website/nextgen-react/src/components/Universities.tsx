@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import lsuLogo from '../assets/uni-logos/lsu.png';
+import nyuLogo from '../assets/uni-logos/nyu.png';
 
 const UNIVERSITIES = [
   { name: 'Harvard University', domain: 'harvard.edu' },
@@ -15,12 +17,15 @@ const UNIVERSITIES = [
   { name: 'University of Texas at Austin', domain: 'utexas.edu' },
   { name: 'University of Alabama', domain: 'ua.edu' },
   { name: 'Auburn University', domain: 'auburn.edu' },
-  { name: 'Louisiana State University', domain: 'lsu.edu' },
+  { name: 'Louisiana State University', domain: 'lsu.edu', logo: lsuLogo },
+  { name: 'UC Berkeley', domain: 'berkeley.edu' },
+  { name: 'NYU', domain: 'nyu.edu', logo: nyuLogo },
+  { name: 'Georgia Tech', domain: 'gatech.edu' },
 ];
 
-function UniLogo({ name, domain }: { name: string; domain: string }) {
+function UniLogo({ name, domain, logo }: { name: string; domain: string; logo?: string }) {
   const [failed, setFailed] = useState(false);
-  const logoUrl = `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`;
+  const logoUrl = logo ?? `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`;
 
   return (
     <div className="uni-logo-chip">
@@ -43,7 +48,7 @@ export function Universities() {
     <div className="university-marquee">
       <div className="university-track">
         {[...UNIVERSITIES, ...UNIVERSITIES].map((u, i) => (
-          <UniLogo key={`${u.name}-${i}`} name={u.name} domain={u.domain} />
+          <UniLogo key={`${u.name}-${i}`} name={u.name} domain={u.domain} logo={u.logo} />
         ))}
       </div>
     </div>

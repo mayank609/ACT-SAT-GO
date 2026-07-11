@@ -178,6 +178,9 @@ const PARTNER_PERKS = [
 
 export function CareersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jobsMarqueeRef = useRef<HTMLDivElement>(null);
+  const jobsPausedRef = useRef(false);
+  const jobsDragRef = useRef({ dragging: false, moved: false, startX: 0, startScroll: 0 });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [phoneCountryCode, setPhoneCountryCode] = useState('+1');
   const [phoneLocalNumber, setPhoneLocalNumber] = useState('');
@@ -218,6 +221,83 @@ export function CareersPage() {
       cancelled = true;
     };
   }, []);
+
+  // Auto-scroll the jobs carousel; pauses while the user hovers, drags or touches it.
+  useEffect(() => {
+    const el = jobsMarqueeRef.current;
+    if (!el) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+
+    let rafId: number;
+    let lastTime: number | null = null;
+    const speedPxPerSec = 40;
+
+    const step = (time: number) => {
+      if (lastTime === null) lastTime = time;
+      const dt = time - lastTime;
+      lastTime = time;
+      if (!jobsPausedRef.current && !jobsDragRef.current.dragging) {
+        el.scrollLeft += (speedPxPerSec * dt) / 1000;
+      }
+      rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, [jobs.length]);
+
+  // Keep the loop seamless: once scrolled past one full copy of the (duplicated) list, jump back.
+  useEffect(() => {
+    const el = jobsMarqueeRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const singleWidth = el.scrollWidth / 2;
+      if (singleWidth <= 0) return;
+      if (el.scrollLeft >= singleWidth) {
+        el.scrollLeft -= singleWidth;
+      } else if (el.scrollLeft < 0) {
+        el.scrollLeft += singleWidth;
+      }
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [jobs.length]);
+
+  const handleJobsPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'mouse') return; // let touch/trackpad use native scrolling
+    const el = jobsMarqueeRef.current;
+    if (!el) return;
+    jobsDragRef.current = { dragging: true, moved: false, startX: e.clientX, startScroll: el.scrollLeft };
+    jobsPausedRef.current = true;
+    el.setPointerCapture(e.pointerId);
+  };
+
+  const handleJobsPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = jobsDragRef.current;
+    if (!drag.dragging) return;
+    const el = jobsMarqueeRef.current;
+    if (!el) return;
+    const dx = e.clientX - drag.startX;
+    if (Math.abs(dx) > 3) drag.moved = true;
+    el.scrollLeft = drag.startScroll - dx;
+  };
+
+  const endJobsDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = jobsDragRef.current;
+    if (!drag.dragging) return;
+    drag.dragging = false;
+    jobsPausedRef.current = false;
+    jobsMarqueeRef.current?.releasePointerCapture(e.pointerId);
+  };
+
+  const handleJobsClickCapture = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Suppress the click that follows a drag so "Apply Now" isn't triggered accidentally.
+    if (jobsDragRef.current.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+      jobsDragRef.current.moved = false;
+    }
+  };
 
   const handleApplyClick = (jobTitle: string) => {
     let subject = jobTitle;
@@ -427,24 +507,36 @@ export function CareersPage() {
             </h2>
 
             {/* Job cards */}
-            <div className="careers-jobs-grid">
-              {jobs.map((job) => (
-                <article key={job.id || job.title} className="careers-job-card">
-                  <h3 className="careers-job-title" style={{ marginTop: 0 }}>{job.title}</h3>
-                  <p className="careers-job-location">{job.location}</p>
-                  <p className="careers-job-desc">{job.desc}</p>
-                  <div className="careers-job-footer">
-                    <span className="careers-job-badge">{job.type}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyClick(job.title)}
-                      className="careers-job-apply-btn"
-                    >
-                      Apply Now →
-                    </button>
-                  </div>
-                </article>
-              ))}
+            <div
+              className="careers-jobs-marquee"
+              ref={jobsMarqueeRef}
+              onMouseEnter={() => { jobsPausedRef.current = true; }}
+              onMouseLeave={() => { jobsPausedRef.current = false; }}
+              onPointerDown={handleJobsPointerDown}
+              onPointerMove={handleJobsPointerMove}
+              onPointerUp={endJobsDrag}
+              onPointerCancel={endJobsDrag}
+              onClickCapture={handleJobsClickCapture}
+            >
+              <div className="careers-jobs-track">
+                {[...jobs, ...jobs].map((job, i) => (
+                  <article key={`${job.id || job.title}-${i}`} className="careers-job-card">
+                    <h3 className="careers-job-title" style={{ marginTop: 0 }}>{job.title}</h3>
+                    <p className="careers-job-location">{job.location}</p>
+                    <p className="careers-job-desc">{job.desc}</p>
+                    <div className="careers-job-footer">
+                      <span className="careers-job-badge">{job.type}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyClick(job.title)}
+                        className="careers-job-apply-btn"
+                      >
+                        Apply Now →
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
         </section>
