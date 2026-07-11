@@ -266,7 +266,7 @@ export function AboutUsPage() {
                   { label: 'Confidence Growth',desc: 'Where confidence is building and where it needs strengthening', pos: 'bottom-left' },
                   { label: 'Focus Areas',      desc: 'Which topics receive the most attention',        pos: 'top-left' },
                 ].map((node) => (
-                  <div key={node.label} className={`about-tech-node about-tech-node--${node.pos}`}>
+                  <div key={node.label} className={`about-tech-node about-tech-node--${node.pos}`} title={node.desc}>
                     <div className="about-tech-node-icon" aria-hidden="true">
                       {node.pos === 'top' && (
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>
@@ -288,7 +288,6 @@ export function AboutUsPage() {
                       )}
                     </div>
                     <p className="about-tech-node-label">{node.label}</p>
-                    <p className="about-tech-node-desc">{node.desc}</p>
                   </div>
                 ))}
               </div>

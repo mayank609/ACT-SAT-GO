@@ -325,31 +325,6 @@ h1 span,
   object-fit: cover;
   object-position: 72% center;
   border-radius: 16px;
-  /* Smoothly blend into the dark hero background — ellipse sized under 50% on
-     both axes so every edge (including top/bottom) reaches full transparency
-     at the box boundary instead of leaving a visible rectangle. */
-  -webkit-mask-image: radial-gradient(ellipse 47% 42% at 52% 46%, black 32%, rgba(0, 0, 0, 0.55) 60%, rgba(0, 0, 0, 0.15) 84%, transparent 100%);
-  mask-image: radial-gradient(ellipse 47% 42% at 52% 46%, black 32%, rgba(0, 0, 0, 0.55) 60%, rgba(0, 0, 0, 0.15) 84%, transparent 100%);
-}
-
-.hero-art::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 2;
-  border-radius: 16px;
-  /* Same tones as the hero section gradient, so the image dissolves into the banner instead of reading as a separate card */
-  background:
-    radial-gradient(circle at 80% 20%, rgba(38, 108, 171, 0.3), transparent 40%),
-    linear-gradient(to right, rgba(6, 23, 42, 0.55) 0%, transparent 30%),
-    linear-gradient(to left, rgba(6, 23, 42, 0.4) 0%, transparent 22%),
-    linear-gradient(to top, rgba(6, 23, 42, 0.6) 0%, transparent 26%),
-    linear-gradient(to bottom, rgba(6, 23, 42, 0.5) 0%, transparent 24%),
-    linear-gradient(135deg, rgba(6, 23, 42, 0.35) 0%, transparent 45%);
 }
 
 .floating-card {
@@ -2435,23 +2410,12 @@ h1 span,
   grid-template-columns: 1fr 1fr;
 }
 
-/* SAT/ACT hero art: soft gold glow behind the cut-out figure so it pops on navy */
 .prog-hero.sat-page .hero-art {
   position: relative;
   z-index: 0;
 }
 .prog-hero.sat-page .hero-art::before {
-  content: '';
-  position: absolute;
-  inset: -8% -8% -4%;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 44%,
-      rgba(245, 176, 52, 0.34) 0%,
-      rgba(245, 176, 52, 0.12) 34%,
-      transparent 62%);
-  filter: blur(16px);
+  content: none;
 }
 
 /* SAT hero: render transparent PNG as background-image so it blends with dark navy */
@@ -3366,58 +3330,6 @@ html, body {
   opacity: 0.75;
 }
 
-.dotted-path {
-  position: absolute;
-  left: 0;
-  top: 10%;
-  width: 90%;
-  height: 60%;
-}
-
-.decor-item {
-  position: absolute;
-  color: var(--gold);
-}
-
-.cap-item {
-  top: 8%;
-  right: 38%;
-  width: 32px;
-  height: 32px;
-  opacity: 0.8;
-  transform: rotate(-10deg);
-  animation: floatY-soft 6s ease-in-out infinite;
-}
-
-.plane-item {
-  top: 5%;
-  right: 12%;
-  width: 28px;
-  height: 28px;
-  color: rgba(255, 255, 255, 0.75);
-  animation: floatY-soft 8s ease-in-out infinite 1s;
-}
-
-.star-item-1 {
-  top: 18%;
-  right: 48%;
-  font-size: 20px;
-  animation: pulse-soft 4s ease-in-out infinite;
-}
-
-.star-item-2 {
-  top: 25%;
-  right: 44%;
-  font-size: 14px;
-  color: #fff;
-  opacity: 0.6;
-  animation: pulse-soft 4s ease-in-out infinite 1.5s;
-}
-
-@keyframes pulse-soft {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
 
 /* Base floating card overrides for the new cards */
 .floating-card {
@@ -3433,8 +3345,8 @@ html, body {
 /* Concepts Made Simple Card */
 .card-concepts-new {
   position: absolute;
-  left: -20px;
-  top: 20%;
+  left: -48px;
+  top: 16%;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -3479,8 +3391,8 @@ html, body {
 /* Score Improvement Card */
 .card-score-new {
   position: absolute;
-  left: -20px;
-  top: 50%;
+  left: -52px;
+  top: 54%;
   z-index: 3;
   width: 198px;
   padding: 16px;
@@ -3514,8 +3426,8 @@ html, body {
 /* Exam Tags stack */
 .card-exams-new {
   position: absolute;
-  right: -25px;
-  top: 48%;
+  right: -48px;
+  top: 20%;
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -3549,56 +3461,6 @@ html, body {
   transform: scale(1.03);
 }
 
-/* Personalized Plan Card */
-.card-plan-new {
-  position: absolute;
-  right: -25px;
-  bottom: 8%;
-  z-index: 3;
-  width: 178px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: floatY-soft 7s ease-in-out infinite 1s;
-}
-
-.plan-title {
-  font-size: 12px;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: 0.5px;
-}
-
-.plan-items {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.plan-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.plan-check {
-  width: 14px;
-  height: 14px;
-  color: var(--gold);
-  flex-shrink: 0;
-}
-
-.plan-line {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 99px;
-}
-
-.line-long { width: 100%; }
-.line-medium { width: 80%; }
-.line-short { width: 60%; }
-
 /* Avatars Overlap */
 .hero-avatars img {
   width: 32px;
@@ -3624,10 +3486,6 @@ html, body {
   .card-exams-new {
     right: 0;
     top: 30%;
-  }
-  .card-plan-new {
-    right: 0;
-    bottom: 2%;
   }
 }
 

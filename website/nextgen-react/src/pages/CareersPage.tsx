@@ -435,8 +435,6 @@ export function CareersPage() {
       <main>
         {/* ── Hero ── */}
         <section className="careers-hero-section section-dark">
-          <span className="orb orb-gold" aria-hidden="true" />
-          <span className="orb orb-ring" aria-hidden="true" />
           <div className="shell careers-hero-grid">
             <div className="careers-hero-copy">
               <span className="careers-eyebrow">CAREERS AT ACT SAT GO</span>
@@ -470,29 +468,6 @@ export function CareersPage() {
                   src={img4}
                   alt="Build the Future of Student Success — Careers at ACT SAT GO"
                 />
-                
-                {/* Floating Icons */}
-                <div className="careers-hero-icons-absolute">
-                  <div className="careers-deco-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 10v6M2 10l10 5 10-5-10-5z" />
-                      <path d="M6 12v5c0 2 2.7 3.5 6 3.5s6-1.5 6-3.5v-5" />
-                    </svg>
-                  </div>
-                  <div className="careers-deco-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="20" x2="18" y2="10" />
-                      <line x1="12" y1="20" x2="12" y2="4" />
-                      <line x1="6" y1="20" x2="6" y2="14" />
-                    </svg>
-                  </div>
-                  <div className="careers-deco-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                    </svg>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

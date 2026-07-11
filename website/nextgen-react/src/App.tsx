@@ -8,7 +8,7 @@ import { ProgramsHub } from './components/ProgramsHub';
 import { CountUp } from './components/CountUp';
 import { useScrollReveal } from './hooks/useScrollReveal';
 import { ACT_PAGE } from './data/programs';
-import heroImg from './assets/hero.png';
+import heroImg from './assets/hero-y1.png';
 import avatar1 from './assets/avatar1.png';
 import avatar2 from './assets/avatar2.png';
 import avatar3 from './assets/avatar3.png';
@@ -75,7 +75,6 @@ export default function App() {
         {/* Hero */}
         <section className="hero section-dark" id="home">
           <span className="orb orb-gold" aria-hidden="true" />
-          <span className="orb orb-ring" aria-hidden="true" />
           <div className="shell hero-grid">
             <div className="hero-copy">
               <span className="eyebrow-hero"></span>
@@ -118,29 +117,6 @@ export default function App() {
                   <path d="M70,100 Q200,140 330,100" />
                   <path d="M70,300 Q200,260 330,300" />
                 </svg>
-
-                {/* Curved dotted line */}
-                <svg className="dotted-path" viewBox="0 0 500 300" fill="none" stroke="var(--gold)" strokeWidth="2.5" strokeDasharray="5 5">
-                  <path d="M50,150 Q130,40 230,130 T390,60" />
-                </svg>
-
-                {/* Graduation cap */}
-                <div className="decor-item cap-item">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2 1 7l11 5 9-4.09V14a1 1 0 0 0 2 0V7.91L23 7ZM4.18 11.58A8 8 0 0 0 12 16a8 8 0 0 0 7.82-4.42L12 15Z" />
-                  </svg>
-                </div>
-
-                {/* Paper airplane */}
-                <div className="decor-item plane-item">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M2 21 23 12 2 3v7l15 2-15 2Z" />
-                  </svg>
-                </div>
-
-                {/* Sparkles / Stars */}
-                <div className="decor-item star-item-1">✦</div>
-                <div className="decor-item star-item-2">✦</div>
               </div>
 
               <img src={heroImg} alt="Students studying online with tutoring support" />
@@ -184,31 +160,6 @@ export default function App() {
                 <span className="exam-tag active">SAT</span>
                 <span className="exam-tag active">ACT</span>
                 <span className="exam-tag">AP</span>
-              </div>
-
-              {/* Personalized Plan lines checklist card */}
-              <div className="floating-card card-plan-new">
-                <span className="plan-title">Personalized Plan</span>
-                <div className="plan-items">
-                  <div className="plan-item">
-                    <svg className="plan-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                    <span className="plan-line line-long"></span>
-                  </div>
-                  <div className="plan-item">
-                    <svg className="plan-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                    <span className="plan-line line-medium"></span>
-                  </div>
-                  <div className="plan-item">
-                    <svg className="plan-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                    <span className="plan-line line-short"></span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
