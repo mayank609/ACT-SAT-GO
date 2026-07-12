@@ -6,6 +6,7 @@ import { useScrollReveal } from '../hooks/useScrollReveal';
 
 import abHeroImg from '../../images/ab hero.png';
 import abImg from '../../images/ab b.png';
+import abOrbitImg from '../../images/ab.jpeg';
 
 
 
@@ -241,6 +242,17 @@ export function AboutUsPage() {
                   </svg>
                 </div>
               </div>
+
+              {/* Bottom quote bar */}
+              <div className="about-tech-quote-bar">
+                <span className="about-tech-quote-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.3H22l-6.2 4.5 2.4 7.3L12 17.1l-6.2 4L8.2 13.8 2 9.3h7.6L12 2z" /></svg>
+                </span>
+                <p className="about-tech-quote-text">
+                  Technology doesn't replace teachers.{' '}
+                  <strong>It empowers them to teach better.</strong>
+                </p>
+              </div>
             </div>
 
             {/* Right column — circular diagram */}
@@ -253,7 +265,7 @@ export function AboutUsPage() {
                     className="about-tech-orbit-photo"
                     role="img"
                     aria-label="Mentor and student working together with technology"
-                    style={{ backgroundImage: `url(${abHeroImg})` }}
+                    style={{ backgroundImage: `url(${abOrbitImg})` }}
                   />
                 </div>
 
@@ -290,17 +302,6 @@ export function AboutUsPage() {
                     <p className="about-tech-node-label">{node.label}</p>
                   </div>
                 ))}
-              </div>
-
-              {/* Bottom quote bar */}
-              <div className="about-tech-quote-bar">
-                <span className="about-tech-quote-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.3H22l-6.2 4.5 2.4 7.3L12 17.1l-6.2 4L8.2 13.8 2 9.3h7.6L12 2z" /></svg>
-                </span>
-                <p className="about-tech-quote-text">
-                  Technology doesn't replace teachers.{' '}
-                  <strong>It empowers them to teach better.</strong>
-                </p>
               </div>
             </div>
 
