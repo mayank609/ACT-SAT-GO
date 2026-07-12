@@ -12,12 +12,6 @@ const PROGRAM_LINKS: { to?: string; href?: string; label: string }[] = [
   { to: '/future-programs', label: 'Future Programs' },
 ];
 
-const RESOURCE_LINKS: { to?: string; href?: string; label: string }[] = [
-  { to: '/resources', label: 'Blog & Articles' },
-  { href: '/resources', label: 'Guides & Downloads' },
-  { href: '/resources', label: 'Webinars & Videos' },
-];
-
 function ContactDropdown({ onNavigate }: { onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
 
@@ -67,12 +61,10 @@ function ContactDropdown({ onNavigate }: { onNavigate?: () => void }) {
 export function Header() {
   const [open, setOpen] = useState(false);
   const [programsOpen, setProgramsOpen] = useState(false);
-  const [resourcesOpen, setResourcesOpen] = useState(false);
 
   const close = () => {
     setOpen(false);
     setProgramsOpen(false);
-    setResourcesOpen(false);
   };
 
   return (
@@ -123,31 +115,7 @@ export function Header() {
             </div>
           </div>
 
-          <div
-            className={`nav-dropdown${resourcesOpen ? ' is-open' : ''}`}
-            onMouseEnter={() => setResourcesOpen(true)}
-            onMouseLeave={() => setResourcesOpen(false)}
-          >
-            <Link
-              to="/resources"
-              className="nav-dropdown-toggle"
-              aria-expanded={resourcesOpen}
-              onClick={() => { close(); setResourcesOpen(false); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-            >
-              Resources <span aria-hidden="true">▾</span>
-            </Link>
-            <div className="nav-dropdown-menu" role="menu">
-              {RESOURCE_LINKS.map((r) => (
-                r.to ? (
-                  <Link key={r.to + r.label} to={r.to} role="menuitem" onClick={close}>{r.label}</Link>
-                ) : (
-                  <a key={r.label} href={r.href} role="menuitem" onClick={close}>{r.label}</a>
-                )
-              ))}
-            </div>
-          </div>
-
+          <Link to="/resources" onClick={close}>Resources</Link>
 
           <Link to="/careers" onClick={close}>Career</Link>
 
