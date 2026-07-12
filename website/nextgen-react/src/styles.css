@@ -3426,7 +3426,7 @@ html, body {
 /* Exam Tags stack */
 .card-exams-new {
   position: absolute;
-  right: -48px;
+  right: 0;
   top: 20%;
   z-index: 3;
   display: flex;
