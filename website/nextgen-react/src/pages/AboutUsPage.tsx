@@ -508,15 +508,13 @@ export function AboutUsPage() {
 
         {/* ── The ACTSATGO Promise Section ── */}
         <section className="about-promise-section-new">
-          <div className="shell promise-container">
-            {/* Left Column: Title + 4 Horizontal Items */}
-            <div className="promise-left-col">
+          <div className="shell">
+            <div className="promise-container">
               <h2 className="promise-title">
                 The <span className="promise-brand-text">ACTSAT<span className="promise-brand-go-box">GO</span></span> Promise
               </h2>
-              
-              <div className="promise-items-row">
-                {/* Item 1 */}
+
+              <div className="promise-row">
                 <div className="promise-item">
                   <span className="promise-item-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -527,7 +525,8 @@ export function AboutUsPage() {
                   <p>Every student deserves to be understood.</p>
                 </div>
 
-                {/* Item 2 */}
+                <span className="promise-divider" aria-hidden="true" />
+
                 <div className="promise-item">
                   <span className="promise-item-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -538,7 +537,8 @@ export function AboutUsPage() {
                   <p>Every learning journey deserves a strategy.</p>
                 </div>
 
-                {/* Item 3 */}
+                <span className="promise-divider" aria-hidden="true" />
+
                 <div className="promise-item">
                   <span className="promise-item-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -549,7 +549,8 @@ export function AboutUsPage() {
                   <p>Every hour of practice should create progress.</p>
                 </div>
 
-                {/* Item 4 */}
+                <span className="promise-divider" aria-hidden="true" />
+
                 <div className="promise-item">
                   <span className="promise-item-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -561,50 +562,46 @@ export function AboutUsPage() {
                   </span>
                   <p>Every dream deserves a team that believes in it.</p>
                 </div>
-              </div>
-            </div>
 
-            {/* Right Column: Rocket Card */}
-            <div className="promise-right-col">
-              <div className="promise-rocket-card">
-                <div className="promise-card-content">
+                <span className="promise-divider promise-divider-strong" aria-hidden="true" />
+
+                <div className="promise-message">
                   <p className="promise-card-sub">We're not just preparing students for exams.</p>
                   <p className="promise-card-main">
-                    We're preparing them <br />
+                    <strong>We're preparing them</strong>{' '}
                     <span className="promise-card-highlight">for success.</span>
                   </p>
                 </div>
-                
+
                 {/* SVG Illustration: Rocket Blasting Off */}
                 <div className="promise-card-graphic" aria-hidden="true">
                   <svg viewBox="0 0 140 140" fill="none" className="promise-rocket-svg">
                     {/* Background glow circle */}
                     <circle cx="90" cy="50" r="36" fill="#eff6ff" />
                     <circle cx="90" cy="50" r="24" fill="#dbeafe" opacity="0.6" />
-                    
+
                     {/* Sparkles */}
                     <path d="M115 25 L119 29 M119 25 L115 29" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
                     <path d="M50 75 L54 79 M54 75 L50 79" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" />
-                    
+
                     {/* Launch path line (dashed) */}
                     <path d="M30 120 C45 105 60 90 75 75" stroke="#3b82f6" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-                    
+
                     {/* Exhaust flames */}
                     <path d="M56 86 C52 92 48 100 48 108 C54 108 62 104 68 100 Z" fill="#f97316" />
                     <path d="M59 89 C57 93 54 98 54 103 C58 103 63 100 67 98 Z" fill="#facc15" />
-                    
+
                     {/* Rocket body */}
-                    {/* Main capsule */}
                     <path d="M62 82 L82 62 C88 56 94 40 96 34 C90 36 74 42 68 48 L48 68 Z" fill="#3b82f6" />
                     <path d="M52 72 L72 52 C76 48 80 44 86 42 C82 48 78 52 74 56 L54 76 Z" fill="#2563eb" />
-                    
+
                     {/* Nose cone */}
                     <path d="M84 46 C88 42 94 36 96 34 C94 36 88 42 84 46 Z" fill="#1d4ed8" />
-                    
+
                     {/* Wings */}
                     <path d="M48 68 L36 74 L42 86 L52 82 Z" fill="#1e3a8a" />
                     <path d="M68 48 L74 36 L86 42 L82 52 Z" fill="#1e3a8a" />
-                    
+
                     {/* Window */}
                     <circle cx="68" cy="62" r="5" fill="#ffffff" stroke="#1d4ed8" strokeWidth="2" />
                     <circle cx="68" cy="62" r="2.5" fill="#93c5fd" />
