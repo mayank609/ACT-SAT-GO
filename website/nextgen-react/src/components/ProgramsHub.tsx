@@ -1,8 +1,17 @@
 import { Link } from 'react-router-dom';
-import { IconGraduationCap, IconTarget, IconOpenBookSquare, IconRocket } from './Icons';
+import { IconTarget, IconOpenBookSquare, IconRocket } from './Icons';
 import img1 from '../../images/1.png';
 import img2 from '../../images/2.jpg.png';
 import img3 from '../../images/3.png';
+
+function HubBadgeCapIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 3 1 8.5 12 14l9-4.36V15h2V8.5L12 3Z" />
+      <path d="M5 11.18V16c0 1.86 3.13 3.5 7 3.5s7-1.64 7-3.5v-4.82l-7 3.4-7-3.4Z" />
+    </svg>
+  );
+}
 
 const CARDS = [
   {
@@ -65,7 +74,9 @@ export function ProgramsHub() {
             </p>
           </div>
           <div className="hub-badge">
-            <span className="hub-badge-icon" aria-hidden="true"><IconGraduationCap /></span>
+            <span className="hub-badge-icon" aria-hidden="true">
+              <HubBadgeCapIcon />
+            </span>
             <p>
               Personalized guidance.<br />
               Proven strategies.<br />
@@ -96,7 +107,7 @@ export function ProgramsHub() {
               <span
                 className="hub-photo"
                 aria-hidden="true"
-                style={{ backgroundImage: `url(${c.photo})`, backgroundPosition: 'center', backgroundSize: 'contain' }}
+                style={{ backgroundImage: `url(${c.photo})`, backgroundPosition: 'center', backgroundSize: 'cover' }}
               />
             </article>
           ))}

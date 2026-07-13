@@ -287,10 +287,10 @@ export default function App() {
                 <circle cx="205" cy="70" r="18" fill="url(#ctaRingCream)" />
                 <circle cx="205" cy="70" r="7" fill="#c9860f" />
 
-                {/* arrow */}
-                <path d="M251 6 239 9M251 6 248 18" stroke="url(#ctaArrow)" strokeWidth="4.5" strokeLinecap="round" />
-                <line x1="251" y1="6" x2="211" y2="63" stroke="url(#ctaArrow)" strokeWidth="5.5" strokeLinecap="round" />
-                <path d="M200 68 214 62 209 79Z" fill="url(#ctaArrow)" />
+                {/* arrow — rises from the bars and bursts through the target */}
+                <path d="M162 113 150 117M162 113 158 101" stroke="url(#ctaArrow)" strokeWidth="4.5" strokeLinecap="round" />
+                <line x1="162" y1="113" x2="238" y2="33" stroke="url(#ctaArrow)" strokeWidth="5.5" strokeLinecap="round" />
+                <path d="M252 23 236 29 246 39Z" fill="url(#ctaArrow)" />
               </svg>
             </div>
           </div>
@@ -360,41 +360,37 @@ export default function App() {
             </p>
             <div className="note-card-check-orange">✓</div>
           </aside>
-          <div className="compare-table-new" role="table" aria-label="ACT SAT GO comparison">
-            <div className="table-row-new table-head-new" role="row">
-              <div className="col-others">OTHERS</div>
-              <div className="col-asg">
-                <svg className="asg-triangle-logo" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="12 3 21 20 3 20" />
-                </svg>
-                ACT SAT GO
+          {(() => {
+            const COMPARE_ROWS = [
+              { others: 'One-size-fits-all approach', asg: 'Personalized learning for every student' },
+              { others: 'Focus only on tutoring', asg: 'End-to-end academic success partner' },
+              { others: 'Limited performance insights', asg: 'AI-powered progress analytics' },
+              { others: 'Doubt support with limits', asg: 'Unlimited doubt solving & mentor support' },
+              { others: 'Minimal parent communication', asg: 'Weekly reports & regular PTMs' },
+              { others: 'Disconnected tools & platforms', asg: 'All-in-one learning ecosystem' },
+            ];
+            return (
+              <div className="compare-table-new" role="table" aria-label="ACT SAT GO comparison">
+                <div className="compare-col compare-col-others" role="rowgroup">
+                  <div className="compare-cell compare-head col-others" role="columnheader">OTHERS</div>
+                  {COMPARE_ROWS.map((r) => (
+                    <div key={r.others} className="compare-cell col-others-val" role="cell">{r.others}</div>
+                  ))}
+                </div>
+                <div className="compare-col compare-col-asg" role="rowgroup">
+                  <div className="compare-cell compare-head col-asg" role="columnheader">
+                    <svg className="asg-triangle-logo" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="12 3 21 20 3 20" />
+                    </svg>
+                    ACT SAT GO
+                  </div>
+                  {COMPARE_ROWS.map((r) => (
+                    <div key={r.asg} className="compare-cell col-asg-val" role="cell">{r.asg}</div>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="table-row-new" role="row">
-              <div className="col-others-val">One-size-fits-all approach</div>
-              <div className="col-asg-val">Personalized learning for every student</div>
-            </div>
-            <div className="table-row-new" role="row">
-              <div className="col-others-val">Focus only on tutoring</div>
-              <div className="col-asg-val">End-to-end academic success partner</div>
-            </div>
-            <div className="table-row-new" role="row">
-              <div className="col-others-val">Limited performance insights</div>
-              <div className="col-asg-val">AI-powered progress analytics</div>
-            </div>
-            <div className="table-row-new" role="row">
-              <div className="col-others-val">Doubt support with limits</div>
-              <div className="col-asg-val">Unlimited doubt solving &amp; mentor support</div>
-            </div>
-            <div className="table-row-new" role="row">
-              <div className="col-others-val">Minimal parent communication</div>
-              <div className="col-asg-val">Weekly reports &amp; regular PTMs</div>
-            </div>
-            <div className="table-row-new" role="row">
-              <div className="col-others-val">Disconnected tools &amp; platforms</div>
-              <div className="col-asg-val">All-in-one learning ecosystem</div>
-            </div>
-          </div>
+            );
+          })()}
         </section>
 
 
@@ -416,9 +412,6 @@ export default function App() {
               <div className="prog-cta-actions">
                 <a className="btn btn-primary" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal('General'); }}>
                   Book Free Consultation <span aria-hidden="true">-&gt;</span>
-                </a>
-                <a className="btn btn-outline" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal('General'); }}>
-                  Talk to an Expert
                 </a>
               </div>
             </div>
