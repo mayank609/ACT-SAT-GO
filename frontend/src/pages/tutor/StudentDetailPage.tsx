@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, Clock, Target, BookOpen, MessageSquare, PlusCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Clock, Target, BookOpen, MessageSquare, PlusCircle, AlertTriangle, GraduationCap, NotebookPen } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
@@ -18,6 +18,15 @@ interface Note {
   text: string;
   createdAt: string;
   author: string;
+}
+
+interface ClassProgressEntry {
+  id: string;
+  topic: string;
+  notes: string;
+  classDate: string;
+  author: string;
+  createdAt: string;
 }
 
 interface Analytics {
@@ -39,10 +48,12 @@ interface Analytics {
 
 interface DbTest { id: string; title: string; status: string; category?: string; subCategory?: string; sections: unknown[] }
 
+// Test Builder tags homework as subCategory "{Subject}-Homework" (e.g. "Math-Homework"),
+// which does NOT contain the substring "hw" — match on "homework" instead.
 const isHW = (test: any): boolean => {
   const t = (test.title ?? '').toLowerCase();
   const sub = (test.subCategory ?? '').toLowerCase();
-  return sub.includes('hw') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+  return sub.includes('homework') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
 };
 
 const isEnglish = (test: any): boolean => {
@@ -80,6 +91,13 @@ export function StudentDetailPage() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
 
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [progressTopic, setProgressTopic] = useState('');
+  const [progressNotes, setProgressNotes] = useState('');
+  const [progressDate, setProgressDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [progressSaving, setProgressSaving] = useState(false);
+  const [progressEntries, setProgressEntries] = useState<ClassProgressEntry[]>([]);
+
   useEffect(() => {
     if (!id) return;
     Promise.all([
@@ -97,6 +115,9 @@ export function StudentDetailPage() {
     api.getNotes(dbId, id)
       .then((r) => setNotes(r.notes))
       .catch(() => {});
+    api.getClassProgress(dbId, id)
+      .then((r) => setProgressEntries(r.entries))
+      .catch(() => {});
   }, [dbId, id]);
 
   const handleAddNote = async () => {
@@ -113,6 +134,35 @@ export function StudentDetailPage() {
     } finally {
       setNoteSaving(false);
     }
+  };
+
+  const handleAddProgress = async () => {
+    if (!progressTopic.trim() || !dbId || !id) return;
+    setProgressSaving(true);
+    try {
+      const { entry } = await api.addClassProgress(dbId, id, {
+        topic: progressTopic.trim(),
+        notes: progressNotes.trim() || undefined,
+        classDate: progressDate,
+        author: user?.name ?? 'Tutor',
+      });
+      setProgressEntries((prev) => [entry, ...prev]);
+      setProgressTopic('');
+      setProgressNotes('');
+      setProgressDate(new Date().toISOString().split('T')[0]);
+      setProgressOpen(false);
+      toast.success('Class progress saved.');
+    } catch {
+      toast.error('Failed to save class progress.');
+    } finally {
+      setProgressSaving(false);
+    }
+  };
+
+  const openAssignHomework = () => {
+    setAssignFilter('Practice Sheet');
+    setAssignSubFilter('HW');
+    setAssignOpen(true);
   };
 
   if (loading) {
@@ -148,9 +198,15 @@ export function StudentDetailPage() {
           <h1 className="text-xl font-semibold text-slate-900 truncate">{student.name}</h1>
           <p className="text-slate-400 text-sm">{student.email}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" icon={<MessageSquare size={13} />} onClick={() => setNoteOpen(true)}>
             Add Note
+          </Button>
+          <Button variant="secondary" size="sm" icon={<NotebookPen size={13} />} onClick={() => setProgressOpen(true)}>
+            Log Progress
+          </Button>
+          <Button variant="secondary" size="sm" icon={<GraduationCap size={13} />} onClick={openAssignHomework}>
+            Assign Homework
           </Button>
           <Button size="sm" icon={<BookOpen size={13} />} onClick={() => setAssignOpen(true)}>
             Assign Test
@@ -297,6 +353,37 @@ export function StudentDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Class Progress */}
+      <div className="bg-white rounded-xl border border-slate-100">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
+          <div>
+            <p className="font-medium text-slate-900 text-sm">Class Progress</p>
+            <p className="text-xs text-slate-400 mt-0.5">Topics covered per class, logged individually</p>
+          </div>
+          <button onClick={() => setProgressOpen(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 flex-shrink-0">
+            <PlusCircle size={12} /> Log topic
+          </button>
+        </div>
+        {progressEntries.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-slate-400">No class progress logged yet.</p>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {progressEntries.map((entry) => (
+              <div key={entry.id} className="px-5 py-3.5">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-sm font-semibold text-slate-900">{entry.topic}</p>
+                  <p className="text-xs text-slate-400 flex-shrink-0">
+                    {new Date(entry.classDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                </div>
+                {entry.notes && <p className="text-sm text-slate-600 leading-relaxed">{entry.notes}</p>}
+                <p className="text-xs text-slate-400 mt-1">{entry.author}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Tutor Notes */}
       <div className="bg-white rounded-xl border border-slate-100">
@@ -485,6 +572,39 @@ export function StudentDetailPage() {
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none"
             autoFocus />
           <p className="text-xs text-slate-400">{noteText.length}/500</p>
+        </div>
+      </Modal>
+
+      {/* Log Class Progress Modal */}
+      <Modal isOpen={progressOpen} onClose={() => { setProgressOpen(false); setProgressTopic(''); setProgressNotes(''); }} title="Log Class Progress" size="sm"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setProgressOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleAddProgress} disabled={!progressTopic.trim() || progressSaving}>
+              {progressSaving ? 'Saving...' : 'Save Entry'}
+            </Button>
+          </div>
+        }>
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">Log what was covered in a class with <strong>{student.name}</strong>.</p>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Topic Covered</label>
+            <input type="text" value={progressTopic} onChange={(e) => setProgressTopic(e.target.value)}
+              placeholder="e.g. Command of Evidence, Linear Equations..."
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100"
+              autoFocus />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Class Date</label>
+            <input type="date" value={progressDate} onChange={(e) => setProgressDate(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Notes (optional)</label>
+            <textarea value={progressNotes} onChange={(e) => setProgressNotes(e.target.value)}
+              placeholder="Strengths, focus areas, homework given..." rows={3}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" />
+          </div>
         </div>
       </Modal>
     </div>

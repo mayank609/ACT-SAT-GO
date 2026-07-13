@@ -460,6 +460,21 @@ export const api = {
       method: 'DELETE',
     }),
 
+  // Class Progress (per-student log of topics a tutor has covered)
+  getClassProgress: (tutorId: string, studentId: string) =>
+    request<{ entries: Array<{ id: string; topic: string; notes: string; classDate: string; author: string; createdAt: string }> }>(
+      `/api/class-progress?tutorId=${tutorId}&studentId=${studentId}`
+    ),
+  addClassProgress: (tutorId: string, studentId: string, body: { topic: string; notes?: string; classDate?: string; author: string }) =>
+    request<{ entry: { id: string; topic: string; notes: string; classDate: string; author: string; createdAt: string } }>('/api/class-progress', {
+      method: 'POST',
+      body: JSON.stringify({ tutorId, studentId, ...body }),
+    }),
+  deleteClassProgress: (tutorId: string, studentId: string, entryId: string) =>
+    request<{ success: boolean }>(`/api/class-progress?tutorId=${tutorId}&studentId=${studentId}&entryId=${entryId}`, {
+      method: 'DELETE',
+    }),
+
   deleteImage: async (path: string) => {
     const res = await fetch(`${BASE}/api/images/delete`, {
       method: 'POST',
