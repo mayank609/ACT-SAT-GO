@@ -354,7 +354,12 @@ export const api = {
       hasACT: boolean
       avgScoreImprovement: number | null
       subjectStrength: { rw: number | null; math: number | null }
+      overallAccuracy: number | null
       openDoubtsCount: number
+      dailyScoreTrend: Array<{ date: string; avgSAT: number | null; avgACT: number | null }>
+      recentActivity: Array<{ id: string; text: string; timestamp: string }>
+      questionsAttemptedThisWeek: number
+      avgStudyHoursThisWeek: number | null
     }>('/api/analytics/platform'),
 
   // Attempts (for monitoring & assignments)

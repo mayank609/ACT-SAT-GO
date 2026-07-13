@@ -96,6 +96,32 @@ export async function GET(request: NextRequest) {
     const scoreDistributionSAT = Object.entries(bucketsSAT).map(([range, count]) => ({ range, count }))
     const scoreDistribution = hasSAT && !hasACT ? scoreDistributionSAT : scoreDistributionACT
 
+    // Daily avg score trend (last 30 days), split by SAT/ACT — reuses `submitted` above.
+    const day30 = new Date(); day30.setDate(day30.getDate() - 30); day30.setHours(0, 0, 0, 0)
+    const trendByDay = new Map<string, { sat: number[]; act: number[] }>()
+    for (const a of submitted) {
+      if (!a.completedAt || a.completedAt < day30) continue
+      const key = a.completedAt.toISOString().split('T')[0]
+      const s = a.totalScore ?? 0
+      const cat = a.test?.category?.toUpperCase() || ''
+      const title = a.test?.title?.toUpperCase() || ''
+      const isSATAttempt = cat === 'SAT' || title.includes('SAT') || s > 36
+      const entry = trendByDay.get(key) ?? { sat: [], act: [] }
+      if (isSATAttempt) entry.sat.push(s); else entry.act.push(s)
+      trendByDay.set(key, entry)
+    }
+    const avgOf = (arr: number[]) => (arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null)
+    const dailyScoreTrend: Array<{ date: string; avgSAT: number | null; avgACT: number | null }> = []
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0)
+      const entry = trendByDay.get(d.toISOString().split('T')[0])
+      dailyScoreTrend.push({
+        date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        avgSAT: avgOf(entry?.sat ?? []),
+        avgACT: avgOf(entry?.act ?? []),
+      })
+    }
+
     // Avg score improvement: last 30 days vs the prior 30-day window.
     const now = new Date()
     const day30Ago = new Date(now); day30Ago.setDate(day30Ago.getDate() - 30)
@@ -129,6 +155,7 @@ export async function GET(request: NextRequest) {
       orderBy: { completedAt: 'desc' },
       take: 300,
       include: {
+        student: { select: { id: true, email: true, permissions: true } },
         answers: { select: { questionId: true, answerGiven: true } },
         test: {
           include: {
@@ -179,6 +206,34 @@ export async function GET(request: NextRequest) {
       rw: pct(subjectTally.rw),
       math: pct(subjectTally.math),
     }
+    const overallAccuracy = pct({
+      correct: subjectTally.rw.correct + subjectTally.math.correct,
+      total: subjectTally.rw.total + subjectTally.math.total,
+    })
+
+    // Recent activity feed: most recently completed attempts (already loaded above).
+    const recentActivity = recentAttempts.slice(0, 6).map((a) => {
+      const perms = (a.student.permissions ?? {}) as Record<string, unknown>
+      const name = (perms.displayName as string) ?? a.student.email.split('@')[0]
+      return {
+        id: a.id,
+        text: `${name} completed ${a.test.title}`,
+        timestamp: (a.completedAt ?? a.startedAt).toISOString(),
+      }
+    })
+
+    // This week's engagement: questions worked on + avg study time per active student.
+    const day7 = new Date(); day7.setDate(day7.getDate() - 7)
+    const weekAnswers = await prisma.attemptAnswer.findMany({
+      where: { updatedAt: { gte: day7 } },
+      select: { timeSpentSeconds: true, attempt: { select: { studentId: true } } },
+    })
+    const questionsAttemptedThisWeek = weekAnswers.length
+    const activeStudentsThisWeek = new Set(weekAnswers.map((r) => r.attempt.studentId)).size
+    const totalSecondsThisWeek = weekAnswers.reduce((a, r) => a + r.timeSpentSeconds, 0)
+    const avgStudyHoursThisWeek = activeStudentsThisWeek > 0
+      ? Math.round((totalSecondsThisWeek / activeStudentsThisWeek / 3600) * 10) / 10
+      : null
 
     const openDoubtsCount = await prisma.attemptAnswer.count({ where: { doubtStatus: 'doubt' } })
 
@@ -191,7 +246,12 @@ export async function GET(request: NextRequest) {
       hasACT,
       avgScoreImprovement,
       subjectStrength,
+      overallAccuracy,
       openDoubtsCount,
+      dailyScoreTrend,
+      recentActivity,
+      questionsAttemptedThisWeek,
+      avgStudyHoursThisWeek,
     })
   } catch (error) {
     console.error('GET /api/analytics/platform:', error)
