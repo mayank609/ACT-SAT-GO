@@ -28,7 +28,7 @@ export async function GET(
     const attempts = await prisma.testAttempt.findMany({
       where: { studentId, testId: { in: assignments.map((a) => a.testId) } },
       orderBy: { startedAt: 'desc' },
-      include: { sectionAttempts: true },
+      include: { sectionAttempts: true, _count: { select: { answers: true } } },
     })
 
     const now = Date.now()
@@ -61,6 +61,8 @@ export async function GET(
       else statusLabel = 'Completed'      // submitted all assigned attempts
 
       const completionStatus = submittedAttempt ? 'Submitted' : inProgressAttempt ? 'In Progress' : 'Pending'
+      const totalQuestions = assignment.test.sections.reduce((a, s) => a + s._count.questions, 0)
+      const answeredCount = (inProgressAttempt ?? submittedAttempt)?._count.answers ?? 0
 
       return {
         assignmentId: assignment.id,
@@ -82,6 +84,8 @@ export async function GET(
         inProgressAttemptId: inProgressAttempt?.id ?? null,
         submittedAttemptId: submittedAttempt?.id ?? null,
         sections: assignment.test.sections,
+        totalQuestions,
+        answeredCount,
       }
     })
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, Shield, Settings, Activity, Plus, Trash2, Server, Database, Zap, Check, X, KeyRound, Copy, CheckCircle,
-  CalendarDays, FileText, AlertTriangle, HelpCircle, Target, Medal, Sparkles, ArrowRight, UserPlus, UserCheck,
+  CalendarDays, FileText, AlertTriangle, HelpCircle, Target, Sparkles, ArrowRight, UserPlus, UserCheck,
   ClipboardList, BarChart3,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -37,6 +37,24 @@ interface FeedItem {
   text: string;
   timestamp: string;
 }
+
+// Mirrors the bucket thresholds used server-side in /api/analytics/platform
+// so clicking a bar can filter students by the exact same range.
+const ACT_BUCKETS: { label: string; min: number; max: number }[] = [
+  { label: '1–10', min: -Infinity, max: 10 },
+  { label: '11–15', min: 10, max: 15 },
+  { label: '16–20', min: 15, max: 20 },
+  { label: '21–25', min: 20, max: 25 },
+  { label: '26–30', min: 25, max: 30 },
+  { label: '31–36', min: 30, max: Infinity },
+];
+const SAT_BUCKETS: { label: string; min: number; max: number }[] = [
+  { label: '400–800', min: -Infinity, max: 800 },
+  { label: '800–1000', min: 800, max: 1000 },
+  { label: '1000–1200', min: 1000, max: 1200 },
+  { label: '1200–1400', min: 1200, max: 1400 },
+  { label: '1400–1600', min: 1400, max: Infinity },
+];
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -76,7 +94,7 @@ export function SuperAdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<FeedItem[]>([]);
   const [questionsAttemptedThisWeek, setQuestionsAttemptedThisWeek] = useState(0);
   const [avgStudyHoursThisWeek, setAvgStudyHoursThisWeek] = useState<number | null>(null);
-  const [topPerformerImprovements, setTopPerformerImprovements] = useState<Record<string, number | null>>({});
+  const [selectedRange, setSelectedRange] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -114,25 +132,15 @@ export function SuperAdminDashboard() {
     ? studentsWithScore.reduce((a, s) => a + (s.avgScore ?? 0), 0) / studentsWithScore.length
     : 0;
 
-  const topPerformers = useMemo(
-    () => studentsWithScore.slice().sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0)).slice(0, 4),
-    [studentsWithScore]
-  );
-
-  // Fetch score trend for the (small, fixed) set of top performers to derive a
-  // real per-student improvement figure — cheap since it's capped at 4 calls.
-  useEffect(() => {
-    if (topPerformers.length === 0) return;
-    let cancelled = false;
-    Promise.all(
-      topPerformers.map((s) =>
-        api.getStudentAnalytics(s.id)
-          .then((r) => [s.id, r.trend.length >= 2 ? Math.round((r.trend[r.trend.length - 1].score - r.trend[0].score) * 10) / 10 : null] as const)
-          .catch(() => [s.id, null] as const)
-      )
-    ).then((pairs) => { if (!cancelled) setTopPerformerImprovements(Object.fromEntries(pairs)); });
-    return () => { cancelled = true; };
-  }, [topPerformers]);
+  const studentsInSelectedRange = useMemo(() => {
+    if (!selectedRange) return [];
+    const buckets = hasSAT && !hasACT ? SAT_BUCKETS : ACT_BUCKETS;
+    const bucket = buckets.find((b) => b.label === selectedRange);
+    if (!bucket) return [];
+    return studentsWithScore
+      .filter((s) => (s.avgScore ?? 0) > bucket.min && (s.avgScore ?? 0) <= bucket.max)
+      .sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
+  }, [selectedRange, hasSAT, hasACT, studentsWithScore]);
 
   const studentsAboveTarget = useMemo(
     () => students.filter((s) => s.targetScore != null && s.avgScore != null && s.avgScore >= s.targetScore),
@@ -542,9 +550,14 @@ export function SuperAdminDashboard() {
             {/* Bar Chart: Score Distribution + Attention + Insights + Subject Strength */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
               <Card>
-                <div>
-                  <h3 className="font-bold text-slate-800 text-sm">Score Distribution</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{students.length} students</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Score Distribution</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Click a bar to see those students</p>
+                  </div>
+                  {selectedRange && (
+                    <button onClick={() => setSelectedRange(null)} className="text-xs text-purple-600 hover:text-purple-700 flex-shrink-0">Clear</button>
+                  )}
                 </div>
                 <div className="mt-4">
                   {loading ? (
@@ -565,7 +578,20 @@ export function SuperAdminDashboard() {
                             boxShadow: 'none'
                           }}
                         />
-                        <Bar dataKey="count" fill="#a855f7" radius={[3, 3, 0, 0]} name="Students" />
+                        <Bar
+                          dataKey="count"
+                          radius={[3, 3, 0, 0]}
+                          name="Students"
+                          cursor="pointer"
+                          onClick={(_, index) => {
+                            const range = scoreDistData[index]?.range ?? null;
+                            setSelectedRange((prev) => (prev === range ? null : range));
+                          }}
+                        >
+                          {scoreDistData.map((d, i) => (
+                            <Cell key={i} fill={selectedRange === d.range ? '#6b21a8' : '#a855f7'} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -711,36 +737,28 @@ export function SuperAdminDashboard() {
 
               <Card padding="none">
                 <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
-                  <h3 className="font-bold text-slate-800 text-sm">Top Performers</h3>
-                  <Link to="/students" className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
-                    View all <ArrowRight size={12} />
-                  </Link>
+                  <h3 className="font-bold text-slate-800 text-sm">
+                    {selectedRange ? `Students: ${selectedRange}` : 'Students by Score Range'}
+                  </h3>
+                  {selectedRange && <Badge variant="info" size="sm">{studentsInSelectedRange.length}</Badge>}
                 </div>
-                {topPerformers.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-slate-400">No scored attempts yet.</p>
+                {!selectedRange ? (
+                  <p className="px-5 py-6 text-sm text-slate-400 text-center">Click a bar in Score Distribution to see the students in that range.</p>
+                ) : studentsInSelectedRange.length === 0 ? (
+                  <p className="px-5 py-4 text-sm text-slate-400">No students in this range.</p>
                 ) : (
-                  <div className="divide-y divide-slate-50">
-                    {topPerformers.map((s, i) => {
-                      const improvement = topPerformerImprovements[s.id];
-                      return (
-                        <div key={s.id} className="flex items-center gap-3 px-5 py-3">
-                          <div className="w-6 flex items-center justify-center flex-shrink-0">
-                            {i < 3 ? <Medal size={15} className={i === 0 ? 'text-amber-500' : i === 1 ? 'text-slate-400' : 'text-orange-400'} /> : <span className="text-xs text-slate-400">{i + 1}</span>}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-slate-800 truncate">{s.name}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-semibold text-slate-900">{s.avgScore?.toFixed(0)}</p>
-                            {improvement != null && (
-                              <p className={`text-xs ${improvement >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                {improvement >= 0 ? '+' : ''}{improvement} pts
-                              </p>
-                            )}
-                          </div>
+                  <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                    {studentsInSelectedRange.map((s) => (
+                      <div key={s.id} className="flex items-center gap-3 px-5 py-3">
+                        <div className="w-7 h-7 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 font-semibold text-xs flex-shrink-0">
+                          {s.name.charAt(0)}
                         </div>
-                      );
-                    })}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-800 truncate">{s.name}</p>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-900 flex-shrink-0">{s.avgScore?.toFixed(0)}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </Card>
