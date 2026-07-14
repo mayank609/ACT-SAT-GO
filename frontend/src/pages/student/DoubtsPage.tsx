@@ -146,7 +146,7 @@ function DoubtItemComponent({ item, index, onCleared }: {
 
   const questionBody = (
     <div className="px-3 md:px-4 py-3 bg-white">
-      {options.length > 0 && (
+      {options.length > 0 && q.type !== 'NUMERIC' && (
         <div className="space-y-2 mb-3 text-left">
           {options.map((opt) => {
             const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;

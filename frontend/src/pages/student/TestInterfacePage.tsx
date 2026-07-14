@@ -433,6 +433,8 @@ export function TestInterfacePage() {
     }
     await minDisplay;
     setTransitioning(false);
+    // Every module opens with its own directions, not just the very first one.
+    setShowSectionDirections(true);
   };
 
   const doFinalSubmit = async () => {
@@ -547,9 +549,14 @@ export function TestInterfacePage() {
           resetTimerRef.current(Math.max(10, Math.floor((result.endTime - Date.now()) / 1000)));
         })
         .catch(() => {})
-        .finally(() => setTransitioning(false));
+        .finally(() => {
+          setTransitioning(false);
+          // Every module opens with its own directions, not just the very first one.
+          setShowSectionDirections(true);
+        });
     } else {
       setTransitioning(false);
+      setShowSectionDirections(true);
     }
   };
 
@@ -1920,7 +1927,7 @@ export function TestInterfacePage() {
             {/* Go to Review Page */}
             <div className="px-6 pb-5 pt-2 flex justify-center">
               <button
-                onClick={() => { setShowPalette(false); setShowSubmitModal(true); }}
+                onClick={() => { setShowPalette(false); setShowSectionReview(true); }}
                 className="px-8 py-2.5 rounded-full border border-[#1b3d6e] text-[#1b3d6e] text-sm font-semibold hover:bg-blue-50 transition-colors"
               >
                 Go to Review Page
@@ -1966,13 +1973,7 @@ export function TestInterfacePage() {
                 </div>
               </div>
               {/* Actions */}
-              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row gap-2 justify-between">
-                <button
-                  onClick={() => { setShowSectionReview(false); saveAndNavigate(0); }}
-                  className="px-5 py-2.5 text-sm font-semibold text-[#1b3d6e] border-2 border-[#1b3d6e] rounded-lg hover:bg-blue-50 transition-colors"
-                >
-                  Go to Previous Section
-                </button>
+              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row gap-2 justify-end">
                 {isLastSection ? (
                   <button
                     onClick={() => { setShowSectionReview(false); setShowSubmitModal(true); }}
@@ -2258,7 +2259,11 @@ export function TestInterfacePage() {
       )}
 
       {/* ── EXIT WARNING MODAL ────────────────────────────────────────────────── */}
-      <Modal isOpen={showExitWarningModal} onClose={() => {}} title="Leave Exam?" size="sm">
+      <Modal isOpen={showExitWarningModal} onClose={() => {
+        exitWarningShownRef.current = false;
+        setShowExitWarningModal(false);
+        if (blocker.state === 'blocked') blocker.reset();
+      }} title="Leave Exam?" size="sm">
         <div className="space-y-4">
           <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex gap-3 text-red-800 text-sm">
             <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
