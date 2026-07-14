@@ -4,7 +4,6 @@ import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
-import abHeroImg from '../../images/ab hero.png';
 import abImg from '../../images/ab b.png';
 import abOrbitImg from '../../images/ab.jpeg';
 
@@ -40,10 +39,6 @@ export function AboutUsPage() {
                   <span className="brand-logo-text-large">
                     ACT SAT <span className="brand-go-box-large">GO</span>
                   </span>
-                  <svg style={{ display: 'inline', verticalAlign: 'middle', width: '32px', height: '32px', color: 'var(--gold)', fill: 'none', marginLeft: '8px' }} viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M9 11l3 3L22 4" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
                 </h1>
 
                 <p className="about-hero-subtitle">
@@ -74,7 +69,7 @@ export function AboutUsPage() {
                     className="about-hero-photo-cropped"
                     role="img"
                     aria-label="About ACT SAT GO — Personalized Learning, Intelligent Technology, Expert Mentorship"
-                    style={{ backgroundImage: `url(${abHeroImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                    style={{ backgroundImage: `url(${abImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                   />
                 </div>
               </div>
@@ -278,7 +273,7 @@ export function AboutUsPage() {
                   { label: 'Confidence Growth',desc: 'Where confidence is building and where it needs strengthening', pos: 'bottom-left' },
                   { label: 'Focus Areas',      desc: 'Which topics receive the most attention',        pos: 'top-left' },
                 ].map((node) => (
-                  <div key={node.label} className={`about-tech-node about-tech-node--${node.pos}`} title={node.desc}>
+                  <div key={node.label} className={`about-tech-node about-tech-node--${node.pos}`}>
                     <div className="about-tech-node-icon" aria-hidden="true">
                       {node.pos === 'top' && (
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>
@@ -300,6 +295,7 @@ export function AboutUsPage() {
                       )}
                     </div>
                     <p className="about-tech-node-label">{node.label}</p>
+                    <p className="about-tech-node-desc">{node.desc}</p>
                   </div>
                 ))}
               </div>

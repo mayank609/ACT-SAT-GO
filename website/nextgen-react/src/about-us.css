@@ -515,46 +515,46 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  width: 96px;
+  width: 148px;
   cursor: default;
 }
 
 /* top */
 .about-tech-node--top {
-  top: -6%;
+  top: -9%;
   left: 50%;
   transform: translateX(-50%);
 }
 
 /* top-right */
 .about-tech-node--top-right {
-  top: 16%;
-  right: -8%;
+  top: 13%;
+  right: -14%;
 }
 
 /* bottom-right */
 .about-tech-node--bottom-right {
-  bottom: 16%;
-  right: -8%;
+  bottom: 13%;
+  right: -14%;
 }
 
 /* bottom */
 .about-tech-node--bottom {
-  bottom: -6%;
+  bottom: -9%;
   left: 50%;
   transform: translateX(-50%);
 }
 
 /* bottom-left */
 .about-tech-node--bottom-left {
-  bottom: 16%;
-  left: -8%;
+  bottom: 13%;
+  left: -14%;
 }
 
 /* top-left */
 .about-tech-node--top-left {
-  top: 16%;
-  left: -8%;
+  top: 13%;
+  left: -14%;
 }
 
 .about-tech-node-icon {
@@ -585,11 +585,18 @@
 }
 
 .about-tech-node-label {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
   color: white;
   margin: 0;
   line-height: 1.3;
+}
+
+.about-tech-node-desc {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.62);
+  margin: 3px 0 0;
 }
 
 /* Quote bar */
@@ -682,6 +689,10 @@
 
   .about-tech-node-label {
     font-size: 10px;
+  }
+
+  .about-tech-node-desc {
+    display: none;
   }
 }
 
