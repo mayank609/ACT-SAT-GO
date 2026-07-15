@@ -460,13 +460,13 @@ export const api = {
       method: 'DELETE',
     }),
 
-  // Class Progress (per-student log of topics a tutor has covered)
+  // Class Progress / Attendance (per-student log of topics + homework a tutor has covered)
   getClassProgress: (tutorId: string, studentId: string) =>
-    request<{ entries: Array<{ id: string; topic: string; notes: string; classDate: string; author: string; createdAt: string }> }>(
+    request<{ entries: Array<{ id: string; topic: string; homework?: string; notes: string; classDate: string; author: string; createdAt: string }> }>(
       `/api/class-progress?tutorId=${tutorId}&studentId=${studentId}`
     ),
-  addClassProgress: (tutorId: string, studentId: string, body: { topic: string; notes?: string; classDate?: string; author: string }) =>
-    request<{ entry: { id: string; topic: string; notes: string; classDate: string; author: string; createdAt: string } }>('/api/class-progress', {
+  addClassProgress: (tutorId: string, studentId: string, body: { topic: string; homework?: string; notes?: string; classDate?: string; author: string }) =>
+    request<{ entry: { id: string; topic: string; homework: string; notes: string; classDate: string; author: string; createdAt: string } }>('/api/class-progress', {
       method: 'POST',
       body: JSON.stringify({ tutorId, studentId, ...body }),
     }),

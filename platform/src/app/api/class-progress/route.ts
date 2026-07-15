@@ -7,6 +7,7 @@ const ENTRY_TTL = 60 * 60 * 24 * 365 // 1 year
 interface ClassProgressEntry {
   id: string
   topic: string
+  homework: string
   notes: string
   classDate: string
   author: string
@@ -35,10 +36,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/class-progress — body: { tutorId, studentId, topic, notes?, classDate?, author }
+// POST /api/class-progress — body: { tutorId, studentId, topic, homework?, notes?, classDate?, author }
 export async function POST(request: NextRequest) {
   try {
-    const { tutorId, studentId, topic, notes, classDate, author } = await request.json()
+    const { tutorId, studentId, topic, homework, notes, classDate, author } = await request.json()
     if (!tutorId || !studentId || !topic) {
       return NextResponse.json({ error: 'tutorId, studentId, topic required' }, { status: 400 })
     }
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
     const entry: ClassProgressEntry = {
       id: randomUUID(),
       topic: String(topic).trim(),
+      homework: homework ? String(homework).trim() : '',
       notes: notes ? String(notes).trim() : '',
       classDate: classDate ? String(classDate) : new Date().toISOString().split('T')[0],
       author: author ?? 'Tutor',

@@ -2,11 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, FileSearch, CheckCircle, Clock, Target, Loader2, AlertCircle, Sparkles,
-  Percent, Timer, Award, TrendingDown, CalendarClock,
+  Percent, Timer, Award, TrendingDown, CalendarClock, CalendarCheck, BookOpenCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { loadStudentAnalytics, aggregate, accuracy, avgTime, fmtTime, type QRecord } from '../../lib/analyticsData';
+
+interface RecentClass {
+  id: string;
+  tutorName: string;
+  topic: string;
+  homework: string;
+  classDate: string;
+  createdAt: string;
+}
 
 interface AssignedTest {
   assignmentId: string;
@@ -48,6 +57,7 @@ export function StudentDashboard() {
   const [loadedAttempts, setLoadedAttempts] = useState<{ id: string; title: string; completedAt: string | null; totalScore: number | null; isDiagnostic: boolean }[]>([]);
   const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [recentClasses, setRecentClasses] = useState<RecentClass[]>([]);
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
@@ -55,6 +65,29 @@ export function StudentDashboard() {
       api.getAssignedTests(dbId).then(r => setTests((r.assignedTests ?? []) as AssignedTest[])).catch(() => {}),
       loadStudentAnalytics(dbId).then(({ attempts, records }) => { setLoadedAttempts(attempts); setRecords(records); }).catch(() => {}),
     ]).finally(() => setLoading(false));
+  }, [dbId]);
+
+  useEffect(() => {
+    if (!dbId) return;
+    let cancelled = false;
+    api.getTutorAssignments({ studentId: dbId })
+      .then(async ({ assignments }) => {
+        const lists = await Promise.all(
+          assignments.map(a =>
+            api.getClassProgress(a.tutorId, dbId)
+              .then(r => r.entries.map(e => ({ ...e, homework: e.homework ?? '', tutorName: a.tutor.name })))
+              .catch(() => [] as RecentClass[])
+          )
+        );
+        if (cancelled) return;
+        const merged = lists.flat().sort((a, b) =>
+          new Date(b.classDate).getTime() - new Date(a.classDate).getTime() ||
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setRecentClasses(merged.slice(0, 4));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [dbId]);
 
   const pending = tests.filter(t => t.status === 'Not Started' || t.status === 'In Progress');
@@ -333,6 +366,37 @@ export function StudentDashboard() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Classes */}
+      {recentClasses.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl">
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-50">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#1b3d6e] flex items-center justify-center flex-shrink-0"><CalendarCheck size={16} /></div>
+              <p className="text-sm font-semibold text-gray-900">Recent Classes</p>
+            </div>
+            <button onClick={() => navigate('/attendance')} className="text-xs font-semibold text-[#1b3d6e] hover:underline">View all</button>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {recentClasses.map((c) => (
+              <div key={c.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-sm font-medium text-gray-900">{c.topic}</p>
+                  <p className="text-xs text-gray-400 flex-shrink-0">
+                    {new Date(c.classDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                {c.homework && (
+                  <p className="text-xs text-amber-700 bg-amber-50 rounded-md px-2 py-1 inline-flex items-center gap-1 mt-1.5">
+                    <BookOpenCheck size={11} /> {c.homework}
+                  </p>
+                )}
+                <p className="text-xs text-gray-400 mt-1">with {c.tutorName}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
