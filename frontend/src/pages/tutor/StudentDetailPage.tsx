@@ -6,6 +6,7 @@ import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { api, type DbUser } from '../../lib/api';
+import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 import {
@@ -48,28 +49,6 @@ interface Analytics {
 }
 
 interface DbTest { id: string; title: string; status: string; category?: string; subCategory?: string; sections: unknown[] }
-
-// Test Builder tags homework as subCategory "{Subject}-Homework" (e.g. "Math-Homework"),
-// which does NOT contain the substring "hw" — match on "homework" instead.
-const isHW = (test: any): boolean => {
-  const t = (test.title ?? '').toLowerCase();
-  const sub = (test.subCategory ?? '').toLowerCase();
-  return sub.includes('homework') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
-};
-
-const isEnglish = (test: any): boolean => {
-  const t = (test.title ?? '').toLowerCase();
-  const sub = (test.subCategory ?? '').toLowerCase();
-  return sub.includes('rw') || sub.includes('english') || sub.includes('reading') || sub.includes('writing') ||
-         /reading|writing|english|verbal|grammar|\brw\b/.test(t);
-};
-
-const isMath = (test: any): boolean => {
-  const t = (test.title ?? '').toLowerCase();
-  const sub = (test.subCategory ?? '').toLowerCase();
-  return sub.includes('math') || sub.includes('quant') ||
-         /math|algebra|geometry|calc/.test(t);
-};
 
 export function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();

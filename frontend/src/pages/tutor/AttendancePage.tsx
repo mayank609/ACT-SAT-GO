@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, PlusCircle, X, RotateCcw, Star, Clock, ChevronLeft, ChevronRight,
-  Calendar, User as UserIcon, BookOpen, History as HistoryIcon, MessageSquare, TrendingUp,
+  Calendar, User as UserIcon, BookOpen, History as HistoryIcon, MessageSquare, TrendingUp, Search, CheckSquare, Square,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
 import { api, type ClassProgressEntry, type ClassProgressInput } from '../../lib/api';
+import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 
@@ -16,9 +17,12 @@ interface Session extends ClassProgressEntry {
   studentName: string;
 }
 
+interface DbTest { id: string; title: string; status: string; category?: string; subCategory?: string; sections: unknown[] }
+
 const SUBJECTS = ['SAT Math', 'SAT Reading', 'SAT Writing', 'ACT Math', 'ACT English', 'ACT Reading', 'ACT Science', 'Other'];
 const STATUSES = ['Completed', 'No Show', 'Cancelled', 'Scheduled'] as const;
 const ENGAGEMENTS = ['High', 'Medium', 'Low'] as const;
+const HW_SUBFILTERS = ['HW', 'English', 'Maths', 'All'] as const;
 const PAGE_SIZE = 10;
 
 const statusVariant = (status?: string): 'success' | 'danger' | 'default' | 'info' => {
@@ -74,7 +78,7 @@ function StarRating({ value, onChange, size = 16 }: { value: number; onChange?: 
 
 const emptyForm = {
   studentId: '', classDate: new Date().toISOString().split('T')[0], startTime: '', durationMinutes: '60',
-  subject: SUBJECTS[0], status: 'Completed' as string, topic: '', homework: '', notes: '',
+  subject: SUBJECTS[0], status: 'Completed' as string, topic: '', homeworkTestIds: [] as string[], notes: '',
   understanding: 0, attendance: 'Present', engagement: 'High' as string, nextSessionGoal: '', nextSessionAt: '',
 };
 
@@ -85,6 +89,9 @@ export function AttendancePage() {
   const [students, setStudents] = useState<{ id: string; name: string }[]>([]);
   const [entries, setEntries] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
+  const [hwSearch, setHwSearch] = useState('');
+  const [hwSubFilter, setHwSubFilter] = useState<typeof HW_SUBFILTERS[number]>('HW');
 
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -126,6 +133,9 @@ export function AttendancePage() {
         setEntries(merged);
       })
       .finally(() => setLoading(false));
+    api.getAllTests()
+      .then(r => setPublishedTests((r.tests as DbTest[]).filter(t => t.status === 'PUBLISHED')))
+      .catch(() => {});
   };
 
   useEffect(loadAll, [dbId]);
@@ -157,16 +167,50 @@ export function AttendancePage() {
 
   const openLog = () => {
     setForm({ ...emptyForm, studentId: students[0]?.id ?? '' });
+    setHwSearch('');
+    setHwSubFilter('HW');
     setLogOpen(true);
   };
+
+  const toggleHomeworkTest = (testId: string) => {
+    setForm(f => ({
+      ...f,
+      homeworkTestIds: f.homeworkTestIds.includes(testId)
+        ? f.homeworkTestIds.filter(id => id !== testId)
+        : [...f.homeworkTestIds, testId],
+    }));
+  };
+
+  const homeworkOptions = useMemo(() => {
+    return publishedTests
+      .filter(t => (t.category ?? 'Other') === 'Practice Sheet')
+      .filter(t => {
+        if (hwSubFilter === 'All') return true;
+        if (hwSubFilter === 'HW') return isHW(t);
+        if (hwSubFilter === 'English') return isEnglish(t);
+        if (hwSubFilter === 'Maths') return isMath(t);
+        return true;
+      })
+      .filter(t => !hwSearch.trim() || t.title.toLowerCase().includes(hwSearch.trim().toLowerCase()));
+  }, [publishedTests, hwSubFilter, hwSearch]);
 
   const handleSave = async () => {
     if (!dbId || !form.studentId || !form.topic.trim()) return;
     setSaving(true);
     try {
+      const homeworkTitles = form.homeworkTestIds
+        .map(id => publishedTests.find(t => t.id === id)?.title)
+        .filter((t): t is string => Boolean(t));
+
+      if (form.homeworkTestIds.length > 0) {
+        await Promise.all(
+          form.homeworkTestIds.map(testId => api.createTestAssignments({ testId, studentIds: [form.studentId] }))
+        );
+      }
+
       const body: ClassProgressInput = {
         topic: form.topic.trim(),
-        homework: form.homework.trim() || undefined,
+        homework: homeworkTitles.join('\n') || undefined,
         notes: form.notes.trim() || undefined,
         classDate: form.classDate,
         author: user?.name ?? 'Tutor',
@@ -183,7 +227,7 @@ export function AttendancePage() {
       const { entry } = await api.addClassProgress(dbId, form.studentId, body);
       const studentName = students.find(s => s.id === form.studentId)?.name ?? 'Student';
       setEntries(prev => [{ ...entry, studentId: form.studentId, studentName }, ...prev]);
-      toast.success('Session logged.');
+      toast.success(form.homeworkTestIds.length > 0 ? 'Session logged and homework assigned.' : 'Session logged.');
       setLogOpen(false);
     } catch {
       toast.error('Failed to log session.');
@@ -585,10 +629,48 @@ export function AttendancePage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Homework Assigned (one per line, optional)</label>
-            <textarea value={form.homework} onChange={(e) => setForm(f => ({ ...f, homework: e.target.value }))}
-              placeholder={'Workbook: Module 2A (Q11-Q20)\nReview mistakes and write doubts'} rows={2}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-slate-600">Homework Assigned (from Test Builder, optional)</label>
+              {form.homeworkTestIds.length > 0 && (
+                <span className="text-xs font-semibold text-blue-600">{form.homeworkTestIds.length} selected</span>
+              )}
+            </div>
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-50 border-b border-slate-200">
+                <div className="flex gap-1">
+                  {HW_SUBFILTERS.map(f => (
+                    <button key={f} type="button" onClick={() => setHwSubFilter(f)}
+                      className={`px-2 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                        hwSubFilter === f ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                      }`}>
+                      {f}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative flex-1 min-w-[140px]">
+                  <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input type="text" value={hwSearch} onChange={(e) => setHwSearch(e.target.value)}
+                    placeholder="Search worksheets…"
+                    className="w-full pl-6 pr-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                </div>
+              </div>
+              <div className="max-h-40 overflow-y-auto divide-y divide-slate-50">
+                {homeworkOptions.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-4">No published worksheets match.</p>
+                ) : homeworkOptions.map(t => {
+                  const isSelected = form.homeworkTestIds.includes(t.id);
+                  return (
+                    <label key={t.id}
+                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleHomeworkTest(t.id)} className="sr-only" />
+                      {isSelected ? <CheckSquare size={14} className="text-blue-600 flex-shrink-0" /> : <Square size={14} className="text-slate-300 flex-shrink-0" />}
+                      <span className="text-sm text-slate-700 truncate flex-1">{t.title}</span>
+                      <span className="text-[10px] text-slate-400 flex-shrink-0">{(t.sections as unknown[]).length} sections</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div>
