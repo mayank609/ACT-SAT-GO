@@ -71,6 +71,42 @@ export interface DbUser {
   manualDiagMath?: number | null
 }
 
+export interface ClassProgressEntry {
+  id: string
+  topic: string
+  homework: string
+  notes: string
+  classDate: string
+  author: string
+  createdAt: string
+  startTime?: string
+  durationMinutes?: number
+  subject?: string
+  status?: string
+  understanding?: number
+  attendance?: string
+  engagement?: string
+  nextSessionGoal?: string
+  nextSessionAt?: string
+}
+
+export interface ClassProgressInput {
+  topic: string
+  homework?: string
+  notes?: string
+  classDate?: string
+  author: string
+  startTime?: string
+  durationMinutes?: number
+  subject?: string
+  status?: string
+  understanding?: number
+  attendance?: string
+  engagement?: string
+  nextSessionGoal?: string
+  nextSessionAt?: string
+}
+
 export interface DbTestPackageItem {
   id: string
   packageId: string
@@ -460,13 +496,13 @@ export const api = {
       method: 'DELETE',
     }),
 
-  // Class Progress / Attendance (per-student log of topics + homework a tutor has covered)
+  // Class Progress / Attendance (per-student session log a tutor keeps)
   getClassProgress: (tutorId: string, studentId: string) =>
-    request<{ entries: Array<{ id: string; topic: string; homework?: string; notes: string; classDate: string; author: string; createdAt: string }> }>(
+    request<{ entries: ClassProgressEntry[] }>(
       `/api/class-progress?tutorId=${tutorId}&studentId=${studentId}`
     ),
-  addClassProgress: (tutorId: string, studentId: string, body: { topic: string; homework?: string; notes?: string; classDate?: string; author: string }) =>
-    request<{ entry: { id: string; topic: string; homework: string; notes: string; classDate: string; author: string; createdAt: string } }>('/api/class-progress', {
+  addClassProgress: (tutorId: string, studentId: string, body: ClassProgressInput) =>
+    request<{ entry: ClassProgressEntry }>('/api/class-progress', {
       method: 'POST',
       body: JSON.stringify({ tutorId, studentId, ...body }),
     }),
