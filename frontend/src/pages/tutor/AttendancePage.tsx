@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, PlusCircle, X, RotateCcw, Star, Clock, ChevronLeft, ChevronRight,
-  Calendar, User as UserIcon, BookOpen, History as HistoryIcon, MessageSquare, TrendingUp, Search, CheckSquare, Square,
+  Calendar, User as UserIcon, Search, CheckSquare, Square,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -76,6 +76,17 @@ function StarRating({ value, onChange, size = 16 }: { value: number; onChange?: 
   );
 }
 
+function Row({ label, children, last = false }: { label: string; children: ReactNode; last?: boolean }) {
+  return (
+    <tr className={last ? '' : 'border-b border-slate-100'}>
+      <th className="w-32 sm:w-36 align-top text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3 bg-slate-50 whitespace-nowrap">
+        {label}
+      </th>
+      <td className="px-4 py-3 align-top text-slate-700">{children}</td>
+    </tr>
+  );
+}
+
 const emptyForm = {
   studentId: '', classDate: new Date().toISOString().split('T')[0], startTime: '', durationMinutes: '60',
   subject: SUBJECTS[0], status: 'Completed' as string, topic: '', homeworkTestIds: [] as string[], notes: '',
@@ -102,10 +113,9 @@ export function AttendancePage() {
 
   const [selected, setSelected] = useState<Session | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<'info' | 'progress' | 'notes' | 'history'>('info');
   const [studentNotes, setStudentNotes] = useState<Array<{ id: string; text: string; author: string; createdAt: string }>>([]);
 
-  const openSession = (row: Session) => { setSelected(row); setDrawerTab('info'); requestAnimationFrame(() => setDrawerVisible(true)); };
+  const openSession = (row: Session) => { setSelected(row); requestAnimationFrame(() => setDrawerVisible(true)); };
   const closeSession = () => { setDrawerVisible(false); setTimeout(() => setSelected(null), 200); };
 
   const [logOpen, setLogOpen] = useState(false);
@@ -377,185 +387,119 @@ export function AttendancePage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <Badge variant={statusVariant(selected.status)} size="sm">{selected.status ?? 'Completed'}</Badge>
-                <span className="text-xs text-slate-400">Session ID: #{selected.id.slice(0, 8)}</span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center flex-shrink-0">
-                  {selected.studentName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <button onClick={() => navigate(`/student/${selected.studentId}`)} className="font-semibold text-slate-900 hover:text-blue-700 hover:underline">
-                    {selected.studentName}
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 rounded-xl p-3">
-                <div>
-                  <p className="text-xs text-slate-400 flex items-center gap-1"><Calendar size={11} /> Date</p>
-                  <p className="text-sm font-medium text-slate-800 mt-0.5">{fmtDateLong(selected.classDate)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 flex items-center gap-1"><Clock size={11} /> Time</p>
-                  <p className="text-sm font-medium text-slate-800 mt-0.5">
-                    {formatTimeRange(selected.startTime, selected.durationMinutes) || '—'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex items-center gap-1 border-b border-slate-100">
-                {[
-                  { id: 'info', label: 'Session Info', icon: <BookOpen size={13} /> },
-                  { id: 'progress', label: 'Progress', icon: <TrendingUp size={13} /> },
-                  { id: 'notes', label: 'Notes', icon: <MessageSquare size={13} /> },
-                  { id: 'history', label: 'History', icon: <HistoryIcon size={13} /> },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setDrawerTab(tab.id as typeof drawerTab)}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
-                      drawerTab === tab.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    {tab.icon} {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {drawerTab === 'info' && (
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Topics Covered</p>
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full text-sm border-collapse">
+                <tbody>
+                  <Row label="Student">
+                    <button onClick={() => navigate(`/student/${selected.studentId}`)} className="font-semibold text-blue-700 hover:underline">
+                      {selected.studentName}
+                    </button>
+                  </Row>
+                  <Row label="Session ID"><span className="text-slate-500">#{selected.id.slice(0, 8)}</span></Row>
+                  <Row label="Date">{fmtDateLong(selected.classDate)}</Row>
+                  <Row label="Time">{formatTimeRange(selected.startTime, selected.durationMinutes) || '—'}</Row>
+                  <Row label="Subject">{selected.subject ?? '—'}</Row>
+                  <Row label="Status"><Badge variant={statusVariant(selected.status)} size="sm">{selected.status ?? 'Completed'}</Badge></Row>
+                  <Row label="Attendance">
+                    <Badge variant={selected.attendance === 'Absent' ? 'danger' : 'success'} size="sm">{selected.attendance ?? 'Present'}</Badge>
+                  </Row>
+                  <Row label="Understanding"><StarRating value={selected.understanding ?? 0} size={13} /></Row>
+                  <Row label="Engagement">
+                    <Badge variant={selected.engagement === 'Low' ? 'danger' : selected.engagement === 'Medium' ? 'warning' : 'success'} size="sm">
+                      {selected.engagement ?? '—'}
+                    </Badge>
+                  </Row>
+                  <Row label="Topics Covered">
                     {toLines(selected.topic).length === 0 ? (
-                      <p className="text-sm text-slate-400">Not recorded.</p>
+                      <span className="text-slate-400">Not recorded.</span>
                     ) : (
                       <ul className="space-y-1">
                         {toLines(selected.topic).map((t, i) => (
-                          <li key={i} className="text-sm text-slate-700 flex gap-2"><span className="text-slate-300">•</span>{t}</li>
+                          <li key={i} className="flex gap-2"><span className="text-slate-300">•</span>{t}</li>
                         ))}
                       </ul>
                     )}
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Homework Assigned</p>
+                  </Row>
+                  <Row label="Homework Assigned">
                     {toLines(selected.homework).length === 0 ? (
-                      <p className="text-sm text-slate-400">None assigned.</p>
+                      <span className="text-slate-400">None assigned.</span>
                     ) : (
                       <ul className="space-y-1">
                         {toLines(selected.homework).map((t, i) => (
-                          <li key={i} className="text-sm text-slate-700 flex gap-2"><span className="text-slate-300">•</span>{t}</li>
+                          <li key={i} className="flex gap-2"><span className="text-slate-300">•</span>{t}</li>
                         ))}
                       </ul>
                     )}
-                  </div>
+                  </Row>
+                  <Row label="Tutor Remarks">{selected.notes || <span className="text-slate-400">—</span>}</Row>
+                  <Row label="Next Session Goal">{selected.nextSessionGoal || <span className="text-slate-400">—</span>}</Row>
+                  <Row label="Next Session">
+                    {selected.nextSessionAt
+                      ? new Date(selected.nextSessionAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+                      : <span className="text-slate-400">—</span>}
+                  </Row>
+                  <Row label="Logged By">{selected.author}</Row>
+                  <Row label="Total Sessions"><span className="font-semibold text-slate-900">{studentSessionCount}</span> with this student</Row>
+                  <Row label="Days Taught"><span className="font-semibold text-slate-900">{studentDaysTaught}</span> distinct days</Row>
 
-                  {selected.notes && (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Tutor Remarks</p>
-                      <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-lg p-3">{selected.notes}</p>
-                    </div>
-                  )}
+                  <Row label="Tutor Notes">
+                    {studentNotes.length === 0 ? (
+                      <span className="text-slate-400">No notes for {selected.studentName} yet.</span>
+                    ) : (
+                      <table className="w-full text-xs border border-slate-100 rounded-lg overflow-hidden">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-400">
+                            <th className="text-left font-medium px-2 py-1.5 w-24">Author</th>
+                            <th className="text-left font-medium px-2 py-1.5 w-24">Date</th>
+                            <th className="text-left font-medium px-2 py-1.5">Note</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {studentNotes.map(note => (
+                            <tr key={note.id} className="border-t border-slate-100">
+                              <td className="px-2 py-1.5 align-top whitespace-nowrap text-slate-600">{note.author}</td>
+                              <td className="px-2 py-1.5 align-top whitespace-nowrap text-slate-400">{note.createdAt}</td>
+                              <td className="px-2 py-1.5 align-top text-slate-700">{note.text}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </Row>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-slate-50 rounded-lg p-2.5 text-center">
-                      <p className="text-[10px] text-slate-400 mb-1">Understanding</p>
-                      <div className="flex justify-center"><StarRating value={selected.understanding ?? 0} size={12} /></div>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-2.5 text-center">
-                      <p className="text-[10px] text-slate-400 mb-1">Attendance</p>
-                      <Badge variant={selected.attendance === 'Absent' ? 'danger' : 'success'} size="sm">{selected.attendance ?? 'Present'}</Badge>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-2.5 text-center">
-                      <p className="text-[10px] text-slate-400 mb-1">Engagement</p>
-                      <Badge variant={selected.engagement === 'Low' ? 'danger' : selected.engagement === 'Medium' ? 'warning' : 'success'} size="sm">
-                        {selected.engagement ?? '—'}
-                      </Badge>
-                    </div>
-                  </div>
+                  <Row label="Other Sessions" last>
+                    {sessionHistory.length === 0 ? (
+                      <span className="text-slate-400">No other sessions logged for {selected.studentName}.</span>
+                    ) : (
+                      <table className="w-full text-xs border border-slate-100 rounded-lg overflow-hidden">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-400">
+                            <th className="text-left font-medium px-2 py-1.5">Date</th>
+                            <th className="text-left font-medium px-2 py-1.5">Topic</th>
+                            <th className="text-left font-medium px-2 py-1.5">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sessionHistory.map(h => (
+                            <tr key={h.id} onClick={() => setSelected(h)}
+                              className="border-t border-slate-100 cursor-pointer hover:bg-blue-50/40 transition-colors">
+                              <td className="px-2 py-1.5 align-top whitespace-nowrap text-slate-500">{fmtDate(h.classDate)}</td>
+                              <td className="px-2 py-1.5 align-top text-slate-700">{toLines(h.topic)[0] ?? 'Session'}</td>
+                              <td className="px-2 py-1.5 align-top"><Badge variant={statusVariant(h.status)} size="sm">{h.status ?? 'Completed'}</Badge></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </Row>
+                </tbody>
+              </table>
 
-                  {(selected.nextSessionGoal || selected.nextSessionAt) && (
-                    <div className="grid grid-cols-2 gap-3">
-                      {selected.nextSessionGoal && (
-                        <div className="bg-blue-50 rounded-lg p-3">
-                          <p className="text-[10px] text-blue-400 uppercase font-semibold mb-1">Next Session Goal</p>
-                          <p className="text-sm text-blue-900">{selected.nextSessionGoal}</p>
-                        </div>
-                      )}
-                      {selected.nextSessionAt && (
-                        <div className="bg-emerald-50 rounded-lg p-3">
-                          <p className="text-[10px] text-emerald-500 uppercase font-semibold mb-1">Next Session</p>
-                          <p className="text-sm text-emerald-900">
-                            {new Date(selected.nextSessionAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <p className="text-xs text-slate-400">Logged by {selected.author}</p>
-                </div>
-              )}
-
-              {drawerTab === 'progress' && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-50 rounded-lg p-3 text-center">
-                      <p className="text-xl font-bold text-slate-900">{studentSessionCount}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Total Sessions</p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-3 text-center">
-                      <p className="text-xl font-bold text-slate-900">{studentDaysTaught}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Days Taught</p>
-                    </div>
-                  </div>
-                  <Button variant="secondary" size="sm" className="w-full" onClick={() => navigate(`/student/${selected.studentId}`)}>
-                    View Full Student Profile & Analytics
-                  </Button>
-                </div>
-              )}
-
-              {drawerTab === 'notes' && (
-                <div className="space-y-2">
-                  {studentNotes.length === 0 ? (
-                    <p className="text-sm text-slate-400">No tutor notes for {selected.studentName} yet.</p>
-                  ) : (
-                    studentNotes.map(note => (
-                      <div key={note.id} className="bg-slate-50 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs font-medium text-slate-600">{note.author}</p>
-                          <p className="text-xs text-slate-400">{note.createdAt}</p>
-                        </div>
-                        <p className="text-sm text-slate-700 leading-relaxed">{note.text}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {drawerTab === 'history' && (
-                <div className="space-y-2">
-                  {sessionHistory.length === 0 ? (
-                    <p className="text-sm text-slate-400">No other sessions logged for {selected.studentName}.</p>
-                  ) : (
-                    sessionHistory.map(h => (
-                      <div key={h.id} onClick={() => { setSelected(h); setDrawerTab('info'); }}
-                        className="bg-slate-50 hover:bg-slate-100 rounded-lg p-3 cursor-pointer transition-colors">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-slate-800">{toLines(h.topic)[0] ?? 'Session'}</p>
-                          <Badge variant={statusVariant(h.status)} size="sm">{h.status ?? 'Completed'}</Badge>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-0.5">{fmtDate(h.classDate)}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+              <div className="p-4">
+                <Button variant="secondary" size="sm" className="w-full" onClick={() => navigate(`/student/${selected.studentId}`)}>
+                  View Full Student Profile & Analytics
+                </Button>
+              </div>
             </div>
           </div>
         </div>
