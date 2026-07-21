@@ -282,7 +282,7 @@ function QuestionDisplay({
     </div>
   );
 
-  const optionsBlock = options.length > 0 ? (
+  const optionsBlock = options.length > 0 && currentTq.question.type !== 'NUMERIC' ? (
     <div className={`space-y-2.5 ${isFullscreen ? '' : 'max-w-3xl'}`}>
       {options.map((opt) => {
         const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;

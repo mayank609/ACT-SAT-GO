@@ -42,7 +42,6 @@ const TestInterfacePage = lazy(() => import('./pages/student/TestInterfacePage')
 const TestReviewPage = lazy(() => import('./pages/student/TestReviewPage').then((m) => ({ default: m.TestReviewPage })));
 const SectionReviewPage = lazy(() => import('./pages/student/SectionReviewPage').then((m) => ({ default: m.SectionReviewPage })));
 const MyTestsPage = lazy(() => import('./pages/student/MyTestsPage').then((m) => ({ default: m.MyTestsPage })));
-const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage').then((m) => ({ default: m.MyProgressPage })));
 const AnalyticsPage = lazy(() => import('./pages/student/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })));
 const ReviewAttemptsPage = lazy(() => import('./pages/student/ReviewAttemptsPage').then((m) => ({ default: m.ReviewAttemptsPage })));
@@ -136,7 +135,7 @@ const router = createBrowserRouter(
 
         {/* Student */}
         <Route path="my-tests" element={<MyTestsPage />} />
-        <Route path="my-progress" element={<MyProgressPage />} />
+        <Route path="my-progress" element={<Navigate to="/my-tests" replace />} />
         <Route path="review-attempts" element={<ReviewAttemptsPage />} />
         <Route path="test-review/:attemptId" element={<TestReviewPage />} />
         <Route path="test-review/:attemptId/section/:sectionIdx" element={<SectionReviewPage />} />

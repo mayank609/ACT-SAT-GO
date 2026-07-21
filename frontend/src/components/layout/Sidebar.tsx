@@ -28,7 +28,6 @@ interface NavItem {
 const studentNavItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['student'] },
   { label: 'My Tests', path: '/my-tests', icon: <ClipboardList size={18} />, roles: ['student'] },
-  { label: 'My Progress', path: '/my-progress', icon: <BarChart3 size={18} />, roles: ['student'] },
   { label: 'My Classes', path: '/attendance', icon: <CalendarCheck size={18} />, roles: ['student'] },
   { label: 'Analytics', path: '/analytics', icon: <PieChart size={18} />, roles: ['student'] },
   { label: 'Review Mistakes', path: '/mistakes', icon: <AlertCircle size={18} />, roles: ['student'] },

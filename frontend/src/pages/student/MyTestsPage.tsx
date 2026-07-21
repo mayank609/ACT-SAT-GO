@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, FileSearch, Clock, Target, Loader2, BookOpen, Search, X } from 'lucide-react';
+import { Play, FileSearch, Clock, Target, Loader2, BookOpen, Search, X, CheckCircle, ListTodo } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { loadStudentAnalytics } from '../../lib/analyticsData';
 
 interface ApiTest {
   assignmentId: string;
@@ -19,6 +20,8 @@ interface ApiTest {
   dueDate?: string;
   sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }>;
 }
+
+interface LoadedAttempt { id: string; title: string; completedAt: string | null; totalScore: number | null; isDiagnostic: boolean }
 
 const isHW = (t: ApiTest): boolean => {
   const title = t.title.toLowerCase();
@@ -40,11 +43,14 @@ const isReadingSubject = (t: ApiTest): boolean => {
 };
 const isMock = (t: ApiTest): boolean =>
   t.category?.toLowerCase() === 'mock' || t.category?.toLowerCase() === 'diagnostic' || /mock|diagnostic/i.test(t.title);
+const isSectional = (t: ApiTest): boolean =>
+  t.category?.toLowerCase() === 'sectional' || /sectional/i.test(t.title);
 const isPractice = (t: ApiTest): boolean =>
   !isHW(t) && (t.category === 'Practice Sheet' || /practice/i.test(t.title));
 
 const TEST_FILTERS = [
   { key: 'Mock',             match: isMock },
+  { key: 'Sectional',        match: isSectional },
   { key: 'Math HW',          match: (t: ApiTest) => isHW(t) && isMathSubject(t) },
   { key: 'Reading HW',       match: (t: ApiTest) => isHW(t) && isReadingSubject(t) },
   { key: 'Math Practice',    match: (t: ApiTest) => isPractice(t) && isMathSubject(t) },
@@ -75,32 +81,42 @@ export function MyTestsPage() {
   const navigate = useNavigate();
   const { dbId } = useAuthStore();
   const [tests, setTests] = useState<ApiTest[]>([]);
+  const [attempts, setAttempts] = useState<LoadedAttempt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'todo' | 'completed'>('todo');
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterKey | null>(null);
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
-    api.getAssignedTests(dbId)
-      .then(r => setTests((r.assignedTests ?? []) as ApiTest[]))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.getAssignedTests(dbId).then(r => setTests((r.assignedTests ?? []) as ApiTest[])).catch(() => {}),
+      loadStudentAnalytics(dbId).then(({ attempts }) => setAttempts(attempts)).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, [dbId]);
 
-  const availableFilters = useMemo(
-    () => TEST_FILTERS.filter(f => tests.some(f.match)),
-    [tests]
-  );
+  const switchTab = (t: 'todo' | 'completed') => {
+    setTab(t);
+    setActiveFilter(null);
+  };
 
-  const visible = useMemo(() => {
-    let list = tests;
+  const pending = useMemo(() => tests.filter(t => t.status === 'Not Started' || t.status === 'In Progress'), [tests]);
+  const expired = useMemo(() => tests.filter(t => t.status === 'Expired'), [tests]);
+  const completedTests = useMemo(() => tests.filter(t => t.status === 'Completed'), [tests]);
+  const todoPool = useMemo(() => [...pending, ...expired], [pending, expired]);
+  const pool = tab === 'todo' ? todoPool : completedTests;
+
+  const availableFilters = useMemo(() => TEST_FILTERS.filter(f => pool.some(f.match)), [pool]);
+
+  const visiblePool = useMemo(() => {
+    let list = pool;
     if (search.trim()) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
     if (activeFilter) {
       const filter = TEST_FILTERS.find(f => f.key === activeFilter);
       if (filter) list = list.filter(filter.match);
     }
     return list;
-  }, [tests, search, activeFilter]);
+  }, [pool, search, activeFilter]);
 
   if (loading) {
     return (
@@ -110,11 +126,12 @@ export function MyTestsPage() {
     );
   }
 
-  const pending = visible.filter(t => t.status === 'Not Started' || t.status === 'In Progress');
-  const expired = visible.filter(t => t.status === 'Expired');
+  const pendingVisible = tab === 'todo' ? visiblePool.filter(t => t.status !== 'Expired') : [];
+  const expiredVisible = tab === 'todo' ? visiblePool.filter(t => t.status === 'Expired') : [];
+  const completedVisible = tab === 'completed' ? visiblePool : [];
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-5xl space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">My Tests</h1>
@@ -139,31 +156,47 @@ export function MyTestsPage() {
       </div>
 
       {tests.length > 0 && (
-        <div>
-          {availableFilters.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {availableFilters.map(f => (
-                <button
-                  key={f.key}
-                  onClick={() => setActiveFilter(activeFilter === f.key ? null : f.key)}
-                  className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
-                    activeFilter === f.key
-                      ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-[#1b3d6e]/40 hover:text-[#1b3d6e]'
-                  }`}
-                >
-                  {f.key}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="inline-flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          <button
+            onClick={() => switchTab('todo')}
+            className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg transition-all ${
+              tab === 'todo' ? 'bg-white text-[#1b3d6e] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <ListTodo size={14} /> To Do
+            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${tab === 'todo' ? 'bg-[#1b3d6e]/10 text-[#1b3d6e]' : 'bg-gray-200 text-gray-500'}`}>
+              {todoPool.length}
+            </span>
+          </button>
+          <button
+            onClick={() => switchTab('completed')}
+            className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg transition-all ${
+              tab === 'completed' ? 'bg-white text-[#1b3d6e] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <CheckCircle size={14} /> Completed
+            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${tab === 'completed' ? 'bg-[#1b3d6e]/10 text-[#1b3d6e]' : 'bg-gray-200 text-gray-500'}`}>
+              {completedTests.length}
+            </span>
+          </button>
         </div>
       )}
 
-      {visible.length === 0 && tests.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-xl py-10 text-center">
-          <p className="text-gray-400 text-sm">No tests match your filters</p>
-          <button onClick={() => { setSearch(''); setActiveFilter(null); }} className="text-xs text-[#1b3d6e] mt-1 hover:underline">Clear filters</button>
+      {availableFilters.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {availableFilters.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setActiveFilter(activeFilter === f.key ? null : f.key)}
+              className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
+                activeFilter === f.key
+                  ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-[#1b3d6e]/40 hover:text-[#1b3d6e]'
+              }`}
+            >
+              {f.key}
+            </button>
+          ))}
         </div>
       )}
 
@@ -174,11 +207,20 @@ export function MyTestsPage() {
         </div>
       )}
 
-      {pending.length > 0 && (
+      {tests.length > 0 && visiblePool.length === 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl py-10 text-center">
+          <p className="text-gray-400 text-sm">
+            {tab === 'todo' ? 'No tests to complete match your filters' : 'No completed tests match your filters'}
+          </p>
+          <button onClick={() => { setSearch(''); setActiveFilter(null); }} className="text-xs text-[#1b3d6e] mt-1 hover:underline">Clear filters</button>
+        </div>
+      )}
+
+      {tab === 'todo' && pendingVisible.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">To Complete</h2>
           <div className="space-y-2">
-            {pending.map((test) => {
+            {pendingVisible.map((test) => {
               const totalQ = (test.sections ?? []).reduce((a, s) => a + (s._count?.questions ?? 0), 0);
               const totalMin = (test.sections ?? []).reduce((a, s) => a + s.durationMinutes, 0);
               const isInProgress = test.status === 'In Progress';
@@ -241,11 +283,11 @@ export function MyTestsPage() {
         </div>
       )}
 
-      {expired.length > 0 && (
+      {tab === 'todo' && expiredVisible.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Expired</h2>
           <div className="space-y-1.5">
-            {expired.map((test) => (
+            {expiredVisible.map((test) => (
               <div key={test.assignmentId} className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 opacity-60">
                 <Target size={14} className="text-gray-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -257,6 +299,47 @@ export function MyTestsPage() {
                 <span className="text-xs text-gray-400 font-medium flex-shrink-0">Expired</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'completed' && completedVisible.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+          <div className="divide-y divide-gray-50">
+            {completedVisible.map((test) => {
+              const attempt = attempts.find(a => a.title === test.title);
+              const review = () => test.submittedAttemptId && navigate(`/test-review/${test.submittedAttemptId}`);
+              return (
+                <div
+                  key={test.assignmentId}
+                  onClick={review}
+                  className={`flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition-colors ${test.submittedAttemptId ? 'cursor-pointer' : ''}`}
+                >
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle size={14} className="text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                      <p className="text-sm font-medium text-gray-900 truncate">{test.title}</p>
+                      <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
+                    </div>
+                    {attempt?.completedAt && (
+                      <p className="text-xs text-gray-400">
+                        Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {attempt.totalScore !== null && ` · Score: ${attempt.totalScore}`}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); review(); }}
+                    disabled={!test.submittedAttemptId}
+                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <FileSearch size={13} /> View Analysis
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

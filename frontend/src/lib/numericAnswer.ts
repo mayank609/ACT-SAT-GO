@@ -52,3 +52,22 @@ export function isValidNumericInput(input: string): boolean {
   if (input.trim() === '') return true;
   return parseNumericAnswer(input) !== null;
 }
+
+// Matches the digital SAT/ACT grid-in entry box: only digits, a decimal point,
+// a fraction slash, and a space (for mixed numbers like "1 1/2") are allowed —
+// no letters or other symbols. The box holds up to 5 characters, or 6 when the
+// answer is negative (the extra slot is for the leading "-").
+const NUMERIC_INPUT_CHARS = /[^0-9.\-/ ]/g;
+
+/**
+ * Sanitize free-typed numeric-answer input as the student types: strips any
+ * non-numeric character (letters, etc.), keeps only a single leading minus
+ * sign, and caps the length at 5 characters (6 if negative).
+ */
+export function sanitizeNumericInput(raw: string): string {
+  let cleaned = raw.replace(NUMERIC_INPUT_CHARS, '');
+  // Only a single leading "-" is meaningful; drop any others.
+  cleaned = cleaned[0] === '-' ? '-' + cleaned.slice(1).replace(/-/g, '') : cleaned.replace(/-/g, '');
+  const maxLen = cleaned.startsWith('-') ? 6 : 5;
+  return cleaned.slice(0, maxLen);
+}

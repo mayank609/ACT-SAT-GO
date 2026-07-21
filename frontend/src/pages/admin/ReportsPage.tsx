@@ -627,7 +627,7 @@ export function ReportsPage() {
                     <div className="text-[15px] text-slate-900 leading-relaxed font-normal">
                       <RichContentRenderer content={currentTq.question.content.text || ''} variant="question" />
                     </div>
-                    {options.length > 0 ? (
+                    {options.length > 0 && currentTq.question.type !== 'NUMERIC' ? (
                       <div className="space-y-2.5">
                         {options.map((opt: any) => {
                           const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
@@ -636,6 +636,11 @@ export function ReportsPage() {
                             <OptionRenderer key={opt.id} label={opt.id.toUpperCase()} text={opt.text} isSelected={isUserAnswer && !isCorrectOption} isCorrect={isCorrectOption} isIncorrect={isUserAnswer && !isCorrectOption} showFeedback={true} colorTheme="blue" />
                           );
                         })}
+                      </div>
+                    ) : currentTq.question.type === 'NUMERIC' ? (
+                      <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
+                        <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.value ?? '—'}</span></div>
+                        <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.value}</span></div>
                       </div>
                     ) : null}
                   </div>
@@ -658,7 +663,7 @@ export function ReportsPage() {
                   <div className="text-[16px] text-slate-900 leading-relaxed font-normal mb-8">
                     <RichContentRenderer content={currentTq.question.content.text || ''} variant="question" />
                   </div>
-                  {options.length > 0 ? (
+                  {options.length > 0 && currentTq.question.type !== 'NUMERIC' ? (
                     <div className="space-y-2.5 flex-1 max-w-3xl">
                       {options.map((opt: any) => {
                         const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
@@ -667,6 +672,11 @@ export function ReportsPage() {
                           <OptionRenderer key={opt.id} label={opt.id.toUpperCase()} text={opt.text} isSelected={isUserAnswer && !isCorrectOption} isCorrect={isCorrectOption} isIncorrect={isUserAnswer && !isCorrectOption} showFeedback={true} colorTheme="blue" />
                         );
                       })}
+                    </div>
+                  ) : currentTq.question.type === 'NUMERIC' ? (
+                    <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2 max-w-3xl">
+                      <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.value ?? '—'}</span></div>
+                      <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.value}</span></div>
                     </div>
                   ) : null}
                 </div>

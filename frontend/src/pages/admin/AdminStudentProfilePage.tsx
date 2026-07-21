@@ -1076,7 +1076,7 @@ export function AdminStudentProfilePage() {
                                           </div>
 
                                           <div className="px-4 py-3 border-t border-slate-100">
-                                            {options.length > 0 && (
+                                            {options.length > 0 && currentTq.question.type !== 'NUMERIC' && (
                                               <div className="space-y-2 mb-3 text-left">
                                                 {options.map((opt) => {
                                                   const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
@@ -1587,7 +1587,7 @@ export function AdminStudentProfilePage() {
                     <div className="text-[15px] text-slate-900 leading-relaxed font-normal">
                       <RichContentRenderer content={currentTq.question.content.text || ''} variant="question" />
                     </div>
-                    {options.length > 0 ? (
+                    {options.length > 0 && currentTq.question.type !== 'NUMERIC' ? (
                       <div className="space-y-2.5">
                         {options.map((opt) => {
                           const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
@@ -1634,7 +1634,7 @@ export function AdminStudentProfilePage() {
                     <div className="text-[16px] text-slate-900 leading-relaxed font-normal">
                       <RichContentRenderer content={currentTq.question.content.text || ''} variant="question" />
                     </div>
-                    {options.length > 0 ? (
+                    {options.length > 0 && currentTq.question.type !== 'NUMERIC' ? (
                       <div className="space-y-2.5">
                         {options.map((opt) => {
                           const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
