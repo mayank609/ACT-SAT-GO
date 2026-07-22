@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole } from '@/lib/auth'
+import { isHomeworkTest } from '@/lib/testCategorize'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
         students: { include: { student: { select: { id: true, email: true } } } },
         attempts: {
           where: { status: 'SUBMITTED' },
-          select: { totalScore: true, completedAt: true },
+          select: { totalScore: true, completedAt: true, test: { select: { title: true, subCategory: true } } },
           orderBy: { completedAt: 'desc' },
         },
       },
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
       users: users.map((u) => {
         const perms = (u.permissions ?? {}) as Record<string, unknown>
         const submittedAttempts = u.attempts
+        const testsAttempted = submittedAttempts.filter((at) => !isHomeworkTest(at.test)).length
         const avgScore = submittedAttempts.length
           ? submittedAttempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / submittedAttempts.length
           : null
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
           tutorName,
           studentIds: u.students.map((s) => s.student.id),
           studentCount: u.students.length,
-          testsAttempted: submittedAttempts.length,
+          testsAttempted,
           avgScore: avgScore !== null ? Math.round(avgScore * 10) / 10 : null,
           lastActive: submittedAttempts[0]?.completedAt ?? null,
           grade: perms.grade ?? null,
