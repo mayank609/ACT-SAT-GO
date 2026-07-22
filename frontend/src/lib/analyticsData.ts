@@ -381,6 +381,18 @@ export function buildBreakdown(recs: QRecord[], subject: 'rw' | 'math') {
   return { domainRows, skillRows };
 }
 
+/** Skill-level accuracy across both subjects (RW + Math combined) — used to surface a
+ * student's overall strongest/weakest skills regardless of which subject tab is active. */
+export function combinedSkillAccuracy(recs: QRecord[]): Array<{ name: string; agg: Agg }> {
+  const subAgg = new Map<string, Agg>();
+  for (const r of recs) {
+    if (r.subject === 'other') continue;
+    if (!subAgg.has(r.subdomain)) subAgg.set(r.subdomain, emptyAgg());
+    fold(subAgg.get(r.subdomain)!, r);
+  }
+  return Array.from(subAgg.entries()).map(([name, agg]) => ({ name, agg }));
+}
+
 // ─── Loader ────────────────────────────────────────────────────────────────────
 
 export interface LoadedAttempt {

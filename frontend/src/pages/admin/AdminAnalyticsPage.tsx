@@ -3,16 +3,16 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Search, ChevronRight, ArrowLeft, Users, Target,
   Wrench, Layers,
-  TrendingUp, BarChart2,
+  BarChart2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, Cell,
 } from 'recharts';
 import { api, type DbUser } from '../../lib/api';
 import {
-  loadStudentAnalytics, aggregate, buildBreakdown, fmtTime, computeSatScore,
+  loadStudentAnalytics, aggregate, buildBreakdown, combinedSkillAccuracy, fmtTime, computeSatScore,
   attemptsInRange, summarizeRange, previousPeriodOf,
   type LoadedAttempt, type QRecord, type SubjectKey,
 } from '../../lib/analyticsData';
@@ -20,6 +20,9 @@ import { BreakdownTable } from '../../components/analytics/BreakdownTable';
 import {
   AnalyticsOverviewHeader, resolveDateRange, DEFAULT_DATE_RANGE, type DateRangeState,
 } from '../../components/analytics/AnalyticsOverviewHeader';
+import {
+  ScoreAccuracyTrend, StrengthsAndWeaknesses, MotivationalBanner,
+} from '../../components/analytics/ScoreTrendInsights';
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -32,53 +35,6 @@ const C = {
   navy:    '#1b3d6e',
 };
 const DOMAIN_PALETTE = [C.blue, C.indigo, C.emerald, C.amber, C.rose, '#06b6d4', '#8b5cf6'];
-
-// ── Custom tooltip ─────────────────────────────────────────────────────────────
-function ChartTip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-xl text-xs">
-      {label && <p className="text-gray-500 mb-1 font-medium">{label}</p>}
-      {payload.map((p: any, i: number) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-          <span className="text-gray-800 font-semibold">{p.name}: {p.value}{typeof p.value === 'number' && p.name === 'Accuracy' ? '%' : ''}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Score Trend mini-chart ─────────────────────────────────────────────────────
-function ScoreTrend({ attempts, records }: { attempts: LoadedAttempt[]; records: Map<string, QRecord[]> }) {
-  const data = useMemo(() => attempts.slice().reverse().map(a => {
-    const s = computeSatScore(records.get(a.id) ?? []);
-    const label = a.title.length > 14 ? a.title.slice(0, 13) + '…' : a.title;
-    return { name: label, Total: a.totalScore ?? s.total, RW: s.rw, Math: s.math };
-  }), [attempts, records]);
-
-  if (data.length < 2) return (
-    <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-400">
-      <TrendingUp size={20} />
-      <p className="text-xs">Need ≥ 2 tests for trend</p>
-    </div>
-  );
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-        <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-        <YAxis domain={[200, 1600]} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-        <Tooltip content={<ChartTip />} />
-        <Legend wrapperStyle={{ fontSize: 11, color: '#6b7280' }} />
-        <Line type="monotone" dataKey="Total" stroke={C.blue} strokeWidth={2.5} dot={{ r: 3, fill: C.blue }} activeDot={{ r: 5 }} />
-        <Line type="monotone" dataKey="RW" stroke={C.indigo} strokeWidth={1.5} strokeDasharray="4 2" dot={{ r: 2 }} />
-        <Line type="monotone" dataKey="Math" stroke={C.emerald} strokeWidth={1.5} strokeDasharray="4 2" dot={{ r: 2 }} />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-}
 
 // ── Domain accuracy bar chart ─────────────────────────────────────────────────
 function DomainBars({ rows }: { rows: Array<{ name: string; agg: { correct: number; total: number } }> }) {
@@ -154,6 +110,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
   }, [records, nonDiagAttempts]);
 
   const { domainRows, skillRows } = useMemo(() => buildBreakdown(scoped, subject), [scoped, subject]);
+  const combinedSkillRows = useMemo(() => combinedSkillAccuracy(scoped), [scoped]);
   const subjectLabel = subject === 'rw' ? 'Reading & Writing' : 'Math';
 
   // ── Analytics Overview header: KPI cards + date-range delta ──────────────
@@ -294,20 +251,15 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-blue-100/40 flex items-center gap-2.5">
-              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-[#1b3d6e]"><TrendingUp size={15} /></span>
-              <div>
-                <h3 className="text-sm font-bold text-blue-900">Score Trend</h3>
-                <p className="text-xs text-blue-500/80 mt-0.5">all {nonDiagAttempts.length} tests</p>
-              </div>
+          {/* ── Score trend + strengths/weaknesses ───────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="lg:col-span-2">
+              <ScoreAccuracyTrend attempts={nonDiagAttempts} records={records} />
             </div>
-            <div className="p-4">
-              <div style={{ height: 200 }}>
-                <ScoreTrend attempts={nonDiagAttempts} records={records} />
-              </div>
-            </div>
+            <StrengthsAndWeaknesses skillRows={combinedSkillRows} />
           </div>
+
+          <MotivationalBanner name={student.name} />
         </>
       )}
     </div>
