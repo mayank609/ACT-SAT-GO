@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole, getCurrentUser } from '@/lib/auth'
+import { isHomeworkTest } from '@/lib/testCategorize'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,7 @@ export async function GET(
         students: { include: { student: { select: { id: true, email: true } } } },
         attempts: {
           where: { status: 'SUBMITTED' },
-          select: { id: true, totalScore: true, completedAt: true, testId: true },
+          select: { id: true, totalScore: true, completedAt: true, testId: true, test: { select: { title: true, subCategory: true } } },
           orderBy: { completedAt: 'desc' },
         },
       },
@@ -30,6 +31,7 @@ export async function GET(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
     const perms = (user.permissions ?? {}) as Record<string, unknown>
+    const testsAttempted = user.attempts.filter((at) => !isHomeworkTest(at.test)).length
     const avgScore = user.attempts.length
       ? user.attempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / user.attempts.length
       : null
@@ -45,7 +47,7 @@ export async function GET(
         tutorName: user.tutors[0] ? userName(user.tutors[0].tutor as { email: string; permissions: unknown }) : null,
         studentIds: user.students.map((s) => s.student.id),
         studentCount: user.students.length,
-        testsAttempted: user.attempts.length,
+        testsAttempted,
         avgScore: avgScore !== null ? Math.round(avgScore * 10) / 10 : null,
         lastActive: user.attempts[0]?.completedAt ?? null,
         grade: perms.grade ?? null,
