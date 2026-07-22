@@ -2,21 +2,24 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Search, ChevronRight, ArrowLeft, Users, Target,
-  Clock, Wrench, Layers,
+  Wrench, Layers,
   TrendingUp, BarChart2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   BarChart, Bar, Cell,
-  PieChart, Pie,
 } from 'recharts';
 import { api, type DbUser } from '../../lib/api';
 import {
-  loadStudentAnalytics, aggregate, buildBreakdown, accuracy, fmtTime, computeSatScore,
+  loadStudentAnalytics, aggregate, buildBreakdown, fmtTime, computeSatScore,
+  attemptsInRange, summarizeRange, previousPeriodOf,
   type LoadedAttempt, type QRecord, type SubjectKey,
 } from '../../lib/analyticsData';
 import { BreakdownTable } from '../../components/analytics/BreakdownTable';
+import {
+  AnalyticsOverviewHeader, resolveDateRange, DEFAULT_DATE_RANGE, type DateRangeState,
+} from '../../components/analytics/AnalyticsOverviewHeader';
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -119,53 +122,6 @@ function DomainBars({ rows }: { rows: Array<{ name: string; agg: { correct: numb
   );
 }
 
-// ── Donut breakdown ───────────────────────────────────────────────────────────
-function QuestionDonut({ correct, incorrect, skipped, doubts }: { correct: number; incorrect: number; skipped: number; doubts: number }) {
-  const total = correct + incorrect + skipped;
-  const accPct = total > 0 ? Math.round((correct / total) * 100) : 0;
-  const slices = [
-    { name: 'Correct', value: correct, color: C.emerald },
-    { name: 'Incorrect', value: incorrect, color: C.rose },
-    { name: 'Skipped', value: skipped, color: C.slate },
-  ].filter(d => d.value > 0);
-
-  return (
-    <div className="flex items-center gap-4 h-full">
-      <div className="relative flex-shrink-0" style={{ width: 120, height: 120 }}>
-        <ResponsiveContainer width={120} height={120}>
-          <PieChart>
-            <Pie data={slices} cx={57} cy={57} innerRadius={38} outerRadius={55}
-              dataKey="value" stroke="none" paddingAngle={2}>
-              {slices.map((d, i) => <Cell key={i} fill={d.color} />)}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-xl font-black text-gray-900">{accPct}%</span>
-          <span className="text-[10px] text-gray-400">accuracy</span>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2.5 flex-1 min-w-0">
-        {[
-          { label: 'Correct', value: correct, color: C.emerald },
-          { label: 'Incorrect', value: incorrect, color: C.rose },
-          { label: 'Skipped', value: skipped, color: C.slate },
-          { label: 'Doubts', value: doubts, color: C.amber },
-        ].map(r => (
-          <div key={r.label} className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.color }} />
-            <span className="text-xs text-gray-500 flex-1">{r.label}</span>
-            <span className="text-xs font-bold text-gray-800">{r.value}</span>
-            <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${total > 0 ? (r.value / total) * 100 : 0}%`, background: r.color }} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Student cumulative view ───────────────────────────────────────────────────
 function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () => void }) {
   const navigate = useNavigate();
@@ -173,6 +129,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
   const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [subject, setSubject] = useState<Exclude<SubjectKey, 'other'>>('rw');
+  const [dateRange, setDateRange] = useState<DateRangeState>(DEFAULT_DATE_RANGE);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,12 +153,50 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
     return recs;
   }, [records, nonDiagAttempts]);
 
-  const summary = useMemo(() => aggregate(scoped), [scoped]);
   const { domainRows, skillRows } = useMemo(() => buildBreakdown(scoped, subject), [scoped, subject]);
-  const acc = accuracy(summary);
-  const avgTimePerTest = nonDiagAttempts.length > 0 ? Math.round(summary.time / nonDiagAttempts.length) : 0;
-
   const subjectLabel = subject === 'rw' ? 'Reading & Writing' : 'Math';
+
+  // ── Analytics Overview header: KPI cards + date-range delta ──────────────
+  const headerCurrent = useMemo(() => {
+    const { start, end } = resolveDateRange(dateRange);
+    return summarizeRange(nonDiagAttempts, records, start, end);
+  }, [nonDiagAttempts, records, dateRange]);
+
+  const headerPrevious = useMemo(() => {
+    const { start, end } = resolveDateRange(dateRange);
+    const prevRange = previousPeriodOf(start, end);
+    if (!prevRange.start || !prevRange.end) return null;
+    const prev = summarizeRange(nonDiagAttempts, records, prevRange.start, prevRange.end);
+    return prev.testCount > 0 ? prev : null;
+  }, [nonDiagAttempts, records, dateRange]);
+
+  const attemptsForDownload = useMemo(() => {
+    const { start, end } = resolveDateRange(dateRange);
+    return attemptsInRange(nonDiagAttempts, start, end);
+  }, [nonDiagAttempts, dateRange]);
+
+  const handleDownload = () => {
+    if (attemptsForDownload.length === 0) return;
+    const header = ['Test', 'Completed', 'Score', 'Correct', 'Incorrect', 'Skipped', 'Doubts', 'Time Spent'];
+    const rows = attemptsForDownload.map(a => {
+      const recs = records.get(a.id) ?? [];
+      const rowAgg = aggregate(recs);
+      return [
+        a.title,
+        a.completedAt ? new Date(a.completedAt).toLocaleDateString() : '',
+        a.totalScore ?? computeSatScore(recs).total,
+        rowAgg.correct, rowAgg.incorrect, rowAgg.skipped, rowAgg.doubts, fmtTime(rowAgg.time),
+      ];
+    });
+    const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${student.name.replace(/\s+/g, '_')}_Analytics_Report.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -215,7 +210,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
           <ArrowLeft size={20} className="text-gray-600" />
         </button>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
+          <h1 className="text-xl font-bold text-gray-900">Analytics Overview</h1>
           <p className="text-gray-400 text-sm">{student.name}</p>
         </div>
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
@@ -239,65 +234,16 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
         </div>
       ) : (
         <>
-          {/* ── Hero: Total time + key metrics + question breakdown ─────── */}
-          <div className="bg-gradient-to-br from-[#16325c] via-[#1e4d8c] to-[#2563eb] rounded-2xl p-5 sm:p-6 shadow-lg shadow-blue-200/40 relative overflow-hidden">
-            <div className="absolute -top-16 -right-12 w-72 h-72 bg-white/5 rounded-full pointer-events-none" />
-            <div className="absolute -bottom-20 left-1/4 w-56 h-56 bg-white/[0.04] rounded-full pointer-events-none" />
-            <div className="relative flex flex-col lg:flex-row lg:items-stretch gap-5">
-              {/* Left: total time + metric chips */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between gap-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center flex-shrink-0">
-                    <Clock size={26} className="text-amber-300" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-blue-200/80 text-[11px] font-bold uppercase tracking-widest mb-0.5">Total Time Spent</p>
-                    <p className="text-4xl sm:text-5xl font-black text-white tracking-tight tabular-nums leading-none">{fmtTime(summary.time)}</p>
-                    <p className="text-blue-200 text-xs mt-1.5">
-                      across <span className="text-white font-bold">{nonDiagAttempts.length}</span> test{nonDiagAttempts.length !== 1 ? 's' : ''}
-                      {nonDiagAttempts.length > 0 && <> &nbsp;·&nbsp; avg <span className="text-white font-bold">{fmtTime(avgTimePerTest)}</span> / test</>}
-                    </p>
-                  </div>
-                </div>
-                {/* Metric chips */}
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {([
-                    { label: 'Total Qs', value: summary.total, color: 'text-blue-700' },
-                    { label: 'Correct', value: summary.correct, color: 'text-emerald-600' },
-                    { label: 'Mistakes', value: summary.incorrect, color: 'text-rose-600', onClick: () => navigate(`/student-mistakes?studentId=${student.id}`) },
-                    { label: 'Doubts', value: summary.doubts, color: 'text-amber-600', onClick: () => navigate(`/student-doubts?studentId=${student.id}`) },
-                    { label: 'Accuracy', value: `${acc}%`, color: acc >= 80 ? 'text-emerald-600' : acc >= 60 ? 'text-amber-600' : 'text-rose-600' },
-                  ] as Array<{ label: string; value: string | number; color: string; onClick?: () => void }>).map(m => (
-                    <div
-                      key={m.label}
-                      onClick={m.onClick}
-                      title={m.onClick ? `View this student’s ${m.label.toLowerCase()}` : undefined}
-                      className={`bg-blue-50 ring-1 ring-white/40 rounded-xl px-3 py-2 text-center shadow-sm ${m.onClick ? 'cursor-pointer hover:bg-blue-100 hover:ring-blue-300 transition-colors' : ''}`}
-                    >
-                      <p className="text-[9px] uppercase tracking-widest font-semibold text-blue-500/80">{m.label}</p>
-                      <p className={`text-xl font-black tabular-nums ${m.color}`}>{m.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Right: question breakdown panel (moved into hero) */}
-              <div className="lg:w-80 flex-shrink-0 bg-white rounded-xl p-4 shadow-md">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target size={15} className="text-indigo-500" />
-                  <span className="text-sm font-bold text-gray-800">Question Breakdown</span>
-                </div>
-                <div style={{ height: 150 }}>
-                  <QuestionDonut
-                    correct={summary.correct}
-                    incorrect={summary.incorrect}
-                    skipped={summary.skipped}
-                    doubts={summary.doubts}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <AnalyticsOverviewHeader
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            onDownload={handleDownload}
+            downloadDisabled={attemptsForDownload.length === 0}
+            current={headerCurrent}
+            previous={headerPrevious}
+            onIncorrectClick={() => navigate(`/student-mistakes?studentId=${student.id}`)}
+            onDoubtsClick={() => navigate(`/student-doubts?studentId=${student.id}`)}
+          />
 
           {/* ── Subject toggle ───────────────────────────────────────────── */}
           <div className="flex items-center gap-2 pt-1">

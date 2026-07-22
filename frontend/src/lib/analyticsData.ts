@@ -303,6 +303,52 @@ export function aggregate(recs: QRecord[]): Agg {
 export const accuracy = (a: Agg) => (a.total > 0 ? Math.round((a.correct / a.total) * 100) : 0);
 export const avgTime = (a: Agg) => (a.total > 0 ? Math.round(a.time / a.total) : 0);
 
+// ─── Date-range windowing (for the Analytics Overview KPI cards) ───────────────
+
+export function attemptsInRange(attempts: LoadedAttempt[], start: Date | null, end: Date | null): LoadedAttempt[] {
+  if (!start && !end) return attempts;
+  return attempts.filter(a => {
+    if (!a.completedAt) return false;
+    const t = new Date(a.completedAt).getTime();
+    if (start && t < start.getTime()) return false;
+    if (end && t > end.getTime()) return false;
+    return true;
+  });
+}
+
+/** The immediately preceding window of equal length — used to compute "vs previous period" deltas. */
+export function previousPeriodOf(start: Date | null, end: Date | null): { start: Date | null; end: Date | null } {
+  if (!start || !end) return { start: null, end: null };
+  const span = end.getTime() - start.getTime();
+  const prevEnd = new Date(start.getTime() - 1);
+  const prevStart = new Date(prevEnd.getTime() - span);
+  return { start: prevStart, end: prevEnd };
+}
+
+export interface RangeSummary { agg: Agg; avgScore: number | null; testCount: number }
+
+export function summarizeRange(
+  attempts: LoadedAttempt[],
+  records: Map<string, QRecord[]>,
+  start: Date | null,
+  end: Date | null,
+): RangeSummary {
+  const inRange = attemptsInRange(attempts, start, end);
+  const recs: QRecord[] = [];
+  const scores: number[] = [];
+  for (const a of inRange) {
+    const r = records.get(a.id) ?? [];
+    recs.push(...r);
+    const s = a.totalScore ?? (r.length ? computeSatScore(r).total : null);
+    if (s != null) scores.push(s);
+  }
+  return {
+    agg: aggregate(recs),
+    avgScore: scores.length ? Math.round(scores.reduce((x, y) => x + y, 0) / scores.length) : null,
+    testCount: inRange.length,
+  };
+}
+
 export function fmtTime(sec: number): string {
   if (!sec) return '0s';
   const h = Math.floor(sec / 3600);
