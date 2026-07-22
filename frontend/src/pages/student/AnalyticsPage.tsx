@@ -1,23 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Loader2, Target, XCircle, HelpCircle, ShieldCheck,
-  Clock, CheckCircle2, Layers, Wrench, TrendingUp, BarChart2,
+  Loader2, Target, Clock, Layers, Wrench, TrendingUp, BarChart2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   BarChart, Bar, Cell,
-  PieChart, Pie,
   RadialBarChart, RadialBar,
 } from 'recharts';
 import { useAuthStore } from '../../store/useAuthStore';
 import { SAT_CONTENT } from '../../data/satDomains';
 import {
-  loadStudentAnalytics, computeSatScore, aggregate, buildBreakdown, accuracy, fmtTime,
+  loadStudentAnalytics, computeSatScore, aggregate, buildBreakdown, fmtTime,
+  attemptsInRange, summarizeRange, previousPeriodOf,
   type LoadedAttempt, type QRecord, type SubjectKey,
 } from '../../lib/analyticsData';
 import { BreakdownTable } from '../../components/analytics/BreakdownTable';
+import {
+  AnalyticsOverviewHeader, resolveDateRange, DEFAULT_DATE_RANGE, type DateRangeState,
+} from '../../components/analytics/AnalyticsOverviewHeader';
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -119,55 +121,6 @@ function DomainBars({ rows }: { rows: Array<{ name: string; agg: { correct: numb
   );
 }
 
-// ── Question donut ────────────────────────────────────────────────────────────
-function QuestionDonut({ correct, incorrect, skipped, doubts }: {
-  correct: number; incorrect: number; skipped: number; doubts: number;
-}) {
-  const total = correct + incorrect + skipped;
-  const accPct = total > 0 ? Math.round((correct / total) * 100) : 0;
-  const slices = [
-    { name: 'Correct', value: correct, color: C.emerald },
-    { name: 'Incorrect', value: incorrect, color: C.rose },
-    { name: 'Skipped', value: skipped, color: C.slate },
-  ].filter(d => d.value > 0);
-
-  return (
-    <div className="flex items-center gap-4 h-full">
-      <div className="relative flex-shrink-0" style={{ width: 120, height: 120 }}>
-        <ResponsiveContainer width={120} height={120}>
-          <PieChart>
-            <Pie data={slices} cx={57} cy={57} innerRadius={38} outerRadius={55}
-              dataKey="value" stroke="none" paddingAngle={2}>
-              {slices.map((d, i) => <Cell key={i} fill={d.color} />)}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-xl font-black text-gray-900">{accPct}%</span>
-          <span className="text-[10px] text-gray-400">accuracy</span>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2.5 flex-1 min-w-0">
-        {[
-          { label: 'Correct', value: correct, color: C.emerald },
-          { label: 'Incorrect', value: incorrect, color: C.rose },
-          { label: 'Skipped', value: skipped, color: C.slate },
-          { label: 'Doubts', value: doubts, color: C.amber },
-        ].map(r => (
-          <div key={r.label} className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.color }} />
-            <span className="text-xs text-gray-500 flex-1">{r.label}</span>
-            <span className="text-xs font-bold text-gray-800">{r.value}</span>
-            <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${total > 0 ? (r.value / total) * 100 : 0}%`, background: r.color }} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Time radial ────────────────────────────────────────────────────────────────
 function TimeRadial({ time, attempts }: { time: number; attempts: number }) {
   const avgPerTest = attempts > 0 ? Math.round(time / attempts) : 0;
@@ -202,8 +155,9 @@ export function AnalyticsPage() {
   const [attempts, setAttempts] = useState<LoadedAttempt[]>([]);
   const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [scope, setScope] = useState<string>('latest');
+  const [scope, setScope] = useState<string>('all');
   const [subject, setSubject] = useState<Exclude<SubjectKey, 'other'>>('rw');
+  const [dateRange, setDateRange] = useState<DateRangeState>(DEFAULT_DATE_RANGE);
 
   useEffect(() => {
     if (!dbId) { setLoading(false); return; }
@@ -251,8 +205,58 @@ export function AnalyticsPage() {
 
   const summary = useMemo(() => aggregate(scoped), [scoped]);
   const { domainRows, skillRows } = useMemo(() => buildBreakdown(scoped, subject), [scoped, subject]);
-  const acc = accuracy(summary);
   const subjectLabel = subject === 'rw' ? 'Reading & Writing' : 'Math';
+
+  // ── Analytics Overview header: KPI cards + date-range delta ──────────────
+  // Date-range filtering (and the "vs previous period" deltas) only makes sense
+  // when aggregating across all tests — a single-test snapshot has no window to slice.
+  const dateRangeApplicable = scope === 'all';
+
+  const headerCurrent = useMemo(() => {
+    if (!dateRangeApplicable) return { agg: summary, avgScore: scoreCard.total || null, testCount: attempts.length ? 1 : 0 };
+    const { start, end } = resolveDateRange(dateRange);
+    return summarizeRange(attempts, records, start, end);
+  }, [dateRangeApplicable, summary, scoreCard, attempts, records, dateRange]);
+
+  const headerPrevious = useMemo(() => {
+    if (!dateRangeApplicable) return null;
+    const { start, end } = resolveDateRange(dateRange);
+    const prevRange = previousPeriodOf(start, end);
+    if (!prevRange.start || !prevRange.end) return null;
+    const prev = summarizeRange(attempts, records, prevRange.start, prevRange.end);
+    return prev.testCount > 0 ? prev : null;
+  }, [dateRangeApplicable, attempts, records, dateRange]);
+
+  const attemptsForDownload = useMemo(() => {
+    if (dateRangeApplicable) {
+      const { start, end } = resolveDateRange(dateRange);
+      return attemptsInRange(attempts, start, end);
+    }
+    return activeAttemptId ? attempts.filter(a => a.id === activeAttemptId) : attempts;
+  }, [dateRangeApplicable, attempts, dateRange, activeAttemptId]);
+
+  const handleDownload = () => {
+    if (attemptsForDownload.length === 0) return;
+    const header = ['Test', 'Completed', 'Score', 'Correct', 'Incorrect', 'Skipped', 'Doubts', 'Time Spent'];
+    const rows = attemptsForDownload.map(a => {
+      const recs = records.get(a.id) ?? [];
+      const rowAgg = aggregate(recs);
+      return [
+        a.title,
+        a.completedAt ? new Date(a.completedAt).toLocaleDateString() : '',
+        a.totalScore ?? computeSatScore(recs).total,
+        rowAgg.correct, rowAgg.incorrect, rowAgg.skipped, rowAgg.doubts, fmtTime(rowAgg.time),
+      ];
+    });
+    const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Analytics_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (loading) {
     return (
@@ -282,99 +286,44 @@ export function AnalyticsPage() {
 
   return (
     <div className="space-y-5 max-w-5xl">
-      {/* ── Header + scope ─────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Score, performance &amp; domain breakdown</p>
-        </div>
-        <select
-          value={scope}
-          onChange={e => setScope(e.target.value)}
-          className="ml-auto px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#1b3d6e] min-w-[220px] shadow-sm"
-        >
-          <option value="latest">Latest Test</option>
-          <option value="all">All Tests ({attempts.length})</option>
-          <optgroup label="Specific test">
-            {attempts.map(a => (
-              <option key={a.id} value={a.id}>
-                {a.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </div>
+      <AnalyticsOverviewHeader
+        title="Analytics Overview"
+        subtitle="Track your performance and focus on what matters most."
+        scopeControl={
+          <select
+            value={scope}
+            onChange={e => setScope(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#1b3d6e] min-w-[160px] shadow-sm"
+          >
+            <option value="latest">Latest Test</option>
+            <option value="all">All Tests ({attempts.length})</option>
+            <optgroup label="Specific test">
+              {attempts.map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        }
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        dateRangeDisabled={!dateRangeApplicable}
+        onDownload={handleDownload}
+        downloadDisabled={attemptsForDownload.length === 0}
+        current={headerCurrent}
+        previous={headerPrevious}
+      />
 
-      {/* ── Score hero card ─────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-[#1b3d6e] to-[#1e4d8c] rounded-2xl px-6 py-5 shadow-lg shadow-blue-200/50 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        <div className="relative flex flex-wrap items-center justify-between gap-5">
-          <div>
-            <p className="text-blue-300 text-[11px] font-bold uppercase tracking-widest mb-1">{scoreCard.label}</p>
-            <p className="text-6xl font-black text-white tracking-tight tabular-nums">{scoreCard.total}</p>
-            {scoreCard.sub && <p className="text-blue-200/70 text-xs mt-1.5">{scoreCard.sub}</p>}
-          </div>
-          <div className="flex items-center gap-6 sm:gap-10 flex-wrap">
-            <div className="text-center">
-              <p className="text-[11px] uppercase tracking-wider font-semibold text-blue-300/70 mb-0.5">R&amp;W</p>
-              <p className="text-3xl font-black text-white tabular-nums">{scoreCard.rw}</p>
-            </div>
-            <div className="w-px h-10 bg-white/10" />
-            <div className="text-center">
-              <p className="text-[11px] uppercase tracking-wider font-semibold text-blue-300/70 mb-0.5">Math</p>
-              <p className="text-3xl font-black text-white tabular-nums">{scoreCard.math}</p>
-            </div>
-            <div className="w-px h-10 bg-white/10" />
-            <div className="text-center">
-              <p className="text-[11px] uppercase tracking-wider font-semibold text-blue-300/70 mb-0.5">Accuracy</p>
-              <p className={`text-3xl font-black tabular-nums ${acc >= 80 ? 'text-emerald-300' : acc >= 60 ? 'text-amber-300' : 'text-rose-300'}`}>{acc}%</p>
-            </div>
-          </div>
+      {/* ── Score Trend ───────────────────────────────────────────────────── */}
+      <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp size={15} className="text-blue-500" />
+          <span className="text-sm font-bold text-gray-800">Score Trend</span>
+          <span className="text-xs text-gray-400 ml-1">across {attempts.length} tests</span>
         </div>
-        {/* Quick stats strip */}
-        <div className="relative mt-5 pt-4 border-t border-white/10 grid grid-cols-3 sm:grid-cols-6 gap-3">
-          {[
-            { icon: <Target size={12} />, label: 'Total', value: summary.total, color: 'text-blue-200' },
-            { icon: <CheckCircle2 size={12} />, label: 'Correct', value: summary.correct, color: 'text-emerald-300' },
-            { icon: <XCircle size={12} />, label: 'Incorrect', value: summary.incorrect, color: 'text-rose-300' },
-            { icon: <HelpCircle size={12} />, label: 'Doubts', value: summary.doubts, color: 'text-amber-300' },
-            { icon: <ShieldCheck size={12} />, label: 'Cleared', value: summary.cleared, color: 'text-sky-300' },
-            { icon: <Clock size={12} />, label: 'Time', value: fmtTime(summary.time), color: 'text-purple-300' },
-          ].map(m => (
-            <div key={m.label} className="text-center">
-              <div className="flex items-center justify-center gap-1 text-blue-300/50 mb-0.5">{m.icon}</div>
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-blue-300/50">{m.label}</p>
-              <p className={`text-lg font-black tabular-nums ${m.color}`}>{m.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Charts row ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="sm:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp size={15} className="text-blue-500" />
-            <span className="text-sm font-bold text-gray-800">Score Trend</span>
-            <span className="text-xs text-gray-400 ml-1">across {attempts.length} tests</span>
-          </div>
-          <div style={{ height: 200 }}>
-            <ScoreTrend attempts={attempts} records={records} />
-          </div>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Target size={15} className="text-indigo-500" />
-            <span className="text-sm font-bold text-gray-800">Question Breakdown</span>
-          </div>
-          <div style={{ height: 200 }}>
-            <QuestionDonut
-              correct={summary.correct}
-              incorrect={summary.incorrect}
-              skipped={summary.skipped}
-              doubts={summary.doubts}
-            />
-          </div>
+        <div style={{ height: 200 }}>
+          <ScoreTrend attempts={attempts} records={records} />
         </div>
       </div>
 
