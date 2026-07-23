@@ -228,7 +228,7 @@ export function FutureProgramsPage() {
             </div>
 
             <div className="future-languages-photo">
-              <img src={langImg} alt="Language courses" />
+              <img src={langImg} alt="Language courses" loading="lazy" />
             </div>
           </div>
         </section>

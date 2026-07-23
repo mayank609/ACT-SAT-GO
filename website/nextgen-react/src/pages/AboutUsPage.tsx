@@ -97,6 +97,7 @@ export function AboutUsPage() {
                   src={abImg}
                   alt="ACT SAT GO mentor and student reviewing study material on a tablet"
                   className="about-plj-photo"
+                  loading="lazy"
                 />
               </div>
             </div>

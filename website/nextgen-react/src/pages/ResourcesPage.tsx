@@ -445,7 +445,7 @@ export function ResourcesPage() {
                 <div key={res.title} className="featured-card">
                   <div className="featured-image-container">
                     <span className="featured-badge">{res.badge}</span>
-                    <img src={res.image} alt={`${res.title} cover`} />
+                    <img src={res.image} alt={`${res.title} cover`} loading="lazy" />
                     <a
                       href="#download"
                       className="featured-download-btn"
@@ -485,7 +485,7 @@ export function ResourcesPage() {
               {filteredBlogs.map(post => (
                 <article key={post.title} className="blog-card" onClick={() => alert(`Opening blog post: "${post.title}"`)}>
                   <div className="blog-image-wrapper">
-                    <img src={getBlogImage(post)} alt={post.title} />
+                    <img src={getBlogImage(post)} alt={post.title} loading="lazy" />
                   </div>
                   <div className="blog-content-area">
                     <span className="blog-post-tag">{post.tag}</span>

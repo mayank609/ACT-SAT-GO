@@ -3084,8 +3084,13 @@ h1 span,
 
 .c-modal-close {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -3134,7 +3139,7 @@ h1 span,
   border-radius: 10px;
   color: white;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
   transition: all 0.2s;
 }
@@ -3267,6 +3272,14 @@ html, body {
 @media (max-width: 480px) {
   .process-flow {
     grid-template-columns: 1fr !important;
+  }
+  .c-modal-overlay {
+    padding: 12px;
+  }
+  .c-modal {
+    padding: 22px 18px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
   }
 }
 

@@ -64,7 +64,7 @@
   border-radius: 10px;
   padding: 12px 14px;
   color: var(--a-text);
-  font-size: 15px;
+  font-size: 16px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -165,7 +165,7 @@
   border-radius: 10px;
   padding: 10px 13px;
   color: var(--a-text);
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
 }
 .admin-toolbar input { flex: 1; min-width: 200px; }
@@ -274,6 +274,9 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   padding: 20px;
 }
 .admin-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
   background: #0d1b31;
   border: 1px solid var(--a-border);
   border-radius: 18px;
@@ -285,11 +288,18 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--a-border);
 }
 .admin-modal-header h2 { font-size: 17px; font-weight: 700; }
 .admin-modal-close {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: -8px -8px -8px 0;
   background: none;
   border: none;
   color: var(--a-muted);
@@ -303,6 +313,7 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
 }
 .admin-form-row {
   display: grid;
@@ -329,7 +340,7 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   border-radius: 10px;
   padding: 10px 13px;
   color: var(--a-text);
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
   font-family: inherit;
   resize: vertical;
@@ -341,6 +352,8 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .admin-modal-footer {
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0;
+  flex-wrap: wrap;
   gap: 10px;
   padding-top: 4px;
 }
@@ -487,4 +500,26 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   background: #2563eb;
   color: white;
   border-color: #2563eb;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .admin-shell { padding: 20px 14px 48px; }
+  .admin-topbar h1 { font-size: 19px; }
+  .admin-form-row { grid-template-columns: 1fr; }
+  .admin-modal-backdrop { padding: 12px; align-items: flex-end; }
+  .admin-modal { max-height: calc(100vh - 24px); border-radius: 18px 18px 0 0; }
+  .admin-modal-header,
+  .admin-modal-form { padding-left: 18px; padding-right: 18px; }
+  .admin-msg { max-width: 220px; }
+}
+
+@media (max-width: 480px) {
+  .admin-login-card { padding: 28px 20px; }
+  .admin-stats { grid-template-columns: repeat(2, 1fr); }
+  .admin-toolbar { flex-direction: column; align-items: stretch; }
+  .admin-toolbar input,
+  .admin-toolbar select { width: 100%; }
+  .admin-modal-footer { justify-content: stretch; }
+  .admin-modal-footer button { flex: 1; }
 }

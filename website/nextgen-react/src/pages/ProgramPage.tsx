@@ -427,7 +427,7 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
               </div>
             </div>
             <div className="highlights-photo reveal" aria-hidden="true">
-              <img src={highlightsImg} alt="" />
+              <img src={highlightsImg} alt="" loading="lazy" />
             </div>
           </div>
         </section>

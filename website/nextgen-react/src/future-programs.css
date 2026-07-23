@@ -546,6 +546,7 @@
   .future-hero-art {
     order: -1;
     min-height: 260px;
+    overflow: hidden;
   }
   .future-program-grid {
     grid-template-columns: repeat(2, 1fr);

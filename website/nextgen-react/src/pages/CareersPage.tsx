@@ -593,6 +593,7 @@ export function CareersPage() {
                 src={careerPartnerImg}
                 alt="Education counsellor working with ACT SAT GO"
                 className="careers-partner-img"
+                loading="lazy"
               />
             </div>
           </div>

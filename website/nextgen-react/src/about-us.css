@@ -665,6 +665,7 @@
 
   .about-tech-orbit {
     max-width: 380px;
+    transform: none;
   }
 }
 

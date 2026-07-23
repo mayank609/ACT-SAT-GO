@@ -322,7 +322,7 @@ export function K12TutoringPage() {
                 <h3>{g.title}</h3>
                 <p className="k12-grade-text">{g.text}</p>
                 <div className="k12-grade-photo">
-                  <img src={g.photo ?? programsImg} alt="" />
+                  <img src={g.photo ?? programsImg} alt="" loading="lazy" />
                 </div>
                 <p className="k12-focus-label">Focus Areas</p>
                 <ul>

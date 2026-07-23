@@ -50,7 +50,7 @@ export function Programs() {
               data-category={p.category}
               hidden={filter !== 'all' && p.category !== filter}
             >
-              <img src={programsImg} alt={p.alt} />
+              <img src={programsImg} alt={p.alt} loading="lazy" />
               <div>
                 <h3>{p.title}</h3>
                 <p>{p.desc}</p>
