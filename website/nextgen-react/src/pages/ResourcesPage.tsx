@@ -606,7 +606,7 @@ export function ResourcesPage() {
               <li><a href="/about-us">About Us</a></li>
               <li><a href="/#programs">Our Approach</a></li>
               <li><a href="/#results">Success Stories</a></li>
-              <li><a href="/#consultation">Contact Us</a></li>
+              <li><a href="/consultation">Contact Us</a></li>
             </ul>
           </div>
 
@@ -617,7 +617,7 @@ export function ResourcesPage() {
               <li><a href="/resources" onClick={(e) => { e.preventDefault(); clearSearch(); }}>Blog</a></li>
               <li><a href="/resources" onClick={(e) => { e.preventDefault(); setSearchQuery('guide'); }}>Guides &amp; Downloads</a></li>
               <li><a href="/resources" onClick={(e) => { e.preventDefault(); setSearchQuery('webinar'); }}>Webinars &amp; Videos</a></li>
-              <li><a href="/#consultation">Help Center</a></li>
+              <li><a href="/consultation">Help Center</a></li>
             </ul>
           </div>
         </div>

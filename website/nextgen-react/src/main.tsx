@@ -10,6 +10,7 @@ import { ResourcesPage } from './pages/ResourcesPage';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminLeads } from './pages/AdminLeads';
 import { CareersPage } from './pages/CareersPage';
+import { EnquiryPage } from './pages/EnquiryPage';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { ACT_PAGE, SAT_PAGE, AP_PAGE } from './data/programs';
 import './styles.css';
@@ -33,6 +34,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/k-12-tutoring" element={<K12TutoringPage />} />
         <Route path="/about-us" element={<AboutUsPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
+        <Route path="/consultation" element={<EnquiryPage />} />
+        <Route path="/enquiry" element={<EnquiryPage />} />
         <Route path="/about" element={<Navigate to="/about-us" replace />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/leads" element={<AdminLeads />} />

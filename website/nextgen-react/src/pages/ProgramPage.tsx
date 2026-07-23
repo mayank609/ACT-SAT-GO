@@ -9,7 +9,7 @@ import apHeroImg from '../assets/ap-hero.png';
 import satHeroImg from '../assets/sat-hero.png';
 import highlightsImg from '../assets/highlights-girl-cutout.png';
 
-const CONSULT_HREF = '/#consultation';
+const CONSULT_HREF = '/consultation';
 
 function getHighlightIcon(label: string, value: string) {
   const t = (label + ' ' + value).toLowerCase();
@@ -698,7 +698,7 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
               <li><a href="/#programs">Courses</a></li>
               <li><a href="/#programs">Career</a></li>
               <li><a href="/#resources">Blogs</a></li>
-              <li><a href="/#consultation">Contact</a></li>
+              <li><a href="/consultation">Contact</a></li>
             </ul>
           </div>
 

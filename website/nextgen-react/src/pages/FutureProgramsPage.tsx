@@ -11,7 +11,7 @@ import img8 from '../assets/8.jpeg';
 import langImg from '../assets/10.png';
 import heroImg from '../assets/4.png';
 
-const CONSULT_HREF = '/#consultation';
+const CONSULT_HREF = '/consultation';
 
 function IconOpenBook() {
   return (
@@ -316,7 +316,7 @@ export function FutureProgramsPage() {
               <li><a href="/#programs">Courses</a></li>
               <li><a href="/#programs">Career</a></li>
               <li><a href="/#resources">Blogs</a></li>
-              <li><a href="/#consultation">Contact</a></li>
+              <li><a href="/consultation">Contact</a></li>
             </ul>
           </div>
 

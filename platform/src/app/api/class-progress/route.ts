@@ -7,10 +7,20 @@ const ENTRY_TTL = 60 * 60 * 24 * 365 // 1 year
 interface ClassProgressEntry {
   id: string
   topic: string
+  homework: string
   notes: string
   classDate: string
   author: string
   createdAt: string
+  startTime?: string
+  durationMinutes?: number
+  subject?: string
+  status?: string
+  understanding?: number
+  attendance?: string
+  engagement?: string
+  nextSessionGoal?: string
+  nextSessionAt?: string
 }
 
 async function loadEntries(tutorId: string, studentId: string): Promise<ClassProgressEntry[]> {
@@ -35,10 +45,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/class-progress — body: { tutorId, studentId, topic, notes?, classDate?, author }
+// POST /api/class-progress — body: { tutorId, studentId, topic, homework?, notes?, classDate?, author,
+//   startTime?, durationMinutes?, subject?, status?, understanding?, attendance?, engagement?, nextSessionGoal?, nextSessionAt? }
 export async function POST(request: NextRequest) {
   try {
-    const { tutorId, studentId, topic, notes, classDate, author } = await request.json()
+    const {
+      tutorId, studentId, topic, homework, notes, classDate, author,
+      startTime, durationMinutes, subject, status, understanding, attendance, engagement, nextSessionGoal, nextSessionAt,
+    } = await request.json()
     if (!tutorId || !studentId || !topic) {
       return NextResponse.json({ error: 'tutorId, studentId, topic required' }, { status: 400 })
     }
@@ -46,10 +60,20 @@ export async function POST(request: NextRequest) {
     const entry: ClassProgressEntry = {
       id: randomUUID(),
       topic: String(topic).trim(),
+      homework: homework ? String(homework).trim() : '',
       notes: notes ? String(notes).trim() : '',
       classDate: classDate ? String(classDate) : new Date().toISOString().split('T')[0],
       author: author ?? 'Tutor',
       createdAt: new Date().toISOString(),
+      ...(startTime ? { startTime: String(startTime) } : {}),
+      ...(durationMinutes ? { durationMinutes: Number(durationMinutes) } : {}),
+      ...(subject ? { subject: String(subject) } : {}),
+      ...(status ? { status: String(status) } : {}),
+      ...(understanding ? { understanding: Number(understanding) } : {}),
+      ...(attendance ? { attendance: String(attendance) } : {}),
+      ...(engagement ? { engagement: String(engagement) } : {}),
+      ...(nextSessionGoal ? { nextSessionGoal: String(nextSessionGoal).trim() } : {}),
+      ...(nextSessionAt ? { nextSessionAt: String(nextSessionAt) } : {}),
     }
     entries.unshift(entry)
     await redis.set(`classProgress:${tutorId}:${studentId}`, JSON.stringify(entries), { ex: ENTRY_TTL })

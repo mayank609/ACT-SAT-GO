@@ -2,21 +2,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Search, ChevronRight, ArrowLeft, Users, Target,
-  Clock, Wrench, Layers,
-  TrendingUp, BarChart2,
+  Wrench, Layers,
+  BarChart2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, Cell,
-  PieChart, Pie,
 } from 'recharts';
 import { api, type DbUser } from '../../lib/api';
 import {
-  loadStudentAnalytics, aggregate, buildBreakdown, accuracy, fmtTime, computeSatScore,
+  loadStudentAnalytics, aggregate, buildBreakdown, combinedSkillAccuracy, fmtTime, computeSatScore,
+  attemptsInRange, summarizeRange, previousPeriodOf,
   type LoadedAttempt, type QRecord, type SubjectKey,
 } from '../../lib/analyticsData';
 import { BreakdownTable } from '../../components/analytics/BreakdownTable';
+import {
+  AnalyticsOverviewHeader, resolveDateRange, DEFAULT_DATE_RANGE, type DateRangeState,
+} from '../../components/analytics/AnalyticsOverviewHeader';
+import {
+  ScoreAccuracyTrend, StrengthsAndWeaknesses, MotivationalBanner,
+} from '../../components/analytics/ScoreTrendInsights';
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -29,53 +35,6 @@ const C = {
   navy:    '#1b3d6e',
 };
 const DOMAIN_PALETTE = [C.blue, C.indigo, C.emerald, C.amber, C.rose, '#06b6d4', '#8b5cf6'];
-
-// ── Custom tooltip ─────────────────────────────────────────────────────────────
-function ChartTip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-xl text-xs">
-      {label && <p className="text-gray-500 mb-1 font-medium">{label}</p>}
-      {payload.map((p: any, i: number) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-          <span className="text-gray-800 font-semibold">{p.name}: {p.value}{typeof p.value === 'number' && p.name === 'Accuracy' ? '%' : ''}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Score Trend mini-chart ─────────────────────────────────────────────────────
-function ScoreTrend({ attempts, records }: { attempts: LoadedAttempt[]; records: Map<string, QRecord[]> }) {
-  const data = useMemo(() => attempts.slice().reverse().map(a => {
-    const s = computeSatScore(records.get(a.id) ?? []);
-    const label = a.title.length > 14 ? a.title.slice(0, 13) + '…' : a.title;
-    return { name: label, Total: a.totalScore ?? s.total, RW: s.rw, Math: s.math };
-  }), [attempts, records]);
-
-  if (data.length < 2) return (
-    <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-400">
-      <TrendingUp size={20} />
-      <p className="text-xs">Need ≥ 2 tests for trend</p>
-    </div>
-  );
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-        <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-        <YAxis domain={[200, 1600]} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-        <Tooltip content={<ChartTip />} />
-        <Legend wrapperStyle={{ fontSize: 11, color: '#6b7280' }} />
-        <Line type="monotone" dataKey="Total" stroke={C.blue} strokeWidth={2.5} dot={{ r: 3, fill: C.blue }} activeDot={{ r: 5 }} />
-        <Line type="monotone" dataKey="RW" stroke={C.indigo} strokeWidth={1.5} strokeDasharray="4 2" dot={{ r: 2 }} />
-        <Line type="monotone" dataKey="Math" stroke={C.emerald} strokeWidth={1.5} strokeDasharray="4 2" dot={{ r: 2 }} />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-}
 
 // ── Domain accuracy bar chart ─────────────────────────────────────────────────
 function DomainBars({ rows }: { rows: Array<{ name: string; agg: { correct: number; total: number } }> }) {
@@ -119,53 +78,6 @@ function DomainBars({ rows }: { rows: Array<{ name: string; agg: { correct: numb
   );
 }
 
-// ── Donut breakdown ───────────────────────────────────────────────────────────
-function QuestionDonut({ correct, incorrect, skipped, doubts }: { correct: number; incorrect: number; skipped: number; doubts: number }) {
-  const total = correct + incorrect + skipped;
-  const accPct = total > 0 ? Math.round((correct / total) * 100) : 0;
-  const slices = [
-    { name: 'Correct', value: correct, color: C.emerald },
-    { name: 'Incorrect', value: incorrect, color: C.rose },
-    { name: 'Skipped', value: skipped, color: C.slate },
-  ].filter(d => d.value > 0);
-
-  return (
-    <div className="flex items-center gap-4 h-full">
-      <div className="relative flex-shrink-0" style={{ width: 120, height: 120 }}>
-        <ResponsiveContainer width={120} height={120}>
-          <PieChart>
-            <Pie data={slices} cx={57} cy={57} innerRadius={38} outerRadius={55}
-              dataKey="value" stroke="none" paddingAngle={2}>
-              {slices.map((d, i) => <Cell key={i} fill={d.color} />)}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-xl font-black text-gray-900">{accPct}%</span>
-          <span className="text-[10px] text-gray-400">accuracy</span>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2.5 flex-1 min-w-0">
-        {[
-          { label: 'Correct', value: correct, color: C.emerald },
-          { label: 'Incorrect', value: incorrect, color: C.rose },
-          { label: 'Skipped', value: skipped, color: C.slate },
-          { label: 'Doubts', value: doubts, color: C.amber },
-        ].map(r => (
-          <div key={r.label} className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.color }} />
-            <span className="text-xs text-gray-500 flex-1">{r.label}</span>
-            <span className="text-xs font-bold text-gray-800">{r.value}</span>
-            <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${total > 0 ? (r.value / total) * 100 : 0}%`, background: r.color }} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Student cumulative view ───────────────────────────────────────────────────
 function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () => void }) {
   const navigate = useNavigate();
@@ -173,6 +85,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
   const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [subject, setSubject] = useState<Exclude<SubjectKey, 'other'>>('rw');
+  const [dateRange, setDateRange] = useState<DateRangeState>(DEFAULT_DATE_RANGE);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,12 +109,51 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
     return recs;
   }, [records, nonDiagAttempts]);
 
-  const summary = useMemo(() => aggregate(scoped), [scoped]);
   const { domainRows, skillRows } = useMemo(() => buildBreakdown(scoped, subject), [scoped, subject]);
-  const acc = accuracy(summary);
-  const avgTimePerTest = nonDiagAttempts.length > 0 ? Math.round(summary.time / nonDiagAttempts.length) : 0;
-
+  const combinedSkillRows = useMemo(() => combinedSkillAccuracy(scoped), [scoped]);
   const subjectLabel = subject === 'rw' ? 'Reading & Writing' : 'Math';
+
+  // ── Analytics Overview header: KPI cards + date-range delta ──────────────
+  const headerCurrent = useMemo(() => {
+    const { start, end } = resolveDateRange(dateRange);
+    return summarizeRange(nonDiagAttempts, records, start, end);
+  }, [nonDiagAttempts, records, dateRange]);
+
+  const headerPrevious = useMemo(() => {
+    const { start, end } = resolveDateRange(dateRange);
+    const prevRange = previousPeriodOf(start, end);
+    if (!prevRange.start || !prevRange.end) return null;
+    const prev = summarizeRange(nonDiagAttempts, records, prevRange.start, prevRange.end);
+    return prev.testCount > 0 ? prev : null;
+  }, [nonDiagAttempts, records, dateRange]);
+
+  const attemptsForDownload = useMemo(() => {
+    const { start, end } = resolveDateRange(dateRange);
+    return attemptsInRange(nonDiagAttempts, start, end);
+  }, [nonDiagAttempts, dateRange]);
+
+  const handleDownload = () => {
+    if (attemptsForDownload.length === 0) return;
+    const header = ['Test', 'Completed', 'Score', 'Correct', 'Incorrect', 'Skipped', 'Doubts', 'Time Spent'];
+    const rows = attemptsForDownload.map(a => {
+      const recs = records.get(a.id) ?? [];
+      const rowAgg = aggregate(recs);
+      return [
+        a.title,
+        a.completedAt ? new Date(a.completedAt).toLocaleDateString() : '',
+        a.totalScore ?? computeSatScore(recs).total,
+        rowAgg.correct, rowAgg.incorrect, rowAgg.skipped, rowAgg.doubts, fmtTime(rowAgg.time),
+      ];
+    });
+    const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${student.name.replace(/\s+/g, '_')}_Analytics_Report.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -215,7 +167,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
           <ArrowLeft size={20} className="text-gray-600" />
         </button>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
+          <h1 className="text-xl font-bold text-gray-900">Analytics Overview</h1>
           <p className="text-gray-400 text-sm">{student.name}</p>
         </div>
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
@@ -239,65 +191,16 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
         </div>
       ) : (
         <>
-          {/* ── Hero: Total time + key metrics + question breakdown ─────── */}
-          <div className="bg-gradient-to-br from-[#16325c] via-[#1e4d8c] to-[#2563eb] rounded-2xl p-5 sm:p-6 shadow-lg shadow-blue-200/40 relative overflow-hidden">
-            <div className="absolute -top-16 -right-12 w-72 h-72 bg-white/5 rounded-full pointer-events-none" />
-            <div className="absolute -bottom-20 left-1/4 w-56 h-56 bg-white/[0.04] rounded-full pointer-events-none" />
-            <div className="relative flex flex-col lg:flex-row lg:items-stretch gap-5">
-              {/* Left: total time + metric chips */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between gap-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center flex-shrink-0">
-                    <Clock size={26} className="text-amber-300" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-blue-200/80 text-[11px] font-bold uppercase tracking-widest mb-0.5">Total Time Spent</p>
-                    <p className="text-4xl sm:text-5xl font-black text-white tracking-tight tabular-nums leading-none">{fmtTime(summary.time)}</p>
-                    <p className="text-blue-200 text-xs mt-1.5">
-                      across <span className="text-white font-bold">{nonDiagAttempts.length}</span> test{nonDiagAttempts.length !== 1 ? 's' : ''}
-                      {nonDiagAttempts.length > 0 && <> &nbsp;·&nbsp; avg <span className="text-white font-bold">{fmtTime(avgTimePerTest)}</span> / test</>}
-                    </p>
-                  </div>
-                </div>
-                {/* Metric chips */}
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {([
-                    { label: 'Total Qs', value: summary.total, color: 'text-blue-700' },
-                    { label: 'Correct', value: summary.correct, color: 'text-emerald-600' },
-                    { label: 'Mistakes', value: summary.incorrect, color: 'text-rose-600', onClick: () => navigate(`/student-mistakes?studentId=${student.id}`) },
-                    { label: 'Doubts', value: summary.doubts, color: 'text-amber-600', onClick: () => navigate(`/student-doubts?studentId=${student.id}`) },
-                    { label: 'Accuracy', value: `${acc}%`, color: acc >= 80 ? 'text-emerald-600' : acc >= 60 ? 'text-amber-600' : 'text-rose-600' },
-                  ] as Array<{ label: string; value: string | number; color: string; onClick?: () => void }>).map(m => (
-                    <div
-                      key={m.label}
-                      onClick={m.onClick}
-                      title={m.onClick ? `View this student’s ${m.label.toLowerCase()}` : undefined}
-                      className={`bg-blue-50 ring-1 ring-white/40 rounded-xl px-3 py-2 text-center shadow-sm ${m.onClick ? 'cursor-pointer hover:bg-blue-100 hover:ring-blue-300 transition-colors' : ''}`}
-                    >
-                      <p className="text-[9px] uppercase tracking-widest font-semibold text-blue-500/80">{m.label}</p>
-                      <p className={`text-xl font-black tabular-nums ${m.color}`}>{m.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Right: question breakdown panel (moved into hero) */}
-              <div className="lg:w-80 flex-shrink-0 bg-white rounded-xl p-4 shadow-md">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target size={15} className="text-indigo-500" />
-                  <span className="text-sm font-bold text-gray-800">Question Breakdown</span>
-                </div>
-                <div style={{ height: 150 }}>
-                  <QuestionDonut
-                    correct={summary.correct}
-                    incorrect={summary.incorrect}
-                    skipped={summary.skipped}
-                    doubts={summary.doubts}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <AnalyticsOverviewHeader
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            onDownload={handleDownload}
+            downloadDisabled={attemptsForDownload.length === 0}
+            current={headerCurrent}
+            previous={headerPrevious}
+            onIncorrectClick={() => navigate(`/student-mistakes?studentId=${student.id}`)}
+            onDoubtsClick={() => navigate(`/student-doubts?studentId=${student.id}`)}
+          />
 
           {/* ── Subject toggle ───────────────────────────────────────────── */}
           <div className="flex items-center gap-2 pt-1">
@@ -348,20 +251,15 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-blue-100/40 flex items-center gap-2.5">
-              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-[#1b3d6e]"><TrendingUp size={15} /></span>
-              <div>
-                <h3 className="text-sm font-bold text-blue-900">Score Trend</h3>
-                <p className="text-xs text-blue-500/80 mt-0.5">all {nonDiagAttempts.length} tests</p>
-              </div>
+          {/* ── Score trend + strengths/weaknesses ───────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="lg:col-span-2">
+              <ScoreAccuracyTrend attempts={nonDiagAttempts} records={records} />
             </div>
-            <div className="p-4">
-              <div style={{ height: 200 }}>
-                <ScoreTrend attempts={nonDiagAttempts} records={records} />
-              </div>
-            </div>
+            <StrengthsAndWeaknesses skillRows={combinedSkillRows} />
           </div>
+
+          <MotivationalBanner name={student.name} />
         </>
       )}
     </div>

@@ -10,7 +10,7 @@ import k12ElementaryImg from '../assets/k12-elementary.jpg';
 import k12MiddleImg from '../assets/k12-middle.jpg';
 import k12HighImg from '../assets/k12-high.jpg';
 
-const CONSULT_HREF = '/#consultation';
+const CONSULT_HREF = '/consultation';
 
 function IconStar() {
   return (
@@ -458,7 +458,7 @@ export function K12TutoringPage() {
               <li><a href="/#programs">Courses</a></li>
               <li><a href="/#programs">Career</a></li>
               <li><a href="/#resources">Blogs</a></li>
-              <li><a href="/#consultation">Contact</a></li>
+              <li><a href="/consultation">Contact</a></li>
             </ul>
           </div>
 

@@ -1753,7 +1753,7 @@ export function StudentManagementPage() {
                                       {showAnswerFeedback ? 'Hide Answer' : 'Show Answer'}
                                     </button>
                                   </div>
-                                  {options.length > 0 && (
+                                  {options.length > 0 && currentTq.question.type !== 'NUMERIC' && (
                                     <div className="space-y-2 max-w-3xl">
                                       {options.map((opt) => {
                                         const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
@@ -1824,7 +1824,7 @@ export function StudentManagementPage() {
                                     {showAnswerFeedback ? 'Hide Answer' : 'Show Answer'}
                                   </button>
                                 </div>
-                                {options.length > 0 && (
+                                {options.length > 0 && currentTq.question.type !== 'NUMERIC' && (
                                   <div className="space-y-2 mb-3 text-left max-w-3xl">
                                     {options.map((opt) => {
                                       const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
@@ -2607,7 +2607,7 @@ export function StudentManagementPage() {
                         {showAnswerFeedback ? 'Hide Answer' : 'Show Answer'}
                       </button>
                     </div>
-                    {options.length > 0 ? (
+                    {options.length > 0 && currentTq.question.type !== 'NUMERIC' ? (
                       <div className="space-y-2.5">
                         {options.map((opt) => {
                           const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;
@@ -2693,7 +2693,7 @@ export function StudentManagementPage() {
                         {showAnswerFeedback ? 'Hide Answer' : 'Show Answer'}
                       </button>
                     </div>
-                    {options.length > 0 ? (
+                    {options.length > 0 && currentTq.question.type !== 'NUMERIC' ? (
                       <div className="space-y-2.5">
                         {options.map((opt) => {
                           const isUserAnswer = Array.isArray(userAnswerDisplay) ? userAnswerDisplay.includes(opt.id) : userAnswerDisplay === opt.id;

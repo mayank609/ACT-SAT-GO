@@ -10,7 +10,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import type { QuestionState, SectionAttempt } from '../../types';
 import type { TestAttempt } from '../../types';
 import { transformDbTest, flattenTest } from './TestInstructionsPage';
-import { parseNumericAnswer, isValidNumericInput } from '../../lib/numericAnswer';
+import { parseNumericAnswer, isValidNumericInput, sanitizeNumericInput } from '../../lib/numericAnswer';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -1317,12 +1317,14 @@ export function TestInterfacePage() {
               {currentQuestion.type === 'numeric' && (
                 <div>
                   <p className="text-sm text-gray-600 mb-2 font-medium">Enter your answer:</p>
-                  <input type="text" inputMode="text" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
+                  <input type="text" inputMode="decimal" pattern="[0-9./\- ]*" autoComplete="off"
+                    maxLength={numericInput.startsWith('-') ? 6 : 5}
+                    value={numericInput} onChange={(e) => setNumericInput(sanitizeNumericInput(e.target.value))}
                     placeholder="e.g. 7/10 or 0.7"
                     className={`w-48 px-4 py-3 border-2 rounded-lg text-lg font-mono focus:outline-none transition-colors bg-white ${
                       isValidNumericInput(numericInput) ? 'border-gray-300 focus:border-[#1b3d6e]' : 'border-red-400 focus:border-red-500'
                     }`} />
-                  <p className="text-xs text-gray-400 mt-1.5">You can enter a fraction (e.g. 7/10) or a decimal.</p>
+                  <p className="text-xs text-gray-400 mt-1.5">You can enter a fraction (e.g. 7/10) or a decimal. Up to 5 digits (6 if negative).</p>
                 </div>
               )}
             </div>
@@ -1352,12 +1354,14 @@ export function TestInterfacePage() {
             {currentQuestion.type === 'numeric' && (
               <div>
                 <p className="text-sm text-gray-600 mb-2 font-medium">Enter your answer:</p>
-                <input type="text" inputMode="text" value={numericInput} onChange={(e) => setNumericInput(e.target.value)}
+                <input type="text" inputMode="decimal" pattern="[0-9./\- ]*" autoComplete="off"
+                  maxLength={numericInput.startsWith('-') ? 6 : 5}
+                  value={numericInput} onChange={(e) => setNumericInput(sanitizeNumericInput(e.target.value))}
                   placeholder="e.g. 7/10 or 0.7"
                   className={`w-48 px-4 py-3 border-2 rounded-lg text-lg font-mono focus:outline-none transition-colors bg-white ${
                     isValidNumericInput(numericInput) ? 'border-gray-300 focus:border-[#1b3d6e]' : 'border-red-400 focus:border-red-500'
                   }`} />
-                <p className="text-xs text-gray-400 mt-1.5">You can enter a fraction (e.g. 7/10) or a decimal.</p>
+                <p className="text-xs text-gray-400 mt-1.5">You can enter a fraction (e.g. 7/10) or a decimal. Up to 5 digits (6 if negative).</p>
               </div>
             )}
           </div>

@@ -25,21 +25,23 @@ const SupportPage = lazy(() => import('./pages/admin/SupportPage').then((m) => (
 const StudentDoubtsAdminPage = lazy(() => import('./pages/admin/StudentDoubtsAdminPage').then((m) => ({ default: m.StudentDoubtsAdminPage })));
 const StudentMistakesPage = lazy(() => import('./pages/admin/StudentMistakesPage').then((m) => ({ default: m.StudentMistakesPage })));
 const SkillsManagementPage = lazy(() => import('./pages/admin/SkillsManagementPage').then((m) => ({ default: m.SkillsManagementPage })));
+const AdminAttendancePage = lazy(() => import('./pages/admin/AdminAttendancePage').then((m) => ({ default: m.AdminAttendancePage })));
 
 // Tutor pages
 const TutorDashboard = lazy(() => import('./pages/tutor/TutorDashboard').then((m) => ({ default: m.TutorDashboard })));
 const MyStudentsPage = lazy(() => import('./pages/tutor/MyStudentsPage').then((m) => ({ default: m.MyStudentsPage })));
 const StudentDetailPage = lazy(() => import('./pages/tutor/StudentDetailPage').then((m) => ({ default: m.StudentDetailPage })));
 const TutorAnalyticsPage = lazy(() => import('./pages/tutor/TutorAnalyticsPage').then((m) => ({ default: m.TutorAnalyticsPage })));
+const AttendancePage = lazy(() => import('./pages/tutor/AttendancePage').then((m) => ({ default: m.AttendancePage })));
 
 // Student pages
 const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
+const MyAttendancePage = lazy(() => import('./pages/student/MyAttendancePage').then((m) => ({ default: m.MyAttendancePage })));
 const TestInstructionsPage = lazy(() => import('./pages/student/TestInstructionsPage').then((m) => ({ default: m.TestInstructionsPage })));
 const TestInterfacePage = lazy(() => import('./pages/student/TestInterfacePage').then((m) => ({ default: m.TestInterfacePage })));
 const TestReviewPage = lazy(() => import('./pages/student/TestReviewPage').then((m) => ({ default: m.TestReviewPage })));
 const SectionReviewPage = lazy(() => import('./pages/student/SectionReviewPage').then((m) => ({ default: m.SectionReviewPage })));
 const MyTestsPage = lazy(() => import('./pages/student/MyTestsPage').then((m) => ({ default: m.MyTestsPage })));
-const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage').then((m) => ({ default: m.MyProgressPage })));
 const AnalyticsPage = lazy(() => import('./pages/student/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })));
 const ReviewAttemptsPage = lazy(() => import('./pages/student/ReviewAttemptsPage').then((m) => ({ default: m.ReviewAttemptsPage })));
@@ -75,6 +77,14 @@ function AnalyticsRouter() {
   if (user.role === 'student') return <AnalyticsPage />;
   if (user.role === 'tutor') return <TutorAnalyticsPage />;
   return <AdminAnalyticsPage />;
+}
+
+function AttendanceRouter() {
+  const { user } = useAuthStore();
+  if (!user) return null;
+  if (user.role === 'student') return <MyAttendancePage />;
+  if (user.role === 'tutor') return <AttendancePage />;
+  return <AdminAttendancePage />;
 }
 
 const router = createBrowserRouter(
@@ -121,10 +131,11 @@ const router = createBrowserRouter(
         <Route path="my-students" element={<MyStudentsPage />} />
         <Route path="student/:id" element={<StudentDetailPage />} />
         <Route path="analytics" element={<AnalyticsRouter />} />
+        <Route path="attendance" element={<AttendanceRouter />} />
 
         {/* Student */}
         <Route path="my-tests" element={<MyTestsPage />} />
-        <Route path="my-progress" element={<MyProgressPage />} />
+        <Route path="my-progress" element={<Navigate to="/my-tests" replace />} />
         <Route path="review-attempts" element={<ReviewAttemptsPage />} />
         <Route path="test-review/:attemptId" element={<TestReviewPage />} />
         <Route path="test-review/:attemptId/section/:sectionIdx" element={<SectionReviewPage />} />

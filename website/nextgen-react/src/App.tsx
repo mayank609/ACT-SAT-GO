@@ -488,7 +488,7 @@ export default function App() {
               <li><a href="/#programs">Courses</a></li>
               <li><a href="/#programs">Career</a></li>
               <li><a href="/#resources">Blogs</a></li>
-              <li><a href="/#consultation">Contact</a></li>
+              <li><a href="/consultation">Contact</a></li>
             </ul>
           </div>
 
