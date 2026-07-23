@@ -281,8 +281,7 @@ export const SAT_PAGE: ProgramPageData = {
       idealFor: 'Students seeking a comprehensive, high-impact SAT preparation plan.',
       accent: '#1c5fa5',
       featured: true,
-      price: '$1200',
-      oldPrice: '$1500',
+      price: '$1600',
       features: [
         'Complete Math, Reading & Writing coverage',
         '12+ full-length mock tests',
@@ -297,8 +296,7 @@ export const SAT_PAGE: ProgramPageData = {
       weeks: '4 – 6 Weeks',
       idealFor: 'Students with limited time who want to boost their score quickly.',
       accent: '#16a34a',
-      price: '$1200',
-      oldPrice: '$1500',
+      price: '$1600',
       features: [
         'Condensed & high-impact curriculum',
         '8 full-length mock tests',
@@ -329,8 +327,7 @@ export const SAT_PAGE: ProgramPageData = {
       weeks: '6 – 8 Weeks',
       idealFor: 'Students looking to strengthen SAT Math fundamentals and aim for a perfect score.',
       accent: '#f59b00',
-      price: '$700',
-      oldPrice: '$850',
+      price: '$900',
       features: [
         'Algebra, Advanced Math, Geometry & Data Analysis',
         'Calculator & No-Calculator strategies',
@@ -345,8 +342,7 @@ export const SAT_PAGE: ProgramPageData = {
       weeks: '6 – 8 Weeks',
       idealFor: 'Students who need targeted improvement in Reading & Writing sections.',
       accent: '#dc2626',
-      price: '$700',
-      oldPrice: '$850',
+      price: '$900',
       features: [
         'Master critical reading & rhetorical skills',
         'In-depth grammar aligned with SAT',
