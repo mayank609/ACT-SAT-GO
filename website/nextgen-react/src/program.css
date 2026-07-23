@@ -993,13 +993,8 @@
     justify-content: center;
   }
 
-  .prog-hero-art,
-  .ap-hero-art {
-    display: none;
-  }
-
-  .hero-art.prog-hero-art-sat {
-    min-height: 220px;
+  .prog-hero-art {
+    min-height: 240px;
   }
 }
 

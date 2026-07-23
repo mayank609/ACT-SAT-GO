@@ -995,10 +995,11 @@ h1 span,
 
 @media (max-width: 680px) {
   .hub-card > p {
-    max-width: 100%;
+    max-width: 74%;
   }
   .hub-photo {
-    display: none;
+    width: 40%;
+    height: 56%;
   }
 }
 
@@ -1653,8 +1654,47 @@ h1 span,
     justify-content: center;
   }
 
-  .hero-art {
-    display: none;
+  .hero-art,
+  .ap-hero-art {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 28px;
+  }
+
+  .hero-art img {
+    flex: 1 1 100%;
+    width: 100%;
+    min-height: 0;
+    height: 240px;
+  }
+
+  .sat-hero-img,
+  .ap-hero-illustration {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .floating-card {
+    position: static;
+    animation: none;
+    width: auto;
+    flex: 0 1 auto;
+  }
+
+  .orbit-card {
+    flex: 0 1 auto;
+  }
+
+  .card-score-new {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .card-exams-new {
+    flex-direction: row;
   }
 
   .hero-trust {
@@ -2301,6 +2341,16 @@ h1 span,
   .badge-success { top: 34%; right: 2%; }
 }
 
+/* Below ~680px the badges no longer have room to float over the (much
+   shorter) hero image without overlapping each other, so drop them into
+   normal flow as a wrapped row instead of hiding them outright. */
+@media (max-width: 680px) {
+  .orbit-card {
+    position: static;
+    animation: none;
+  }
+}
+
 @media (max-width: 1040px) {
   .hero-bullets-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -2312,11 +2362,6 @@ h1 span,
   .hero-bullets-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-  }
-  
-  /* On very small devices, hide orbiting cards to avoid overlap with student illustration */
-  .orbit-card {
-    display: none;
   }
 }
 
@@ -2401,6 +2446,9 @@ h1 span,
 @media (max-width: 768px) {
   .ap-hero-lines {
     display: none;
+  }
+  .ap-hero-illustration {
+    height: 280px;
   }
 }
 
@@ -3281,6 +3329,28 @@ html, body {
     max-height: calc(100vh - 24px);
     overflow-y: auto;
   }
+  .hero-art img {
+    height: 200px;
+  }
+  .sat-hero-img,
+  .ap-hero-illustration {
+    height: 220px;
+  }
+  .orbit-card {
+    width: 84px;
+    padding: 7px 9px;
+  }
+  .orbit-card span {
+    font-size: 10px;
+  }
+  .badge-icon-bg {
+    width: 30px;
+    height: 30px;
+  }
+  .badge-icon-bg svg {
+    width: 13px;
+    height: 13px;
+  }
 }
 
 /* ── WhatsApp floating button ─────────────────────────────────────── */
@@ -3509,6 +3579,28 @@ html, body {
   .card-exams-new {
     right: 0;
     top: 30%;
+  }
+}
+
+/* Below ~680px the hero image shrinks too much for these cards to float
+   over it without colliding, so drop them into normal flow instead of
+   hiding them. */
+@media (max-width: 680px) {
+  .card-concepts-new,
+  .card-score-new,
+  .card-exams-new {
+    position: static;
+    left: auto;
+    right: auto;
+    top: auto;
+  }
+  .card-score-new {
+    width: 100%;
+  }
+  .card-exams-new {
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 }
 
