@@ -65,7 +65,7 @@ export async function getStudentAttempts(studentId: string) {
       include: {
         test: true,
         sectionAttempts: {
-          orderBy: { startedAt: 'asc' },
+          orderBy: { section: { orderIndex: 'asc' } },
           include: {
             section: {
               include: {
@@ -113,6 +113,7 @@ export async function getAttemptResults(attemptId: string) {
       include: {
         test: true,
         sectionAttempts: {
+          orderBy: { section: { orderIndex: 'asc' } },
           include: {
             section: {
               include: {
