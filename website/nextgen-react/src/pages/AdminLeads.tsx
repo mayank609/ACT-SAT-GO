@@ -23,10 +23,24 @@ import {
 
 const EXAM_OPTIONS = ['SAT', 'ACT', 'SAT & ACT', 'General'];
 const TYPE_OPTIONS = ['Consultation', 'Newsletter', 'Manual'];
+const TEST_PREP_OPTIONS = ['SAT', 'ACT', 'AP', 'K-12', 'Other'];
 
 const EMPTY_FORM = { name: '', email: '', phone: '', exam: 'SAT', message: '', type: 'Consultation', status: 'Pending' as LeadStatus };
 const EMPTY_JOB_FORM = { dept: 'Academics', title: '', location: 'Remote (Global)', type: 'Full-time', desc: '' };
 const EMPTY_BLOG_FORM = { tag: 'STUDY TIPS', title: '', text: '', image: '', date: '', read: '5 min read', tagsString: '' };
+const EMPTY_TUTOR_FORM = {
+  name: '',
+  email: '',
+  phone: '',
+  city: '',
+  subject: '',
+  testPrep: [] as string[],
+  grades: '',
+  hourlyRate: '',
+  videoUrl: '',
+  remarks: '',
+  status: 'Pending' as LeadStatus,
+};
 
 const statusClass = (s: LeadStatus) => 's-' + s.toLowerCase().replace(/\s+/g, '-');
 
@@ -58,6 +72,13 @@ export function AdminLeads() {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
+
+  // Tutor Applicant Modal State
+  const [showAddTutorModal, setShowAddTutorModal] = useState(false);
+  const [addTutorForm, setAddTutorForm] = useState(EMPTY_TUTOR_FORM);
+  const [addTutorCvFile, setAddTutorCvFile] = useState<{ name: string; type: string; data: string } | null>(null);
+  const [addTutorLoading, setAddTutorLoading] = useState(false);
+  const [addTutorError, setAddTutorError] = useState('');
 
   // Job Modal State
   const [showAddJobModal, setShowAddJobModal] = useState(false);
@@ -136,6 +157,77 @@ export function AdminLeads() {
       else setAddError(err instanceof Error ? err.message : 'Failed to create lead');
     } finally {
       setAddLoading(false);
+    }
+  };
+
+  const handleTutorTestPrepChange = (option: string) => {
+    setAddTutorForm((f) => {
+      const exists = f.testPrep.includes(option);
+      const testPrep = exists ? f.testPrep.filter((t) => t !== option) : [...f.testPrep, option];
+      return { ...f, testPrep };
+    });
+  };
+
+  const handleTutorFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAddTutorError('CV file size must be under 5MB.');
+      return;
+    }
+    const validExtensions = ['pdf', 'doc', 'docx'];
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!fileExt || !validExtensions.includes(fileExt)) {
+      setAddTutorError('Only PDF, DOC, or DOCX files are allowed.');
+      return;
+    }
+
+    setAddTutorError('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAddTutorCvFile({ name: file.name, type: file.type, data: reader.result as string });
+    };
+    reader.onerror = () => {
+      setAddTutorError('Failed to read the CV file.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddTutor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addTutorForm.name.trim() || !addTutorForm.email.trim()) {
+      setAddTutorError('Name and Email are required.');
+      return;
+    }
+    setAddTutorError('');
+    setAddTutorLoading(true);
+    try {
+      const newLead = await createLead({
+        name: addTutorForm.name,
+        email: addTutorForm.email,
+        phone: addTutorForm.phone,
+        city: addTutorForm.city,
+        subject: addTutorForm.subject,
+        testPrep: addTutorForm.testPrep,
+        grades: addTutorForm.grades,
+        hourlyRate: addTutorForm.hourlyRate,
+        cvFile: addTutorCvFile,
+        videoUrl: addTutorForm.videoUrl,
+        message: addTutorForm.remarks,
+        remarks: addTutorForm.remarks,
+        type: 'Tutor',
+        status: addTutorForm.status,
+      });
+      setLeads((cur) => [newLead, ...cur]);
+      setShowAddTutorModal(false);
+      setAddTutorForm(EMPTY_TUTOR_FORM);
+      setAddTutorCvFile(null);
+    } catch (err) {
+      if (err instanceof AuthError) logout();
+      else setAddTutorError(err instanceof Error ? err.message : 'Failed to add applicant');
+    } finally {
+      setAddTutorLoading(false);
     }
   };
 
@@ -447,6 +539,19 @@ export function AdminLeads() {
           {activeTab === 'students' && (
             <button className="admin-add-btn" onClick={() => { setAddForm(EMPTY_FORM); setAddError(''); setShowAddModal(true); }}>
               + Add Lead
+            </button>
+          )}
+          {activeTab === 'tutors' && (
+            <button
+              className="admin-add-btn"
+              onClick={() => {
+                setAddTutorForm(EMPTY_TUTOR_FORM);
+                setAddTutorCvFile(null);
+                setAddTutorError('');
+                setShowAddTutorModal(true);
+              }}
+            >
+              + Add Applicant
             </button>
           )}
           {activeTab === 'hirings' && (
@@ -796,6 +901,153 @@ export function AdminLeads() {
                 <button type="button" className="admin-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
                 <button type="submit" className="admin-btn-primary" disabled={addLoading}>
                   {addLoading ? 'Adding…' : 'Add Lead'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Tutor Applicant Modal ── */}
+      {showAddTutorModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowAddTutorModal(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h2>Add Applicant Manually</h2>
+              <button className="admin-modal-close" onClick={() => setShowAddTutorModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleAddTutor} className="admin-modal-form">
+              {addTutorError && <div className="admin-error">{addTutorError}</div>}
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Name *</label>
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={addTutorForm.name}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    placeholder="email@example.com"
+                    value={addTutorForm.email}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, email: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Phone</label>
+                  <input
+                    type="tel"
+                    placeholder="+1 98765 43210"
+                    value={addTutorForm.phone}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, phone: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>City</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. New York, USA"
+                    value={addTutorForm.city}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, city: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Subject / Role</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. SAT Math Tutor"
+                    value={addTutorForm.subject}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, subject: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Grades / Target Audience</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Grades 9-12, College"
+                    value={addTutorForm.grades}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, grades: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="admin-form-field">
+                <label>Test Prep Specializations</label>
+                <div className="test-prep-checklist">
+                  {TEST_PREP_OPTIONS.map((option) => (
+                    <label key={option} className="checklist-item">
+                      <input
+                        type="checkbox"
+                        checked={addTutorForm.testPrep.includes(option)}
+                        onChange={() => handleTutorTestPrepChange(option)}
+                      />
+                      <span className="checklist-label">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Hourly Rate</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. $25/hr"
+                    value={addTutorForm.hourlyRate}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, hourlyRate: e.target.value }))}
+                  />
+                </div>
+                <div className="admin-form-field">
+                  <label>Initial Status</label>
+                  <select value={addTutorForm.status} onChange={(e) => setAddTutorForm((f) => ({ ...f, status: e.target.value as LeadStatus }))}>
+                    {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="admin-form-field">
+                <label>Video URL</label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={addTutorForm.videoUrl}
+                  onChange={(e) => setAddTutorForm((f) => ({ ...f, videoUrl: e.target.value }))}
+                />
+              </div>
+              <div className="admin-form-field">
+                <label>Upload CV (PDF, DOC, DOCX - Max 5MB)</label>
+                <div className="file-uploader-box">
+                  <input
+                    type="file"
+                    id="admin-tutor-cv-upload"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleTutorFileChange}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="admin-tutor-cv-upload" className="file-select-btn">Choose File</label>
+                  <span className="file-name-display">{addTutorCvFile?.name || 'No file selected'}</span>
+                </div>
+              </div>
+              <div className="admin-form-field">
+                <label>Remarks</label>
+                <textarea
+                  rows={3}
+                  placeholder="Any notes about this applicant…"
+                  value={addTutorForm.remarks}
+                  onChange={(e) => setAddTutorForm((f) => ({ ...f, remarks: e.target.value }))}
+                />
+              </div>
+              <div className="admin-modal-footer">
+                <button type="button" className="admin-btn-secondary" onClick={() => setShowAddTutorModal(false)}>Cancel</button>
+                <button type="submit" className="admin-btn-primary" disabled={addTutorLoading}>
+                  {addTutorLoading ? 'Adding…' : 'Add Applicant'}
                 </button>
               </div>
             </form>
