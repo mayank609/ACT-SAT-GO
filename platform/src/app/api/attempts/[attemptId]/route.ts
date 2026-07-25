@@ -38,6 +38,7 @@ export async function GET(
           },
         },
         sectionAttempts: {
+          orderBy: { section: { orderIndex: 'asc' } },
           include: {
             section: {
               include: {

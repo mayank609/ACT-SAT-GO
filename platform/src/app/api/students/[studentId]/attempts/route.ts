@@ -26,7 +26,7 @@ export async function GET(
           }
         },
         sectionAttempts: {
-          orderBy: { startedAt: 'asc' },
+          orderBy: { section: { orderIndex: 'asc' } },
           include: {
             section: {
               include: {
