@@ -13,6 +13,7 @@ import { CareersPage } from './pages/CareersPage';
 import { EnquiryPage } from './pages/EnquiryPage';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { ACT_PAGE, SAT_PAGE, AP_PAGE } from './data/programs';
+import { initMetaPixel } from './lib/metaPixel';
 import './styles.css';
 import './program.css';
 import './future-programs.css';
@@ -21,6 +22,8 @@ import './about-us.css';
 import './resources.css';
 import './admin.css';
 import './careers.css';
+
+initMetaPixel();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
 import { QUERY_API_BASE } from '../config';
+import { trackLead } from '../lib/metaPixel';
 
 const EXAM_OPTIONS = ['General', 'SAT', 'ACT', 'AP Prep', 'K-12 Tutoring'];
 
@@ -40,6 +41,7 @@ export function EnquiryPage() {
 
       if (response.ok) {
         setSubmitStatus('success');
+        trackLead();
       } else {
         setSubmitStatus('error');
       }

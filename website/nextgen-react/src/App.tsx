@@ -14,6 +14,7 @@ import avatar2 from './assets/avatar2.png';
 import avatar3 from './assets/avatar3.png';
 import avatar4 from './assets/avatar4.png';
 import { QUERY_API_BASE } from './config';
+import { trackLead } from './lib/metaPixel';
 import { IconGlobe, IconUser, IconUsers, IconHeartCheck, IconGraduationCap, IconChart, IconDocument, IconClipboardCheck, IconLink, IconRoute, IconMonitor, IconFlag, IconNetwork, IconTrophy } from './components/Icons';
 
 
@@ -58,6 +59,7 @@ export default function App() {
 
       if (response.ok) {
         setSubmitStatus('success');
+        trackLead();
       } else {
         setSubmitStatus('error');
       }
