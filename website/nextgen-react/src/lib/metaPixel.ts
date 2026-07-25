@@ -1,7 +1,8 @@
-// Meta (Facebook) Pixel — loaded only when VITE_META_PIXEL_ID is set, so local/dev
-// builds without an ID configured stay silent. Get the ID from Meta Events Manager
-// and set VITE_META_PIXEL_ID in a .env file to enable tracking.
-const PIXEL_ID = import.meta.env.VITE_META_PIXEL_ID as string | undefined;
+import { META_PIXEL_ID } from '../config';
+
+// Meta (Facebook) Pixel — loaded only when a Pixel ID is configured, so builds
+// without one stay silent. See META_PIXEL_ID in config.ts.
+const PIXEL_ID = META_PIXEL_ID;
 
 declare global {
   interface Window {

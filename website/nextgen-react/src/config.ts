@@ -11,3 +11,7 @@ export const APP_LOGIN_URL =
 // relatively on the same domain, preventing CORS issues.
 export const QUERY_API_BASE =
   import.meta.env.VITE_QUERY_API_BASE ?? (import.meta.env.PROD ? '' : 'http://localhost:5005');
+
+// Meta (Facebook) Pixel ID from Meta Events Manager, used for lead tracking on
+// the consultation forms. Override with VITE_META_PIXEL_ID in a .env file.
+export const META_PIXEL_ID = import.meta.env.VITE_META_PIXEL_ID ?? '1271262211876885';
