@@ -25,6 +25,33 @@ const ENGAGEMENTS = ['High', 'Medium', 'Low'] as const;
 const HW_SUBFILTERS = ['HW', 'English', 'Maths', 'All'] as const;
 const PAGE_SIZE = 10;
 
+const READING_TOPICS = [
+  'Words in Context', 'Traps', 'Main Idea', 'Purpose', 'Fact / Inference',
+  'Illustrating Claims', 'Logically Text Completion', 'Command of Evidence',
+  'Cross Text Connections', 'Overall Structure',
+];
+const WRITING_TOPICS = [
+  'Subject-Verb Agreement-1', 'Subject-Verb Agreement-2', 'Verb Forms & Tenses', 'Modifiers',
+  'Parallel Structures & Faulty Comparisons', 'Pronoun Antecedent', 'Plurals and Possessives',
+  'Sentence Structure', 'Linking Clauses', 'Punctuation', 'Supplements', 'Transitions',
+  'Rhetorical Synthesis', 'Command of Evidence : Quantitative',
+];
+const MATH_TOPICS = [
+  'Linear Equation', 'Algebra', 'Functions & Polynomial', 'Quadratic Equations', 'Parabola',
+  'Percentage, Proportions and Unit Conversions', 'Exponential Functions and Radical Function',
+  'Statistics', 'Research Methodology', 'Geometry', 'Trigonometry',
+];
+
+// Picks the curated topic checklist for a given Subject dropdown value; subjects
+// outside SAT/ACT Math/Reading/Writing-English (e.g. ACT Science, Other) fall
+// back to the free-text textarea only.
+function topicsForSubject(subject: string): string[] {
+  if (subject.includes('Math')) return MATH_TOPICS;
+  if (subject.includes('Reading')) return READING_TOPICS;
+  if (subject.includes('Writing') || subject.includes('English')) return WRITING_TOPICS;
+  return [];
+}
+
 const statusVariant = (status?: string): 'success' | 'danger' | 'default' | 'info' => {
   if (status === 'Completed') return 'success';
   if (status === 'No Show') return 'danger';
@@ -189,6 +216,17 @@ export function AttendancePage() {
         ? f.homeworkTestIds.filter(id => id !== testId)
         : [...f.homeworkTestIds, testId],
     }));
+  };
+
+  const topicOptions = useMemo(() => topicsForSubject(form.subject), [form.subject]);
+  const selectedTopicLines = useMemo(() => toLines(form.topic), [form.topic]);
+
+  const toggleTopic = (topic: string) => {
+    setForm(f => {
+      const lines = toLines(f.topic);
+      const next = lines.includes(topic) ? lines.filter(l => l !== topic) : [...lines, topic];
+      return { ...f, topic: next.join('\n') };
+    });
   };
 
   const homeworkOptions = useMemo(() => {
@@ -565,11 +603,37 @@ export function AttendancePage() {
             </div>
           </div>
 
+          {topicOptions.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-slate-600">Topics Covered</label>
+                {selectedTopicLines.length > 0 && (
+                  <span className="text-xs font-semibold text-blue-600">{selectedTopicLines.length} selected</span>
+                )}
+              </div>
+              <div className="border border-slate-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto divide-y divide-slate-50">
+                {topicOptions.map(topic => {
+                  const isSelected = selectedTopicLines.includes(topic);
+                  return (
+                    <label key={topic}
+                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleTopic(topic)} className="sr-only" />
+                      {isSelected ? <CheckSquare size={14} className="text-blue-600 flex-shrink-0" /> : <Square size={14} className="text-slate-300 flex-shrink-0" />}
+                      <span className="text-sm text-slate-700 flex-1">{topic}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Topics Covered (one per line)</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {topicOptions.length > 0 ? 'Topics Covered (one per line — checked items above are added here automatically)' : 'Topics Covered (one per line)'}
+            </label>
             <textarea value={form.topic} onChange={(e) => setForm(f => ({ ...f, topic: e.target.value }))}
               placeholder={'Linear equations in one variable\nWord problems using equations'} rows={3}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" autoFocus />
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" autoFocus={topicOptions.length === 0} />
           </div>
 
           <div>
