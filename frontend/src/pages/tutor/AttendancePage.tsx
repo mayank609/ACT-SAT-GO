@@ -358,6 +358,7 @@ export function AttendancePage() {
                     <th className="px-5 py-2.5 font-medium">Date</th>
                     <th className="px-5 py-2.5 font-medium">Student</th>
                     <th className="px-5 py-2.5 font-medium">Subject</th>
+                    <th className="px-5 py-2.5 font-medium">Topic</th>
                     <th className="px-5 py-2.5 font-medium">Duration</th>
                     <th className="px-5 py-2.5 font-medium">Status</th>
                     <th className="px-5 py-2.5 font-medium w-8" />
@@ -378,6 +379,13 @@ export function AttendancePage() {
                       </td>
                       <td className="px-5 py-3.5">
                         {row.subject ? <Badge variant="info" size="sm">{row.subject}</Badge> : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-5 py-3.5 max-w-[220px]">
+                        {toLines(row.topic).length > 0 ? (
+                          <span className="text-slate-600 truncate block" title={toLines(row.topic).join(', ')}>
+                            {toLines(row.topic).join(', ')}
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1"><Clock size={12} />{row.durationMinutes ? `${row.durationMinutes} min` : '—'}</span>
