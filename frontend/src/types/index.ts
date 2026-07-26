@@ -8,6 +8,7 @@ export interface User {
   avatar?: string;
   assignedTutorId?: string;
   assignedStudentIds?: string[];
+  targetDate?: string | null;
 }
 
 export type QuestionType = 'mcq_single' | 'mcq_multi' | 'numeric' | 'passage';

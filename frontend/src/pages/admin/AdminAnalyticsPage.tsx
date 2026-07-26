@@ -229,9 +229,9 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
             rows={domainRows}
           />
           <BreakdownTable
-            title="Skill Analysis"
+            title="Subdomain Analysis"
             icon={<Wrench size={15} />}
-            firstColLabel="Skill"
+            firstColLabel="Subdomain"
             rows={skillRows}
           />
 

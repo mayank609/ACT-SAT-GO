@@ -110,7 +110,7 @@ export function ReviewAttemptsPage() {
           <p className="text-slate-400 text-xs mt-1">Complete a test to review your attempt</p>
           <button onClick={() => navigate('/my-tests')}
             className="mt-4 text-xs text-blue-600 hover:text-blue-700 font-medium">
-            Go to My Tests →
+            Go to My Assignments →
           </button>
         </div>
       )}

@@ -13,6 +13,7 @@ export function dbUserToAuthUser(u: DbUser): User {
     role: u.role as Role,
     assignedTutorId: u.tutorId ?? undefined,
     assignedStudentIds: u.studentIds ?? [],
+    targetDate: u.targetDate ?? null,
   };
 }
 

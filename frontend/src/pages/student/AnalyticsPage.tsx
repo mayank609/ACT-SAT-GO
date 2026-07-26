@@ -235,7 +235,7 @@ export function AnalyticsPage() {
           onClick={() => navigate('/my-tests')}
           className="px-5 py-2.5 bg-[#1b3d6e] text-white rounded-xl text-sm font-semibold hover:bg-[#15305a] transition-colors shadow-sm"
         >
-          Go to My Tests
+          Go to My Assignments
         </button>
       </div>
     );
@@ -322,9 +322,9 @@ export function AnalyticsPage() {
         rows={domainRows}
       />
       <BreakdownTable
-        title="Skill Analysis"
+        title="Subdomain Analysis"
         icon={<Wrench size={15} />}
-        firstColLabel="Skill"
+        firstColLabel="Subdomain"
         rows={skillRows}
       />
 
