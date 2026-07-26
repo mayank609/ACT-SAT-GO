@@ -8,12 +8,13 @@ import { Link } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
+import { ScoreDistributionBars } from '../../components/common/ScoreDistributionBars';
 import { Modal } from '../../components/common/Modal';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, LineChart, Line,
+  PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts';
 
 type TabKey = 'overview' | 'users' | 'permissions' | 'system';
@@ -565,35 +566,12 @@ export function SuperAdminDashboard() {
                   ) : scoreDistData.length === 0 ? (
                     <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">No score distribution data</p></div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={170}>
-                      <BarChart data={scoreDistData} barSize={20} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
-                        <XAxis dataKey="range" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{
-                            borderRadius: '8px',
-                            border: '1px solid #f1f5f9',
-                            fontSize: '11px',
-                            boxShadow: 'none'
-                          }}
-                        />
-                        <Bar
-                          dataKey="count"
-                          radius={[3, 3, 0, 0]}
-                          name="Students"
-                          cursor="pointer"
-                          onClick={(_, index) => {
-                            const range = scoreDistData[index]?.range ?? null;
-                            setSelectedRange((prev) => (prev === range ? null : range));
-                          }}
-                        >
-                          {scoreDistData.map((d, i) => (
-                            <Cell key={i} fill={selectedRange === d.range ? '#6b21a8' : '#a855f7'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <ScoreDistributionBars
+                      data={scoreDistData}
+                      selectedRange={selectedRange}
+                      onSelect={(range) => setSelectedRange((prev) => (prev === range ? null : range))}
+                      accent="purple"
+                    />
                   )}
                 </div>
               </Card>
