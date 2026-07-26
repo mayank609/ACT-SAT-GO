@@ -127,7 +127,7 @@ function Row({ label, children, last = false }: { label: string; children: React
 }
 
 const emptyForm = {
-  studentId: '', classDate: new Date().toISOString().split('T')[0], startTime: '', durationMinutes: '60',
+  studentId: '', classDate: new Date().toISOString().split('T')[0], startTime: '', durationMinutes: '60', actualDurationMinutes: '',
   subject: SUBJECTS[0], status: 'Completed' as string, sessionType: 'Core Prep' as string, topic: '', homeworkTestIds: [] as string[], notes: '',
   understanding: 0, attendance: 'Present', engagement: 'High' as string, nextSessionGoal: '', nextSessionAt: '',
 };
@@ -288,6 +288,7 @@ export function AttendancePage() {
         author: user?.name ?? 'Tutor',
         startTime: form.startTime || undefined,
         durationMinutes: form.durationMinutes ? Number(form.durationMinutes) : undefined,
+        actualDurationMinutes: form.actualDurationMinutes ? Number(form.actualDurationMinutes) : undefined,
         subject: form.subject,
         status: form.status,
         sessionType: form.sessionType,
@@ -393,7 +394,10 @@ export function AttendancePage() {
                     <th className="px-5 py-2.5 font-medium">Subject</th>
                     <th className="px-5 py-2.5 font-medium">Type</th>
                     <th className="px-5 py-2.5 font-medium">Topic</th>
+                    <th className="px-5 py-2.5 font-medium">Homework</th>
+                    <th className="px-5 py-2.5 font-medium">Remarks</th>
                     <th className="px-5 py-2.5 font-medium">Duration</th>
+                    <th className="px-5 py-2.5 font-medium">Actual</th>
                     <th className="px-5 py-2.5 font-medium">Status</th>
                     <th className="px-5 py-2.5 font-medium w-8" />
                   </tr>
@@ -424,8 +428,23 @@ export function AttendancePage() {
                           </span>
                         ) : <span className="text-slate-300">—</span>}
                       </td>
+                      <td className="px-5 py-3.5 max-w-[220px]">
+                        {toLines(row.homework).length > 0 ? (
+                          <span className="text-slate-600 truncate block" title={toLines(row.homework).join(', ')}>
+                            {toLines(row.homework).join(', ')}
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-5 py-3.5 max-w-[220px]">
+                        {row.notes ? (
+                          <span className="text-slate-600 truncate block" title={row.notes}>{row.notes}</span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
                       <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1"><Clock size={12} />{row.durationMinutes ? `${row.durationMinutes} min` : '—'}</span>
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1"><Clock size={12} />{row.actualDurationMinutes ? `${row.actualDurationMinutes} min` : '—'}</span>
                       </td>
                       <td className="px-5 py-3.5">
                         <Badge variant={statusVariant(row.status)} size="sm">{row.status ?? 'Completed'}</Badge>
@@ -481,6 +500,7 @@ export function AttendancePage() {
                   <Row label="Session ID"><span className="text-slate-500">#{selected.id.slice(0, 8)}</span></Row>
                   <Row label="Date">{fmtDateLong(selected.classDate)}</Row>
                   <Row label="Time">{formatTimeRange(selected.startTime, selected.durationMinutes) || '—'}</Row>
+                  <Row label="Actual Duration">{selected.actualDurationMinutes ? `${selected.actualDurationMinutes} min` : '—'}</Row>
                   <Row label="Subject">{selected.subject ?? '—'}</Row>
                   <Row label="Session Type">
                     {selected.sessionType ? <Badge variant="purple" size="sm">{selected.sessionType}</Badge> : '—'}
@@ -634,7 +654,7 @@ export function AttendancePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
               <input type="date" value={form.classDate} onChange={(e) => setForm(f => ({ ...f, classDate: e.target.value }))}
@@ -645,9 +665,18 @@ export function AttendancePage() {
               <input type="time" value={form.startTime} onChange={(e) => setForm(f => ({ ...f, startTime: e.target.value }))}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Duration (min)</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Scheduled Duration (min)</label>
               <input type="number" min={0} value={form.durationMinutes} onChange={(e) => setForm(f => ({ ...f, durationMinutes: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Actual Duration (min)</label>
+              <input type="number" min={0} value={form.actualDurationMinutes} onChange={(e) => setForm(f => ({ ...f, actualDurationMinutes: e.target.value }))}
+                placeholder="How long the session actually ran"
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
             </div>
           </div>

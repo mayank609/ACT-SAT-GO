@@ -14,6 +14,7 @@ interface ClassProgressEntry {
   createdAt: string
   startTime?: string
   durationMinutes?: number
+  actualDurationMinutes?: number
   subject?: string
   status?: string
   sessionType?: string
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
   try {
     const {
       tutorId, studentId, topic, homework, notes, classDate, author,
-      startTime, durationMinutes, subject, status, sessionType, understanding, attendance, engagement, nextSessionGoal, nextSessionAt,
+      startTime, durationMinutes, actualDurationMinutes, subject, status, sessionType, understanding, attendance, engagement, nextSessionGoal, nextSessionAt,
     } = await request.json()
     if (!tutorId || !studentId || !topic) {
       return NextResponse.json({ error: 'tutorId, studentId, topic required' }, { status: 400 })
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       ...(startTime ? { startTime: String(startTime) } : {}),
       ...(durationMinutes ? { durationMinutes: Number(durationMinutes) } : {}),
+      ...(actualDurationMinutes ? { actualDurationMinutes: Number(actualDurationMinutes) } : {}),
       ...(subject ? { subject: String(subject) } : {}),
       ...(status ? { status: String(status) } : {}),
       ...(sessionType ? { sessionType: String(sessionType) } : {}),
