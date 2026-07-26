@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../lib/api';
 import type { Role } from '../../types';
 
 // Days between today and an ISO date (midnight-to-midnight, so "today" reads 0 not fractional).
@@ -91,6 +92,12 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = React.useState<Record<string, boolean>>({});
+  const [nextSatDate, setNextSatDate] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!user || user.role === 'student') return;
+    api.getSettings().then((r) => setNextSatDate(r.nextSatDate)).catch(() => {});
+  }, [user?.role]);
 
   const toggleExpand = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -229,6 +236,19 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             <div className="mb-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
               <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Exam Date</p>
               <p className="text-sm font-semibold text-white mt-0.5">{formatExamDate(user.targetDate)}</p>
+              <p className="text-xs text-amber-400 font-medium mt-0.5">
+                {days > 0 ? `${days} day${days === 1 ? '' : 's'} left` : days === 0 ? 'Today!' : 'Date has passed'}
+              </p>
+            </div>
+          );
+        })()}
+
+        {user && user.role !== 'student' && nextSatDate && !collapsed && (() => {
+          const days = daysUntil(nextSatDate);
+          return (
+            <div className="mb-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Next SAT</p>
+              <p className="text-sm font-semibold text-white mt-0.5">{formatExamDate(nextSatDate)}</p>
               <p className="text-xs text-amber-400 font-medium mt-0.5">
                 {days > 0 ? `${days} day${days === 1 ? '' : 's'} left` : days === 0 ? 'Today!' : 'Date has passed'}
               </p>

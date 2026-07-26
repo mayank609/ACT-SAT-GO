@@ -511,6 +511,14 @@ export const api = {
       method: 'DELETE',
     }),
 
+  // Platform-wide settings (e.g. the "Next SAT Date" shown in admin/tutor sidebars)
+  getSettings: () => request<{ nextSatDate: string | null }>('/api/settings'),
+  updateSettings: (body: { nextSatDate: string | null }) =>
+    request<{ nextSatDate: string | null }>('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
   deleteImage: async (path: string) => {
     const res = await fetch(`${BASE}/api/images/delete`, {
       method: 'POST',
