@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { User, Bell, Globe, Lock, ChevronRight, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Bell, Globe, Lock, ChevronRight, Check, CalendarClock } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -42,6 +42,26 @@ export function SettingsPage() {
   });
 
   const isSuperAdmin = user?.role === 'super_admin';
+
+  const [nextSatDate, setNextSatDate] = useState('');
+  const [nextSatDateSaved, setNextSatDateSaved] = useState(false);
+  const [nextSatDateSaving, setNextSatDateSaving] = useState(false);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    api.getSettings().then((r) => setNextSatDate(r.nextSatDate ?? '')).catch(() => {});
+  }, [isSuperAdmin]);
+
+  const handleSaveNextSatDate = async () => {
+    setNextSatDateSaving(true);
+    try {
+      await api.updateSettings({ nextSatDate: nextSatDate || null });
+      setNextSatDateSaved(true);
+      setTimeout(() => setNextSatDateSaved(false), 2500);
+    } catch { /* silent */ } finally {
+      setNextSatDateSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -209,6 +229,22 @@ export function SettingsPage() {
           {/* Platform settings (super admin only) */}
           {tab === 'platform' && isSuperAdmin && (
             <div className="space-y-4">
+              <Card>
+                <h2 className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                  <CalendarClock size={16} className="text-blue-600" /> Next SAT Date
+                </h2>
+                <p className="text-xs text-slate-500 mb-4">Shown with a days-left countdown at the bottom of every admin and tutor sidebar.</p>
+                <div className="flex items-end gap-3">
+                  <div className="flex-1 max-w-xs">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                    <input type="date" value={nextSatDate} onChange={(e) => setNextSatDate(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <Button size="sm" onClick={handleSaveNextSatDate} disabled={nextSatDateSaving} variant={nextSatDateSaved ? 'success' : 'primary'}>
+                    {nextSatDateSaving ? 'Saving...' : nextSatDateSaved ? 'Saved!' : 'Save'}
+                  </Button>
+                </div>
+              </Card>
               <Card>
                 <h2 className="font-semibold text-slate-900 mb-5">Test Delivery Settings</h2>
                 <div className="space-y-4">

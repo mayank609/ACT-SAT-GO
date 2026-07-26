@@ -134,7 +134,7 @@ export function MyTestsPage() {
     <div className="max-w-5xl space-y-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">My Tests</h1>
+          <h1 className="text-xl font-semibold text-gray-900">My Assignments</h1>
           <p className="text-gray-500 text-sm mt-0.5">{tests.length} test{tests.length !== 1 ? 's' : ''} assigned</p>
         </div>
         {tests.length > 0 && (

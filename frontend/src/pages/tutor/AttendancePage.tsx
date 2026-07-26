@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, PlusCircle, X, RotateCcw, Star, Clock, ChevronLeft, ChevronRight,
-  Calendar, User as UserIcon, Search, CheckSquare, Square,
+  Calendar, User as UserIcon, Search, CheckSquare, Square, Users, CheckCircle2,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
+import { StatCard } from '../../components/common/Card';
 import { api, type ClassProgressEntry, type ClassProgressInput } from '../../lib/api';
 import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -198,6 +199,18 @@ export function AttendancePage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  const stats = useMemo(() => {
+    const totalMinutes = filtered.reduce((a, e) => a + (e.durationMinutes ?? 0), 0);
+    const completedCount = filtered.filter(e => (e.status ?? 'Completed') === 'Completed').length;
+    const uniqueStudents = new Set(filtered.map(e => e.studentId)).size;
+    return {
+      total: filtered.length,
+      hoursLogged: Math.round((totalMinutes / 60) * 10) / 10,
+      completionRate: filtered.length > 0 ? Math.round((completedCount / filtered.length) * 100) : 0,
+      uniqueStudents,
+    };
+  }, [filtered]);
+
   const resetFilters = () => {
     setDateFrom(''); setDateTo(''); setStudentFilter('all'); setSubjectFilter('all'); setStatusFilter('all');
   };
@@ -305,6 +318,14 @@ export function AttendancePage() {
         <Button size="sm" icon={<PlusCircle size={14} />} onClick={openLog} disabled={students.length === 0}>
           Log a Session
         </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard title="Sessions Logged" value={stats.total} icon={<ClipboardList size={16} />} color="blue" />
+        <StatCard title="Hours Logged" value={stats.hoursLogged} icon={<Clock size={16} />} color="amber" />
+        <StatCard title="Completion Rate" value={`${stats.completionRate}%`} icon={<CheckCircle2 size={16} />} color="emerald" />
+        <StatCard title="Students Seen" value={stats.uniqueStudents} icon={<Users size={16} />} color="purple" />
       </div>
 
       {/* Filters */}

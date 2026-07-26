@@ -8,10 +8,11 @@ import { Link } from 'react-router-dom';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
+import { ScoreDistributionBars } from '../../components/common/ScoreDistributionBars';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api, type DbUser } from '../../lib/api';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts';
 
@@ -378,28 +379,16 @@ export function AdminDashboard() {
             )}
           </div>
           <div className="p-5 pt-3">
-            <ResponsiveContainer width="100%" height={170}>
-              <BarChart data={scoreDistData} barSize={22} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
-                <XAxis dataKey="range" tick={{ fontSize: 9, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: '#cbd5e1' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '12px', boxShadow: 'none' }} />
-                <Bar
-                  dataKey="count"
-                  radius={[3, 3, 0, 0]}
-                  name="Students"
-                  cursor="pointer"
-                  onClick={(_, index) => {
-                    const range = scoreDistData[index]?.range ?? null;
-                    setSelectedRange((prev) => (prev === range ? null : range));
-                  }}
-                >
-                  {scoreDistData.map((d, i) => (
-                    <Cell key={i} fill={selectedRange === d.range ? '#1d4ed8' : '#3b82f6'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {scoreDistData.length === 0 ? (
+              <p className="py-8 text-sm text-slate-400 text-center">No score distribution data</p>
+            ) : (
+              <ScoreDistributionBars
+                data={scoreDistData}
+                selectedRange={selectedRange}
+                onSelect={(range) => setSelectedRange((prev) => (prev === range ? null : range))}
+                accent="blue"
+              />
+            )}
           </div>
         </div>
 
