@@ -81,8 +81,10 @@ export interface ClassProgressEntry {
   createdAt: string
   startTime?: string
   durationMinutes?: number
+  actualDurationMinutes?: number
   subject?: string
   status?: string
+  sessionType?: string
   understanding?: number
   attendance?: string
   engagement?: string
@@ -98,8 +100,10 @@ export interface ClassProgressInput {
   author: string
   startTime?: string
   durationMinutes?: number
+  actualDurationMinutes?: number
   subject?: string
   status?: string
+  sessionType?: string
   understanding?: number
   attendance?: string
   engagement?: string

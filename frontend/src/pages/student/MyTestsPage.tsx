@@ -106,8 +106,6 @@ export function MyTestsPage() {
   const todoPool = useMemo(() => [...pending, ...expired], [pending, expired]);
   const pool = tab === 'todo' ? todoPool : completedTests;
 
-  const availableFilters = useMemo(() => TEST_FILTERS.filter(f => pool.some(f.match)), [pool]);
-
   const visiblePool = useMemo(() => {
     let list = pool;
     if (search.trim()) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
@@ -182,21 +180,32 @@ export function MyTestsPage() {
         </div>
       )}
 
-      {availableFilters.length > 0 && (
+      {tests.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {availableFilters.map(f => (
-            <button
-              key={f.key}
-              onClick={() => setActiveFilter(activeFilter === f.key ? null : f.key)}
-              className={`text-xs font-medium px-3 py-1 rounded-full border transition-all ${
-                activeFilter === f.key
-                  ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-[#1b3d6e]/40 hover:text-[#1b3d6e]'
-              }`}
-            >
-              {f.key}
-            </button>
-          ))}
+          {TEST_FILTERS.map(f => {
+            const count = pool.filter(f.match).length;
+            return (
+              <button
+                key={f.key}
+                onClick={() => count > 0 && setActiveFilter(activeFilter === f.key ? null : f.key)}
+                disabled={count === 0}
+                className={`text-xs font-medium px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
+                  activeFilter === f.key
+                    ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]'
+                    : count === 0
+                      ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-[#1b3d6e]/40 hover:text-[#1b3d6e]'
+                }`}
+              >
+                {f.key}
+                <span className={`text-[10px] font-bold px-1.5 rounded-full ${
+                  activeFilter === f.key ? 'bg-white/20' : count === 0 ? 'bg-gray-100' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -219,7 +228,7 @@ export function MyTestsPage() {
       {tab === 'todo' && pendingVisible.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">To Complete</h2>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {pendingVisible.map((test) => {
               const totalQ = (test.sections ?? []).reduce((a, s) => a + (s._count?.questions ?? 0), 0);
               const totalMin = (test.sections ?? []).reduce((a, s) => a + s.durationMinutes, 0);
@@ -230,52 +239,40 @@ export function MyTestsPage() {
                 ? navigate(`/test/${test.testId}?attemptId=${test.inProgressAttemptId}`)
                 : navigate(`/test-instructions/${test.testId}`);
               return (
-                <div key={test.assignmentId} onClick={go} className="bg-white border-2 border-[#1b3d6e]/20 rounded-xl p-4 cursor-pointer hover:border-[#1b3d6e]/40 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${isInProgress ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#1b3d6e]'}`}>
-                          {isInProgress ? 'In Progress' : isRetake ? 'Retake Available' : 'Not Started'}
-                        </span>
-                        <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
-                        {test.maxAttempts > 1 && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                            {test.remainingAttempts} of {test.maxAttempts} attempts left
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="font-semibold text-gray-900">{test.title}</h3>
-                      {test.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{test.description}</p>}
-                      <p className="text-xs text-gray-500 mt-1.5">
-                        {test.sections.length} section{test.sections.length !== 1 ? 's' : ''} · {totalQ} questions · {totalMin} min
-                      </p>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {test.sections.map(s => (
-                          <span key={s.id} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{s.name}</span>
-                        ))}
-                      </div>
-                      {test.dueDate && (
-                        <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
-                          <Clock size={10} /> Due: {new Date(test.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </p>
-                      )}
-                      {isRetake && test.submittedAttemptId && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate(`/test-review/${test.submittedAttemptId}`); }}
-                          className="text-xs text-blue-600 hover:underline mt-1.5 flex items-center gap-1"
-                        >
-                          <FileSearch size={11} /> Review last attempt
-                        </button>
-                      )}
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); go(); }}
-                      className="flex-shrink-0 flex items-center gap-2 bg-[#1b3d6e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#15305a] transition-colors"
-                    >
-                      <Play size={13} />
-                      {isInProgress ? 'Continue' : isRetake ? 'Retake' : 'Start Test'}
-                    </button>
+                <div key={test.assignmentId} onClick={go} className="bg-white border-2 border-[#1b3d6e]/20 rounded-xl p-3 cursor-pointer hover:border-[#1b3d6e]/40 transition-colors flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${isInProgress ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#1b3d6e]'}`}>
+                      {isInProgress ? 'In Progress' : isRetake ? 'Retake' : 'Not Started'}
+                    </span>
+                    <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
                   </div>
+                  <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 flex-1">{test.title}</h3>
+                  <p className="text-[11px] text-gray-500">
+                    {test.sections.length} section{test.sections.length !== 1 ? 's' : ''} · {totalQ}Q · {totalMin}min
+                  </p>
+                  {test.maxAttempts > 1 && (
+                    <p className="text-[10px] text-slate-500">{test.remainingAttempts}/{test.maxAttempts} attempts left</p>
+                  )}
+                  {test.dueDate && (
+                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+                      <Clock size={9} /> Due {new Date(test.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                  )}
+                  {isRetake && test.submittedAttemptId && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/test-review/${test.submittedAttemptId}`); }}
+                      className="text-[10px] text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      <FileSearch size={10} /> Review last attempt
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); go(); }}
+                    className="mt-auto w-full flex items-center justify-center gap-1.5 bg-[#1b3d6e] text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-[#15305a] transition-colors"
+                  >
+                    <Play size={12} />
+                    {isInProgress ? 'Continue' : isRetake ? 'Retake' : 'Start Test'}
+                  </button>
                 </div>
               );
             })}
@@ -286,17 +283,17 @@ export function MyTestsPage() {
       {tab === 'todo' && expiredVisible.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Expired</h2>
-          <div className="space-y-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {expiredVisible.map((test) => (
-              <div key={test.assignmentId} className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 opacity-60">
-                <Target size={14} className="text-gray-400 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-500 truncate">{test.title}</p>
-                  <div className="flex gap-1 mt-0.5 flex-wrap">
-                    <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
-                  </div>
+              <div key={test.assignmentId} className="bg-white border border-gray-100 rounded-xl p-3 opacity-60 flex flex-col gap-1.5">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Target size={12} className="text-gray-400 flex-shrink-0" />
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide bg-gray-100 text-gray-500">Expired</span>
                 </div>
-                <span className="text-xs text-gray-400 font-medium flex-shrink-0">Expired</span>
+                <p className="text-sm font-medium text-gray-500 line-clamp-2">{test.title}</p>
+                <div className="flex gap-1 flex-wrap">
+                  <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
+                </div>
               </div>
             ))}
           </div>
@@ -304,43 +301,53 @@ export function MyTestsPage() {
       )}
 
       {tab === 'completed' && completedVisible.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <div className="divide-y divide-gray-50">
-            {completedVisible.map((test) => {
-              const attempt = attempts.find(a => a.title === test.title);
-              const review = () => test.submittedAttemptId && navigate(`/test-review/${test.submittedAttemptId}`);
-              return (
-                <div
-                  key={test.assignmentId}
-                  onClick={review}
-                  className={`flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition-colors ${test.submittedAttemptId ? 'cursor-pointer' : ''}`}
-                >
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle size={14} className="text-emerald-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                      <p className="text-sm font-medium text-gray-900 truncate">{test.title}</p>
-                      <TestCategoryBadges category={test.category} subCategory={test.subCategory} />
-                    </div>
-                    {attempt?.completedAt && (
-                      <p className="text-xs text-gray-400">
-                        Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {attempt.totalScore !== null && ` · Score: ${attempt.totalScore}`}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); review(); }}
-                    disabled={!test.submittedAttemptId}
-                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full text-sm border-l-4 border-l-blue-600">
+            <thead>
+              <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b-2 border-blue-100 text-blue-800">
+                <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">#</th>
+                <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
+                <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Category</th>
+                <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Completed</th>
+                <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Score</th>
+                <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap">Analysis</th>
+              </tr>
+            </thead>
+            <tbody>
+              {completedVisible.map((test, i) => {
+                const attempt = attempts.find(a => a.title === test.title);
+                const review = () => test.submittedAttemptId && navigate(`/test-review/${test.submittedAttemptId}`);
+                return (
+                  <tr
+                    key={test.assignmentId}
+                    onClick={review}
+                    className={`border-b border-slate-100 hover:bg-blue-50/60 transition-colors ${test.submittedAttemptId ? 'cursor-pointer' : ''} ${i % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'}`}
                   >
-                    <FileSearch size={13} /> View Analysis
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                    <td className="px-4 py-3.5 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
+                    <td className="px-4 py-3.5 font-semibold text-slate-900 border-r border-slate-100">{test.title}</td>
+                    <td className="px-4 py-3.5 border-r border-slate-100">
+                      <div className="flex flex-wrap gap-1"><TestCategoryBadges category={test.category} subCategory={test.subCategory} /></div>
+                    </td>
+                    <td className="px-4 py-3.5 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">
+                      {attempt?.completedAt ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </td>
+                    <td className="px-4 py-3.5 text-center font-semibold text-slate-800 whitespace-nowrap border-r border-slate-100">
+                      {attempt?.totalScore ?? '—'}
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); review(); }}
+                        disabled={!test.submittedAttemptId}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1b3d6e] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <FileSearch size={12} /> View
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

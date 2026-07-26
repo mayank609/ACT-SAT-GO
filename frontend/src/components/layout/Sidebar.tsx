@@ -230,31 +230,45 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
       {/* Bottom */}
       <div className="border-t border-white/5 p-3 space-y-1">
 
-        {user?.role === 'student' && user.targetDate && !collapsed && (() => {
-          const days = daysUntil(user.targetDate);
-          return (
-            <div className="mb-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Exam Date</p>
-              <p className="text-sm font-semibold text-white mt-0.5">{formatExamDate(user.targetDate)}</p>
-              <p className="text-xs text-amber-400 font-medium mt-0.5">
-                {days > 0 ? `${days} day${days === 1 ? '' : 's'} left` : days === 0 ? 'Today!' : 'Date has passed'}
-              </p>
-            </div>
-          );
-        })()}
+        {user?.role === 'student' && !collapsed && (
+          <div className="mb-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Exam Date</p>
+            {user.targetDate ? (() => {
+              const days = daysUntil(user.targetDate as string);
+              return (
+                <>
+                  <p className="text-sm font-semibold text-white mt-0.5">{formatExamDate(user.targetDate as string)}</p>
+                  <p className="text-xs text-amber-400 font-medium mt-0.5">
+                    {days > 0 ? `${days} day${days === 1 ? '' : 's'} left` : days === 0 ? 'Today!' : 'Date has passed'}
+                  </p>
+                </>
+              );
+            })() : (
+              <p className="text-xs text-slate-400 mt-0.5">Not set yet — ask your tutor/admin</p>
+            )}
+          </div>
+        )}
 
-        {user && user.role !== 'student' && nextSatDate && !collapsed && (() => {
-          const days = daysUntil(nextSatDate);
-          return (
-            <div className="mb-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Next SAT</p>
-              <p className="text-sm font-semibold text-white mt-0.5">{formatExamDate(nextSatDate)}</p>
-              <p className="text-xs text-amber-400 font-medium mt-0.5">
-                {days > 0 ? `${days} day${days === 1 ? '' : 's'} left` : days === 0 ? 'Today!' : 'Date has passed'}
+        {user && user.role !== 'student' && !collapsed && (
+          <div className="mb-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Next SAT</p>
+            {nextSatDate ? (() => {
+              const days = daysUntil(nextSatDate);
+              return (
+                <>
+                  <p className="text-sm font-semibold text-white mt-0.5">{formatExamDate(nextSatDate)}</p>
+                  <p className="text-xs text-amber-400 font-medium mt-0.5">
+                    {days > 0 ? `${days} day${days === 1 ? '' : 's'} left` : days === 0 ? 'Today!' : 'Date has passed'}
+                  </p>
+                </>
+              );
+            })() : (
+              <p className="text-xs text-slate-400 mt-0.5">
+                {user.role === 'super_admin' ? 'Not set — add it in Settings' : 'Not set yet'}
               </p>
-            </div>
-          );
-        })()}
+            )}
+          </div>
+        )}
 
         {user && (
           <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-2 ${collapsed ? 'justify-center px-0' : ''}`}>
