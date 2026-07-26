@@ -83,6 +83,7 @@ export interface ClassProgressEntry {
   durationMinutes?: number
   subject?: string
   status?: string
+  sessionType?: string
   understanding?: number
   attendance?: string
   engagement?: string
@@ -100,6 +101,7 @@ export interface ClassProgressInput {
   durationMinutes?: number
   subject?: string
   status?: string
+  sessionType?: string
   understanding?: number
   attendance?: string
   engagement?: string

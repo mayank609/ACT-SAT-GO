@@ -26,6 +26,17 @@ const ENGAGEMENTS = ['High', 'Medium', 'Low'] as const;
 const HW_SUBFILTERS = ['HW', 'English', 'Maths', 'All'] as const;
 const PAGE_SIZE = 10;
 
+const SESSION_TYPES = ['Core Prep', 'Review Session', 'Doubt Session', 'Master Class'] as const;
+// Core Prep and Master Class run a full 60-minute session; Review and Doubt
+// sessions default to a shorter 30-minute slot. Tutors can still edit the
+// duration field afterward — this only sets the default on type change.
+const SESSION_TYPE_DEFAULT_DURATION: Record<(typeof SESSION_TYPES)[number], number> = {
+  'Core Prep': 60,
+  'Review Session': 30,
+  'Doubt Session': 30,
+  'Master Class': 60,
+};
+
 const READING_TOPICS = [
   'Words in Context', 'Traps', 'Main Idea', 'Purpose', 'Fact / Inference',
   'Illustrating Claims', 'Logically Text Completion', 'Command of Evidence',
@@ -117,7 +128,7 @@ function Row({ label, children, last = false }: { label: string; children: React
 
 const emptyForm = {
   studentId: '', classDate: new Date().toISOString().split('T')[0], startTime: '', durationMinutes: '60',
-  subject: SUBJECTS[0], status: 'Completed' as string, topic: '', homeworkTestIds: [] as string[], notes: '',
+  subject: SUBJECTS[0], status: 'Completed' as string, sessionType: 'Core Prep' as string, topic: '', homeworkTestIds: [] as string[], notes: '',
   understanding: 0, attendance: 'Present', engagement: 'High' as string, nextSessionGoal: '', nextSessionAt: '',
 };
 
@@ -279,6 +290,7 @@ export function AttendancePage() {
         durationMinutes: form.durationMinutes ? Number(form.durationMinutes) : undefined,
         subject: form.subject,
         status: form.status,
+        sessionType: form.sessionType,
         understanding: form.understanding || undefined,
         attendance: form.attendance,
         engagement: form.engagement,
@@ -379,6 +391,7 @@ export function AttendancePage() {
                     <th className="px-5 py-2.5 font-medium">Date</th>
                     <th className="px-5 py-2.5 font-medium">Student</th>
                     <th className="px-5 py-2.5 font-medium">Subject</th>
+                    <th className="px-5 py-2.5 font-medium">Type</th>
                     <th className="px-5 py-2.5 font-medium">Topic</th>
                     <th className="px-5 py-2.5 font-medium">Duration</th>
                     <th className="px-5 py-2.5 font-medium">Status</th>
@@ -400,6 +413,9 @@ export function AttendancePage() {
                       </td>
                       <td className="px-5 py-3.5">
                         {row.subject ? <Badge variant="info" size="sm">{row.subject}</Badge> : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {row.sessionType ? <Badge variant="purple" size="sm">{row.sessionType}</Badge> : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-5 py-3.5 max-w-[220px]">
                         {toLines(row.topic).length > 0 ? (
@@ -466,6 +482,9 @@ export function AttendancePage() {
                   <Row label="Date">{fmtDateLong(selected.classDate)}</Row>
                   <Row label="Time">{formatTimeRange(selected.startTime, selected.durationMinutes) || '—'}</Row>
                   <Row label="Subject">{selected.subject ?? '—'}</Row>
+                  <Row label="Session Type">
+                    {selected.sessionType ? <Badge variant="purple" size="sm">{selected.sessionType}</Badge> : '—'}
+                  </Row>
                   <Row label="Status"><Badge variant={statusVariant(selected.status)} size="sm">{selected.status ?? 'Completed'}</Badge></Row>
                   <Row label="Attendance">
                     <Badge variant={selected.attendance === 'Absent' ? 'danger' : 'success'} size="sm">{selected.attendance ?? 'Present'}</Badge>
@@ -597,6 +616,21 @@ export function AttendancePage() {
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100">
                 {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Session Type</label>
+            <div className="flex flex-wrap gap-1.5">
+              {SESSION_TYPES.map(t => (
+                <button key={t} type="button"
+                  onClick={() => setForm(f => ({ ...f, sessionType: t, durationMinutes: String(SESSION_TYPE_DEFAULT_DURATION[t]) }))}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+                    form.sessionType === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}>
+                  {t}
+                </button>
+              ))}
             </div>
           </div>
 
