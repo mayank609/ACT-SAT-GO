@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, Users, ClipboardCheck, Loader2, Search } from 'lucide-react';
+import { CalendarCheck, Users, ClipboardCheck, Loader2, Search, Clock } from 'lucide-react';
 import { StatCard } from '../../components/common/Card';
+import { Badge } from '../../components/common/Badge';
 import { api } from '../../lib/api';
 
 interface AttendanceEntry {
@@ -16,7 +17,23 @@ interface AttendanceEntry {
   classDate: string;
   author: string;
   createdAt: string;
+  subject?: string;
+  sessionType?: string;
+  durationMinutes?: number;
+  actualDurationMinutes?: number;
+  status?: string;
 }
+
+function toLines(text: string): string[] {
+  return text.split('\n').map(l => l.trim()).filter(Boolean);
+}
+
+const statusVariant = (status?: string): 'success' | 'danger' | 'default' | 'info' => {
+  if (status === 'Completed') return 'success';
+  if (status === 'No Show') return 'danger';
+  if (status === 'Scheduled') return 'info';
+  return 'default';
+};
 
 interface TutorStat {
   tutorId: string;
@@ -169,27 +186,71 @@ export function AdminAttendancePage() {
         {visible.length === 0 ? (
           <p className="px-5 py-8 text-sm text-slate-400 text-center">No matching sessions.</p>
         ) : (
-          <div className="divide-y divide-slate-50 max-h-[32rem] overflow-y-auto">
-            {visible.map((entry) => (
-              <div key={entry.id} className="px-5 py-3.5">
-                <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button onClick={() => navigate(`/student/${entry.studentId}`)} className="text-sm font-semibold text-blue-700 hover:underline">
-                      {entry.studentName}
-                    </button>
-                    <span className="text-sm text-slate-800">— {entry.topic}</span>
-                    <span className="text-xs text-slate-400">taught by {entry.tutorName}</span>
-                  </div>
-                  <p className="text-xs text-slate-400 flex-shrink-0">{fmtDate(entry.classDate)}</p>
-                </div>
-                {entry.homework && (
-                  <p className="text-sm text-amber-700 bg-amber-50 rounded-md px-2 py-1 inline-block mt-1">
-                    <span className="font-medium">Homework:</span> {entry.homework}
-                  </p>
-                )}
-                {entry.notes && <p className="text-sm text-slate-600 leading-relaxed mt-1">{entry.notes}</p>}
-              </div>
-            ))}
+          <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white z-10">
+                <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                  <th className="px-5 py-2.5 font-medium">Date</th>
+                  <th className="px-5 py-2.5 font-medium">Student</th>
+                  <th className="px-5 py-2.5 font-medium">Tutor</th>
+                  <th className="px-5 py-2.5 font-medium">Subject</th>
+                  <th className="px-5 py-2.5 font-medium">Type</th>
+                  <th className="px-5 py-2.5 font-medium">Topic</th>
+                  <th className="px-5 py-2.5 font-medium">Homework</th>
+                  <th className="px-5 py-2.5 font-medium">Remarks</th>
+                  <th className="px-5 py-2.5 font-medium">Duration</th>
+                  <th className="px-5 py-2.5 font-medium">Actual</th>
+                  <th className="px-5 py-2.5 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((entry) => (
+                  <tr key={entry.id} className="border-b border-slate-50 last:border-0 hover:bg-blue-50/40 transition-colors">
+                    <td className="px-5 py-3.5 text-slate-600 whitespace-nowrap">{fmtDate(entry.classDate)}</td>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <button onClick={() => navigate(`/student/${entry.studentId}`)} className="font-medium text-blue-700 hover:underline">
+                        {entry.studentName}
+                      </button>
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-600 whitespace-nowrap">{entry.tutorName}</td>
+                    <td className="px-5 py-3.5">
+                      {entry.subject ? <Badge variant="info" size="sm">{entry.subject}</Badge> : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {entry.sessionType ? <Badge variant="purple" size="sm">{entry.sessionType}</Badge> : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5 max-w-[180px]">
+                      {toLines(entry.topic).length > 0 ? (
+                        <span className="text-slate-600 truncate block" title={toLines(entry.topic).join(', ')}>
+                          {toLines(entry.topic).join(', ')}
+                        </span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5 max-w-[180px]">
+                      {toLines(entry.homework).length > 0 ? (
+                        <span className="text-slate-600 truncate block" title={toLines(entry.homework).join(', ')}>
+                          {toLines(entry.homework).join(', ')}
+                        </span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5 max-w-[180px]">
+                      {entry.notes ? (
+                        <span className="text-slate-600 truncate block" title={entry.notes}>{entry.notes}</span>
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1"><Clock size={12} />{entry.durationMinutes ? `${entry.durationMinutes} min` : '—'}</span>
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1"><Clock size={12} />{entry.actualDurationMinutes ? `${entry.actualDurationMinutes} min` : '—'}</span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <Badge variant={statusVariant(entry.status)} size="sm">{entry.status ?? 'Completed'}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
