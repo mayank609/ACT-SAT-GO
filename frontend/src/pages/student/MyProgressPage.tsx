@@ -230,9 +230,15 @@ export function MyProgressPage() {
                     <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.mathM1}</td>
                     <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.mathM2}</td>
                     <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRaw}</td>
-                    <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
-                    <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
-                    <td className="px-4 py-4 text-center font-semibold text-slate-800 whitespace-nowrap">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
+                    <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">
+                      {r.isMockTest && (r.rwM1T + r.rwM2T) > 0 ? r.rwSS : '—'}
+                    </td>
+                    <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">
+                      {r.isMockTest && (r.mathM1T + r.mathM2T) > 0 ? r.mathSS : '—'}
+                    </td>
+                    <td className="px-4 py-4 text-center font-semibold text-slate-800 whitespace-nowrap">
+                      {r.isMockTest && (r.rwM1T + r.rwM2T) > 0 && (r.mathM1T + r.mathM2T) > 0 ? r.totalSS : '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

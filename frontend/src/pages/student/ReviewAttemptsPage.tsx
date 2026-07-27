@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, Calendar, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { resolveScoreMode, type ScoreMode } from '../../lib/testCategorize';
 
 interface TestAttempt {
   id: string;
@@ -14,6 +15,7 @@ interface TestAttempt {
   accuracy: number;
   timeSpent: number;
   totalTime: number;
+  scoreMode: ScoreMode;
 }
 
 export function ReviewAttemptsPage() {
@@ -43,6 +45,10 @@ export function ReviewAttemptsPage() {
               }, 0) / 60000
             );
             const score = a.totalScore ?? 0;
+            const scoreMode = resolveScoreMode({ category: a.test?.category, subCategory: a.test?.subCategory, title: a.test?.title });
+            // Only a raw score (Practice Sheet/HW) is meaningfully "out of totalQ" — a scaled
+            // Mock/Sectional score (200-1600 range) divided by question count is nonsensical.
+            const accuracy = scoreMode === 'raw' && totalQ > 0 ? Math.round((score / totalQ) * 100) : 0;
             return {
               id: String(a.id),
               testId: String(a.testId),
@@ -50,9 +56,10 @@ export function ReviewAttemptsPage() {
               submitDate: a.completedAt ?? a.startedAt,
               score,
               totalScore: totalQ,
-              accuracy: totalQ > 0 ? Math.round((score / totalQ) * 100) : 0,
+              accuracy,
               timeSpent: timeSpentMins,
               totalTime: totalTimeMins,
+              scoreMode,
             };
           }) as TestAttempt[];
         setAttempts(mapped);
@@ -82,11 +89,18 @@ export function ReviewAttemptsPage() {
         <p className="text-slate-400 text-sm mt-0.5">Your completed test history</p>
       </div>
 
-      {attempts.length > 0 && (
+      {attempts.length > 0 && (() => {
+        // Accuracy (correct/total questions) is only meaningful for raw-scored (Practice
+        // Sheet/HW) attempts — a scaled Mock/Sectional score has no "percent correct" here.
+        const rawAttempts = attempts.filter(a => a.scoreMode === 'raw');
+        const avgAccuracy = rawAttempts.length
+          ? `${Math.round(rawAttempts.reduce((s, a) => s + a.accuracy, 0) / rawAttempts.length)}%`
+          : '—';
+        return (
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Tests Completed', value: attempts.length, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Avg Accuracy', value: `${Math.round(attempts.reduce((s, a) => s + a.accuracy, 0) / attempts.length)}%`, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Avg Accuracy', value: avgAccuracy, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Time Invested', value: fmtTime(attempts.reduce((s, a) => s + a.timeSpent, 0)), color: 'text-purple-600', bg: 'bg-purple-50' },
           ].map((s) => (
             <div key={s.label} className="bg-white border border-slate-100 rounded-xl p-4 text-center">
@@ -95,7 +109,8 @@ export function ReviewAttemptsPage() {
             </div>
           ))}
         </div>
-      )}
+        );
+      })()}
 
       {error && (
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
@@ -120,10 +135,17 @@ export function ReviewAttemptsPage() {
           <div key={attempt.id} onClick={() => navigate(`/test-review/${attempt.id}`)}
             className="bg-white border border-slate-100 rounded-xl p-4 cursor-pointer hover:border-slate-200 transition-colors group">
             <div className="flex items-start gap-3">
-              <div className={`w-12 h-12 rounded-xl ${scoreBg(attempt.accuracy)} flex-shrink-0 flex flex-col items-center justify-center`}>
-                <p className={`text-sm font-bold ${scoreColor(attempt.accuracy)}`}>{attempt.accuracy}%</p>
-                <p className="text-xs text-slate-400">{attempt.score}/{attempt.totalScore}</p>
-              </div>
+              {attempt.scoreMode === 'raw' ? (
+                <div className={`w-12 h-12 rounded-xl ${scoreBg(attempt.accuracy)} flex-shrink-0 flex flex-col items-center justify-center`}>
+                  <p className={`text-sm font-bold ${scoreColor(attempt.accuracy)}`}>{attempt.accuracy}%</p>
+                  <p className="text-xs text-slate-400">{attempt.score}/{attempt.totalScore}</p>
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-blue-50 flex-shrink-0 flex flex-col items-center justify-center">
+                  <p className="text-sm font-bold text-blue-700">{attempt.score}</p>
+                  <p className="text-[10px] text-slate-400">scaled</p>
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-900 text-sm group-hover:text-blue-600 transition-colors truncate">{attempt.testTitle}</p>
                 <div className="flex items-center gap-3 text-xs text-slate-400 mt-1 flex-wrap">

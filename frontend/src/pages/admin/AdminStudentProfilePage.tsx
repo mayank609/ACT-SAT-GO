@@ -225,14 +225,15 @@ function computeTestAnalysis(attempt: TaAttempt): {
     }
   });
 
+  // rwScaled/mathScaled stay 0 (never a real scaled value, which floors at 200) when that
+  // subject has no sections in this test — e.g. a Math-only Sectional test — so callers can
+  // tell "not applicable" apart from a genuine low score.
   let finalScaledScore = totalCorrect;
   let rwScaled = 0;
   let mathScaled = 0;
-  if (isSAT) {
-    rwScaled = satSectionScore(rw1, rw2, 54, false);
-    mathScaled = satSectionScore(math1, math2, 44, true);
-    finalScaledScore = rwScaled + mathScaled;
-  }
+  if (rwTotal > 0) rwScaled = satSectionScore(rw1, rw2, rwTotal, false);
+  if (mathTotal > 0) mathScaled = satSectionScore(math1, math2, mathTotal, true);
+  if (isSAT) finalScaledScore = rwScaled + mathScaled;
 
   return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, isSAT, finalScaledScore, rwScaled, mathScaled };
 }
@@ -712,7 +713,11 @@ export function AdminStudentProfilePage() {
             ) : (
               <div className="divide-y divide-slate-50">
                 {analytics.trend.map((entry, i) => {
-                  const pctBar = Math.round((entry.score / 36) * 100);
+                  // This summary entry has no category/section data (that only loads once
+                  // expanded below), so the max score isn't reliably known — score > 36 is
+                  // the same SAT-vs-ACT heuristic used elsewhere (e.g. isSATStudent above).
+                  const scaleMax = entry.score > 36 ? 1600 : 36;
+                  const pctBar = Math.min(100, Math.round((entry.score / scaleMax) * 100));
                   const isExpanded = expandedAttemptId === entry.attemptId;
                   return (
                     <div key={i}>
@@ -748,7 +753,7 @@ export function AdminStudentProfilePage() {
                         </div>
                         <div className="text-right flex-shrink-0 mr-2">
                           <p className="text-base font-bold text-slate-900">{entry.score}</p>
-                          <p className="text-xs text-slate-400">/ 36</p>
+                          <p className="text-xs text-slate-400">{entry.score > 36 ? 'scaled' : 'raw'}</p>
                         </div>
                         <div className="hidden sm:flex flex-col gap-1 w-20 flex-shrink-0">
                           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -832,41 +837,56 @@ export function AdminStudentProfilePage() {
                                 </div>
 
                                 {/* Score Card */}
+                                {(() => {
+                                  // Mock/Diagnostic show both subjects' scaled scores; Sectional shows
+                                  // only the one subject it covers; Practice Sheet/HW shows raw counts
+                                  // only — never a scaled score. rwTotal/mathTotal are 0 when that
+                                  // subject has no sections in this test at all.
+                                  const showRW = analysis.rwTotal > 0;
+                                  const showMath = analysis.mathTotal > 0;
+                                  const showScaled = analysis.isSAT && isMockTest;
+                                  return (
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
                                   <div className="flex items-stretch divide-x divide-slate-200">
                                     {/* Total Score — slightly larger */}
                                     <div className="px-8 py-6 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl flex flex-col justify-center">
                                       <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
                                       <p className="text-6xl font-black text-white leading-none tabular-nums mt-1.5">
-                                        {(analysis.isSAT && isMockTest) ? analysis.finalScaledScore : analysis.totalCorrect}
+                                        {showScaled ? (showRW && showMath ? analysis.finalScaledScore : (showRW ? analysis.rwScaled : analysis.mathScaled)) : analysis.totalCorrect}
                                       </p>
-                                      {(analysis.isSAT && isMockTest) ? (
-                                        <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 – 1600</p>
+                                      {showScaled ? (
+                                        <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">
+                                          {showRW && showMath ? '400 – 1600' : '200 – 800'}
+                                        </p>
                                       ) : (
                                         <p className="text-xs text-blue-300 mt-2">out of {analysis.totalQuestions}</p>
                                       )}
                                     </div>
                                     {/* Reading & Writing — fixed width */}
+                                    {showRW && (
                                     <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
                                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Reading &amp; Writing</p>
                                       <p className="text-5xl font-black text-slate-900 leading-none tabular-nums mt-2">
-                                        {(analysis.isSAT && isMockTest) ? analysis.rwScaled : `${analysis.rwCorrect}/${analysis.rwTotal}`}
+                                        {showScaled ? analysis.rwScaled : `${analysis.rwCorrect}/${analysis.rwTotal}`}
                                       </p>
-                                      {(analysis.isSAT && isMockTest) && (
+                                      {showScaled && (
                                         <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
                                       )}
                                     </div>
+                                    )}
                                     {/* Math — same fixed width as R&W */}
+                                    {showMath && (
                                     <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
                                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Math</p>
                                       <p className="text-5xl font-black text-slate-900 leading-none tabular-nums mt-2">
-                                        {(analysis.isSAT && isMockTest) ? analysis.mathScaled : `${analysis.mathCorrect}/${analysis.mathTotal}`}
+                                        {showScaled ? analysis.mathScaled : `${analysis.mathCorrect}/${analysis.mathTotal}`}
                                       </p>
-                                      {(analysis.isSAT && isMockTest) && (
+                                      {showScaled && (
                                         <p className="text-xs text-slate-400 mt-2 border-b border-slate-200 pb-0.5 w-fit mx-auto">200 – 800</p>
                                       )}
                                     </div>
-                                    {(analysis.isSAT && isMockTest) && (() => {
+                                    )}
+                                    {(showRW && showMath && showScaled) && (() => {
                                       const score = analysis.finalScaledScore;
                                       const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
                                       return (
@@ -896,6 +916,8 @@ export function AdminStudentProfilePage() {
                                     })()}
                                   </div>
                                 </div>
+                                  );
+                                })()}
 
                                 {/* ── Section Overview ── */}
                                 <div>

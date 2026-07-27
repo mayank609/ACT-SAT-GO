@@ -1079,14 +1079,15 @@ export function TestReviewPage() {
   const isPracticeSheet = (attempt.test.category ?? '').trim() === 'Practice Sheet' || /practice\s*sheet/i.test(attempt.test.title ?? '');
   const showScaled = isSAT && !isPracticeSheet;
 
+  // rwScaled/mathScaled stay 0 (never a real scaled value, which floors at 200) when that
+  // subject has no sections in this test — e.g. a Math-only Sectional test — so the score
+  // card below can tell "not applicable" apart from a genuine low score.
   let finalScaledScore = rawScore;
-  let rwScaled = 200;
-  let mathScaled = 200;
-  if (isSAT) {
-    rwScaled = satSectionScore(rw1, rw2, 54, false);
-    mathScaled = satSectionScore(math1, math2, 44, true);
-    finalScaledScore = rwScaled + mathScaled;
-  }
+  let rwScaled = 0;
+  let mathScaled = 0;
+  if (rwTotal > 0) rwScaled = satSectionScore(rw1, rw2, rwTotal, false);
+  if (mathTotal > 0) mathScaled = satSectionScore(math1, math2, mathTotal, true);
+  if (isSAT) finalScaledScore = rwScaled + mathScaled;
 
   // Flatten every question across sections into Questions-Overview rows
   const reviewRows = sections.flatMap((sa, secIdx) =>
@@ -1196,21 +1197,30 @@ export function TestReviewPage() {
       </div>
 
       {/* ── Score Card (with performance gauge) ──────────────────────────────── */}
+      {(() => {
+        // Sectional tests only have sections for one subject — rwTotal/mathTotal is 0 for
+        // the one they don't cover, so hide that box instead of showing a fake 200 floor.
+        const showRW = rwTotal > 0;
+        const showMath = mathTotal > 0;
+        return (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
         <div className="flex items-stretch divide-x divide-slate-200 min-w-[720px]">
           {/* Total Score — gradient panel */}
           <div className="px-8 py-6 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl flex flex-col justify-center">
             <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
             <p className="text-6xl font-black text-white leading-none tabular-nums mt-1.5">
-              {showScaled ? finalScaledScore : (isSAT ? totalCorrect : rawScore)}
+              {showScaled ? (showRW && showMath ? finalScaledScore : (showRW ? rwScaled : mathScaled)) : (isSAT ? totalCorrect : rawScore)}
             </p>
             {showScaled ? (
-              <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 – 1600</p>
+              <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">
+                {showRW && showMath ? '400 – 1600' : '200 – 800'}
+              </p>
             ) : (
               <p className="text-xs text-blue-300 mt-2">out of {totalQ}</p>
             )}
           </div>
           {/* Reading & Writing */}
+          {showRW && (
           <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Reading &amp; Writing</p>
             <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
@@ -1222,7 +1232,9 @@ export function TestReviewPage() {
               <p className="text-xs text-slate-400 mt-2">out of {rwTotal}</p>
             )}
           </div>
+          )}
           {/* Math */}
+          {showMath && (
           <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Math</p>
             <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
@@ -1234,8 +1246,9 @@ export function TestReviewPage() {
               <p className="text-xs text-slate-400 mt-2">out of {mathTotal}</p>
             )}
           </div>
-          {/* Score Range Bar — Mock/Diagnostic SAT only */}
-          {showScaled && (() => {
+          )}
+          {/* Score Range Bar — Mock/Diagnostic SAT only (both subjects present) */}
+          {(showScaled && showRW && showMath) && (() => {
             const score = finalScaledScore;
             const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
             return (
@@ -1265,6 +1278,8 @@ export function TestReviewPage() {
           })()}
         </div>
       </div>
+        );
+      })()}
 
       {/* ── KNOWLEDGE AND SKILLS ─────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
