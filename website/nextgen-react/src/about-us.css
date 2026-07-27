@@ -670,12 +670,34 @@
 }
 
 @media (max-width: 576px) {
+  /* The radial orbit layout has no room to breathe at phone widths — six
+     labels packed around a small circle just overlap. Swap to a plain
+     2-column grid instead of trying to shrink the radial positions further. */
   .about-tech-orbit {
-    max-width: 300px;
+    max-width: 100%;
+    aspect-ratio: unset;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 26px 14px;
+    justify-items: center;
+  }
+
+  .about-tech-orbit::before {
+    display: none;
+  }
+
+  .about-tech-orbit-center {
+    position: static;
+    grid-column: 1 / -1;
+    width: 58%;
+    margin: 0 auto 6px;
+    transform: none;
   }
 
   .about-tech-node {
-    width: 76px;
+    position: static;
+    width: 100%;
+    transform: none;
   }
 
   .about-tech-node-icon {
@@ -689,11 +711,12 @@
   }
 
   .about-tech-node-label {
-    font-size: 10px;
+    font-size: 11px;
   }
 
   .about-tech-node-desc {
-    display: none;
+    display: block;
+    font-size: 10.5px;
   }
 }
 

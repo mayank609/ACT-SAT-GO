@@ -959,6 +959,8 @@ h1 span,
   padding: 6px 12px;
   border: 1px solid var(--hub-solid, var(--line));
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
   color: var(--navy);
   font-weight: 800;
   font-size: 12px;
@@ -2858,6 +2860,31 @@ h1 span,
   .note-card-check-orange {
     right: -14px;
     bottom: -14px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Side-by-side columns with a negative-margin overlap only work when each
+     column is wide enough to read — on phones they just squash together and
+     the "Others" column hides under the "ACT SAT GO" one. Stack instead. */
+  .compare-table-new {
+    flex-direction: column;
+  }
+  .compare-col-asg {
+    margin-left: 0;
+    padding-left: 0;
+    margin-top: -14px;
+  }
+  .compare-col-others,
+  .compare-col-asg {
+    border-radius: 16px;
+  }
+  .compare-cell {
+    padding: 14px 18px;
+    font-size: 13.5px;
+  }
+  .compare-head {
+    padding: 14px 18px;
   }
 }
 
