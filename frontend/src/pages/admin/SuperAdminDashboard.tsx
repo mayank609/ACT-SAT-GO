@@ -14,7 +14,7 @@ import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line,
+  PieChart, Pie, Cell,
 } from 'recharts';
 
 type TabKey = 'overview' | 'users' | 'permissions' | 'system';
@@ -39,16 +39,9 @@ interface FeedItem {
   timestamp: string;
 }
 
-// Mirrors the bucket thresholds used server-side in /api/analytics/platform
-// so clicking a bar can filter students by the exact same range.
-const ACT_BUCKETS: { label: string; min: number; max: number }[] = [
-  { label: '1–10', min: -Infinity, max: 10 },
-  { label: '11–15', min: 10, max: 15 },
-  { label: '16–20', min: 15, max: 20 },
-  { label: '21–25', min: 20, max: 25 },
-  { label: '26–30', min: 25, max: 30 },
-  { label: '31–36', min: 30, max: Infinity },
-];
+// Mirrors the SAT bucket thresholds used server-side in /api/analytics/platform
+// so clicking a bar can filter students by the exact same range. This console
+// always reports SAT score distribution.
 const SAT_BUCKETS: { label: string; min: number; max: number }[] = [
   { label: '400–800', min: -Infinity, max: 800 },
   { label: '800–1000', min: 800, max: 1000 },
@@ -85,13 +78,10 @@ export function SuperAdminDashboard() {
 
   const [activityData, setActivityData] = useState<{ date: string; attempts: number; completions: number }[]>([]);
   const [scoreDistData, setScoreDistData] = useState<{ range: string; count: number }[]>([]);
-  const [hasSAT, setHasSAT] = useState(false);
-  const [hasACT, setHasACT] = useState(false);
   const [avgScoreImprovement, setAvgScoreImprovement] = useState<number | null>(null);
   const [subjectStrength, setSubjectStrength] = useState<{ rw: number | null; math: number | null }>({ rw: null, math: null });
   const [overallAccuracy, setOverallAccuracy] = useState<number | null>(null);
   const [openDoubtsCount, setOpenDoubtsCount] = useState(0);
-  const [dailyScoreTrend, setDailyScoreTrend] = useState<{ date: string; avgSAT: number | null; avgACT: number | null }[]>([]);
   const [recentActivity, setRecentActivity] = useState<FeedItem[]>([]);
   const [questionsAttemptedThisWeek, setQuestionsAttemptedThisWeek] = useState(0);
   const [avgStudyHoursThisWeek, setAvgStudyHoursThisWeek] = useState<number | null>(null);
@@ -104,14 +94,12 @@ export function SuperAdminDashboard() {
       api.getPermissions().then((r) => setPermissions(r.permissions)),
       api.getPlatformAnalytics().then((r) => {
         setActivityData(r.activityData || []);
-        setScoreDistData(r.scoreDistribution || []);
-        setHasSAT(r.hasSAT);
-        setHasACT(r.hasACT);
+        // Always SAT — this console reports on SAT performance specifically.
+        setScoreDistData(r.scoreDistributionSAT || []);
         setAvgScoreImprovement(r.avgScoreImprovement);
         setSubjectStrength(r.subjectStrength);
         setOverallAccuracy(r.overallAccuracy);
         setOpenDoubtsCount(r.openDoubtsCount);
-        setDailyScoreTrend(r.dailyScoreTrend);
         setRecentActivity(r.recentActivity);
         setQuestionsAttemptedThisWeek(r.questionsAttemptedThisWeek);
         setAvgStudyHoursThisWeek(r.avgStudyHoursThisWeek);
@@ -129,19 +117,15 @@ export function SuperAdminDashboard() {
   const draftTests = useMemo(() => tests.filter((t) => t.status === 'DRAFT'), [tests]);
 
   const studentsWithScore = useMemo(() => students.filter((s) => s.avgScore != null), [students]);
-  const avgScore = studentsWithScore.length
-    ? studentsWithScore.reduce((a, s) => a + (s.avgScore ?? 0), 0) / studentsWithScore.length
-    : 0;
 
   const studentsInSelectedRange = useMemo(() => {
     if (!selectedRange) return [];
-    const buckets = hasSAT && !hasACT ? SAT_BUCKETS : ACT_BUCKETS;
-    const bucket = buckets.find((b) => b.label === selectedRange);
+    const bucket = SAT_BUCKETS.find((b) => b.label === selectedRange);
     if (!bucket) return [];
     return studentsWithScore
       .filter((s) => (s.avgScore ?? 0) > bucket.min && (s.avgScore ?? 0) <= bucket.max)
       .sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
-  }, [selectedRange, hasSAT, hasACT, studentsWithScore]);
+  }, [selectedRange, studentsWithScore]);
 
   const studentsAboveTarget = useMemo(
     () => students.filter((s) => s.targetScore != null && s.avgScore != null && s.avgScore >= s.targetScore),
@@ -243,10 +227,6 @@ export function SuperAdminDashboard() {
 
   const mocksCompletedThisWeek = activityData.reduce((a, d) => a + d.completions, 0);
 
-  const trendKey: 'avgSAT' | 'avgACT' = hasSAT && !hasACT ? 'avgSAT' : 'avgACT';
-  const trendLabel = trendKey === 'avgSAT' ? 'Avg SAT Score' : 'Avg ACT Score';
-  const scoreScaleLabel = hasSAT && !hasACT ? 'out of 1600' : 'out of 36';
-
   const handleAddUser = async () => {
     if (!addForm.name || !addForm.email) return;
     setSaving(true);
@@ -311,23 +291,24 @@ export function SuperAdminDashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-900">Super Admin Console</h1>
           <p className="text-slate-500 text-sm mt-0.5">Full platform control and configuration</p>
         </div>
-        <Badge variant="purple" className="self-start sm:self-auto">Super Admin</Badge>
-      </div>
-
-      <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
-        {tabs.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-3 md:px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px whitespace-nowrap flex-shrink-0 ${
-              tab === t.key ? 'border-purple-600 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}>
-            {t.icon} {t.label}
-          </button>
-        ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1 bg-slate-100 rounded-xl p-1 overflow-x-auto">
+            {tabs.map((t) => (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                  tab === t.key ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}>
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+          <Badge variant="purple" className="flex-shrink-0">Super Admin</Badge>
+        </div>
       </div>
 
       {/* Overview */}
@@ -342,7 +323,7 @@ export function SuperAdminDashboard() {
         return (
           <div className="space-y-5 md:space-y-6">
             {/* Info strip */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
                   <CalendarDays size={16} />
@@ -353,16 +334,6 @@ export function SuperAdminDashboard() {
                     {nextTarget ? nextTarget.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                   </p>
                   <p className="text-xs text-slate-400">{daysUntilNextTarget != null ? `${daysUntilNextTarget} days left` : 'No target set'}</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
-                  <FileText size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-400">Pending Tasks</p>
-                  <p className="text-sm font-semibold text-slate-900">{draftTests.length}</p>
-                  <p className="text-xs text-slate-400">Draft tests to publish</p>
                 </div>
               </div>
               <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
@@ -393,8 +364,7 @@ export function SuperAdminDashboard() {
               <StatCard title="Tutors" value={loading ? '…' : roleCounts['tutor'] ?? 0} subtitle="active tutors" icon={<Shield size={20} />} color="purple" />
               <StatCard title="Admins" value={loading ? '…' : (roleCounts['admin'] ?? 0) + (roleCounts['super_admin'] ?? 0)} subtitle="platform admins" icon={<Zap size={20} />} color="amber" />
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-              <StatCard title="Avg Score" value={avgScore > 0 ? avgScore.toFixed(1) : '—'} subtitle={scoreScaleLabel} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
               <StatCard
                 title="Score Improvement"
                 value={avgScoreImprovement != null ? `${avgScoreImprovement > 0 ? '+' : ''}${avgScoreImprovement}` : '—'}
@@ -499,54 +469,34 @@ export function SuperAdminDashboard() {
               </Card>
             </div>
 
-            {/* Student Performance Trend + Upcoming Target Exams */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <Card className="lg:col-span-2">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-sm">Student Performance Trend</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{trendLabel} (last 30 days)</p>
-                </div>
-                <div className="mt-4">
-                  <ResponsiveContainer width="100%" height={190}>
-                    <LineChart data={dailyScoreTrend} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" />
-                      <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} minTickGap={24} />
-                      <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
-                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #f1f5f9', fontSize: '11px', boxShadow: 'none' }} />
-                      <Line type="monotone" dataKey={trendKey} stroke="#a855f7" strokeWidth={2} dot={false} connectNulls name={trendLabel} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card padding="none">
-                <div className="px-5 py-3.5 border-b border-slate-50">
-                  <h3 className="font-bold text-slate-800 text-sm">Upcoming Target Exams</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Nearest student target dates</p>
-                </div>
-                {upcomingTargets.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-slate-400">No target dates set yet.</p>
-                ) : (
-                  <div className="divide-y divide-slate-50">
-                    {upcomingTargets.map(({ student, date }) => {
-                      const days = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
-                      return (
-                        <div key={student.id} className="flex items-center gap-3 px-5 py-3">
-                          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
-                            <Target size={14} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-slate-800 truncate">{student.name}</p>
-                            <p className="text-xs text-slate-400">{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                          </div>
-                          <Badge variant="info" size="sm">{days}d</Badge>
+            {/* Upcoming Target Exams */}
+            <Card padding="none">
+              <div className="px-5 py-3.5 border-b border-slate-50">
+                <h3 className="font-bold text-slate-800 text-sm">Upcoming Target Exams</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Nearest student target dates</p>
+              </div>
+              {upcomingTargets.length === 0 ? (
+                <p className="px-5 py-4 text-sm text-slate-400">No target dates set yet.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 divide-slate-50">
+                  {upcomingTargets.map(({ student, date }) => {
+                    const days = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+                    return (
+                      <div key={student.id} className="flex items-center gap-3 px-5 py-3">
+                        <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+                          <Target size={14} />
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </Card>
-            </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-800 truncate">{student.name}</p>
+                          <p className="text-xs text-slate-400">{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                        </div>
+                        <Badge variant="info" size="sm">{days}d</Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
 
             {/* Bar Chart: Score Distribution + Attention + Insights + Subject Strength */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">

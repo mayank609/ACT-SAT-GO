@@ -390,6 +390,8 @@ export const api = {
     request<{
       activityData: Array<{ date: string; attempts: number; completions: number }>
       scoreDistribution: Array<{ range: string; count: number }>
+      scoreDistributionACT: Array<{ range: string; count: number }>
+      scoreDistributionSAT: Array<{ range: string; count: number }>
       hasSAT: boolean
       hasACT: boolean
       avgScoreImprovement: number | null
