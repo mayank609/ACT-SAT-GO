@@ -1,4 +1,5 @@
 import { fmtSec } from '../../lib/utils';
+import { satSectionScore } from '../../lib/analyticsData';
 import { useState } from 'react';
 import {
   ChevronLeft, ChevronRight, ChevronDown,
@@ -194,8 +195,10 @@ export function computeTestAnalysis(attempt: TaAttempt): {
     return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
   });
 
-  const isSAT = sections.length === 4;
-  const rwScaled = 0, mathScaled = 0, finalScaledScore = 0;
+  const isSAT = rwTotal > 0 || mathTotal > 0;
+  const rwScaled = rwTotal > 0 ? satSectionScore(rw1Correct, rw2Correct, rwTotal, false) : 0;
+  const mathScaled = mathTotal > 0 ? satSectionScore(math1Correct, math2Correct, mathTotal, true) : 0;
+  const finalScaledScore = rwScaled + mathScaled;
   return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, isSAT, finalScaledScore, rwScaled, mathScaled, rw1Correct, rw1Total, rw2Correct, rw2Total, math1Correct, math1Total, math2Correct, math2Total };
 }
 

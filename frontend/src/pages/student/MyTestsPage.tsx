@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Play, FileSearch, Clock, Target, Loader2, BookOpen, Search, X, CheckCircle, ListTodo } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { loadStudentAnalytics } from '../../lib/analyticsData';
+import { loadStudentAnalytics, computeSatScore, type QRecord } from '../../lib/analyticsData';
+import { resolveScoreMode } from '../../lib/testCategorize';
 
 interface ApiTest {
   assignmentId: string;
@@ -82,6 +83,7 @@ export function MyTestsPage() {
   const { dbId } = useAuthStore();
   const [tests, setTests] = useState<ApiTest[]>([]);
   const [attempts, setAttempts] = useState<LoadedAttempt[]>([]);
+  const [records, setRecords] = useState<Map<string, QRecord[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'todo' | 'completed'>('todo');
   const [search, setSearch] = useState('');
@@ -91,7 +93,7 @@ export function MyTestsPage() {
     if (!dbId) { setLoading(false); return; }
     Promise.all([
       api.getAssignedTests(dbId).then(r => setTests((r.assignedTests ?? []) as ApiTest[])).catch(() => {}),
-      loadStudentAnalytics(dbId).then(({ attempts }) => setAttempts(attempts)).catch(() => {}),
+      loadStudentAnalytics(dbId).then(({ attempts, records }) => { setAttempts(attempts); setRecords(records); }).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [dbId]);
 
@@ -332,7 +334,21 @@ export function MyTestsPage() {
                       {attempt?.completedAt ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                     </td>
                     <td className="px-4 py-3.5 text-center font-semibold text-slate-800 whitespace-nowrap border-r border-slate-100">
-                      {attempt?.totalScore ?? '—'}
+                      {(() => {
+                        if (!attempt) return '—';
+                        const recs = records.get(attempt.id) ?? [];
+                        const mode = resolveScoreMode(test);
+                        if (mode === 'raw') {
+                          if (recs.length === 0) return attempt.totalScore ?? '—';
+                          const correct = recs.filter(r => r.status === 'correct').length;
+                          return `${correct}/${recs.length}`;
+                        }
+                        const s = computeSatScore(recs);
+                        if (mode === 'sectional-math') return s.mathTotal > 0 ? s.math : (attempt.totalScore ?? '—');
+                        if (mode === 'sectional-rw') return s.rwTotal > 0 ? s.rw : (attempt.totalScore ?? '—');
+                        // mock — both subjects
+                        return attempt.totalScore ?? (s.rwTotal > 0 && s.mathTotal > 0 ? s.total : '—');
+                      })()}
                     </td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       <button

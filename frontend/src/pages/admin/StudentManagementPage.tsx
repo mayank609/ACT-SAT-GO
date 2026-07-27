@@ -256,17 +256,15 @@ function computeTestAnalysis(attempt: TaAttempt): {
 
   const isSAT = rwTotal > 0 || mathTotal > 0;
 
+  // rwScaled/mathScaled stay 0 (never a real scaled value, which floors at 200) when that
+  // subject has no sections in this test — e.g. a Math-only Sectional test — so callers can
+  // tell "not applicable" apart from a genuine low score.
   let finalScaledScore = totalCorrect;
   let rwScaled = 0;
   let mathScaled = 0;
-  if (isSAT) {
-    const rwActualTotal = rw1Total + rw2Total || 54;
-    const mathActualTotal = math1Total + math2Total || 44;
-
-    rwScaled = satSectionScore(rw1Correct, rw2Correct, rwActualTotal, false);
-    mathScaled = satSectionScore(math1Correct, math2Correct, mathActualTotal, true);
-    finalScaledScore = rwScaled + mathScaled;
-  }
+  if (rwTotal > 0) rwScaled = satSectionScore(rw1Correct, rw2Correct, rw1Total + rw2Total, false);
+  if (mathTotal > 0) mathScaled = satSectionScore(math1Correct, math2Correct, math1Total + math2Total, true);
+  if (isSAT) finalScaledScore = rwScaled + mathScaled;
 
   return {
     sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal,
@@ -1189,7 +1187,9 @@ export function StudentManagementPage() {
                   r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
                   r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
                   r.rwM1, r.rwM2, r.mathM1, r.mathM2, r.totalRaw,
-                  (r.isSAT && r.isMockTest) ? r.rwSS : '-', (r.isSAT && r.isMockTest) ? r.mathSS : '-', (r.isSAT && r.isMockTest) ? r.totalSS : '-',
+                  (r.isMockTest && r.rwM1T + r.rwM2T > 0) ? r.rwSS : '-',
+                  (r.isMockTest && r.mathM1T + r.mathM2T > 0) ? r.mathSS : '-',
+                  (r.isMockTest && r.rwM1T + r.rwM2T > 0 && r.mathM1T + r.mathM2T > 0) ? r.totalSS : '-',
                   r.isAnalysed ? 'Analysed' : 'Unanalysed',
                 ]);
                 const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -1319,9 +1319,9 @@ export function StudentManagementPage() {
                                 <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.mathM1}</td>
                                 <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.mathM2}</td>
                                 <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRaw}</td>
-                                <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
-                                <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
-                                <td className="px-4 py-4 text-center font-semibold text-slate-800 whitespace-nowrap border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
+                                <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isMockTest && r.rwM1T + r.rwM2T > 0) ? r.rwSS : '—'}</td>
+                                <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isMockTest && r.mathM1T + r.mathM2T > 0) ? r.mathSS : '—'}</td>
+                                <td className="px-4 py-4 text-center font-semibold text-slate-800 whitespace-nowrap border-r border-slate-100">{(r.isMockTest && r.rwM1T + r.rwM2T > 0 && r.mathM1T + r.mathM2T > 0) ? r.totalSS : '—'}</td>
                                 <td className="px-4 py-4 text-center whitespace-nowrap">
                                   <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${analysed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                                     {analysed ? 'ANALYSED' : 'UNANALYSED'}

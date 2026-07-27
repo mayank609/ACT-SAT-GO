@@ -242,7 +242,7 @@ export function satSectionScore(m1: number, m2: number, total: number, isMath: b
   return table[idx];
 }
 
-export interface ScaledScore { rw: number; math: number; total: number }
+export interface ScaledScore { rw: number; math: number; total: number; rwTotal: number; mathTotal: number }
 
 export function computeSatScore(recs: QRecord[]): ScaledScore {
   const sections = new Map<string, { correct: number; total: number }>();
@@ -277,11 +277,14 @@ export function computeSatScore(recs: QRecord[]): ScaledScore {
     }
   }
 
-  const rwTotal = rw1T + rw2T || 54;
-  const mathTotal = m1T + m2T || 44;
-  const rw = satSectionScore(rw1C, rw2C, rwTotal, false);
-  const math = satSectionScore(m1C, m2C, mathTotal, true);
-  return { rw, math, total: rw + math };
+  const rwTotal = rw1T + rw2T;
+  const mathTotal = m1T + m2T;
+  // rw/math stay 0 (never a real scaled value, which floors at 200) when that subject has
+  // no questions at all in these records — e.g. a Math-only Sectional test — so callers can
+  // tell "not applicable" apart from a genuine low score via rwTotal/mathTotal.
+  const rw = rwTotal > 0 ? satSectionScore(rw1C, rw2C, rwTotal, false) : 0;
+  const math = mathTotal > 0 ? satSectionScore(m1C, m2C, mathTotal, true) : 0;
+  return { rw, math, total: rw + math, rwTotal, mathTotal };
 }
 
 // ─── Aggregation ───────────────────────────────────────────────────────────────
