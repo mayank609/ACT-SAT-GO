@@ -43,8 +43,13 @@ export async function GET(
         email: user.email,
         role: user.role.toLowerCase(),
         createdAt: user.createdAt,
+        // Kept for back-compat with callers that only render one tutor.
         tutorId: user.tutors[0]?.tutor.id ?? null,
         tutorName: user.tutors[0] ? userName(user.tutors[0].tutor as { email: string; permissions: unknown }) : null,
+        tutors: user.tutors.map((t) => ({
+          id: t.tutor.id,
+          name: userName(t.tutor as { email: string; permissions: unknown }),
+        })),
         studentIds: user.students.map((s) => s.student.id),
         studentCount: user.students.length,
         testsAttempted,
@@ -114,7 +119,7 @@ export async function PATCH(
   try {
     const body = await request.json()
     const {
-      name, grade, targetScore, targetDate, specialization, tutorId, notifications,
+      name, grade, targetScore, targetDate, specialization, tutorId, tutorIds, notifications,
       phone, parentPhone, dob, schoolName, diagnosticDecision,
       board, timezone, firstClassDate, programVariant, mockVariant,
       accommodation, stage, onboarded,
@@ -126,6 +131,7 @@ export async function PATCH(
       targetDate?: string
       specialization?: string[]
       tutorId?: string | null
+      tutorIds?: string[]
       notifications?: Record<string, boolean>
       phone?: string
       parentPhone?: string
@@ -181,12 +187,39 @@ export async function PATCH(
       data: updateData,
     })
 
-    if (tutorId !== undefined) {
+    if (tutorIds !== undefined) {
+      // Reconcile the full set of tutors for this student (a student may have
+      // more than one tutor, e.g. one per subject) — add/remove only what
+      // changed instead of wiping every assignment on each save.
+      const current = await prisma.tutorAssignment.findMany({ where: { studentId: userId }, select: { tutorId: true } })
+      const currentIds = new Set(current.map((c) => c.tutorId))
+      const nextIds = new Set(tutorIds)
+      const toRemove = [...currentIds].filter((id) => !nextIds.has(id))
+      const toAdd = [...nextIds].filter((id) => !currentIds.has(id))
+      if (toRemove.length) {
+        await prisma.tutorAssignment.deleteMany({ where: { studentId: userId, tutorId: { in: toRemove } } })
+      }
+      if (toAdd.length) {
+        await prisma.tutorAssignment.createMany({
+          data: toAdd.map((id) => ({ tutorId: id, studentId: userId })),
+          skipDuplicates: true,
+        })
+      }
+    } else if (tutorId !== undefined) {
+      // Legacy single-tutor path — replaces the entire assignment set with (at most) one tutor.
       await prisma.tutorAssignment.deleteMany({ where: { studentId: userId } })
       if (tutorId) {
         await prisma.tutorAssignment.create({ data: { tutorId, studentId: userId } })
       }
     }
+
+    const tutorRows = (tutorIds !== undefined || tutorId !== undefined)
+      ? await prisma.tutorAssignment.findMany({
+          where: { studentId: userId },
+          include: { tutor: { select: { id: true, email: true, permissions: true } } },
+        })
+      : null
+    const tutors = tutorRows?.map((t) => ({ id: t.tutor.id, name: userName(t.tutor as { email: string; permissions: unknown }) }))
 
     return NextResponse.json({
       user: {
@@ -195,6 +228,7 @@ export async function PATCH(
         email: user.email,
         role: user.role.toLowerCase(),
         createdAt: user.createdAt,
+        ...(tutors ? { tutors, tutorId: tutors[0]?.id ?? null, tutorName: tutors[0]?.name ?? null } : {}),
         grade: permissions.grade ?? null,
         targetScore: permissions.targetScore ?? null,
         targetDate: permissions.targetDate ?? null,

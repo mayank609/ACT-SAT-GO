@@ -11,6 +11,7 @@ import { Modal } from '../../components/common/Modal';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
+import { TutorMultiSelect } from '../../components/common/TutorMultiSelect';
 import { api, type DbUser, type DbTestPackage } from '../../lib/api';
 import { studentStatusFromDecision } from '../../lib/studentStatus';
 import { satSectionScore } from '../../lib/analyticsData';
@@ -334,7 +335,7 @@ export function StudentManagementPage() {
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
+  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorIds: [] as string[], phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
@@ -789,7 +790,7 @@ export function StudentManagementPage() {
           grade: addForm.grade || undefined,
           targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
           targetDate: addForm.targetDate || undefined,
-          tutorId: addForm.tutorId || undefined,
+          tutorIds: addForm.tutorIds,
           phone: addForm.phone || undefined,
           parentPhone: addForm.parentPhone || undefined,
           dob: addForm.dob || undefined,
@@ -807,7 +808,7 @@ export function StudentManagementPage() {
           manualDiagMath: addForm.manualDiagMath ? Number(addForm.manualDiagMath) : null,
         });
         setShowAddModal(false); setIsEditing(false); setEditingStudentId(null);
-        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorIds: [], phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
         reload();
       } else {
         const res = await api.createUser({
@@ -815,7 +816,7 @@ export function StudentManagementPage() {
           grade: addForm.grade || undefined,
           targetScore: addForm.targetScore ? Number(addForm.targetScore) : undefined,
           targetDate: addForm.targetDate || undefined,
-          tutorId: addForm.tutorId || undefined,
+          tutorIds: addForm.tutorIds,
           phone: addForm.phone || undefined,
           parentPhone: addForm.parentPhone || undefined,
           dob: addForm.dob || undefined,
@@ -833,7 +834,7 @@ export function StudentManagementPage() {
           manualDiagMath: addForm.manualDiagMath ? Number(addForm.manualDiagMath) : null,
         });
         setShowAddModal(false);
-        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
+        setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorIds: [], phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
         reload();
         if (res.tempPassword) setCreatedPassword({ name: fullName, email: addForm.email, password: res.tempPassword });
       }
@@ -853,7 +854,7 @@ export function StudentManagementPage() {
       email: student.email,
       grade: student.grade || '',
       targetScore: student.targetScore ? String(student.targetScore) : '',
-      tutorId: student.tutorId || '',
+      tutorIds: student.tutors?.length ? student.tutors.map((t) => t.id) : (student.tutorId ? [student.tutorId] : []),
       phone: student.phone || '',
       parentPhone: student.parentPhone || '',
       dob: student.dob || '',
@@ -961,7 +962,7 @@ export function StudentManagementPage() {
 
             {/* With Tutors chip */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-sm">
-              <span className="font-bold text-emerald-600">{students.filter(s => s.tutorId).length}</span>
+              <span className="font-bold text-emerald-600">{students.filter(s => (s.tutors?.length ?? 0) > 0 || s.tutorId).length}</span>
               <span className="text-slate-600 font-medium">With Tutors</span>
             </div>
 
@@ -2079,12 +2080,12 @@ export function StudentManagementPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 32" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Assign Tutor</label>
-                <select value={addForm.tutorId} onChange={(e) => setAddForm(f => ({ ...f, tutorId: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">No tutor</option>
-                  {tutors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Assign Tutor(s)</label>
+                <TutorMultiSelect
+                  options={tutors.map((t) => ({ id: t.id, name: t.name }))}
+                  value={addForm.tutorIds}
+                  onChange={(ids) => setAddForm(f => ({ ...f, tutorIds: ids }))}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Target Test Date</label>
@@ -2203,7 +2204,7 @@ export function StudentManagementPage() {
               onClick={() => {
                 setIsEditing(false);
                 setEditingStudentId(null);
-                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorId: '', phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
+                setAddForm({ firstName: '', lastName: '', email: '', grade: '', targetScore: '', targetDate: '', tutorIds: [], phone: '', parentPhone: '', dob: '', schoolName: '', board: '', timezone: 'Asia/Kolkata', firstClassDate: '', programVariant: '', mockVariant: '', accommodation: false, stage: '', onboarded: false, manualDiagTotal: '', manualDiagRW: '', manualDiagMath: '' });
                 setShowManageModal(false);
                 setShowAddModal(true);
               }}
