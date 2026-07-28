@@ -24,10 +24,12 @@ interface ApiTest {
 
 interface LoadedAttempt { id: string; title: string; completedAt: string | null; totalScore: number | null; isDiagnostic: boolean }
 
+// Test Builder tags homework as subCategory "{Subject}-Homework" (e.g. "Math-Homework"),
+// which does NOT contain the substring "hw" — match on "homework" instead.
 const isHW = (t: ApiTest): boolean => {
   const title = t.title.toLowerCase();
   const sub = (t.subCategory ?? '').toLowerCase();
-  return sub.includes('hw') || /\bhw\b|homework/.test(title);
+  return sub.includes('homework') || /\bhw\b|homework/.test(title);
 };
 const isMathSubject = (t: ApiTest): boolean => {
   const title = t.title.toLowerCase();

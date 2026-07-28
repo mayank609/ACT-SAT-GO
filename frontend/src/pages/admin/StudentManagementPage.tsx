@@ -15,6 +15,7 @@ import { TutorMultiSelect } from '../../components/common/TutorMultiSelect';
 import { api, type DbUser, type DbTestPackage } from '../../lib/api';
 import { studentStatusFromDecision } from '../../lib/studentStatus';
 import { satSectionScore } from '../../lib/analyticsData';
+import { practiceSubjectOf } from '../../lib/testCategorize';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES } from '../../data/satDomains';
 
@@ -298,10 +299,12 @@ function getSectionModuleLabel(name: string): string {
 
 // stage badge helper removed as the student table was consolidated
 
+// Test Builder tags homework as subCategory "{Subject}-Homework" (e.g. "Math-Homework"),
+// which does NOT contain the substring "hw" — match on "homework" instead.
 const isHW = (test: any): boolean => {
   const t = (test.title ?? '').toLowerCase();
   const sub = (test.subCategory ?? '').toLowerCase();
-  return sub.includes('hw') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+  return sub.includes('homework') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
 };
 
 const isEnglish = (test: any): boolean => {
@@ -388,7 +391,7 @@ export function StudentManagementPage() {
 
   // ── Mock Test Report (per-student list of all attempts) ─────────────────────
   const [reportRows, setReportRows] = useState<Array<{
-    id: string; title: string; startedAt: string; completedAt: string | null;
+    id: string; title: string; category?: string; subCategory?: string; startedAt: string; completedAt: string | null;
     rwM1: number; rwM2: number; mathM1: number; mathM2: number;
     rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
     totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean; isAnalysed: boolean;
@@ -515,7 +518,8 @@ export function StudentManagementPage() {
             const reviewedCount = att.answers.filter((a) => a.doubtStatus === 'doubt' || a.doubtStatus === 'cleared').length;
             const isAnalysed = totalFlatQs > 0 && reviewedCount >= totalFlatQs;
             return {
-              id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+              id: att.id, title: att.test.title, category: att.test.category ?? undefined, subCategory: (att.test as any).subCategory ?? undefined,
+              startedAt: att.startedAt, completedAt: att.completedAt,
               rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
               rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
               totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
@@ -528,7 +532,8 @@ export function StudentManagementPage() {
             console.error(`[TestAnalysis] Error computing analysis for attempt ${att.id}:`, err);
             // Fallback: show totalScore instead of recomputed values
             return {
-              id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+              id: att.id, title: att.test.title, category: att.test.category ?? undefined, subCategory: (att.test as any).subCategory ?? undefined,
+              startedAt: att.startedAt, completedAt: att.completedAt,
               rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0,
               rwM1T: 0, rwM2T: 0, mathM1T: 0, mathM2T: 0,
               totalRaw: att.totalScore ?? 0, totalRawT: 0,
@@ -608,12 +613,11 @@ export function StudentManagementPage() {
               }
             }
 
-            if (diagnosticsEnglish === null && analyticsResp.latestScore !== undefined) {
-              diagnosticsEnglish = Math.round(analyticsResp.latestScore / 2);
-            }
-            if (diagnosticsMath === null && analyticsResp.latestScore !== undefined) {
-              diagnosticsMath = Math.round(analyticsResp.latestScore / 2);
-            }
+            // No per-subject fallback here: analyticsResp.latestScore may be a composite
+            // Mock score or a raw Practice/HW count, and halving either one to fill in
+            // English/Math produces a number with no real meaning. Leave them null (used
+            // only for the "Sort by Diagnostics" comparator) until real per-subject data
+            // is available above.
 
             const hwAttempts = studentAttempts.filter((a: any) => {
               const t = (a.test?.title ?? '').toLowerCase();
@@ -1175,19 +1179,20 @@ export function StudentManagementPage() {
           {!selectedAttemptId ? (
             (() => {
               const studentName = students.find((s) => s.id === selectedStudentId)?.name ?? 'Student';
-              const dRaw = reportRows.reduce((d, r) => ({
-                rwM1: Math.max(d.rwM1, r.rwM1T), rwM2: Math.max(d.rwM2, r.rwM2T),
-                mathM1: Math.max(d.mathM1, r.mathM1T), mathM2: Math.max(d.mathM2, r.mathM2T),
-                total: Math.max(d.total, r.totalRawT),
-              }), { rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0, total: 0 });
-              const den = { rwM1: dRaw.rwM1 || 27, rwM2: dRaw.rwM2 || 27, mathM1: dRaw.mathM1 || 22, mathM2: dRaw.mathM2 || 22, total: dRaw.total || 98 };
               const downloadReport = () => {
-                const head = ['#', 'Test Name', 'Started At', 'Completed At', `RW1/${den.rwM1}`, `RW2/${den.rwM2}`, `M1/${den.mathM1}`, `M2/${den.mathM2}`, `Total/${den.total}`, 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
+                const head = ['#', 'Test Name', 'Started At', 'Completed At', 'RW1', 'RW2', 'M1', 'M2', 'Total', 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
+                // Each test can cover different modules with different question counts, so
+                // show each cell's own "correct/total" rather than a shared column denominator
+                // — and "—" (not 0) for a module this particular test doesn't cover.
                 const lines = reportRows.map((r, i) => [
                   i + 1, r.title,
                   r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
                   r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
-                  r.rwM1, r.rwM2, r.mathM1, r.mathM2, r.totalRaw,
+                  r.rwM1T > 0 ? `${r.rwM1}/${r.rwM1T}` : '—',
+                  r.rwM2T > 0 ? `${r.rwM2}/${r.rwM2T}` : '—',
+                  r.mathM1T > 0 ? `${r.mathM1}/${r.mathM1T}` : '—',
+                  r.mathM2T > 0 ? `${r.mathM2}/${r.mathM2T}` : '—',
+                  r.totalRawT > 0 ? `${r.totalRaw}/${r.totalRawT}` : '—',
                   (r.isMockTest && r.rwM1T + r.rwM2T > 0) ? r.rwSS : '-',
                   (r.isMockTest && r.mathM1T + r.mathM2T > 0) ? r.mathSS : '-',
                   (r.isMockTest && r.rwM1T + r.rwM2T > 0 && r.mathM1T + r.mathM2T > 0) ? r.totalSS : '-',
@@ -1201,27 +1206,31 @@ export function StudentManagementPage() {
                 link.click();
                 URL.revokeObjectURL(url);
               };
-              // Subject inferred from the test title (math / reading / writing).
-              const subjectOf = (t: string): 'math' | 'reading' | 'writing' | 'other' => {
-                if (/math|algebra|geometry|calc|quant|trig/.test(t)) return 'math';
-                if (/reading|comprehension/.test(t)) return 'reading';
-                if (/writing|grammar|english|verbal/.test(t)) return 'writing';
-                return 'other';
-              };
-              const isHWTitle = (t: string) => t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
-              const isPracticeTitle = (t: string) => t.includes('practice');
-              const filterMatches = (title: string, f: typeof reportFilter) => {
-                const t = title.toLowerCase();
+              // Match on the category/subCategory the Test Builder actually tags tests
+              // with (category "Practice Sheet", subCategory "{Subject}-{AssignmentType}"
+              // e.g. "Math-Homework") rather than sniffing the free-text title, so a
+              // Practice Sheet correctly lands in its subject's HW/Practice filter even if
+              // the title itself doesn't happen to mention the subject. Title-sniffing is
+              // kept only as a fallback for tests with no category set at all.
+              const filterMatches = (row: { title: string; category?: string }, f: typeof reportFilter) => {
                 if (f === 'all') return true;
-                if (f === 'mock') return t.includes('mock');
-                if (f === 'diagnostic') return t.includes('diagnostic');
-                if (f === 'hw_math') return isHWTitle(t) && subjectOf(t) === 'math';
-                if (f === 'hw_reading') return isHWTitle(t) && subjectOf(t) === 'reading';
-                if (f === 'hw_writing') return isHWTitle(t) && subjectOf(t) === 'writing';
-                if (f === 'practice_math') return isPracticeTitle(t) && subjectOf(t) === 'math';
-                if (f === 'practice_reading') return isPracticeTitle(t) && subjectOf(t) === 'reading';
-                if (f === 'practice_writing') return isPracticeTitle(t) && subjectOf(t) === 'writing';
-                return true;
+                const cat = (row.category ?? '').trim();
+                const t = row.title.toLowerCase();
+                if (f === 'mock') return cat ? cat === 'Mock' : t.includes('mock');
+                if (f === 'diagnostic') return cat ? cat === 'Diagnostic' : t.includes('diagnostic');
+                const isPracticeSheet = cat
+                  ? cat === 'Practice Sheet'
+                  : (isHW(row) || t.includes('practice'));
+                if (!isPracticeSheet) return false;
+                const subj = practiceSubjectOf(row);
+                const hw = isHW(row);
+                if (f === 'hw_math') return hw && subj === 'math';
+                if (f === 'hw_reading') return hw && subj === 'reading';
+                if (f === 'hw_writing') return hw && subj === 'writing';
+                if (f === 'practice_math') return !hw && subj === 'math';
+                if (f === 'practice_reading') return !hw && subj === 'reading';
+                if (f === 'practice_writing') return !hw && subj === 'writing';
+                return false;
               };
               const filterLabels: { key: typeof reportFilter; label: string }[] = [
                 { key: 'all', label: 'All' },
@@ -1234,7 +1243,7 @@ export function StudentManagementPage() {
                 { key: 'practice_reading', label: 'Reading Prac' },
                 { key: 'practice_writing', label: 'Writing Practice' },
               ];
-              const filteredRows = reportRows.filter(r => filterMatches(r.title, reportFilter));
+              const filteredRows = reportRows.filter(r => filterMatches(r, reportFilter));
 
               return (
                 <Card padding="none">
@@ -1264,7 +1273,7 @@ export function StudentManagementPage() {
                   {/* Filter tabs */}
                   <div className="flex items-center gap-1.5 px-5 py-3 border-b border-slate-100 flex-wrap">
                     {filterLabels.map(({ key, label }) => {
-                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r.title, key)).length;
+                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r, key)).length;
                       const active = reportFilter === key;
                       return (
                         <button
@@ -1294,11 +1303,11 @@ export function StudentManagementPage() {
                             <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Started At</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Completed At</th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW1</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW2</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M1</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M2</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW SS</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Math SS</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total SS</th>
@@ -1315,11 +1324,13 @@ export function StudentManagementPage() {
                                 <td className="px-4 py-4 font-semibold text-blue-700 hover:underline whitespace-nowrap border-r border-slate-100">{r.title}</td>
                                 <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">{r.startedAt ? new Date(r.startedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
                                 <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">{r.completedAt ? new Date(r.completedAt).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
-                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.rwM1}</td>
-                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.rwM2}</td>
-                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.mathM1}</td>
-                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.mathM2}</td>
-                                <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRaw}</td>
+                                {/* A module not covered by this test (e.g. Math1/Math2 on an
+                                    RW-only Sectional) has total=0 — show "—", not a fake 0/0. */}
+                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.rwM1T > 0 ? `${r.rwM1}/${r.rwM1T}` : '—'}</td>
+                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.rwM2T > 0 ? `${r.rwM2}/${r.rwM2T}` : '—'}</td>
+                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.mathM1T > 0 ? `${r.mathM1}/${r.mathM1T}` : '—'}</td>
+                                <td className="px-4 py-4 text-center text-blue-700 font-medium whitespace-nowrap border-r border-slate-100">{r.mathM2T > 0 ? `${r.mathM2}/${r.mathM2T}` : '—'}</td>
+                                <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRawT > 0 ? `${r.totalRaw}/${r.totalRawT}` : '—'}</td>
                                 <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isMockTest && r.rwM1T + r.rwM2T > 0) ? r.rwSS : '—'}</td>
                                 <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">{(r.isMockTest && r.mathM1T + r.mathM2T > 0) ? r.mathSS : '—'}</td>
                                 <td className="px-4 py-4 text-center font-semibold text-slate-800 whitespace-nowrap border-r border-slate-100">{(r.isMockTest && r.rwM1T + r.rwM2T > 0 && r.mathM1T + r.mathM2T > 0) ? r.totalSS : '—'}</td>
@@ -1351,6 +1362,10 @@ export function StudentManagementPage() {
             const isPracticeSheet = ['Practice Sheet'].includes(testAnalysisAttempt.test.category ?? '') || /practice\s*sheet/i.test(testAnalysisAttempt.test.title ?? '');
             const showScaled = analysis.isSAT && !isPracticeSheet;
 
+            // Sectional tests only have sections for one subject — rwTotal/mathTotal is 0
+            // for the one they don't cover, so hide that box instead of showing a fake 0.
+            const showRW = analysis.rwTotal > 0;
+            const showMath = analysis.mathTotal > 0;
             return (
               <div className="space-y-4">
                 {/* ── Score Card ── */}
@@ -1360,15 +1375,18 @@ export function StudentManagementPage() {
                     <div className="px-8 py-6 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl flex flex-col justify-center">
                       <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
                       <p className="text-6xl font-black text-white leading-none tabular-nums mt-1.5">
-                        {showScaled ? analysis.finalScaledScore : analysis.totalCorrect}
+                        {showScaled ? (showRW && showMath ? analysis.finalScaledScore : (showRW ? analysis.rwScaled : analysis.mathScaled)) : analysis.totalCorrect}
                       </p>
                       {showScaled ? (
-                        <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 – 1600</p>
+                        <p className="text-xs text-blue-300 mt-2.5 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">
+                          {showRW && showMath ? '400 – 1600' : '200 – 800'}
+                        </p>
                       ) : (
                         <p className="text-xs text-blue-300 mt-2">out of {analysis.totalQuestions}</p>
                       )}
                     </div>
                     {/* Reading & Writing — fixed width */}
+                    {showRW && (
                     <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Reading &amp; Writing</p>
                       <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
@@ -1380,7 +1398,9 @@ export function StudentManagementPage() {
                         <p className="text-xs text-slate-400 mt-2">out of {analysis.rwTotal}</p>
                       )}
                     </div>
+                    )}
                     {/* Math — same fixed width as R&W */}
+                    {showMath && (
                     <div className="w-36 py-6 shrink-0 text-center flex flex-col justify-center">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">Math</p>
                       <p className="text-5xl font-black text-blue-900 leading-none tabular-nums mt-2">
@@ -1392,8 +1412,9 @@ export function StudentManagementPage() {
                         <p className="text-xs text-slate-400 mt-2">out of {analysis.mathTotal}</p>
                       )}
                     </div>
+                    )}
                     {/* Score Range Bar — Mock/Diagnostic SAT only */}
-                    {showScaled && (() => {
+                    {(showScaled && showRW && showMath) && (() => {
                       const score = analysis.finalScaledScore;
                       const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
                       return (

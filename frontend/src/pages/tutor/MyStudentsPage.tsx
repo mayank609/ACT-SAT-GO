@@ -12,6 +12,7 @@ import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashb
 import { api, type DbUser } from '../../lib/api';
 import { studentStatusFromDecision } from '../../lib/studentStatus';
 import { satSectionScore } from '../../lib/analyticsData';
+import { isHW, practiceSubjectOf } from '../../lib/testCategorize';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 
@@ -288,7 +289,7 @@ export function MyStudentsPage() {
 
   // ── Mock Test Report (per-student list of all attempts) ─────────────────────
   const [reportRows, setReportRows] = useState<Array<{
-    id: string; title: string; startedAt: string; completedAt: string | null;
+    id: string; title: string; category?: string; subCategory?: string; startedAt: string; completedAt: string | null;
     rwM1: number; rwM2: number; mathM1: number; mathM2: number;
     rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
     totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean;
@@ -374,7 +375,8 @@ export function MyStudentsPage() {
             else if (isRW) { if (isM2) { rwM2 += s.correct; rwM2T += s.total; } else { rwM1 += s.correct; rwM1T += s.total; } }
           }
           return {
-            id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+            id: att.id, title: att.test.title, category: att.test.category ?? undefined, subCategory: (att.test as any).subCategory ?? undefined,
+            startedAt: att.startedAt, completedAt: att.completedAt,
             rwM1, rwM2, mathM1, mathM2, rwM1T, rwM2T, mathM1T, mathM2T,
             totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
             rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
@@ -866,19 +868,20 @@ export function MyStudentsPage() {
           ) : !selectedAttemptId ? (
             (() => {
               const studentName = students.find((s) => s.id === selectedStudentId)?.name ?? 'Student';
-              const dRaw = reportRows.reduce((d, r) => ({
-                rwM1: Math.max(d.rwM1, r.rwM1T), rwM2: Math.max(d.rwM2, r.rwM2T),
-                mathM1: Math.max(d.mathM1, r.mathM1T), mathM2: Math.max(d.mathM2, r.mathM2T),
-                total: Math.max(d.total, r.totalRawT),
-              }), { rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0, total: 0 });
-              const den = { rwM1: dRaw.rwM1 || 27, rwM2: dRaw.rwM2 || 27, mathM1: dRaw.mathM1 || 22, mathM2: dRaw.mathM2 || 22, total: dRaw.total || 98 };
               const downloadReport = () => {
-                const head = ['#', 'Test Name', 'Started At', 'Completed At', `RW1/${den.rwM1}`, `RW2/${den.rwM2}`, `M1/${den.mathM1}`, `M2/${den.mathM2}`, `Total/${den.total}`, 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
+                const head = ['#', 'Test Name', 'Started At', 'Completed At', 'RW1', 'RW2', 'M1', 'M2', 'Total', 'RW SS', 'Math SS', 'Total SS', 'Analysis'];
+                // Each test can cover different modules with different question counts, so
+                // show each cell's own "correct/total" rather than a shared column denominator
+                // — and "—" (not 0) for a module this particular test doesn't cover.
                 const lines = reportRows.map((r, i) => [
                   i + 1, r.title,
                   r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
                   r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
-                  r.rwM1, r.rwM2, r.mathM1, r.mathM2, r.totalRaw,
+                  r.rwM1T > 0 ? `${r.rwM1}/${r.rwM1T}` : '—',
+                  r.rwM2T > 0 ? `${r.rwM2}/${r.rwM2T}` : '—',
+                  r.mathM1T > 0 ? `${r.mathM1}/${r.mathM1T}` : '—',
+                  r.mathM2T > 0 ? `${r.mathM2}/${r.mathM2T}` : '—',
+                  r.totalRawT > 0 ? `${r.totalRaw}/${r.totalRawT}` : '—',
                   (r.isMockTest && r.rwTotal > 0) ? r.rwSS : '-', (r.isMockTest && r.mathTotal > 0) ? r.mathSS : '-', (r.isMockTest && (r.rwTotal > 0 || r.mathTotal > 0)) ? r.totalSS : '-',
                   testAnalysisStatus[r.id] === 'submitted' ? 'Analysed' : 'Unanalysed',
                 ]);
@@ -890,26 +893,31 @@ export function MyStudentsPage() {
                 link.click();
                 URL.revokeObjectURL(url);
               };
-              const subjectOf = (t: string): 'math' | 'reading' | 'writing' | 'other' => {
-                if (/math|algebra|geometry|calc|quant|trig/.test(t)) return 'math';
-                if (/reading|comprehension/.test(t)) return 'reading';
-                if (/writing|grammar|english|verbal/.test(t)) return 'writing';
-                return 'other';
-              };
-              const isHWTitle = (t: string) => t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
-              const isPracticeTitle = (t: string) => t.includes('practice');
-              const filterMatches = (title: string, f: typeof reportFilter) => {
-                const t = title.toLowerCase();
+              // Match on the category/subCategory the Test Builder actually tags tests
+              // with (category "Practice Sheet", subCategory "{Subject}-{AssignmentType}"
+              // e.g. "Math-Homework") rather than sniffing the free-text title, so a
+              // Practice Sheet correctly lands in its subject's HW/Practice filter even if
+              // the title itself doesn't happen to mention the subject. Title-sniffing is
+              // kept only as a fallback for tests with no category set at all.
+              const filterMatches = (row: { title: string; category?: string }, f: typeof reportFilter) => {
                 if (f === 'all') return true;
-                if (f === 'mock') return t.includes('mock');
-                if (f === 'diagnostic') return t.includes('diagnostic');
-                if (f === 'hw_math') return isHWTitle(t) && subjectOf(t) === 'math';
-                if (f === 'hw_reading') return isHWTitle(t) && subjectOf(t) === 'reading';
-                if (f === 'hw_writing') return isHWTitle(t) && subjectOf(t) === 'writing';
-                if (f === 'practice_math') return isPracticeTitle(t) && subjectOf(t) === 'math';
-                if (f === 'practice_reading') return isPracticeTitle(t) && subjectOf(t) === 'reading';
-                if (f === 'practice_writing') return isPracticeTitle(t) && subjectOf(t) === 'writing';
-                return true;
+                const cat = (row.category ?? '').trim();
+                const t = row.title.toLowerCase();
+                if (f === 'mock') return cat ? cat === 'Mock' : t.includes('mock');
+                if (f === 'diagnostic') return cat ? cat === 'Diagnostic' : t.includes('diagnostic');
+                const isPracticeSheet = cat
+                  ? cat === 'Practice Sheet'
+                  : (isHW(row) || t.includes('practice'));
+                if (!isPracticeSheet) return false;
+                const subj = practiceSubjectOf(row);
+                const hw = isHW(row);
+                if (f === 'hw_math') return hw && subj === 'math';
+                if (f === 'hw_reading') return hw && subj === 'reading';
+                if (f === 'hw_writing') return hw && subj === 'writing';
+                if (f === 'practice_math') return !hw && subj === 'math';
+                if (f === 'practice_reading') return !hw && subj === 'reading';
+                if (f === 'practice_writing') return !hw && subj === 'writing';
+                return false;
               };
               const filterLabels: { key: typeof reportFilter; label: string }[] = [
                 { key: 'all', label: 'All' },
@@ -922,7 +930,7 @@ export function MyStudentsPage() {
                 { key: 'practice_reading', label: 'Reading Prac' },
                 { key: 'practice_writing', label: 'Writing Practice' },
               ];
-              const filteredRows = reportRows.filter(r => filterMatches(r.title, reportFilter));
+              const filteredRows = reportRows.filter(r => filterMatches(r, reportFilter));
 
               return (
                 <Card padding="none">
@@ -950,7 +958,7 @@ export function MyStudentsPage() {
                   {/* Filter tabs */}
                   <div className="flex items-center gap-1.5 px-5 py-3 border-b border-slate-100 flex-wrap">
                     {filterLabels.map(({ key, label }) => {
-                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r.title, key)).length;
+                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r, key)).length;
                       const active = reportFilter === key;
                       return (
                         <button
@@ -980,11 +988,11 @@ export function MyStudentsPage() {
                             <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Started At</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Completed At</th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW1<span className="text-slate-400 font-normal">/{den.rwM1}</span></th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW2<span className="text-slate-400 font-normal">/{den.rwM2}</span></th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M1<span className="text-slate-400 font-normal">/{den.mathM1}</span></th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M2<span className="text-slate-400 font-normal">/{den.mathM2}</span></th>
-                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total<span className="text-slate-400 font-normal">/{den.total}</span></th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW1</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW2</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M1</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">M2</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">RW SS</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Math SS</th>
                             <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Total SS</th>
@@ -1001,11 +1009,13 @@ export function MyStudentsPage() {
                                 <td className="px-4 py-3 font-semibold text-blue-700 hover:underline border-r border-slate-100">{r.title}</td>
                                 <td className="px-4 py-3 text-center text-xs text-slate-500 border-r border-slate-100">{r.startedAt ? new Date(r.startedAt).toLocaleString() : '—'}</td>
                                 <td className="px-4 py-3 text-center text-xs text-slate-500 border-r border-slate-100">{r.completedAt ? new Date(r.completedAt).toLocaleString() : '—'}</td>
-                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.rwM1}</td>
-                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.rwM2}</td>
-                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.mathM1}</td>
-                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.mathM2}</td>
-                                <td className="px-4 py-3 text-center font-bold text-slate-900 border-r border-slate-100">{r.totalRaw}</td>
+                                {/* A module not covered by this test (e.g. Math1/Math2 on an
+                                    RW-only Sectional) has total=0 — show "—", not a fake 0/0. */}
+                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.rwM1T > 0 ? `${r.rwM1}/${r.rwM1T}` : '—'}</td>
+                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.rwM2T > 0 ? `${r.rwM2}/${r.rwM2T}` : '—'}</td>
+                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.mathM1T > 0 ? `${r.mathM1}/${r.mathM1T}` : '—'}</td>
+                                <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.mathM2T > 0 ? `${r.mathM2}/${r.mathM2T}` : '—'}</td>
+                                <td className="px-4 py-3 text-center font-bold text-slate-900 border-r border-slate-100">{r.totalRawT > 0 ? `${r.totalRaw}/${r.totalRawT}` : '—'}</td>
                                 <td className="px-4 py-3 text-center text-slate-600 border-r border-slate-100">{(r.isMockTest && r.rwTotal > 0) ? r.rwSS : '—'}</td>
                                 <td className="px-4 py-3 text-center text-slate-600 border-r border-slate-100">{(r.isMockTest && r.mathTotal > 0) ? r.mathSS : '—'}</td>
                                 <td className="px-4 py-3 text-center font-semibold text-slate-800 border-r border-slate-100">{(r.isMockTest && (r.rwTotal > 0 || r.mathTotal > 0)) ? r.totalSS : '—'}</td>
