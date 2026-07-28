@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { redis } from '@/lib/redis'
+import { requireRole } from '@/lib/auth'
 
 const ENTRY_TTL = 60 * 60 * 24 * 365 // 1 year
 
@@ -88,8 +89,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE /api/class-progress?tutorId=xxx&studentId=xxx&entryId=xxx
+// DELETE /api/class-progress?tutorId=xxx&studentId=xxx&entryId=xxx — admin/super-admin only.
 export async function DELETE(request: NextRequest) {
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+  if (auth instanceof NextResponse) return auth
+
   const tutorId = request.nextUrl.searchParams.get('tutorId')
   const studentId = request.nextUrl.searchParams.get('studentId')
   const entryId = request.nextUrl.searchParams.get('entryId')
@@ -104,5 +108,45 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('DELETE /api/class-progress:', error)
     return NextResponse.json({ error: 'Failed to delete class progress entry' }, { status: 500 })
+  }
+}
+
+// PATCH /api/class-progress — body: { tutorId, studentId, entryId, ...fields to update }.
+// Lets admin/super-admin correct or manage a tutor's logged session entry.
+export async function PATCH(request: NextRequest) {
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+  if (auth instanceof NextResponse) return auth
+
+  try {
+    const {
+      tutorId, studentId, entryId, topic, homework, notes, classDate,
+      durationMinutes, actualDurationMinutes, subject, status, sessionType,
+    } = await request.json()
+    if (!tutorId || !studentId || !entryId) {
+      return NextResponse.json({ error: 'tutorId, studentId, entryId required' }, { status: 400 })
+    }
+    const entries = await loadEntries(tutorId, studentId)
+    const idx = entries.findIndex((e) => e.id === entryId)
+    if (idx === -1) {
+      return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
+    }
+    const updated: ClassProgressEntry = {
+      ...entries[idx],
+      ...(topic !== undefined ? { topic: String(topic).trim() } : {}),
+      ...(homework !== undefined ? { homework: String(homework).trim() } : {}),
+      ...(notes !== undefined ? { notes: String(notes).trim() } : {}),
+      ...(classDate !== undefined ? { classDate: String(classDate) } : {}),
+      ...(durationMinutes !== undefined ? { durationMinutes: Number(durationMinutes) } : {}),
+      ...(actualDurationMinutes !== undefined ? { actualDurationMinutes: Number(actualDurationMinutes) } : {}),
+      ...(subject !== undefined ? { subject: String(subject) } : {}),
+      ...(status !== undefined ? { status: String(status) } : {}),
+      ...(sessionType !== undefined ? { sessionType: String(sessionType) } : {}),
+    }
+    entries[idx] = updated
+    await redis.set(`classProgress:${tutorId}:${studentId}`, JSON.stringify(entries), { ex: ENTRY_TTL })
+    return NextResponse.json({ entry: updated })
+  } catch (error) {
+    console.error('PATCH /api/class-progress:', error)
+    return NextResponse.json({ error: 'Failed to update class progress entry' }, { status: 500 })
   }
 }
