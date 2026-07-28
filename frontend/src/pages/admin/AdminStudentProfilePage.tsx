@@ -11,6 +11,7 @@ import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
+import { TutorMultiSelect } from '../../components/common/TutorMultiSelect';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api, type DbUser } from '../../lib/api';
@@ -305,7 +306,7 @@ export function AdminStudentProfilePage() {
   const [loading, setLoading] = useState(true);
 
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', parentPhone: '', dob: '', schoolName: '', grade: '', targetScore: '', tutorId: '' });
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', parentPhone: '', dob: '', schoolName: '', grade: '', targetScore: '', tutorIds: [] as string[] });
   const [editSaving, setEditSaving] = useState(false);
 
   const [assignOpen, setAssignOpen] = useState(false);
@@ -359,7 +360,7 @@ export function AdminStudentProfilePage() {
         schoolName: s.schoolName || '',
         grade: s.grade || '',
         targetScore: s.targetScore ? String(s.targetScore) : '',
-        tutorId: s.tutorId || '',
+        tutorIds: s.tutors?.length ? s.tutors.map((t) => t.id) : (s.tutorId ? [s.tutorId] : []),
       });
     }).catch(() => toast.error('Failed to load student')).finally(() => setLoading(false));
 
@@ -375,7 +376,7 @@ export function AdminStudentProfilePage() {
         name: `${editForm.firstName} ${editForm.lastName}`.trim(),
         grade: editForm.grade || undefined,
         targetScore: editForm.targetScore ? Number(editForm.targetScore) : undefined,
-        tutorId: editForm.tutorId || null,
+        tutorIds: editForm.tutorIds,
         phone: editForm.phone || undefined,
         parentPhone: editForm.parentPhone || undefined,
         dob: editForm.dob || undefined,
@@ -527,7 +528,8 @@ export function AdminStudentProfilePage() {
                 <InfoRow icon={<BookOpen size={13} />} label="Mock Variant" value={student.mockVariant} />
                 <InfoRow icon={<CheckCircle size={13} />} label="Accommodation"
                   value={student.accommodation == null ? undefined : student.accommodation ? 'Yes' : 'No'} />
-                <InfoRow icon={<User2 size={13} />} label="Tutor" value={student.tutorName || undefined} />
+                <InfoRow icon={<User2 size={13} />} label={student.tutors && student.tutors.length > 1 ? 'Tutors' : 'Tutor'}
+                  value={student.tutors?.length ? student.tutors.map((t) => t.name).join(', ') : (student.tutorName || undefined)} />
               </div>
             ) : (
               <div className="space-y-3 pt-2">
@@ -577,16 +579,11 @@ export function AdminStudentProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <label className={labelCls}>Assign Tutor</label>
-                  <SearchableSelect
-                    options={[
-                      { id: '', label: 'No tutor', searchText: 'no' },
-                      ...tutors.map(t => ({ id: t.id, label: t.name, searchText: t.name }))
-                    ]}
-                    value={editForm.tutorId}
-                    onChange={(value) => setEditForm(f => ({ ...f, tutorId: value }))}
-                    placeholder="Select tutor"
-                    minWidth="min-w-[150px]"
+                  <label className={labelCls}>Assign Tutor(s)</label>
+                  <TutorMultiSelect
+                    options={tutors.map((t) => ({ id: t.id, name: t.name }))}
+                    value={editForm.tutorIds}
+                    onChange={(ids) => setEditForm(f => ({ ...f, tutorIds: ids }))}
                   />
                 </div>
               </div>

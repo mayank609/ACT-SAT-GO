@@ -44,6 +44,7 @@ export interface DbUser {
   createdAt: string
   tutorId?: string | null
   tutorName?: string | null
+  tutors?: { id: string; name: string }[]
   studentIds?: string[]
   studentCount?: number
   testsAttempted?: number
@@ -149,6 +150,7 @@ export const api = {
     targetScore?: number
     targetDate?: string
     tutorId?: string
+    tutorIds?: string[]
     specialization?: string[]
     phone?: string
     parentPhone?: string
@@ -173,6 +175,7 @@ export const api = {
     targetDate?: string
     specialization?: string[]
     tutorId?: string | null
+    tutorIds?: string[]
     notifications?: Record<string, boolean>
     phone?: string
     parentPhone?: string

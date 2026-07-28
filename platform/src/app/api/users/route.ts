@@ -39,19 +39,22 @@ export async function GET(request: NextRequest) {
         const avgScore = submittedAttempts.length
           ? submittedAttempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / submittedAttempts.length
           : null
-        const tutorUser = u.tutors[0]?.tutor
+        const tutorUsers = u.tutors.map((t) => t.tutor)
+        const tutorNameOf = (tu: (typeof tutorUsers)[number]) =>
+          (tu as unknown as { permissions?: Record<string, unknown> }).permissions?.displayName as string ?? tu.email.split('@')[0]
+        const tutorUser = tutorUsers[0]
         // Try to get tutor's displayName if we queried their permissions
-        const tutorName = tutorUser
-          ? ((tutorUser as unknown as { permissions?: Record<string,unknown> }).permissions?.displayName as string ?? tutorUser.email.split('@')[0])
-          : null
+        const tutorName = tutorUser ? tutorNameOf(tutorUser) : null
         return {
           id: u.id,
           name: (u as unknown as { name?: string | null }).name ?? perms.displayName as string ?? u.email.split('@')[0],
           email: u.email,
           role: u.role.toLowerCase(),
           createdAt: u.createdAt,
+          // Kept for back-compat with callers that only render one tutor.
           tutorId: tutorUser?.id ?? null,
           tutorName,
+          tutors: tutorUsers.map((tu) => ({ id: tu.id, name: tutorNameOf(tu) })),
           studentIds: u.students.map((s) => s.student.id),
           studentCount: u.students.length,
           testsAttempted,
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      name, email, role, grade, targetScore, targetDate, tutorId, specialization,
+      name, email, role, grade, targetScore, targetDate, tutorId, tutorIds, specialization,
       phone, parentPhone, dob, schoolName, board, timezone, firstClassDate,
       programVariant, mockVariant, accommodation, stage, onboarded,
       manualDiagTotal, manualDiagRW, manualDiagMath,
@@ -117,6 +120,7 @@ export async function POST(request: NextRequest) {
       targetScore?: number
       targetDate?: string
       tutorId?: string
+      tutorIds?: string[]
       specialization?: string[]
       phone?: string
       parentPhone?: string
@@ -230,11 +234,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // 5. Assigned tutor relation
-    if (tutorId && upperRole === 'STUDENT') {
-      await prisma.tutorAssignment.create({
-        data: { tutorId, studentId: user.id },
-      })
+    // 5. Assigned tutor relation(s) — a student may have more than one tutor.
+    if (upperRole === 'STUDENT') {
+      const ids = Array.from(new Set(tutorIds?.length ? tutorIds : tutorId ? [tutorId] : []))
+      if (ids.length) {
+        await prisma.tutorAssignment.createMany({
+          data: ids.map((id) => ({ tutorId: id, studentId: user.id })),
+          skipDuplicates: true,
+        })
+      }
     }
 
     return NextResponse.json({
