@@ -172,6 +172,7 @@ function computeTestAnalysis(attempt: TaAttempt): {
   mathCorrect: number;
   mathTotal: number;
   finalScaledScore: number;
+  hasRealScaledScore: boolean;
 } {
   console.log('[TutorAnalytics] computeTestAnalysis called for attempt:', attempt.id);
   console.log('[TutorAnalytics] Total answers in attempt:', attempt.answers.length);
@@ -265,11 +266,15 @@ function computeTestAnalysis(attempt: TaAttempt): {
     return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken };
   });
 
-  // Use totalScore from attempt if available, otherwise calculate
-  const finalScaledScore = attempt.totalScore ?? (totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0);
+  // The server always sets totalScore (200-1600 scaled) on submission for a Mock/Sectional
+  // attempt. If it's somehow missing, fall back to the raw correct count rather than a
+  // percentage — a 0-100 accuracy percentage is not a scaled score and must never be shown
+  // as one under a "Scaled Score" label.
+  const finalScaledScore = attempt.totalScore ?? totalCorrect;
+  const hasRealScaledScore = attempt.totalScore != null;
   console.log('[TutorAnalytics] Final: totalCorrect=' + totalCorrect + ', totalQuestions=' + totalQuestions + ', finalScaledScore=' + finalScaledScore + ', savedTotalScore=' + attempt.totalScore);
 
-  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, finalScaledScore };
+  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, finalScaledScore, hasRealScaledScore };
 }
 
 export function TutorAnalyticsPage() {
@@ -535,9 +540,9 @@ export function TutorAnalyticsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-6xl font-bold">
-                      {isMockTest ? analysis.finalScaledScore : `${analysis.totalCorrect}/${analysis.totalQuestions}`}
+                      {isMockTest && analysis.hasRealScaledScore ? analysis.finalScaledScore : `${analysis.totalCorrect}/${analysis.totalQuestions}`}
                     </p>
-                    <p className="text-blue-100 text-sm mt-1">{isMockTest ? 'Scaled Score' : 'Correct'}</p>
+                    <p className="text-blue-100 text-sm mt-1">{isMockTest && analysis.hasRealScaledScore ? 'Scaled Score' : 'Correct'}</p>
                   </div>
                 </div>
 

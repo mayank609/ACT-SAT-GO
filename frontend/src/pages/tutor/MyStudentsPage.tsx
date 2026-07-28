@@ -216,14 +216,15 @@ function computeTestAnalysis(attempt: TaAttempt): {
     }
   });
 
+  // rwScaled/mathScaled stay 0 (never a real scaled value, which floors at 200) when that
+  // subject has no sections in this test — e.g. a Math-only Sectional test — so callers can
+  // tell "not applicable" apart from a genuine low score, instead of a fake ~200 floor.
   let finalScaledScore = totalCorrect;
   let rwScaled = 0;
   let mathScaled = 0;
-  if (isSAT) {
-    rwScaled = satSectionScore(rw1, rw2, 54, false);
-    mathScaled = satSectionScore(math1, math2, 44, true);
-    finalScaledScore = rwScaled + mathScaled;
-  }
+  if (rwTotal > 0) rwScaled = satSectionScore(rw1, rw2, rwTotal, false);
+  if (mathTotal > 0) mathScaled = satSectionScore(math1, math2, mathTotal, true);
+  if (isSAT) finalScaledScore = rwScaled + mathScaled;
 
   return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, isSAT, finalScaledScore, rwScaled, mathScaled };
 }
@@ -291,6 +292,7 @@ export function MyStudentsPage() {
     rwM1: number; rwM2: number; mathM1: number; mathM2: number;
     rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
     totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean;
+    rwTotal: number; mathTotal: number;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw_math' | 'hw_reading' | 'hw_writing' | 'practice_math' | 'practice_reading' | 'practice_writing'>('all');
@@ -378,6 +380,7 @@ export function MyStudentsPage() {
             rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
             // Scaled score applies to Diagnostic/Mock/Sectional — only Practice Sheet shows a raw count.
             isMockTest: !(['Practice Sheet'].includes(att.test.category ?? '') || /practice\s*sheet/i.test(att.test.title ?? '')),
+            rwTotal: an.rwTotal, mathTotal: an.mathTotal,
           };
         });
       setReportRows(rows);
@@ -443,12 +446,10 @@ export function MyStudentsPage() {
               }
             }
 
-            if (diagnosticsEnglish === null && analytics.latestScore !== undefined) {
-              diagnosticsEnglish = Math.round(analytics.latestScore / 2);
-            }
-            if (diagnosticsMath === null && analytics.latestScore !== undefined) {
-              diagnosticsMath = Math.round(analytics.latestScore / 2);
-            }
+            // No per-subject fallback here: analytics.latestScore may be a composite Mock
+            // score or a raw Practice/HW count, and halving either one to fill in "English"/
+            // "Math" produces a number with no real meaning. Leave them null (rendered as
+            // "—") until real per-subject data is available below.
 
             // Find the latest diagnostic or mock attempt and compute SAT scaled scores
             const scoringAttempt = studentAttempts
@@ -878,7 +879,7 @@ export function MyStudentsPage() {
                   r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
                   r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
                   r.rwM1, r.rwM2, r.mathM1, r.mathM2, r.totalRaw,
-                  (r.isSAT && r.isMockTest) ? r.rwSS : '-', (r.isSAT && r.isMockTest) ? r.mathSS : '-', (r.isSAT && r.isMockTest) ? r.totalSS : '-',
+                  (r.isMockTest && r.rwTotal > 0) ? r.rwSS : '-', (r.isMockTest && r.mathTotal > 0) ? r.mathSS : '-', (r.isMockTest && (r.rwTotal > 0 || r.mathTotal > 0)) ? r.totalSS : '-',
                   testAnalysisStatus[r.id] === 'submitted' ? 'Analysed' : 'Unanalysed',
                 ]);
                 const csv = [head, ...lines].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -1005,9 +1006,9 @@ export function MyStudentsPage() {
                                 <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.mathM1}</td>
                                 <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.mathM2}</td>
                                 <td className="px-4 py-3 text-center font-bold text-slate-900 border-r border-slate-100">{r.totalRaw}</td>
-                                <td className="px-4 py-3 text-center text-slate-600 border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.rwSS : '—'}</td>
-                                <td className="px-4 py-3 text-center text-slate-600 border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.mathSS : '—'}</td>
-                                <td className="px-4 py-3 text-center font-semibold text-slate-800 border-r border-slate-100">{(r.isSAT && r.isMockTest) ? r.totalSS : '—'}</td>
+                                <td className="px-4 py-3 text-center text-slate-600 border-r border-slate-100">{(r.isMockTest && r.rwTotal > 0) ? r.rwSS : '—'}</td>
+                                <td className="px-4 py-3 text-center text-slate-600 border-r border-slate-100">{(r.isMockTest && r.mathTotal > 0) ? r.mathSS : '—'}</td>
+                                <td className="px-4 py-3 text-center font-semibold text-slate-800 border-r border-slate-100">{(r.isMockTest && (r.rwTotal > 0 || r.mathTotal > 0)) ? r.totalSS : '—'}</td>
                                 <td className="px-4 py-3 text-center">
                                   <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${analysed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                                     {analysed ? 'ANALYSED' : 'UNANALYSED'}
@@ -1099,32 +1100,45 @@ export function MyStudentsPage() {
                 </div>
 
                 {/* Score Card */}
+                {(() => {
+                  // Sectional tests only have sections for one subject — rwTotal/mathTotal is 0
+                  // for the one they don't cover, so hide that box instead of showing a fake score.
+                  const showScaled = analysis.isSAT && isMockTest;
+                  const showRW = analysis.rwTotal > 0;
+                  const showMath = analysis.mathTotal > 0;
+                  return (
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
                   <div className="flex divide-x divide-slate-200">
                     <div className="px-6 py-5 shrink-0 text-center bg-gradient-to-br from-[#1b3d6e] to-[#2563eb] rounded-tl-xl rounded-bl-xl">
                       <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Total Score</p>
                       <p className="text-5xl font-black text-white leading-none tabular-nums mt-1">
-                        {(analysis.isSAT && isMockTest) ? analysis.finalScaledScore : analysis.totalCorrect}
+                        {showScaled ? (showRW && showMath ? analysis.finalScaledScore : (showRW ? analysis.rwScaled : analysis.mathScaled)) : analysis.totalCorrect}
                       </p>
-                      {(analysis.isSAT && isMockTest) ? (
-                        <p className="text-xs text-blue-300 mt-2 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">400 - 1600</p>
+                      {showScaled ? (
+                        <p className="text-xs text-blue-300 mt-2 border-b border-blue-400/40 pb-0.5 w-fit mx-auto">
+                          {showRW && showMath ? '400 - 1600' : '200 - 800'}
+                        </p>
                       ) : (
                         <p className="text-xs text-blue-300 mt-2">out of {analysis.totalQuestions}</p>
                       )}
                     </div>
+                    {showRW && (
                     <div className="px-6 py-5 shrink-0">
                       <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Reading &amp; Writing</p>
                       <p className="text-5xl font-black text-slate-900 leading-none tabular-nums mt-1">
-                        {(analysis.isSAT && isMockTest) ? analysis.rwScaled : `${analysis.rwCorrect}/${analysis.rwTotal}`}
+                        {showScaled ? analysis.rwScaled : `${analysis.rwCorrect}/${analysis.rwTotal}`}
                       </p>
                     </div>
+                    )}
+                    {showMath && (
                     <div className="px-6 py-5 shrink-0">
                       <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Math</p>
                       <p className="text-5xl font-black text-slate-900 leading-none tabular-nums mt-1">
-                        {(analysis.isSAT && isMockTest) ? analysis.mathScaled : `${analysis.mathCorrect}/${analysis.mathTotal}`}
+                        {showScaled ? analysis.mathScaled : `${analysis.mathCorrect}/${analysis.mathTotal}`}
                       </p>
                     </div>
-                    {(analysis.isSAT && isMockTest) && (() => {
+                    )}
+                    {(showScaled && showRW && showMath) && (() => {
                       const score = analysis.finalScaledScore;
                       const pct = Math.min(100, Math.max(0, ((score - 400) / 1200) * 100));
                       return (
@@ -1154,6 +1168,8 @@ export function MyStudentsPage() {
                     })()}
                   </div>
                 </div>
+                  );
+                })()}
 
                 {/* Section Overview */}
                 <div>

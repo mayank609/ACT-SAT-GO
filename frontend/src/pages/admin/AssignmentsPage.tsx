@@ -64,8 +64,11 @@ export function AssignmentsPage() {
   const active = attempts.filter((a) => a.status === 'in_progress');
   const completed = attempts.filter((a) => a.status === 'submitted');
   const flagged = active.filter((a) => a.tabSwitches >= 3);
-  const avgScore = completed.length
-    ? Math.round(completed.filter((a) => a.totalScore !== null).reduce((s, a) => s + (a.totalScore ?? 0), 0) / completed.filter((a) => a.totalScore !== null).length * 10) / 10
+  // Practice Sheet/HW attempts are raw "X correct" counts, not scaled scores — averaging
+  // one in with Mock/Sectional scores would be meaningless.
+  const scoredCompleted = completed.filter((a) => !a.isRawScored && a.totalScore !== null);
+  const avgScore = scoredCompleted.length
+    ? Math.round(scoredCompleted.reduce((s, a) => s + (a.totalScore ?? 0), 0) / scoredCompleted.length * 10) / 10
     : null;
 
   return (
