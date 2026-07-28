@@ -519,6 +519,11 @@ export const api = {
     request<{ success: boolean }>(`/api/class-progress?tutorId=${tutorId}&studentId=${studentId}&entryId=${entryId}`, {
       method: 'DELETE',
     }),
+  updateClassProgress: (tutorId: string, studentId: string, entryId: string, body: Partial<ClassProgressInput>) =>
+    request<{ entry: ClassProgressEntry }>('/api/class-progress', {
+      method: 'PATCH',
+      body: JSON.stringify({ tutorId, studentId, entryId, ...body }),
+    }),
 
   // Platform-wide settings (e.g. the "Next SAT Date" shown in admin/tutor sidebars)
   getSettings: () => request<{ nextSatDate: string | null }>('/api/settings'),

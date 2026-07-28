@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, Users, ClipboardCheck, Loader2, Search, Clock } from 'lucide-react';
+import { CalendarCheck, Users, ClipboardCheck, Loader2, Search, Clock, Pencil, Trash2, X, Save } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
+import { Modal } from '../../components/common/Modal';
+import { Button } from '../../components/common/Button';
 import { api } from '../../lib/api';
+
+const SUBJECTS = ['SAT Math', 'SAT Reading', 'SAT Writing', 'ACT Math', 'ACT English', 'ACT Reading', 'ACT Science', 'Other'];
+const SESSION_TYPES = ['Core Prep', 'Review Session', 'Doubt Session', 'Master Class'];
+const STATUSES = ['Completed', 'No Show', 'Cancelled', 'Scheduled'];
 
 interface AttendanceEntry {
   id: string;
@@ -54,6 +61,68 @@ export function AdminAttendancePage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
+
+  const [editEntry, setEditEntry] = useState<AttendanceEntry | null>(null);
+  const [editForm, setEditForm] = useState({
+    subject: '', sessionType: '', topic: '', homework: '', notes: '',
+    durationMinutes: '', actualDurationMinutes: '', status: '',
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleteEntry, setDeleteEntry] = useState<AttendanceEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const openEdit = (entry: AttendanceEntry) => {
+    setEditEntry(entry);
+    setEditForm({
+      subject: entry.subject ?? '',
+      sessionType: entry.sessionType ?? '',
+      topic: entry.topic ?? '',
+      homework: entry.homework ?? '',
+      notes: entry.notes ?? '',
+      durationMinutes: entry.durationMinutes != null ? String(entry.durationMinutes) : '',
+      actualDurationMinutes: entry.actualDurationMinutes != null ? String(entry.actualDurationMinutes) : '',
+      status: entry.status ?? '',
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editEntry) return;
+    setEditSaving(true);
+    try {
+      const { entry: updated } = await api.updateClassProgress(editEntry.tutorId, editEntry.studentId, editEntry.id, {
+        subject: editForm.subject || undefined,
+        sessionType: editForm.sessionType || undefined,
+        topic: editForm.topic,
+        homework: editForm.homework,
+        notes: editForm.notes,
+        durationMinutes: editForm.durationMinutes ? Number(editForm.durationMinutes) : undefined,
+        actualDurationMinutes: editForm.actualDurationMinutes ? Number(editForm.actualDurationMinutes) : undefined,
+        status: editForm.status || undefined,
+      });
+      setEntries(list => list.map(e => (e.id === editEntry.id ? { ...e, ...updated } : e)));
+      toast.success('Session log updated');
+      setEditEntry(null);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to update session log');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteEntry) return;
+    setDeleting(true);
+    try {
+      await api.deleteClassProgress(deleteEntry.tutorId, deleteEntry.studentId, deleteEntry.id);
+      setEntries(list => list.filter(e => e.id !== deleteEntry.id));
+      toast.success('Session log deleted');
+      setDeleteEntry(null);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to delete session log');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -250,6 +319,7 @@ export function AdminAttendancePage() {
                   <th className="px-4 py-2 font-semibold">Duration</th>
                   <th className="px-4 py-2 font-semibold">Actual</th>
                   <th className="px-4 py-2 font-semibold">Status</th>
+                  <th className="px-4 py-2 font-semibold text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -296,6 +366,18 @@ export function AdminAttendancePage() {
                     <td className="px-4 py-2.5">
                       <Badge variant={statusVariant(entry.status)} size="sm">{entry.status ?? 'Completed'}</Badge>
                     </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => openEdit(entry)} title="Edit session log"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => setDeleteEntry(entry)} title="Delete session log"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -303,6 +385,98 @@ export function AdminAttendancePage() {
           </div>
         )}
       </div>
+
+      {/* Edit session log */}
+      <Modal
+        isOpen={!!editEntry}
+        onClose={() => setEditEntry(null)}
+        title={editEntry ? `Edit Session — ${editEntry.studentName}` : ''}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="secondary" size="sm" icon={<X size={14} />} onClick={() => setEditEntry(null)}>Cancel</Button>
+            <Button size="sm" icon={<Save size={14} />} loading={editSaving} onClick={saveEdit}>Save Changes</Button>
+          </div>
+        }
+      >
+        {editEntry && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Subject</label>
+                <select value={editForm.subject} onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">—</option>
+                  {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Session Type</label>
+                <select value={editForm.sessionType} onChange={(e) => setEditForm(f => ({ ...f, sessionType: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">—</option>
+                  {SESSION_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Topic (one per line)</label>
+              <textarea value={editForm.topic} onChange={(e) => setEditForm(f => ({ ...f, topic: e.target.value }))} rows={2}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Homework (one per line)</label>
+              <textarea value={editForm.homework} onChange={(e) => setEditForm(f => ({ ...f, homework: e.target.value }))} rows={2}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Remarks</label>
+              <textarea value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Duration (min)</label>
+                <input type="number" min={0} value={editForm.durationMinutes} onChange={(e) => setEditForm(f => ({ ...f, durationMinutes: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Actual (min)</label>
+                <input type="number" min={0} value={editForm.actualDurationMinutes} onChange={(e) => setEditForm(f => ({ ...f, actualDurationMinutes: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+                <select value={editForm.status} onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">—</option>
+                  {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal
+        isOpen={!!deleteEntry}
+        onClose={() => setDeleteEntry(null)}
+        title="Delete Session Log"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setDeleteEntry(null)}>Cancel</Button>
+            <Button variant="danger" size="sm" icon={<Trash2 size={14} />} loading={deleting} onClick={confirmDelete}>Delete</Button>
+          </div>
+        }
+      >
+        {deleteEntry && (
+          <p className="text-sm text-slate-600">
+            Delete the session logged for <span className="font-semibold text-slate-900">{deleteEntry.studentName}</span> by{' '}
+            <span className="font-semibold text-slate-900">{deleteEntry.tutorName}</span> on {fmtDate(deleteEntry.classDate)}? This can't be undone.
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }
