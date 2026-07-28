@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole } from '@/lib/auth'
-import { isHomeworkTest } from '@/lib/testCategorize'
+import { isHomeworkTest, isRawScoredTest } from '@/lib/testCategorize'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
             id: true, name: true, email: true, permissions: true, role: true,
             attempts: {
               where: { status: 'SUBMITTED' },
-              select: { totalScore: true, completedAt: true, test: { select: { title: true, subCategory: true } } },
+              select: { totalScore: true, completedAt: true, test: { select: { title: true, subCategory: true, category: true } } },
               orderBy: { completedAt: 'desc' },
             },
           },
@@ -43,10 +43,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       assignments: assignments.map((a) => {
         const sp = (a.student.permissions ?? {}) as Record<string, unknown>
-        const studentAttempts = (a.student as unknown as { attempts: { totalScore: number | null; completedAt: Date | null; test: { title: string | null; subCategory: string | null } | null }[] }).attempts ?? []
+        const studentAttempts = (a.student as unknown as { attempts: { totalScore: number | null; completedAt: Date | null; test: { title: string | null; subCategory: string | null; category: string | null } | null }[] }).attempts ?? []
         const testsAttempted = studentAttempts.filter((at) => !isHomeworkTest(at.test)).length
-        const avgScore = studentAttempts.length
-          ? studentAttempts.reduce((x, at) => x + (at.totalScore ?? 0), 0) / studentAttempts.length
+        // Practice Sheet attempts are raw counts, not scaled scores — exclude them from the average.
+        const scaledAttempts = studentAttempts.filter((at) => !isRawScoredTest(at.test))
+        const avgScore = scaledAttempts.length
+          ? scaledAttempts.reduce((x, at) => x + (at.totalScore ?? 0), 0) / scaledAttempts.length
           : null
         return {
           id: `${a.tutorId}_${a.studentId}`,

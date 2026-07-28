@@ -150,11 +150,15 @@ export function AnalyticsPage() {
         : '';
       return { label: 'Total Score', total: meta?.totalScore ?? s.total, rw: s.rw, math: s.math, sub };
     }
-    const per = attempts.map(a => computeSatScore(records.get(a.id) ?? []));
+    // Practice Sheet/HW attempts are raw "X correct" counts, not scaled scores — averaging
+    // them in with Mock/Sectional scores would be meaningless (e.g. a "17" HW result
+    // dragging down a 1400 average).
+    const scaledAttempts = attempts.filter(a => a.scoreMode !== 'raw');
+    const per = scaledAttempts.map(a => computeSatScore(records.get(a.id) ?? []));
     if (per.length === 0) return { label: 'Avg Score', total: 0, rw: 0, math: 0, sub: '' };
     const rw = round10(per.reduce((s, p) => s + p.rw, 0) / per.length);
     const math = round10(per.reduce((s, p) => s + p.math, 0) / per.length);
-    const totals = attempts.map(a => a.totalScore).filter((t): t is number => t != null);
+    const totals = scaledAttempts.map(a => a.totalScore).filter((t): t is number => t != null);
     const total = totals.length ? round10(totals.reduce((s, t) => s + t, 0) / totals.length) : rw + math;
     return { label: 'Avg Score', total, rw, math, sub: `Average across ${per.length} test${per.length !== 1 ? 's' : ''}` };
   }, [scope, activeAttemptId, records, attempts]);

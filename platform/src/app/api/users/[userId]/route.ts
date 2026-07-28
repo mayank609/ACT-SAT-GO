@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole, getCurrentUser } from '@/lib/auth'
-import { isHomeworkTest } from '@/lib/testCategorize'
+import { isHomeworkTest, isRawScoredTest } from '@/lib/testCategorize'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +23,7 @@ export async function GET(
         students: { include: { student: { select: { id: true, email: true } } } },
         attempts: {
           where: { status: 'SUBMITTED' },
-          select: { id: true, totalScore: true, completedAt: true, testId: true, test: { select: { title: true, subCategory: true } } },
+          select: { id: true, totalScore: true, completedAt: true, testId: true, test: { select: { title: true, subCategory: true, category: true } } },
           orderBy: { completedAt: 'desc' },
         },
       },
@@ -32,8 +32,11 @@ export async function GET(
 
     const perms = (user.permissions ?? {}) as Record<string, unknown>
     const testsAttempted = user.attempts.filter((at) => !isHomeworkTest(at.test)).length
-    const avgScore = user.attempts.length
-      ? user.attempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / user.attempts.length
+    // Practice Sheet attempts are raw counts, not scaled scores — exclude them from the
+    // average so a "17" HW score doesn't drag down a 1400 Mock average.
+    const scaledAttempts = user.attempts.filter((at) => !isRawScoredTest(at.test))
+    const avgScore = scaledAttempts.length
+      ? scaledAttempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / scaledAttempts.length
       : null
 
     return NextResponse.json({

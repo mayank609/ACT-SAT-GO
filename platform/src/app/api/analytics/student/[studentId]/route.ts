@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { numericValuesEqual } from '@/lib/numericAnswer'
+import { isRawScoredTest } from '@/lib/testCategorize'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,7 +78,12 @@ export async function GET(
       orderBy: { completedAt: 'asc' },
     })
 
-    const trend = attempts.map((a) => ({
+    // Practice Sheet attempts are raw "X correct / Y total" counts, not scaled scores —
+    // plotting them on the same scaled-score trend line as Mock/Sectional attempts would be
+    // meaningless (e.g. a "17" HW score reading as a score crash next to a 1400 Mock).
+    const scoredAttempts = attempts.filter((a) => !isRawScoredTest(a.test))
+
+    const trend = scoredAttempts.map((a) => ({
       date: a.completedAt?.toISOString().split('T')[0] ?? a.startedAt.toISOString().split('T')[0],
       score: a.totalScore ?? 0,
       testTitle: a.test.title,
@@ -236,8 +242,8 @@ export async function GET(
       : 0
 
     const totalScore = latest ? (latest.totalScore ?? 0) : 0
-    const avgScore = attempts.length > 0
-      ? Math.round(attempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / attempts.length * 10) / 10
+    const avgScore = scoredAttempts.length > 0
+      ? Math.round(scoredAttempts.reduce((a, at) => a + (at.totalScore ?? 0), 0) / scoredAttempts.length * 10) / 10
       : 0
 
     const cheatingLogsData = await prisma.cheatingLog.findMany({

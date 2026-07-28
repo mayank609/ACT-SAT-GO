@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isRawScoredTest } from '@/lib/testCategorize'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
         student: { select: { id: true, email: true, permissions: true } },
         test: {
           select: {
-            id: true, title: true,
+            id: true, title: true, category: true,
             sections: { select: { id: true, name: true, durationMinutes: true }, orderBy: { orderIndex: 'asc' } },
           },
         },
@@ -56,6 +57,9 @@ export async function GET(request: NextRequest) {
           studentName,
           testId: a.testId,
           testTitle: a.test.title,
+          // Practice Sheet/HW attempts are raw "X correct" counts, not scaled scores —
+          // callers that average totalScore across attempts must exclude these.
+          isRawScored: isRawScoredTest(a.test),
           sectionName: currentSection?.name ?? (completedSections >= a.test.sections.length ? 'Completed' : 'Not started'),
           sectionIndex: completedSections,
           totalSections: a.test.sections.length,

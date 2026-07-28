@@ -4,6 +4,7 @@
 
 import { api } from './api';
 import { SAT_CONTENT, SUBDOMAINS_BY_DOMAIN, SKILLS_BY_SUBDOMAIN, ALL_DOMAIN_NAMES } from '../data/satDomains';
+import { resolveScoreMode, type ScoreMode } from './testCategorize';
 
 // ─── Taxonomy lookup maps (derived once from the canonical blueprint) ──────────
 // The SAT content tree is: Section → Domain → Subdomain → Skill. A question's
@@ -342,6 +343,9 @@ export function summarizeRange(
   for (const a of inRange) {
     const r = records.get(a.id) ?? [];
     recs.push(...r);
+    // Practice Sheet/HW attempts are raw "X correct" counts, not scaled scores — averaging
+    // one in with Mock/Sectional scores would be meaningless.
+    if (a.scoreMode === 'raw') continue;
     const s = a.totalScore ?? (r.length ? computeSatScore(r).total : null);
     if (s != null) scores.push(s);
   }
@@ -405,13 +409,20 @@ export interface LoadedAttempt {
   totalScore: number | null;
   /** A diagnostic test (by title or category) — used to include/exclude it. */
   isDiagnostic: boolean;
+  /**
+   * How this attempt's totalScore should be interpreted: 'mock'/'sectional-*' are a
+   * scaled score (200-1600 range), 'raw' is a plain "X correct" count. Callers must not
+   * average or plot totalScore across attempts without checking this — a scaled Mock
+   * score and a raw Practice Sheet/HW count are not the same unit.
+   */
+  scoreMode: ScoreMode;
 }
 
 interface RawAttempt extends DbAttempt {
   status: string;
   completedAt?: string | null;
   totalScore?: number | null;
-  test: { title: string; category?: string };
+  test: { title: string; category?: string; subCategory?: string };
 }
 
 /**
@@ -436,6 +447,7 @@ export async function loadStudentAnalytics(
     completedAt: a.completedAt ?? null,
     totalScore: a.totalScore ?? null,
     isDiagnostic: /diagnostic/i.test(a.test?.title ?? '') || /diagnostic/i.test(a.test?.category ?? ''),
+    scoreMode: resolveScoreMode({ category: a.test?.category, subCategory: a.test?.subCategory, title: a.test?.title }),
   }));
 
   const records = new Map<string, QRecord[]>();

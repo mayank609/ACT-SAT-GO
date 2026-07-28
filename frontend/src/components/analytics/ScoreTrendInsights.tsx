@@ -52,7 +52,11 @@ export function ScoreAccuracyTrend({ attempts, records }: { attempts: LoadedAtte
   const [win, setWin] = useState<TrendWindow>('10');
 
   const data = useMemo(() => {
-    const chronological = attempts.slice().reverse();
+    // Practice Sheet/HW attempts are raw "X correct" counts, not scaled scores — plotting
+    // them on this chart's fixed 200-1600 axis alongside Mock/Sectional scores would read
+    // as a score crash rather than the different-unit value it actually is.
+    const scaledAttempts = attempts.filter(a => a.scoreMode !== 'raw');
+    const chronological = scaledAttempts.slice().reverse();
     const n = win === 'all' ? chronological.length : Math.min(Number(win), chronological.length);
     const windowed = chronological.slice(chronological.length - n);
     return windowed.map((a, i) => {

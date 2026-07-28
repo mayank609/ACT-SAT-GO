@@ -415,7 +415,7 @@ export const api = {
     return request<{
       attempts: Array<{
         id: string; studentId: string; studentName: string
-        testId: string; testTitle: string; sectionName: string
+        testId: string; testTitle: string; isRawScored: boolean; sectionName: string
         sectionIndex: number; totalSections: number; tabSwitches: number
         answersCount: number; startedAt: string; completedAt: string | null
         status: string; progress: number; timeRemaining: number; totalScore: number | null

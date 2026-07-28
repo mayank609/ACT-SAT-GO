@@ -9,6 +9,7 @@ import { type QuestionTimeStat } from '../../components/dashboard/QuestionTimeCh
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { RichContentRenderer } from '../../components/admin/RichContentRenderer';
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
+import { resolveScoreMode } from '../../lib/testCategorize';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +31,7 @@ type Attempt = {
   totalScore: number | null;
   startedAt: string;
   completedAt: string | null;
-  test: { id: string; title: string; sections: Array<{ _count: { questions: number } }> };
+  test: { id: string; title: string; category?: string | null; subCategory?: string | null; sections: Array<{ _count: { questions: number } }> };
 };
 
 type TopicRow = {
@@ -308,7 +309,9 @@ export function ReportsPage() {
               </div>
               <div className="text-right">
                 <p className="text-4xl font-black">{attempt?.totalScore ?? '—'}</p>
-                <p className="text-blue-300 text-xs">raw score</p>
+                <p className="text-blue-300 text-xs">
+                  {attempt && resolveScoreMode({ category: attempt.test.category ?? undefined, subCategory: attempt.test.subCategory ?? undefined, title: attempt.test.title }) === 'raw' ? 'raw score' : 'scaled score'}
+                </p>
               </div>
             </div>
 
