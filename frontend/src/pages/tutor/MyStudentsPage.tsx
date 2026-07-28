@@ -12,6 +12,7 @@ import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashb
 import { api, type DbUser } from '../../lib/api';
 import { studentStatusFromDecision } from '../../lib/studentStatus';
 import { satSectionScore } from '../../lib/analyticsData';
+import { isHW, practiceSubjectOf } from '../../lib/testCategorize';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 
@@ -288,7 +289,7 @@ export function MyStudentsPage() {
 
   // ── Mock Test Report (per-student list of all attempts) ─────────────────────
   const [reportRows, setReportRows] = useState<Array<{
-    id: string; title: string; startedAt: string; completedAt: string | null;
+    id: string; title: string; category?: string; subCategory?: string; startedAt: string; completedAt: string | null;
     rwM1: number; rwM2: number; mathM1: number; mathM2: number;
     rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
     totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean;
@@ -374,7 +375,8 @@ export function MyStudentsPage() {
             else if (isRW) { if (isM2) { rwM2 += s.correct; rwM2T += s.total; } else { rwM1 += s.correct; rwM1T += s.total; } }
           }
           return {
-            id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
+            id: att.id, title: att.test.title, category: att.test.category ?? undefined, subCategory: (att.test as any).subCategory ?? undefined,
+            startedAt: att.startedAt, completedAt: att.completedAt,
             rwM1, rwM2, mathM1, mathM2, rwM1T, rwM2T, mathM1T, mathM2T,
             totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
             rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
@@ -890,26 +892,31 @@ export function MyStudentsPage() {
                 link.click();
                 URL.revokeObjectURL(url);
               };
-              const subjectOf = (t: string): 'math' | 'reading' | 'writing' | 'other' => {
-                if (/math|algebra|geometry|calc|quant|trig/.test(t)) return 'math';
-                if (/reading|comprehension/.test(t)) return 'reading';
-                if (/writing|grammar|english|verbal/.test(t)) return 'writing';
-                return 'other';
-              };
-              const isHWTitle = (t: string) => t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
-              const isPracticeTitle = (t: string) => t.includes('practice');
-              const filterMatches = (title: string, f: typeof reportFilter) => {
-                const t = title.toLowerCase();
+              // Match on the category/subCategory the Test Builder actually tags tests
+              // with (category "Practice Sheet", subCategory "{Subject}-{AssignmentType}"
+              // e.g. "Math-Homework") rather than sniffing the free-text title, so a
+              // Practice Sheet correctly lands in its subject's HW/Practice filter even if
+              // the title itself doesn't happen to mention the subject. Title-sniffing is
+              // kept only as a fallback for tests with no category set at all.
+              const filterMatches = (row: { title: string; category?: string }, f: typeof reportFilter) => {
                 if (f === 'all') return true;
-                if (f === 'mock') return t.includes('mock');
-                if (f === 'diagnostic') return t.includes('diagnostic');
-                if (f === 'hw_math') return isHWTitle(t) && subjectOf(t) === 'math';
-                if (f === 'hw_reading') return isHWTitle(t) && subjectOf(t) === 'reading';
-                if (f === 'hw_writing') return isHWTitle(t) && subjectOf(t) === 'writing';
-                if (f === 'practice_math') return isPracticeTitle(t) && subjectOf(t) === 'math';
-                if (f === 'practice_reading') return isPracticeTitle(t) && subjectOf(t) === 'reading';
-                if (f === 'practice_writing') return isPracticeTitle(t) && subjectOf(t) === 'writing';
-                return true;
+                const cat = (row.category ?? '').trim();
+                const t = row.title.toLowerCase();
+                if (f === 'mock') return cat ? cat === 'Mock' : t.includes('mock');
+                if (f === 'diagnostic') return cat ? cat === 'Diagnostic' : t.includes('diagnostic');
+                const isPracticeSheet = cat
+                  ? cat === 'Practice Sheet'
+                  : (isHW(row) || t.includes('practice'));
+                if (!isPracticeSheet) return false;
+                const subj = practiceSubjectOf(row);
+                const hw = isHW(row);
+                if (f === 'hw_math') return hw && subj === 'math';
+                if (f === 'hw_reading') return hw && subj === 'reading';
+                if (f === 'hw_writing') return hw && subj === 'writing';
+                if (f === 'practice_math') return !hw && subj === 'math';
+                if (f === 'practice_reading') return !hw && subj === 'reading';
+                if (f === 'practice_writing') return !hw && subj === 'writing';
+                return false;
               };
               const filterLabels: { key: typeof reportFilter; label: string }[] = [
                 { key: 'all', label: 'All' },
@@ -922,7 +929,7 @@ export function MyStudentsPage() {
                 { key: 'practice_reading', label: 'Reading Prac' },
                 { key: 'practice_writing', label: 'Writing Practice' },
               ];
-              const filteredRows = reportRows.filter(r => filterMatches(r.title, reportFilter));
+              const filteredRows = reportRows.filter(r => filterMatches(r, reportFilter));
 
               return (
                 <Card padding="none">
@@ -950,7 +957,7 @@ export function MyStudentsPage() {
                   {/* Filter tabs */}
                   <div className="flex items-center gap-1.5 px-5 py-3 border-b border-slate-100 flex-wrap">
                     {filterLabels.map(({ key, label }) => {
-                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r.title, key)).length;
+                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r, key)).length;
                       const active = reportFilter === key;
                       return (
                         <button

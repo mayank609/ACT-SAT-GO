@@ -20,6 +20,24 @@ export const isMath = (test: any): boolean => {
          /math|algebra|geometry|calc/.test(t);
 };
 
+export type PracticeSubject = 'math' | 'reading' | 'writing' | 'other';
+
+// Practice Sheet subCategory is "{Subject}-{AssignmentType}" (e.g. "Math-Homework") or just
+// "{Subject}" with no assignment type — Subject is one of Math/Reading/Writing (distinct from
+// Sectional's combined "Reading & Writing"). Only call this once the test is already known to
+// be a Practice Sheet. Falls back to the title for tests created before this tagging existed.
+export const practiceSubjectOf = (test: { subCategory?: string; title?: string }): PracticeSubject => {
+  const sub = (test.subCategory ?? '').toLowerCase();
+  if (sub.includes('math')) return 'math';
+  if (sub.includes('reading')) return 'reading';
+  if (sub.includes('writing')) return 'writing';
+  const t = (test.title ?? '').toLowerCase();
+  if (/math|algebra|geometry|calc/.test(t)) return 'math';
+  if (/reading|comprehension/.test(t)) return 'reading';
+  if (/writing|grammar/.test(t)) return 'writing';
+  return 'other';
+};
+
 export type ScoreMode = 'mock' | 'sectional-math' | 'sectional-rw' | 'raw';
 
 /**

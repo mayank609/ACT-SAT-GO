@@ -261,10 +261,12 @@ interface Analytics {
 interface Note { id: string; text: string; createdAt: string; author: string }
 interface DbTest { id: string; title: string; status: string; category?: string; sections: unknown[] }
 
+// Test Builder tags homework as subCategory "{Subject}-Homework" (e.g. "Math-Homework"),
+// which does NOT contain the substring "hw" — match on "homework" instead.
 const isHW = (test: any): boolean => {
   const t = (test.title ?? '').toLowerCase();
   const sub = (test.subCategory ?? '').toLowerCase();
-  return sub.includes('hw') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+  return sub.includes('homework') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
 };
 
 const isEnglish = (test: any): boolean => {
