@@ -308,6 +308,23 @@ export function MyStudentsPage() {
   const [timeChartOpen, setTimeChartOpen] = useState(false);
   const [timeChartSectionIdx, setTimeChartSectionIdx] = useState(0);
 
+  // Lock scroll on both html and body when the fullscreen question report is
+  // open — otherwise the background page scrolls along with the panel and
+  // its content bleeds through once the panel hits its own scroll boundary.
+  useEffect(() => {
+    if (fullscreenQuestionReportOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [fullscreenQuestionReportOpen]);
+
   useEffect(() => {
     if (mainView !== 'test_analysis' || !selectedStudentId) {
       setStudentAttempts([]);
