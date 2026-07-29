@@ -11,10 +11,14 @@ function userName(u: { email: string; permissions: unknown }): string {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const { userId } = await params
+  // Hourly rate is compensation data — only ever sent to admin/super-admin callers,
+  // never included in a tutor's own view of their (or anyone else's) profile.
+  const requester = await getCurrentUser(request)
+  const canSeeHourlyRate = requester?.role === 'ADMIN' || requester?.role === 'SUPER_ADMIN'
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -62,6 +66,7 @@ export async function GET(
         targetScore: perms.targetScore ?? null,
         targetDate: perms.targetDate ?? null,
         specialization: perms.specialization ?? [],
+        ...(canSeeHourlyRate ? { hourlyRate: perms.hourlyRate ?? null } : {}),
         phone: perms.phone ?? null,
         parentPhone: perms.parentPhone ?? null,
         dob: perms.dob ?? null,
@@ -126,7 +131,7 @@ export async function PATCH(
       phone, parentPhone, dob, schoolName, diagnosticDecision,
       board, timezone, firstClassDate, programVariant, mockVariant,
       accommodation, stage, onboarded,
-      manualDiagTotal, manualDiagRW, manualDiagMath,
+      manualDiagTotal, manualDiagRW, manualDiagMath, hourlyRate,
     } = body as {
       name?: string
       grade?: string
@@ -152,6 +157,7 @@ export async function PATCH(
       manualDiagTotal?: number | null
       manualDiagRW?: number | null
       manualDiagMath?: number | null
+      hourlyRate?: number | null
     }
 
     const existing = await prisma.user.findUnique({ where: { id: userId } })
@@ -181,6 +187,9 @@ export async function PATCH(
     if (manualDiagTotal !== undefined) permissions.manualDiagTotal = manualDiagTotal
     if (manualDiagRW !== undefined) permissions.manualDiagRW = manualDiagRW
     if (manualDiagMath !== undefined) permissions.manualDiagMath = manualDiagMath
+    // Compensation data — only an admin/super-admin may set this, never the tutor
+    // editing their own profile (the self-edit path above allows requester.id === userId).
+    if (isAdmin && hourlyRate !== undefined) permissions.hourlyRate = hourlyRate
 
     const updateData: any = { permissions: permissions as any }
     if (name !== undefined) updateData.name = name
@@ -236,6 +245,7 @@ export async function PATCH(
         targetScore: permissions.targetScore ?? null,
         targetDate: permissions.targetDate ?? null,
         specialization: permissions.specialization ?? [],
+        ...(isAdmin ? { hourlyRate: permissions.hourlyRate ?? null } : {}),
         phone: permissions.phone ?? null,
         parentPhone: permissions.parentPhone ?? null,
         dob: permissions.dob ?? null,

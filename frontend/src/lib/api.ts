@@ -54,6 +54,8 @@ export interface DbUser {
   targetScore?: number | null
   targetDate?: string | null
   specialization?: string[]
+  /** Tutor compensation rate. Only ever present in the response for an admin/super-admin caller. */
+  hourlyRate?: number | null
   phone?: string | null
   parentPhone?: string | null
   dob?: string | null
@@ -152,6 +154,8 @@ export const api = {
     tutorId?: string
     tutorIds?: string[]
     specialization?: string[]
+    /** Tutor compensation rate — only applied when role is 'TUTOR'. */
+    hourlyRate?: number | null
     phone?: string
     parentPhone?: string
     dob?: string
@@ -176,6 +180,8 @@ export const api = {
     specialization?: string[]
     tutorId?: string | null
     tutorIds?: string[]
+    /** Tutor compensation rate — silently ignored server-side unless the caller is an admin. */
+    hourlyRate?: number | null
     notifications?: Record<string, boolean>
     phone?: string
     parentPhone?: string

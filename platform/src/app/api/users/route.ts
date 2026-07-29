@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireRole } from '@/lib/auth'
+import { requireRole, getCurrentUser } from '@/lib/auth'
 import { isHomeworkTest, isRawScoredTest } from '@/lib/testCategorize'
 
 export const dynamic = 'force-dynamic'
@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
   if (role !== null && !VALID_ROLES.includes(role as ValidRole)) {
     return NextResponse.json({ error: 'Invalid role value' }, { status: 400 })
   }
+
+  // Hourly rate is compensation data — only ever sent to admin/super-admin callers,
+  // never included in a tutor's own view of their (or anyone else's) profile.
+  const requester = await getCurrentUser(request)
+  const canSeeHourlyRate = requester?.role === 'ADMIN' || requester?.role === 'SUPER_ADMIN'
 
   try {
     const users = await prisma.user.findMany({
@@ -68,6 +73,7 @@ export async function GET(request: NextRequest) {
           targetScore: perms.targetScore ?? null,
           targetDate: perms.targetDate ?? null,
           specialization: perms.specialization ?? [],
+          ...(canSeeHourlyRate ? { hourlyRate: perms.hourlyRate ?? null } : {}),
           phone: perms.phone ?? null,
           parentPhone: perms.parentPhone ?? null,
           dob: perms.dob ?? null,
@@ -115,7 +121,7 @@ export async function POST(request: NextRequest) {
       name, email, role, grade, targetScore, targetDate, tutorId, tutorIds, specialization,
       phone, parentPhone, dob, schoolName, board, timezone, firstClassDate,
       programVariant, mockVariant, accommodation, stage, onboarded,
-      manualDiagTotal, manualDiagRW, manualDiagMath,
+      manualDiagTotal, manualDiagRW, manualDiagMath, hourlyRate,
     } = body as {
       name: string
       email: string
@@ -141,6 +147,7 @@ export async function POST(request: NextRequest) {
       manualDiagTotal?: number | null
       manualDiagRW?: number | null
       manualDiagMath?: number | null
+      hourlyRate?: number | null
     }
 
     // 1. Validation
@@ -227,6 +234,8 @@ export async function POST(request: NextRequest) {
     if (manualDiagTotal != null) permissions.manualDiagTotal = manualDiagTotal
     if (manualDiagRW != null) permissions.manualDiagRW = manualDiagRW
     if (manualDiagMath != null) permissions.manualDiagMath = manualDiagMath
+    // Compensation data — only meaningful (and only ever stored) for tutors.
+    if (upperRole === 'TUTOR' && hourlyRate != null) permissions.hourlyRate = Number(hourlyRate)
 
     const user = await prisma.user.create({
       data: {

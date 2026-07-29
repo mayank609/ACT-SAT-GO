@@ -48,14 +48,17 @@ interface TutorStat {
   sessions: number;
   studentsCovered: number;
   totalMinutesTaught: number;
+  amount: number | null;
 }
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const fmtHours = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+const fmtAmount = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
 export function AdminAttendancePage() {
   const navigate = useNavigate();
   const [entries, setEntries] = useState<AttendanceEntry[]>([]);
+  const [tutorRates, setTutorRates] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [tutorFilter, setTutorFilter] = useState('all');
   const [studentFilter, setStudentFilter] = useState('all');
@@ -126,6 +129,12 @@ export function AdminAttendancePage() {
   };
 
   useEffect(() => {
+    api.getUsersByRole('TUTOR')
+      .then(({ users }) => setTutorRates(new Map(users.filter(u => u.hourlyRate != null).map(u => [u.id, u.hourlyRate as number]))))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     api.getTutorAssignments()
@@ -161,17 +170,22 @@ export function AdminAttendancePage() {
       if (!byTutor.has(e.tutorId)) byTutor.set(e.tutorId, []);
       byTutor.get(e.tutorId)!.push(e);
     }
-    return Array.from(byTutor.entries()).map(([tutorId, list]) => ({
-      tutorId,
-      tutorName: list[0].tutorName,
-      daysTaught: new Set(list.map(e => e.classDate)).size,
-      sessions: list.length,
-      studentsCovered: new Set(list.map(e => e.studentId)).size,
+    return Array.from(byTutor.entries()).map(([tutorId, list]) => {
       // Actual time taught, falling back to the scheduled duration for sessions
       // where the tutor never logged an actual duration.
-      totalMinutesTaught: list.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0),
-    })).sort((a, b) => b.daysTaught - a.daysTaught);
-  }, [entries]);
+      const totalMinutesTaught = list.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0);
+      const rate = tutorRates.get(tutorId);
+      return {
+        tutorId,
+        tutorName: list[0].tutorName,
+        daysTaught: new Set(list.map(e => e.classDate)).size,
+        sessions: list.length,
+        studentsCovered: new Set(list.map(e => e.studentId)).size,
+        totalMinutesTaught,
+        amount: rate != null ? (totalMinutesTaught / 60) * rate : null,
+      };
+    }).sort((a, b) => b.daysTaught - a.daysTaught);
+  }, [entries, tutorRates]);
 
   const studentOptions = useMemo(() => {
     const byId = new Map<string, string>();
@@ -233,6 +247,7 @@ export function AdminAttendancePage() {
                   <th className="px-4 py-2 font-semibold text-center">Sessions</th>
                   <th className="px-4 py-2 font-semibold text-center">Students Covered</th>
                   <th className="px-4 py-2 font-semibold text-center">Time Taught</th>
+                  <th className="px-4 py-2 font-semibold text-center">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,6 +262,9 @@ export function AdminAttendancePage() {
                     <td className="px-4 py-2 text-center text-slate-600">{t.sessions}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.studentsCovered}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.totalMinutesTaught > 0 ? fmtHours(t.totalMinutesTaught) : '—'}</td>
+                    <td className="px-4 py-2 text-center font-semibold text-emerald-700">
+                      {t.amount != null ? fmtAmount(t.amount) : <span title="No hourly rate set for this tutor" className="text-slate-300 font-normal">—</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
