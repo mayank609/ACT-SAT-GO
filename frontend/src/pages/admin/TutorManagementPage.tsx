@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2, KeyRound, Copy, CheckCircle, Trash2 } from 'lucide-react';
+import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2, KeyRound, Copy, CheckCircle, Trash2, Pencil, Save } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -30,12 +30,16 @@ export function TutorManagementPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState<DbUser | null>(null);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<DbUser | null>(null);
-  
+  const [showEditModal, setShowEditModal] = useState<DbUser | null>(null);
+
   // Forms & Loading states
   const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
   const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', specializations: [] as string[], hourlyRate: '' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', specializations: [] as string[], hourlyRate: '' });
+  const [editError, setEditError] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
   const [copiedPassword, setCopiedPassword] = useState(false);
@@ -65,6 +69,45 @@ export function TutorManagementPage() {
         ? f.specializations.filter((s) => s !== spec)
         : [...f.specializations, spec],
     }));
+
+  const toggleEditSpec = (spec: string) =>
+    setEditForm((f) => ({
+      ...f,
+      specializations: f.specializations.includes(spec)
+        ? f.specializations.filter((s) => s !== spec)
+        : [...f.specializations, spec],
+    }));
+
+  const openEditModal = (tutor: DbUser) => {
+    const parts = tutor.name.split(' ');
+    setEditForm({
+      firstName: parts[0] ?? '',
+      lastName: parts.slice(1).join(' '),
+      specializations: (tutor.specialization as string[]) ?? [],
+      hourlyRate: tutor.hourlyRate != null ? String(tutor.hourlyRate) : '',
+    });
+    setEditError('');
+    setShowEditModal(tutor);
+  };
+
+  const handleSaveEditTutor = async () => {
+    if (!showEditModal) return;
+    setEditError(''); setEditLoading(true);
+    try {
+      const fullName = `${editForm.firstName} ${editForm.lastName}`.trim() || showEditModal.name;
+      await api.updateUser(showEditModal.id, {
+        name: fullName,
+        specialization: editForm.specializations,
+        hourlyRate: editForm.hourlyRate ? Number(editForm.hourlyRate) : null,
+      });
+      setShowEditModal(null);
+      reload();
+    } catch (e) {
+      setEditError((e as Error).message || 'Failed to update tutor');
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   const openAssignModal = (tutor: DbUser) => {
     setAssignedStudentIds(tutor.studentIds ?? []);
@@ -455,6 +498,9 @@ export function TutorManagementPage() {
                       className="flex-1 text-xs py-1.5 px-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1 transition-colors">
                       <TrendingUp size={11} /> Stats
                     </button>
+                    <button onClick={() => openEditModal(tutor)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200" title="Edit Tutor">
+                      <Pencil size={13} />
+                    </button>
                     <button onClick={() => { setMessageTutor(tutor); setMessageSubject('Message from Admin'); setMessageBody(''); }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200" title="Send Notification Message">
                       <Mail size={13} />
                     </button>
@@ -492,6 +538,10 @@ export function TutorManagementPage() {
                 <button onClick={() => setShowAnalyticsModal(row as unknown as DbUser)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="View Analytics">
                   <TrendingUp size={14} />
+                </button>
+                <button onClick={() => openEditModal(row as unknown as DbUser)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit Tutor">
+                  <Pencil size={14} />
                 </button>
                 <button onClick={() => { setMessageTutor(row as unknown as DbUser); setMessageSubject('Message from Admin'); setMessageBody(''); }} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors hidden sm:block" title="Send Notification Message">
                   <Mail size={14} />
@@ -557,6 +607,62 @@ export function TutorManagementPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Edit Tutor Modal */}
+      {showEditModal && (
+        <Modal isOpen={!!showEditModal} onClose={() => setShowEditModal(null)} title={`Edit Tutor — ${showEditModal.name}`}
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowEditModal(null)}>Cancel</Button>
+              <Button size="sm" icon={<Save size={13} />} onClick={handleSaveEditTutor} disabled={editLoading}>
+                {editLoading ? 'Saving…' : 'Save Changes'}
+              </Button>
+            </div>
+          }>
+          <div className="space-y-3">
+            {editError && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{editError}</p>}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+                <input value={editForm.firstName} onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="First name" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+                <input value={editForm.lastName} onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Last name" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+              <input value={showEditModal.email} disabled
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed" />
+              <p className="text-xs text-slate-400 mt-1">Email can't be changed — it's tied to the tutor's login.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Hourly Rate</label>
+              <input type="number" min={0} step="0.01" value={editForm.hourlyRate} onChange={(e) => setEditForm((f) => ({ ...f, hourlyRate: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 500" />
+              <p className="text-xs text-slate-400 mt-1">Used to calculate payable amounts in Session Logs. Only visible to admins.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Specializations</label>
+              <div className="flex flex-wrap gap-2">
+                {SPECIALIZATIONS.map((s) => (
+                  <button key={s} type="button" onClick={() => toggleEditSpec(s)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                      editForm.specializations.includes(s)
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                    }`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Assign Students Modal */}
       {showAssignModal && (
