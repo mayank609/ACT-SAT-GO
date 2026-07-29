@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, Users, ClipboardCheck, Loader2, Search, Clock, Pencil, Trash2, X, Save } from 'lucide-react';
+import { Loader2, Search, Clock, Pencil, Trash2, X, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
@@ -48,9 +47,11 @@ interface TutorStat {
   daysTaught: number;
   sessions: number;
   studentsCovered: number;
+  totalMinutesTaught: number;
 }
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const fmtHours = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
 
 export function AdminAttendancePage() {
   const navigate = useNavigate();
@@ -166,6 +167,9 @@ export function AdminAttendancePage() {
       daysTaught: new Set(list.map(e => e.classDate)).size,
       sessions: list.length,
       studentsCovered: new Set(list.map(e => e.studentId)).size,
+      // Actual time taught, falling back to the scheduled duration for sessions
+      // where the tutor never logged an actual duration.
+      totalMinutesTaught: list.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0),
     })).sort((a, b) => b.daysTaught - a.daysTaught);
   }, [entries]);
 
@@ -211,12 +215,6 @@ export function AdminAttendancePage() {
         <p className="text-slate-400 text-sm">Track how much every tutor is teaching and what's being covered.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard title="Tutors Active" value={tutorStats.length} icon={<Users size={16} />} color="blue" />
-        <StatCard title="Sessions Logged" value={entries.length} icon={<ClipboardCheck size={16} />} color="emerald" />
-        <StatCard title="Students Covered" value={new Set(entries.map(e => e.studentId)).size} icon={<CalendarCheck size={16} />} color="purple" />
-      </div>
-
       {/* Tutor teaching activity */}
       <div className="bg-white rounded-xl border border-slate-100">
         <div className="px-4 py-2.5 border-b border-slate-100">
@@ -234,6 +232,7 @@ export function AdminAttendancePage() {
                   <th className="px-4 py-2 font-semibold text-center">Days Taught</th>
                   <th className="px-4 py-2 font-semibold text-center">Sessions</th>
                   <th className="px-4 py-2 font-semibold text-center">Students Covered</th>
+                  <th className="px-4 py-2 font-semibold text-center">Time Taught</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,6 +246,7 @@ export function AdminAttendancePage() {
                     <td className="px-4 py-2 text-center font-semibold text-blue-700">{t.daysTaught}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.sessions}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.studentsCovered}</td>
+                    <td className="px-4 py-2 text-center text-slate-600">{t.totalMinutesTaught > 0 ? fmtHours(t.totalMinutesTaught) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
