@@ -97,6 +97,12 @@ function toLines(text: string): string[] {
   return text.split('\n').map(l => l.trim()).filter(Boolean);
 }
 
+// Table preview only — the full text is still shown in the title tooltip and in
+// the session detail drawer when a row is clicked.
+function truncateChars(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 function StarRating({ value, onChange, size = 16 }: { value: number; onChange?: (v: number) => void; size?: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -430,8 +436,8 @@ export function AttendancePage() {
                       </td>
                       <td className="px-5 py-3.5 max-w-[220px]">
                         {toLines(row.homework).length > 0 ? (
-                          <span className="text-slate-600 truncate block" title={toLines(row.homework).join(', ')}>
-                            {toLines(row.homework).join(', ')}
+                          <span className="text-slate-600 block" title={toLines(row.homework).join(', ')}>
+                            {truncateChars(toLines(row.homework).join(', '), 6)}
                           </span>
                         ) : <span className="text-slate-300">—</span>}
                       </td>
