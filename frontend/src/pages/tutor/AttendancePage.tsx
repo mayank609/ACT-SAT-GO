@@ -227,7 +227,7 @@ export function AttendancePage() {
   };
 
   const openLog = () => {
-    setForm({ ...emptyForm, studentId: students[0]?.id ?? '' });
+    setForm({ ...emptyForm });
     setHwSearch('');
     setHwSubFilter('HW');
     setLogOpen(true);
@@ -612,7 +612,7 @@ export function AttendancePage() {
       )}
 
       {/* Log Session Modal */}
-      <Modal isOpen={logOpen} onClose={() => setLogOpen(false)} title="Log a Session" size="lg"
+      <Modal isOpen={logOpen} onClose={() => setLogOpen(false)} title="Log a Session" size="md"
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setLogOpen(false)}>Cancel</Button>
@@ -627,6 +627,7 @@ export function AttendancePage() {
               <label className="block text-xs font-medium text-slate-600 mb-1">Student</label>
               <select value={form.studentId} onChange={(e) => setForm(f => ({ ...f, studentId: e.target.value }))}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <option value="">Select student…</option>
                 {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>

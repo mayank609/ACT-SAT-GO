@@ -33,7 +33,7 @@ export function TutorManagementPage() {
   
   // Forms & Loading states
   const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
-  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', specializations: [] as string[] });
+  const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', specializations: [] as string[], hourlyRate: '' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -110,9 +110,10 @@ export function TutorManagementPage() {
         email: addForm.email,
         role: 'TUTOR',
         specialization: addForm.specializations.length ? addForm.specializations : undefined,
+        hourlyRate: addForm.hourlyRate ? Number(addForm.hourlyRate) : undefined,
       });
       setShowAddModal(false);
-      setAddForm({ firstName: '', lastName: '', email: '', specializations: [] });
+      setAddForm({ firstName: '', lastName: '', email: '', specializations: [], hourlyRate: '' });
       if (res.tempPassword) setCreatedPassword({ name: fullName, email: addForm.email, password: res.tempPassword });
       reload();
     } catch (e) {
@@ -331,7 +332,7 @@ export function TutorManagementPage() {
           <p className="text-slate-500 text-sm mt-0.5">Manage tutor assignments, student improvement plans, and tracking</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" icon={<Plus size={13} />} onClick={() => { setAddForm({ firstName: '', lastName: '', email: '', specializations: [] }); setShowAddModal(true); }}>Add Tutor</Button>
+          <Button size="sm" icon={<Plus size={13} />} onClick={() => { setAddForm({ firstName: '', lastName: '', email: '', specializations: [], hourlyRate: '' }); setShowAddModal(true); }}>Add Tutor</Button>
         </div>
       </div>
 
@@ -532,6 +533,12 @@ export function TutorManagementPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Email Address *</label>
             <input type="email" value={addForm.email} onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="tutor@example.com" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Hourly Rate</label>
+            <input type="number" min={0} step="0.01" value={addForm.hourlyRate} onChange={(e) => setAddForm((f) => ({ ...f, hourlyRate: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 500" />
+            <p className="text-xs text-slate-400 mt-1">Used to calculate payable amounts in Session Logs. Only visible to admins.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Specializations</label>
