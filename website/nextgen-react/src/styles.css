@@ -3465,8 +3465,8 @@ html, body {
 /* Concepts Made Simple Card */
 .card-concepts-new {
   position: absolute;
-  left: -48px;
-  top: 16%;
+  left: -104px;
+  top: 12%;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -3511,8 +3511,8 @@ html, body {
 /* Score Improvement Card */
 .card-score-new {
   position: absolute;
-  left: -52px;
-  top: 54%;
+  left: -116px;
+  top: 58%;
   z-index: 3;
   width: 198px;
   padding: 16px;
@@ -3546,8 +3546,8 @@ html, body {
 /* Exam Tags stack */
 .card-exams-new {
   position: absolute;
-  right: 0;
-  top: 20%;
+  right: -36px;
+  top: 14%;
   z-index: 3;
   display: flex;
   flex-direction: column;
