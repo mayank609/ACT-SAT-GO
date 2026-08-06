@@ -15,6 +15,16 @@ export function localDateTimeToISO(value: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+/** Inverse of localDateTimeToISO — formats a stored UTC timestamp back into
+ * the browser's own local time for pre-filling a `<input type="datetime-local">`. */
+export function isoToLocalDateTimeInput(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Format seconds into human-readable duration: "45s", "1m 10s", "2h 5m" */
 export function fmtSec(s: number): string {
   if (s < 60) return `${s}s`;

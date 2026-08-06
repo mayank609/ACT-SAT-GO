@@ -239,6 +239,12 @@ export const api = {
     request<{ created: number; skipped: number }>('/api/test-assignments', { method: 'POST', body: JSON.stringify(body) }),
   deleteTestAssignment: (testId: string, studentId: string) =>
     request<{ success: boolean }>(`/api/test-assignments?testId=${testId}&studentId=${studentId}`, { method: 'DELETE' }),
+  /** Reschedules a single assignment's due date. */
+  rescheduleTestAssignment: (assignmentId: string, dueAt: string | null) =>
+    request<{ assignment: { id: string; dueAt: string | null } }>(`/api/test-assignments/${assignmentId}`, { method: 'PATCH', body: JSON.stringify({ dueAt }) }),
+  /** Unassigns a test by assignment id — removes the assignment, not any attempt already made against it. */
+  unassignTest: (assignmentId: string) =>
+    request<{ success: boolean }>(`/api/test-assignments/${assignmentId}`, { method: 'DELETE' }),
 
   // Tests (admin)
   getAllTests: (params?: { category?: string; subCategory?: string }) => {
