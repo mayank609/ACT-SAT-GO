@@ -1355,8 +1355,25 @@ export function StudentManagementPage() {
               return (
                 <Card padding="none">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-                    <div>
+                    <div className="flex items-center gap-4 flex-wrap">
                       <h2 className="text-lg font-bold text-blue-900">Assessment Summary</h2>
+                      {/* Completed / Assigned toggle — governs which rows the filter tabs and table below draw from. */}
+                      <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+                        {(['completed', 'assigned'] as const).map((mode) => {
+                          const active = reportViewMode === mode;
+                          const count = mode === 'completed' ? completedCount : assignedCount;
+                          return (
+                            <button
+                              key={mode}
+                              onClick={() => { setReportViewMode(mode); setReportFilter('all'); }}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${active ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              {mode === 'completed' ? 'Completed' : 'Assigned'}
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}`}>{count}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 self-start">
                       <select
@@ -1375,25 +1392,6 @@ export function StudentManagementPage() {
                         className="px-4 py-2 text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap">
                         Download Report
                       </button>
-                    </div>
-                  </div>
-                  {/* Completed / Assigned toggle — governs which rows the filter tabs and table below draw from. */}
-                  <div className="flex items-center gap-1.5 px-5 pt-3">
-                    <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/60">
-                      {(['completed', 'assigned'] as const).map((mode) => {
-                        const active = reportViewMode === mode;
-                        const count = mode === 'completed' ? completedCount : assignedCount;
-                        return (
-                          <button
-                            key={mode}
-                            onClick={() => { setReportViewMode(mode); setReportFilter('all'); }}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${active ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                          >
-                            {mode === 'completed' ? 'Completed' : 'Assigned'}
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}`}>{count}</span>
-                          </button>
-                        );
-                      })}
                     </div>
                   </div>
                   {/* Filter tabs */}
@@ -1424,6 +1422,64 @@ export function StudentManagementPage() {
                         ? (reportViewMode === 'assigned' ? 'Nothing currently assigned and outstanding.' : 'No completed tests yet.')
                         : `No ${filterLabels.find(f => f.key === reportFilter)?.label} tests found.`}
                     </p>
+                  ) : reportViewMode === 'assigned' ? (
+                    // Assigned view: none of the score columns apply to a test that hasn't
+                    // been attempted yet, so this gets its own, simpler set of headings
+                    // instead of borrowing the Completed table's score columns.
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-l-4 border-l-blue-600 border border-slate-200">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-blue-50 to-blue-100/40 border-b-2 border-blue-100 text-blue-800">
+                            <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">#</th>
+                            <th className="px-4 py-3.5 text-left font-bold whitespace-nowrap border-r border-slate-200">Test Name</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Due Date</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap border-r border-slate-200">Status</th>
+                            <th className="px-4 py-3.5 text-center font-bold whitespace-nowrap">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRows.map((r, i) => {
+                            const statusStyle = r.pendingStatus === 'In Progress' ? 'bg-blue-100 text-blue-700'
+                              : r.pendingStatus === 'Expired' ? 'bg-red-100 text-red-600'
+                              : 'bg-amber-100 text-amber-700';
+                            return (
+                              <tr key={r.id} className={`border-b border-slate-200 ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
+                                <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
+                                <td className="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap border-r border-slate-100">{r.title}</td>
+                                <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">
+                                  {r.dueDate ? new Date(r.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'}
+                                </td>
+                                <td className="px-4 py-4 text-center whitespace-nowrap border-r border-slate-100">
+                                  <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${statusStyle}`}>
+                                    {(r.pendingStatus ?? 'Not Started').toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-4 text-center whitespace-nowrap">
+                                  {r.assignmentId && (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <button
+                                        onClick={() => { setRescheduleTarget({ assignmentId: r.assignmentId!, title: r.title }); setRescheduleValue(isoToLocalDateTimeInput(r.dueDate)); }}
+                                        className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                        title="Change deadline"
+                                      >
+                                        <CalendarClock size={12} /> Reschedule
+                                      </button>
+                                      <button
+                                        onClick={() => setUnassignTarget({ id: r.id, assignmentId: r.assignmentId!, title: r.title })}
+                                        className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                        title="Unassign this test"
+                                      >
+                                        <UserMinus size={12} /> Unassign
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm border-l-4 border-l-blue-600 border border-slate-200">
@@ -1447,49 +1503,6 @@ export function StudentManagementPage() {
                         <tbody>
                           {filteredRows.map((r, i) => {
                             const analysed = r.isAnalysed;
-                            if (r.isPending) {
-                              const statusStyle = r.pendingStatus === 'In Progress' ? 'bg-blue-100 text-blue-700'
-                                : r.pendingStatus === 'Expired' ? 'bg-red-100 text-red-600'
-                                : 'bg-amber-100 text-amber-700';
-                              return (
-                                <tr key={r.id} className={`border-b border-slate-200 ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
-                                  <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
-                                  <td className="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap border-r border-slate-100">{r.title}</td>
-                                  <td className="px-4 py-4 text-center text-xs text-slate-400 whitespace-nowrap border-r border-slate-100">—</td>
-                                  <td className="px-4 py-4 text-center text-xs text-slate-400 whitespace-nowrap border-r border-slate-100">
-                                    {r.dueDate ? `Due ${new Date(r.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : '—'}
-                                  </td>
-                                  <td colSpan={8} className="px-4 py-4 whitespace-nowrap border-r border-slate-100">
-                                    <div className="flex items-center justify-between gap-3">
-                                      <span className="text-slate-400">Assigned, not yet completed</span>
-                                      {r.assignmentId && (
-                                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                                          <button
-                                            onClick={() => { setRescheduleTarget({ assignmentId: r.assignmentId!, title: r.title }); setRescheduleValue(isoToLocalDateTimeInput(r.dueDate)); }}
-                                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
-                                            title="Change deadline"
-                                          >
-                                            <CalendarClock size={12} /> Reschedule
-                                          </button>
-                                          <button
-                                            onClick={() => setUnassignTarget({ id: r.id, assignmentId: r.assignmentId!, title: r.title })}
-                                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
-                                            title="Unassign this test"
-                                          >
-                                            <UserMinus size={12} /> Unassign
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-4 text-center whitespace-nowrap">
-                                    <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${statusStyle}`}>
-                                      {(r.pendingStatus ?? 'Not Started').toUpperCase()}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            }
                             return (
                               <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
                                 className={`border-b border-slate-200 hover:bg-blue-50/60 cursor-pointer transition-colors ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
