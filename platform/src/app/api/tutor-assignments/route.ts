@@ -23,6 +23,10 @@ export async function GET(request: NextRequest) {
       where: {
         ...(tutorId ? { tutorId } : {}),
         ...(studentId ? { studentId } : {}),
+        // Soft-deleted tutors/students stay linked in the DB (delete is
+        // reversible) but shouldn't show up in active rosters.
+        tutor: { deletedAt: null },
+        student: { deletedAt: null },
       },
       include: {
         tutor: { select: { id: true, name: true, email: true, permissions: true } },

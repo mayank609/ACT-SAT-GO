@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2, KeyRound, Copy, CheckCircle, Trash2, Pencil, Save } from 'lucide-react';
+import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2, KeyRound, Copy, CheckCircle, Trash2, Pencil, Save, Trash } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { DataTable } from '../../components/common/DataTable';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
+import { TrashModal } from '../../components/common/TrashModal';
 import { api, type DbUser } from '../../lib/api';
 
 const SPECIALIZATIONS = ['Math', 'English', 'Reading', 'Science', 'Writing', 'ACT Prep', 'SAT Prep'];
@@ -31,6 +32,7 @@ export function TutorManagementPage() {
   const [showAssignModal, setShowAssignModal] = useState<DbUser | null>(null);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<DbUser | null>(null);
   const [showEditModal, setShowEditModal] = useState<DbUser | null>(null);
+  const [showTrashModal, setShowTrashModal] = useState(false);
 
   // Forms & Loading states
   const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
@@ -375,6 +377,7 @@ export function TutorManagementPage() {
           <p className="text-slate-500 text-sm mt-0.5">Manage tutor assignments, student improvement plans, and tracking</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" icon={<Trash size={13} />} onClick={() => setShowTrashModal(true)}>Trash</Button>
           <Button size="sm" icon={<Plus size={13} />} onClick={() => { setAddForm({ firstName: '', lastName: '', email: '', specializations: [], hourlyRate: '' }); setShowAddModal(true); }}>Add Tutor</Button>
         </div>
       </div>
@@ -867,20 +870,23 @@ export function TutorManagementPage() {
         )}
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Delete Tutor" size="sm"
+      {/* Delete Confirmation Modal — moves to Trash, not a permanent delete. */}
+      <Modal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Move Tutor to Trash" size="sm"
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>Cancel</Button>
             <Button size="sm" onClick={handleDeleteTutor} disabled={deleteLoading}
               className="bg-red-600 hover:bg-red-700 text-white border-red-600">
-              {deleteLoading ? 'Deleting…' : 'Delete'}
+              {deleteLoading ? 'Moving…' : 'Move to Trash'}
             </Button>
           </div>
         }>
         {confirmDelete && (
           <div className="space-y-3">
-            <p className="text-sm text-slate-600">Are you sure you want to delete <span className="font-semibold text-slate-900">{confirmDelete.name}</span>? This action cannot be undone.</p>
+            <p className="text-sm text-slate-600">
+              <span className="font-semibold text-slate-900">{confirmDelete.name}</span> will be moved to Trash and hidden from active
+              lists. Nothing is erased — you can restore them or delete them permanently from the Trash at any time.
+            </p>
             <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold text-sm flex-shrink-0">
                 {confirmDelete.name.charAt(0).toUpperCase()}
@@ -893,6 +899,8 @@ export function TutorManagementPage() {
           </div>
         )}
       </Modal>
+
+      <TrashModal isOpen={showTrashModal} onClose={() => setShowTrashModal(false)} role="TUTOR" entityLabel="Tutor" onChanged={reload} />
 
       {/* Send Message Modal */}
       {messageTutor && (

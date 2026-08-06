@@ -19,11 +19,15 @@ export function getUserId(request: NextRequest): string | null {
   return request.headers.get('x-user-id')
 }
 
-// Loads the authenticated DB user, or null if it can't be resolved.
+// Loads the authenticated DB user, or null if it can't be resolved. A
+// soft-deleted user (deletedAt set) is treated as unauthenticated everywhere
+// this is used — deleting an account also revokes its active session.
 export async function getCurrentUser(request: NextRequest): Promise<User | null> {
   const userId = getUserId(request)
   if (!userId) return null
-  return prisma.user.findUnique({ where: { id: userId } })
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (user?.deletedAt) return null
+  return user
 }
 
 /**

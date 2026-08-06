@@ -57,6 +57,11 @@ model User {
   permissions Json?    // To handle dynamic RBAC like specific permissions
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Soft delete: set when an admin removes this user. Excluded from normal
+  // listings and login, but the row (and everything cascading from it —
+  // attempts, assignments, tutor links) stays intact until a separate,
+  // explicit permanent-delete action removes it for good.
+  deletedAt   DateTime?
 
   // Relations
   testsCreated Test[]
