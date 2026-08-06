@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { fmtSec } from '../../lib/utils';
+import { fmtSec, localDateTimeToISO, isoToLocalDateTimeInput } from '../../lib/utils';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Trash, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark, TrendingUp } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Trash, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark, TrendingUp, CalendarClock, UserMinus } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -406,9 +406,17 @@ export function StudentManagementPage() {
     isPending?: boolean;
     pendingStatus?: string;
     dueDate?: string | null;
+    assignmentId?: string;
+    testId?: string;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw_math' | 'hw_reading' | 'hw_writing' | 'practice_math' | 'practice_reading' | 'practice_writing'>('all');
+  const [reportViewMode, setReportViewMode] = useState<'completed' | 'assigned'>('completed');
+  const [rescheduleTarget, setRescheduleTarget] = useState<{ assignmentId: string; title: string } | null>(null);
+  const [rescheduleValue, setRescheduleValue] = useState('');
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [unassignTarget, setUnassignTarget] = useState<{ id: string; assignmentId: string; title: string } | null>(null);
+  const [unassignLoading, setUnassignLoading] = useState(false);
 
   // ── Question Wise Report state ───────────────────────────────────────────
   const [activeQuestionSectionIdx, setActiveQuestionSectionIdx] = useState(0);
@@ -536,6 +544,8 @@ export function StudentManagementPage() {
           isPending: true,
           pendingStatus: a.status as string,
           dueDate: a.dueDate ?? null,
+          assignmentId: a.assignmentId as string,
+          testId: a.testId as string,
         }));
       const rows = attempts
         .filter((a): a is TaAttempt => !!a)
@@ -944,6 +954,39 @@ export function StudentManagementPage() {
     }
   };
 
+  const handleReschedule = async () => {
+    if (!rescheduleTarget) return;
+    setRescheduleLoading(true);
+    try {
+      const newDueAt = localDateTimeToISO(rescheduleValue);
+      const r = await api.rescheduleTestAssignment(rescheduleTarget.assignmentId, newDueAt);
+      setReportRows((rows) => rows.map((row) =>
+        row.assignmentId === rescheduleTarget.assignmentId ? { ...row, dueDate: r.assignment.dueAt } : row
+      ));
+      toast.success('Deadline updated');
+      setRescheduleTarget(null);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to update deadline');
+    } finally {
+      setRescheduleLoading(false);
+    }
+  };
+
+  const handleUnassign = async () => {
+    if (!unassignTarget) return;
+    setUnassignLoading(true);
+    try {
+      await api.unassignTest(unassignTarget.assignmentId);
+      setReportRows((rows) => rows.filter((row) => row.id !== unassignTarget.id));
+      toast.success('Test unassigned');
+      setUnassignTarget(null);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to unassign test');
+    } finally {
+      setUnassignLoading(false);
+    }
+  };
+
   const handleTableUpdateDecision = (studentId: string, value: 'keep' | 'leave') => {
     const currentDecision =
       studentAnalysisData.find(s => s.studentId === studentId)?.diagnosticDecision ??
@@ -1304,7 +1347,10 @@ export function StudentManagementPage() {
                 { key: 'practice_reading', label: 'Reading Prac' },
                 { key: 'practice_writing', label: 'Writing Practice' },
               ];
-              const filteredRows = reportRows.filter(r => filterMatches(r, reportFilter));
+              const viewRows = reportRows.filter(r => reportViewMode === 'assigned' ? !!r.isPending : !r.isPending);
+              const completedCount = reportRows.filter(r => !r.isPending).length;
+              const assignedCount = reportRows.filter(r => !!r.isPending).length;
+              const filteredRows = viewRows.filter(r => filterMatches(r, reportFilter));
 
               return (
                 <Card padding="none">
@@ -1331,10 +1377,29 @@ export function StudentManagementPage() {
                       </button>
                     </div>
                   </div>
+                  {/* Completed / Assigned toggle — governs which rows the filter tabs and table below draw from. */}
+                  <div className="flex items-center gap-1.5 px-5 pt-3">
+                    <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+                      {(['completed', 'assigned'] as const).map((mode) => {
+                        const active = reportViewMode === mode;
+                        const count = mode === 'completed' ? completedCount : assignedCount;
+                        return (
+                          <button
+                            key={mode}
+                            onClick={() => { setReportViewMode(mode); setReportFilter('all'); }}
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${active ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                          >
+                            {mode === 'completed' ? 'Completed' : 'Assigned'}
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}`}>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   {/* Filter tabs */}
                   <div className="flex items-center gap-1.5 px-5 py-3 border-b border-slate-100 flex-wrap">
                     {filterLabels.map(({ key, label }) => {
-                      const count = key === 'all' ? reportRows.length : reportRows.filter(r => filterMatches(r, key)).length;
+                      const count = key === 'all' ? viewRows.length : viewRows.filter(r => filterMatches(r, key)).length;
                       const active = reportFilter === key;
                       return (
                         <button
@@ -1354,7 +1419,11 @@ export function StudentManagementPage() {
                       <span className="text-sm">Loading report…</span>
                     </div>
                   ) : filteredRows.length === 0 ? (
-                    <p className="py-12 text-center text-slate-400 text-sm">{reportRows.length === 0 ? 'No tests completed or assigned yet.' : `No ${filterLabels.find(f => f.key === reportFilter)?.label} tests found.`}</p>
+                    <p className="py-12 text-center text-slate-400 text-sm">
+                      {viewRows.length === 0
+                        ? (reportViewMode === 'assigned' ? 'Nothing currently assigned and outstanding.' : 'No completed tests yet.')
+                        : `No ${filterLabels.find(f => f.key === reportFilter)?.label} tests found.`}
+                    </p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm border-l-4 border-l-blue-600 border border-slate-200">
@@ -1390,7 +1459,29 @@ export function StudentManagementPage() {
                                   <td className="px-4 py-4 text-center text-xs text-slate-400 whitespace-nowrap border-r border-slate-100">
                                     {r.dueDate ? `Due ${new Date(r.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : '—'}
                                   </td>
-                                  <td colSpan={8} className="px-4 py-4 text-center text-slate-400 whitespace-nowrap border-r border-slate-100">Assigned, not yet completed</td>
+                                  <td colSpan={8} className="px-4 py-4 whitespace-nowrap border-r border-slate-100">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="text-slate-400">Assigned, not yet completed</span>
+                                      {r.assignmentId && (
+                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                          <button
+                                            onClick={() => { setRescheduleTarget({ assignmentId: r.assignmentId!, title: r.title }); setRescheduleValue(isoToLocalDateTimeInput(r.dueDate)); }}
+                                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                            title="Change deadline"
+                                          >
+                                            <CalendarClock size={12} /> Reschedule
+                                          </button>
+                                          <button
+                                            onClick={() => setUnassignTarget({ id: r.id, assignmentId: r.assignmentId!, title: r.title })}
+                                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                            title="Unassign this test"
+                                          >
+                                            <UserMinus size={12} /> Unassign
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
                                   <td className="px-4 py-4 text-center whitespace-nowrap">
                                     <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${statusStyle}`}>
                                       {(r.pendingStatus ?? 'Not Started').toUpperCase()}
@@ -2500,6 +2591,45 @@ export function StudentManagementPage() {
               <p className="text-xs text-slate-500 mt-2">Copy this now — it won't be shown again. Share it with the student.</p>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* ── Reschedule assignment ── */}
+      <Modal isOpen={!!rescheduleTarget} onClose={() => setRescheduleTarget(null)} title="Change Deadline" size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setRescheduleTarget(null)}>Cancel</Button>
+            <Button size="sm" onClick={handleReschedule} disabled={rescheduleLoading}>
+              {rescheduleLoading ? 'Saving…' : 'Save Deadline'}
+            </Button>
+          </div>
+        }>
+        {rescheduleTarget && (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">New due date for <span className="font-semibold text-slate-900">{rescheduleTarget.title}</span>:</p>
+            <input type="datetime-local" value={rescheduleValue} onChange={(e) => setRescheduleValue(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p className="text-xs text-slate-400">Leave blank to remove the deadline entirely.</p>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Unassign confirm ── */}
+      <Modal isOpen={!!unassignTarget} onClose={() => setUnassignTarget(null)} title="Unassign Test" size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setUnassignTarget(null)}>Cancel</Button>
+            <Button size="sm" onClick={handleUnassign} disabled={unassignLoading}
+              className="bg-red-600 hover:bg-red-700 text-white border-red-600">
+              {unassignLoading ? 'Removing…' : 'Unassign'}
+            </Button>
+          </div>
+        }>
+        {unassignTarget && (
+          <p className="text-sm text-slate-600">
+            Remove <span className="font-semibold text-slate-900">{unassignTarget.title}</span> from this student's assigned tests?
+            They'll no longer see it as pending. This doesn't affect any test they've already completed.
+          </p>
         )}
       </Modal>
 

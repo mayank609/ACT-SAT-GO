@@ -7,6 +7,7 @@ import { Modal } from '../../components/common/Modal';
 import { useAdminStore, type ApiTest } from '../../store/useAdminStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api, type DbUser, type DbTestPackage } from '../../lib/api';
+import { localDateTimeToISO } from '../../lib/utils';
 import { toast, Toaster } from 'react-hot-toast';
 
 // Shared scheduling options (attempts + date windows) used by both the
@@ -66,9 +67,9 @@ function AssignModal({ test, onClose }: AssignModalProps) {
       const res = await api.createTestAssignments({
         testId: test.id,
         studentIds: [...selected],
-        dueAt: dueAt || null,
-        availableFrom: availableFrom || null,
-        availableUntil: availableUntil || null,
+        dueAt: localDateTimeToISO(dueAt),
+        availableFrom: localDateTimeToISO(availableFrom),
+        availableUntil: localDateTimeToISO(availableUntil),
         maxAttempts,
       });
       toast.success(`Assigned to ${res.created} student${res.created !== 1 ? 's' : ''}${res.skipped > 0 ? ` (${res.skipped} already assigned)` : ''}`);
@@ -350,9 +351,9 @@ function PackageAssignModal({ pkg, onClose }: { pkg: DbTestPackage; onClose: () 
       const maxAttempts = attemptsMode === 'single' ? 1 : multipleCount;
       const res = await api.assignTestPackage(pkg.id, {
         studentIds: [...selected],
-        dueAt: opts.dueAt || null,
-        availableFrom: opts.availableFrom || null,
-        availableUntil: opts.availableUntil || null,
+        dueAt: localDateTimeToISO(opts.dueAt),
+        availableFrom: localDateTimeToISO(opts.availableFrom),
+        availableUntil: localDateTimeToISO(opts.availableUntil),
         maxAttempts,
       });
       toast.success(`Assigned ${res.tests} test${res.tests !== 1 ? 's' : ''} to ${res.students} student${res.students !== 1 ? 's' : ''}${res.skipped > 0 ? ` (${res.skipped} already assigned)` : ''}`);
