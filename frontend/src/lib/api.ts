@@ -211,6 +211,9 @@ export const api = {
     request<{ success: boolean }>(`/api/users/${userId}${opts?.permanent ? '?permanent=true' : ''}`, { method: 'DELETE' }),
   restoreUser: (userId: string) =>
     request<{ user: { id: string; deletedAt: null } }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify({ restore: true }) }),
+  /** Generates and sets a brand-new temporary password — the only way to recover access if the original creation popup was lost, since the original is never stored in plaintext. */
+  resetUserPassword: (userId: string) =>
+    request<{ tempPassword: string }>(`/api/users/${userId}/reset-password`, { method: 'POST' }),
 
   // Tutor assignments
   getTutorAssignments: (params?: { tutorId?: string; studentId?: string }) => {

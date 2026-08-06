@@ -5,6 +5,7 @@ import {
   ArrowLeft, BookOpen, Target, TrendingUp, Clock, Phone, School, Calendar,
   User2, Mail, Pencil, Trash2, CheckCircle, X, Save, MessageSquare, PlusCircle,
   AlertTriangle, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, XCircle, Maximize2,
+  KeyRound, Copy,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -325,6 +326,11 @@ export function AdminStudentProfilePage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [newPasswordResult, setNewPasswordResult] = useState<{ password: string } | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+
   // Test Analysis state
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null);
   const [expandedAttempt, setExpandedAttempt] = useState<TaAttempt | null>(null);
@@ -424,6 +430,20 @@ export function AdminStudentProfilePage() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!id) return;
+    setResetPasswordLoading(true);
+    try {
+      const r = await api.resetUserPassword(id);
+      setNewPasswordResult({ password: r.tempPassword });
+      setResetPasswordOpen(false);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to reset password');
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  };
+
   const handleAddNote = async () => {
     if (!noteText.trim() || !id) return;
     setNoteSaving(true);
@@ -497,6 +517,10 @@ export function AdminStudentProfilePage() {
               <Button variant="secondary" size="sm" icon={<MessageSquare size={13} />} onClick={() => setNoteOpen(true)}>Note</Button>
               <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => setEditing(true)}>Edit</Button>
               <Button size="sm" icon={<BookOpen size={13} />} onClick={() => { setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setSelectedTestIds([]); }}>Assign Test</Button>
+              <button onClick={() => setResetPasswordOpen(true)}
+                className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Reset password">
+                <KeyRound size={15} />
+              </button>
               <button onClick={() => setDeleteOpen(true)}
                 className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete student">
                 <Trash2 size={15} />
@@ -1406,6 +1430,48 @@ export function AdminStudentProfilePage() {
           <strong>{student.name}</strong> will be moved to Trash and hidden from active lists. Nothing is erased — restore them or
           delete them permanently from Students → Trash at any time.
         </p>
+      </Modal>
+
+      {/* Reset Password confirm */}
+      <Modal isOpen={resetPasswordOpen} onClose={() => setResetPasswordOpen(false)} title="Reset Password" size="sm"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setResetPasswordOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleResetPassword} disabled={resetPasswordLoading}>
+              {resetPasswordLoading ? 'Generating…' : 'Generate New Password'}
+            </Button>
+          </div>
+        }>
+        <p className="text-sm text-slate-600">
+          This immediately replaces <strong>{student.name}</strong>'s current password with a new one-time password — their old
+          password stops working right away.
+        </p>
+      </Modal>
+
+      {/* New Password result — backdrop click disabled so a stray click can't lose a
+          password that's never shown again (it's never stored in plaintext). */}
+      <Modal isOpen={!!newPasswordResult} onClose={() => { setNewPasswordResult(null); setCopiedPassword(false); }} title="New Password Generated" size="sm"
+        closeOnBackdrop={false}
+        footer={<Button size="sm" onClick={() => { setNewPasswordResult(null); setCopiedPassword(false); }}>Done, I've saved this</Button>}>
+        {newPasswordResult && (
+          <div className="space-y-4">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+              <p className="text-sm font-semibold text-emerald-900">{student.name}</p>
+              <p className="text-xs text-emerald-700 truncate">{student.email}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1"><KeyRound size={12} /> New Temporary Password</p>
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                <code className="flex-1 text-base font-mono font-bold text-amber-900 tracking-widest select-all">{newPasswordResult.password}</code>
+                <button onClick={() => { navigator.clipboard.writeText(newPasswordResult.password); setCopiedPassword(true); setTimeout(() => setCopiedPassword(false), 2000); }}
+                  className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors flex-shrink-0" title="Copy password">
+                  {copiedPassword ? <CheckCircle size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-2">Copy this now — it won't be shown again. Share it with the student.</p>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── Question Navigator Modal ── */}

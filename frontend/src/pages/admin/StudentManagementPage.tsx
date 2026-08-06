@@ -347,6 +347,9 @@ export function StudentManagementPage() {
   const [addLoading, setAddLoading] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
   const [copiedPassword, setCopiedPassword] = useState(false);
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<DbUser | null>(null);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [newPasswordResult, setNewPasswordResult] = useState<{ name: string; email: string; password: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
 
@@ -924,6 +927,20 @@ export function StudentManagementPage() {
       toast.error((e as Error).message || 'Failed to move to trash');
     } finally {
       setDeleteStudentLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordTarget) return;
+    setResetPasswordLoading(true);
+    try {
+      const r = await api.resetUserPassword(resetPasswordTarget.id);
+      setNewPasswordResult({ name: resetPasswordTarget.name, email: resetPasswordTarget.email, password: r.tempPassword });
+      setResetPasswordTarget(null);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to reset password');
+    } finally {
+      setResetPasswordLoading(false);
     }
   };
 
@@ -2353,6 +2370,13 @@ export function StudentManagementPage() {
                       <Pencil size={14} />
                     </button>
                     <button
+                      onClick={() => setResetPasswordTarget(student)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Reset Password"
+                    >
+                      <KeyRound size={14} />
+                    </button>
+                    <button
                       onClick={() => setConfirmDeleteStudent(student)}
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete"
@@ -2398,9 +2422,11 @@ export function StudentManagementPage() {
 
       <TrashModal isOpen={showTrashModal} onClose={() => setShowTrashModal(false)} role="STUDENT" entityLabel="Student" onChanged={reload} />
 
-      {/* ── Temp Password Modal ── */}
+      {/* ── Temp Password Modal — backdrop click disabled so a stray click can't lose
+           a password that's never shown again (it's never stored in plaintext). ── */}
       <Modal isOpen={!!createdPassword} onClose={() => { setCreatedPassword(null); setCopiedPassword(false); }} title="Student Created" size="sm"
-        footer={<Button size="sm" onClick={() => { setCreatedPassword(null); setCopiedPassword(false); }}>Done</Button>}>
+        closeOnBackdrop={false}
+        footer={<Button size="sm" onClick={() => { setCreatedPassword(null); setCopiedPassword(false); }}>Done, I've saved this</Button>}>
         {createdPassword && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
@@ -2421,7 +2447,57 @@ export function StudentManagementPage() {
                   {copiedPassword ? <CheckCircle size={15} className="text-emerald-600" /> : <Copy size={15} />}
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mt-2">Share this with the student. They should change it after first login.</p>
+              <p className="text-xs text-slate-500 mt-2">
+                Copy this now — it won't be shown again. If it's lost, use "Reset Password" on this student later to generate a new one.
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Reset Password confirm ── */}
+      <Modal isOpen={!!resetPasswordTarget} onClose={() => setResetPasswordTarget(null)} title="Reset Password" size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setResetPasswordTarget(null)}>Cancel</Button>
+            <Button size="sm" onClick={handleResetPassword} disabled={resetPasswordLoading}>
+              {resetPasswordLoading ? 'Generating…' : 'Generate New Password'}
+            </Button>
+          </div>
+        }>
+        {resetPasswordTarget && (
+          <p className="text-sm text-slate-600">
+            This immediately replaces <span className="font-semibold text-slate-900">{resetPasswordTarget.name}</span>'s current
+            password with a new one-time password — their old password stops working right away.
+          </p>
+        )}
+      </Modal>
+
+      {/* ── New Password result — same "can't lose it" treatment as the creation popup ── */}
+      <Modal isOpen={!!newPasswordResult} onClose={() => { setNewPasswordResult(null); setCopiedPassword(false); }} title="New Password Generated" size="sm"
+        closeOnBackdrop={false}
+        footer={<Button size="sm" onClick={() => { setNewPasswordResult(null); setCopiedPassword(false); }}>Done, I've saved this</Button>}>
+        {newPasswordResult && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+              <CheckCircle size={18} className="text-emerald-600 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-emerald-900">{newPasswordResult.name}</p>
+                <p className="text-xs text-emerald-700 truncate">{newPasswordResult.email}</p>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                <KeyRound size={12} /> New Temporary Password
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <code className="flex-1 text-base font-mono font-bold text-amber-900 tracking-widest select-all">{newPasswordResult.password}</code>
+                <button onClick={() => { navigator.clipboard.writeText(newPasswordResult.password); setCopiedPassword(true); setTimeout(() => setCopiedPassword(false), 2000); }}
+                  className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors flex-shrink-0" title="Copy password">
+                  {copiedPassword ? <CheckCircle size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Copy this now — it won't be shown again. Share it with the student.</p>
             </div>
           </div>
         )}
