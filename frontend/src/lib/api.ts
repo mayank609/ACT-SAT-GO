@@ -42,6 +42,8 @@ export interface DbUser {
   email: string
   role: string
   createdAt: string
+  /** Set when an admin has soft-deleted this user; null/undefined means active. */
+  deletedAt?: string | null
   tutorId?: string | null
   tutorName?: string | null
   tutors?: { id: string; name: string }[]
@@ -141,8 +143,12 @@ export interface DbTestPackage {
 
 export const api = {
   // Users
-  getUsersByRole: (role?: string) =>
-    request<{ users: DbUser[] }>(`/api/users${role ? '?role=' + role : ''}`),
+  getUsersByRole: (role?: string, opts?: { deleted?: boolean }) => {
+    const qs = new URLSearchParams()
+    if (role) qs.set('role', role)
+    if (opts?.deleted) qs.set('deleted', 'true')
+    return request<{ users: DbUser[] }>(`/api/users${qs.toString() ? '?' + qs.toString() : ''}`)
+  },
   getUser: (userId: string) => request<{ user: DbUser }>(`/api/users/${userId}`),
   createUser: (body: {
     name: string
@@ -200,8 +206,11 @@ export const api = {
     manualDiagRW?: number | null
     manualDiagMath?: number | null
   }) => request<{ user: DbUser }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteUser: (userId: string) =>
-    request<{ success: boolean }>(`/api/users/${userId}`, { method: 'DELETE' }),
+  /** Soft-deletes by default (reversible via restoreUser). Pass { permanent: true } to erase for good. */
+  deleteUser: (userId: string, opts?: { permanent?: boolean }) =>
+    request<{ success: boolean }>(`/api/users/${userId}${opts?.permanent ? '?permanent=true' : ''}`, { method: 'DELETE' }),
+  restoreUser: (userId: string) =>
+    request<{ user: { id: string; deletedAt: null } }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify({ restore: true }) }),
 
   // Tutor assignments
   getTutorAssignments: (params?: { tutorId?: string; studentId?: string }) => {

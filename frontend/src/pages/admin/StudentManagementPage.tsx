@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { fmtSec } from '../../lib/utils';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark, TrendingUp } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Trash, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark, TrendingUp } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -12,6 +12,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 import { TutorMultiSelect } from '../../components/common/TutorMultiSelect';
+import { TrashModal } from '../../components/common/TrashModal';
 import { api, type DbUser, type DbTestPackage } from '../../lib/api';
 import { studentStatusFromDecision } from '../../lib/studentStatus';
 import { satSectionScore } from '../../lib/analyticsData';
@@ -334,6 +335,9 @@ export function StudentManagementPage() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
   const [manageSearch, setManageSearch] = useState('');
+  const [confirmDeleteStudent, setConfirmDeleteStudent] = useState<DbUser | null>(null);
+  const [deleteStudentLoading, setDeleteStudentLoading] = useState(false);
+  const [showTrashModal, setShowTrashModal] = useState(false);
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState(false);
@@ -389,12 +393,16 @@ export function StudentManagementPage() {
   const [testAnalysisLoading, setTestAnalysisLoading] = useState(false);
   const [testAnalysisAttempt, setTestAnalysisAttempt] = useState<TaAttempt | null>(null);
 
-  // ── Mock Test Report (per-student list of all attempts) ─────────────────────
+  // ── Mock Test Report (per-student list of all attempts, plus assigned-but-not-yet-completed) ──
   const [reportRows, setReportRows] = useState<Array<{
     id: string; title: string; category?: string; subCategory?: string; startedAt: string; completedAt: string | null;
     rwM1: number; rwM2: number; mathM1: number; mathM2: number;
     rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
     totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number; isSAT: boolean; isMockTest: boolean; isAnalysed: boolean;
+    /** True for an assigned test the student hasn't submitted yet — the row has no scores. */
+    isPending?: boolean;
+    pendingStatus?: string;
+    dueDate?: string | null;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw_math' | 'hw_reading' | 'hw_writing' | 'practice_math' | 'practice_reading' | 'practice_writing'>('all');
@@ -476,10 +484,12 @@ export function StudentManagementPage() {
       });
   }, [mainView, selectedAttemptId]);
 
-  // Build the Mock Test Report: fetch every attempt's detail and derive module
-  // raw scores + estimated scaled scores for the list table.
+  // Build the Mock Test Report: fetch every attempt's detail (derive module raw
+  // scores + estimated scaled scores) AND every assignment that isn't completed
+  // yet, so admins see the full assigned-vs-completed picture, not just what's
+  // been submitted.
   useEffect(() => {
-    if (mainView !== 'test_analysis' || !selectedStudentId || studentAttempts.length === 0) {
+    if (mainView !== 'test_analysis' || !selectedStudentId) {
       setReportRows([]);
       return;
     }
@@ -501,8 +511,29 @@ export function StudentManagementPage() {
       return results;
     };
 
-    fetchBatched().then((attempts) => {
+    Promise.all([
+      studentAttempts.length ? fetchBatched() : Promise.resolve([] as (TaAttempt | null)[]),
+      api.getAssignedTests(selectedStudentId).then((r) => (r.assignedTests as any[]) ?? []).catch(() => [] as any[]),
+    ]).then(([attempts, assignedTests]) => {
       if (cancelled) return;
+      // Assignments the student has already submitted are already represented
+      // by an attempt row above — only add the ones still outstanding.
+      const pendingRows = assignedTests
+        .filter((a) => a.status !== 'Completed')
+        .map((a) => ({
+          id: `pending-${a.assignmentId}`,
+          title: a.title,
+          category: a.category ?? undefined,
+          subCategory: a.subCategory ?? undefined,
+          startedAt: '', completedAt: null,
+          rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0,
+          rwM1T: 0, rwM2T: 0, mathM1T: 0, mathM2T: 0,
+          totalRaw: 0, totalRawT: a.totalQuestions ?? 0,
+          rwSS: 0, mathSS: 0, totalSS: 0, isSAT: false, isMockTest: false, isAnalysed: false,
+          isPending: true,
+          pendingStatus: a.status as string,
+          dueDate: a.dueDate ?? null,
+        }));
       const rows = attempts
         .filter((a): a is TaAttempt => !!a)
         .map((att) => {
@@ -541,8 +572,8 @@ export function StudentManagementPage() {
             };
           }
         });
-      console.log(`[TestAnalysis] Computed ${rows.length} test reports`);
-      setReportRows(rows);
+      console.log(`[TestAnalysis] Computed ${rows.length} test reports, ${pendingRows.length} pending`);
+      setReportRows([...rows, ...pendingRows]);
     }).finally(() => { if (!cancelled) setReportLoading(false); });
     return () => { cancelled = true; };
   }, [mainView, selectedStudentId, studentAttempts]);
@@ -882,10 +913,18 @@ export function StudentManagementPage() {
     setShowAddModal(true);
   };
 
-  const handleDeleteStudent = async (student: DbUser) => {
-    if (!confirm(`Delete ${student.name}? This cannot be undone.`)) return;
-    await api.deleteUser(student.id).catch(() => {});
-    reload();
+  const handleDeleteStudent = async () => {
+    if (!confirmDeleteStudent) return;
+    setDeleteStudentLoading(true);
+    try {
+      await api.deleteUser(confirmDeleteStudent.id);
+      setConfirmDeleteStudent(null);
+      reload();
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to move to trash');
+    } finally {
+      setDeleteStudentLoading(false);
+    }
   };
 
   const handleTableUpdateDecision = (studentId: string, value: 'keep' | 'leave') => {
@@ -1184,7 +1223,12 @@ export function StudentManagementPage() {
                 // Each test can cover different modules with different question counts, so
                 // show each cell's own "correct/total" rather than a shared column denominator
                 // — and "—" (not 0) for a module this particular test doesn't cover.
-                const lines = reportRows.map((r, i) => [
+                const lines = reportRows.map((r, i) => r.isPending ? [
+                  i + 1, r.title,
+                  '', r.dueDate ? `Due ${new Date(r.dueDate).toLocaleDateString()}` : '',
+                  '—', '—', '—', '—', '—', '-', '-', '-',
+                  r.pendingStatus ?? 'Not Started',
+                ] : [
                   i + 1, r.title,
                   r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
                   r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
@@ -1293,7 +1337,7 @@ export function StudentManagementPage() {
                       <span className="text-sm">Loading report…</span>
                     </div>
                   ) : filteredRows.length === 0 ? (
-                    <p className="py-12 text-center text-slate-400 text-sm">{reportRows.length === 0 ? 'No completed tests found.' : `No ${filterLabels.find(f => f.key === reportFilter)?.label} tests found.`}</p>
+                    <p className="py-12 text-center text-slate-400 text-sm">{reportRows.length === 0 ? 'No tests completed or assigned yet.' : `No ${filterLabels.find(f => f.key === reportFilter)?.label} tests found.`}</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm border-l-4 border-l-blue-600 border border-slate-200">
@@ -1317,6 +1361,27 @@ export function StudentManagementPage() {
                         <tbody>
                           {filteredRows.map((r, i) => {
                             const analysed = r.isAnalysed;
+                            if (r.isPending) {
+                              const statusStyle = r.pendingStatus === 'In Progress' ? 'bg-blue-100 text-blue-700'
+                                : r.pendingStatus === 'Expired' ? 'bg-red-100 text-red-600'
+                                : 'bg-amber-100 text-amber-700';
+                              return (
+                                <tr key={r.id} className={`border-b border-slate-200 ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
+                                  <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
+                                  <td className="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap border-r border-slate-100">{r.title}</td>
+                                  <td className="px-4 py-4 text-center text-xs text-slate-400 whitespace-nowrap border-r border-slate-100">—</td>
+                                  <td className="px-4 py-4 text-center text-xs text-slate-400 whitespace-nowrap border-r border-slate-100">
+                                    {r.dueDate ? `Due ${new Date(r.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : '—'}
+                                  </td>
+                                  <td colSpan={8} className="px-4 py-4 text-center text-slate-400 whitespace-nowrap border-r border-slate-100">Assigned, not yet completed</td>
+                                  <td className="px-4 py-4 text-center whitespace-nowrap">
+                                    <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${statusStyle}`}>
+                                      {(r.pendingStatus ?? 'Not Started').toUpperCase()}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            }
                             return (
                               <tr key={r.id} onClick={() => setSelectedAttemptId(r.id)}
                                 className={`border-b border-slate-200 hover:bg-blue-50/60 cursor-pointer transition-colors ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
@@ -2219,6 +2284,7 @@ export function StudentManagementPage() {
               onChange={(e) => setManageSearch(e.target.value)}
               className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <Button size="sm" variant="secondary" icon={<Trash size={13} />} onClick={() => setShowTrashModal(true)}>Trash</Button>
             <Button
               size="sm"
               icon={<Plus size={13} />}
@@ -2287,7 +2353,7 @@ export function StudentManagementPage() {
                       <Pencil size={14} />
                     </button>
                     <button
-                      onClick={() => handleDeleteStudent(student)}
+                      onClick={() => setConfirmDeleteStudent(student)}
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete"
                     >
@@ -2299,6 +2365,38 @@ export function StudentManagementPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Delete Confirmation Modal — moves to Trash, not a permanent delete. */}
+      <Modal isOpen={!!confirmDeleteStudent} onClose={() => setConfirmDeleteStudent(null)} title="Move Student to Trash" size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteStudent(null)}>Cancel</Button>
+            <Button size="sm" onClick={handleDeleteStudent} disabled={deleteStudentLoading}
+              className="bg-red-600 hover:bg-red-700 text-white border-red-600">
+              {deleteStudentLoading ? 'Moving…' : 'Move to Trash'}
+            </Button>
+          </div>
+        }>
+        {confirmDeleteStudent && (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              <span className="font-semibold text-slate-900">{confirmDeleteStudent.name}</span> will be moved to Trash and hidden from
+              active lists. Nothing is erased — you can restore them or delete them permanently from the Trash at any time.
+            </p>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold text-sm flex-shrink-0">
+                {confirmDeleteStudent.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-red-900">{confirmDeleteStudent.name}</p>
+                <p className="text-xs text-red-600">{confirmDeleteStudent.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <TrashModal isOpen={showTrashModal} onClose={() => setShowTrashModal(false)} role="STUDENT" entityLabel="Student" onChanged={reload} />
 
       {/* ── Temp Password Modal ── */}
       <Modal isOpen={!!createdPassword} onClose={() => { setCreatedPassword(null); setCopiedPassword(false); }} title="Student Created" size="sm"

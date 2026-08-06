@@ -50,6 +50,7 @@ export async function GET(
         email: user.email,
         role: user.role.toLowerCase(),
         createdAt: user.createdAt,
+        deletedAt: user.deletedAt,
         // Kept for back-compat with callers that only render one tutor.
         tutorId: user.tutors[0]?.tutor.id ?? null,
         tutorName: user.tutors[0] ? userName(user.tutors[0].tutor as { email: string; permissions: unknown }) : null,
@@ -91,6 +92,11 @@ export async function GET(
   }
 }
 
+// DELETE /api/users/[userId] — soft-deletes by default (sets deletedAt, can be
+// undone via PATCH { restore: true }). Pass ?permanent=true to actually erase
+// the row and everything that cascades from it (attempts, assignments, tutor
+// links) — irreversible, so the frontend must get explicit confirmation for
+// that path separately from the normal "move to trash" delete.
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -99,8 +105,13 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth
 
   const { userId } = await params
+  const permanent = request.nextUrl.searchParams.get('permanent') === 'true'
   try {
-    await prisma.user.delete({ where: { id: userId } })
+    if (permanent) {
+      await prisma.user.delete({ where: { id: userId } })
+    } else {
+      await prisma.user.update({ where: { id: userId }, data: { deletedAt: new Date() } })
+    }
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('DELETE /api/users/[userId]:', error)
@@ -126,6 +137,15 @@ export async function PATCH(
 
   try {
     const body = await request.json()
+
+    // Undo a soft delete. Handled as its own branch — restoring shouldn't
+    // require (or accept) any of the profile-field edits below.
+    if (body.restore === true) {
+      if (!isAdmin) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+      const restored = await prisma.user.update({ where: { id: userId }, data: { deletedAt: null } })
+      return NextResponse.json({ user: { id: restored.id, deletedAt: null } })
+    }
+
     const {
       name, grade, targetScore, targetDate, specialization, tutorId, tutorIds, notifications,
       phone, parentPhone, dob, schoolName, diagnosticDecision,

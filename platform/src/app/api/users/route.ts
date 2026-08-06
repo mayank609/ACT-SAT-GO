@@ -11,6 +11,7 @@ type ValidRole = (typeof VALID_ROLES)[number]
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const role = searchParams.get('role')
+  const wantsDeleted = searchParams.get('deleted') === 'true'
 
   if (role !== null && !VALID_ROLES.includes(role as ValidRole)) {
     return NextResponse.json({ error: 'Invalid role value' }, { status: 400 })
@@ -21,9 +22,17 @@ export async function GET(request: NextRequest) {
   const requester = await getCurrentUser(request)
   const canSeeHourlyRate = requester?.role === 'ADMIN' || requester?.role === 'SUPER_ADMIN'
 
+  // The trash view (soft-deleted users, for restore/permanent-delete) is admin-only.
+  if (wantsDeleted && !canSeeHourlyRate) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  }
+
   try {
     const users = await prisma.user.findMany({
-      where: role ? { role: role as ValidRole } : undefined,
+      where: {
+        ...(role ? { role: role as ValidRole } : {}),
+        deletedAt: wantsDeleted ? { not: null } : null,
+      },
       include: {
         tutors: { include: { tutor: { select: { id: true, email: true, permissions: true } } } },
         students: { include: { student: { select: { id: true, email: true } } } },
@@ -60,6 +69,7 @@ export async function GET(request: NextRequest) {
           email: u.email,
           role: u.role.toLowerCase(),
           createdAt: u.createdAt,
+          deletedAt: u.deletedAt,
           // Kept for back-compat with callers that only render one tutor.
           tutorId: tutorUser?.id ?? null,
           tutorName,
@@ -182,7 +192,10 @@ export async function POST(request: NextRequest) {
     // 2. Duplicate checking
     const existingUser = await prisma.user.findUnique({ where: { email } })
     if (existingUser) {
-      return NextResponse.json({ error: 'A user with this email address already exists' }, { status: 400 })
+      const msg = existingUser.deletedAt
+        ? 'A deleted user with this email is still in the trash — restore them instead of creating a new account, or permanently delete them first.'
+        : 'A user with this email address already exists'
+      return NextResponse.json({ error: msg }, { status: 400 })
     }
 
     // 3. Supabase Auth account creation (using Service Role Key)

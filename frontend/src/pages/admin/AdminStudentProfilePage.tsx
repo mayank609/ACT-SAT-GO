@@ -1392,18 +1392,19 @@ export function AdminStudentProfilePage() {
         </div>
       </Modal>
 
-      {/* Delete Confirm Modal */}
-      <Modal isOpen={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete Student" size="sm"
+      {/* Delete Confirm Modal — moves to Trash, not a permanent delete. */}
+      <Modal isOpen={deleteOpen} onClose={() => setDeleteOpen(false)} title="Move Student to Trash" size="sm"
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setDeleteOpen(false)}>Cancel</Button>
             <Button variant="danger" size="sm" onClick={handleDelete} disabled={deleteLoading}>
-              {deleteLoading ? 'Deleting…' : 'Yes, Delete'}
+              {deleteLoading ? 'Moving…' : 'Move to Trash'}
             </Button>
           </div>
         }>
         <p className="text-sm text-slate-600">
-          Are you sure you want to delete <strong>{student.name}</strong>? All their test attempts and assignments will be permanently removed.
+          <strong>{student.name}</strong> will be moved to Trash and hidden from active lists. Nothing is erased — restore them or
+          delete them permanently from Students → Trash at any time.
         </p>
       </Modal>
 
