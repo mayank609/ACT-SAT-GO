@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, Shield, Settings, Activity, Plus, Trash2, Server, Database, Zap, Check, X, KeyRound, Copy, CheckCircle,
-  CalendarDays, FileText, AlertTriangle, HelpCircle, Target, Sparkles, ArrowRight, UserPlus, UserCheck,
-  ClipboardList, BarChart3,
+  CalendarDays, Target, ArrowRight, Clock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
@@ -12,12 +11,9 @@ import { ScoreDistributionBars } from '../../components/common/ScoreDistribution
 import { Modal } from '../../components/common/Modal';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
-} from 'recharts';
+import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-type TabKey = 'overview' | 'users' | 'permissions' | 'system';
+type TabKey = 'overview' | 'users' | 'permissions' | 'sat_dates' | 'system';
 
 const roleColors: Record<string, string> = {
   super_admin: 'bg-purple-100 text-purple-700',
@@ -25,13 +21,6 @@ const roleColors: Record<string, string> = {
   tutor: 'bg-emerald-100 text-emerald-700',
   student: 'bg-amber-100 text-amber-700',
 };
-
-interface DbTest {
-  id: string;
-  title: string;
-  status: string;
-  sections: { _count?: { questions: number } }[];
-}
 
 interface FeedItem {
   id: string;
@@ -63,7 +52,6 @@ function relativeTime(iso: string): string {
 export function SuperAdminDashboard() {
   const [tab, setTab] = useState<TabKey>('overview');
   const [users, setUsers] = useState<DbUser[]>([]);
-  const [tests, setTests] = useState<DbTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [userFilter, setUserFilter] = useState<string>('all');
   const [permissions, setPermissions] = useState<any[]>([]);
@@ -81,16 +69,23 @@ export function SuperAdminDashboard() {
   const [avgScoreImprovement, setAvgScoreImprovement] = useState<number | null>(null);
   const [subjectStrength, setSubjectStrength] = useState<{ rw: number | null; math: number | null }>({ rw: null, math: null });
   const [overallAccuracy, setOverallAccuracy] = useState<number | null>(null);
-  const [openDoubtsCount, setOpenDoubtsCount] = useState(0);
   const [recentActivity, setRecentActivity] = useState<FeedItem[]>([]);
   const [questionsAttemptedThisWeek, setQuestionsAttemptedThisWeek] = useState(0);
   const [avgStudyHoursThisWeek, setAvgStudyHoursThisWeek] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState<string | null>(null);
 
+  // Per-student "last mock / last HW / last session" activity — drives the
+  // attention list and the target-date list's "days since last class" column.
+  const [studentActivity, setStudentActivity] = useState<Record<string, { lastMockDate: string | null; lastHwDate: string | null; lastSessionDate: string | null }>>({});
+
+  // Official SAT test-date calendar (admin-managed, separate from a student's own target date).
+  const [satTestDates, setSatTestDates] = useState<string[]>([]);
+  const [newSatDate, setNewSatDate] = useState('');
+  const [satDateSaving, setSatDateSaving] = useState(false);
+
   useEffect(() => {
     Promise.all([
       api.getUsersByRole().then((r) => setUsers(r.users)),
-      api.getAllTests().then((r) => setTests((r.tests as DbTest[]) ?? [])),
       api.getPermissions().then((r) => setPermissions(r.permissions)),
       api.getPlatformAnalytics().then((r) => {
         setActivityData(r.activityData || []);
@@ -99,11 +94,16 @@ export function SuperAdminDashboard() {
         setAvgScoreImprovement(r.avgScoreImprovement);
         setSubjectStrength(r.subjectStrength);
         setOverallAccuracy(r.overallAccuracy);
-        setOpenDoubtsCount(r.openDoubtsCount);
         setRecentActivity(r.recentActivity);
         setQuestionsAttemptedThisWeek(r.questionsAttemptedThisWeek);
         setAvgStudyHoursThisWeek(r.avgStudyHoursThisWeek);
-      }).catch(() => {})
+      }).catch(() => {}),
+      api.getStudentActivity().then((r) => {
+        const map: typeof studentActivity = {};
+        for (const a of r.activity) map[a.studentId] = a;
+        setStudentActivity(map);
+      }).catch(() => {}),
+      api.getSettings().then((r) => setSatTestDates(r.satTestDates ?? [])).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -114,7 +114,6 @@ export function SuperAdminDashboard() {
 
   const students = useMemo(() => users.filter((u) => u.role === 'student'), [users]);
   const tutors = useMemo(() => users.filter((u) => u.role === 'tutor'), [users]);
-  const draftTests = useMemo(() => tests.filter((t) => t.status === 'DRAFT'), [tests]);
 
   const studentsWithScore = useMemo(() => students.filter((s) => s.avgScore != null), [students]);
 
@@ -127,71 +126,59 @@ export function SuperAdminDashboard() {
       .sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0));
   }, [selectedRange, studentsWithScore]);
 
-  const studentsAboveTarget = useMemo(
-    () => students.filter((s) => s.targetScore != null && s.avgScore != null && s.avgScore >= s.targetScore),
-    [students]
-  );
-  const inactiveStudents = useMemo(() => {
-    const now = Date.now();
-    return students.filter((s) => (s.testsAttempted ?? 0) > 0 && s.lastActive && (now - new Date(s.lastActive).getTime()) / 86_400_000 >= 7);
-  }, [students]);
+  const daysSince = (iso: string | null | undefined) =>
+    iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000) : null;
 
-  // Real, derived attention list: below-target gap, total inactivity, or never attempted.
+  // Attention list: flags below-target gap, zero attempts, a long session gap, or general
+  // inactivity — then, for every flagged student, breaks the reason down into the concrete
+  // signals a tutor/admin actually needs (last mock, last homework, last logged session).
   const attentionList = useMemo(() => {
     const now = Date.now();
-    type Row = { student: DbUser; reason: string; severity: 'High' | 'Medium' | 'Low' };
+    type Row = { student: DbUser; reason: string; severity: 'High' | 'Medium' | 'Low'; dMock: number | null; dHw: number | null; dSession: number | null };
     const rows: Row[] = [];
     for (const s of students) {
+      const activity = studentActivity[s.id];
+      const dMock = daysSince(activity?.lastMockDate);
+      const dHw = daysSince(activity?.lastHwDate);
+      const dSession = daysSince(activity?.lastSessionDate);
+      let reason = '';
+      let severity: 'High' | 'Medium' | 'Low' | null = null;
+
       if (s.targetScore != null && s.avgScore != null && s.avgScore < s.targetScore) {
         const gap = Math.round((s.targetScore - s.avgScore) * 10) / 10;
-        rows.push({ student: s, reason: `${gap} pts below target`, severity: gap >= 5 ? 'High' : gap >= 2 ? 'Medium' : 'Low' });
+        reason = `${gap} pts below target`;
+        severity = gap >= 5 ? 'High' : gap >= 2 ? 'Medium' : 'Low';
       } else if ((s.testsAttempted ?? 0) === 0) {
-        rows.push({ student: s, reason: 'No tests attempted yet', severity: 'Medium' });
+        reason = 'No tests attempted yet';
+        severity = 'Medium';
+      } else if (dSession !== null && dSession >= 14) {
+        reason = `No session in ${dSession}d`;
+        severity = dSession >= 30 ? 'High' : 'Medium';
       } else if (s.lastActive) {
         const daysInactive = Math.floor((now - new Date(s.lastActive).getTime()) / 86_400_000);
         if (daysInactive >= 7) {
-          rows.push({ student: s, reason: `No practice in ${daysInactive}d`, severity: daysInactive >= 21 ? 'High' : 'Medium' });
+          reason = `No practice in ${daysInactive}d`;
+          severity = daysInactive >= 21 ? 'High' : 'Medium';
         }
       }
+
+      if (severity) rows.push({ student: s, reason, severity, dMock, dHw, dSession });
     }
     const rank = { High: 0, Medium: 1, Low: 2 };
-    return rows.sort((a, b) => rank[a.severity] - rank[b.severity]).slice(0, 5);
-  }, [students]);
+    return rows.sort((a, b) => rank[a.severity] - rank[b.severity]);
+  }, [students, studentActivity]);
 
-  const insights = useMemo(() => {
-    const list: string[] = [];
-    if (subjectStrength.rw != null && subjectStrength.math != null && subjectStrength.rw !== subjectStrength.math) {
-      const weaker = subjectStrength.rw < subjectStrength.math ? 'Reading & Writing' : 'Math';
-      const weakerPct = Math.min(subjectStrength.rw, subjectStrength.math);
-      list.push(`${weaker} is the weakest section platform-wide at ${weakerPct}% accuracy.`);
-    }
-    if (avgScoreImprovement != null && avgScoreImprovement !== 0) {
-      list.push(avgScoreImprovement > 0
-        ? `Average scores are up ${avgScoreImprovement} pts over the last 30 days.`
-        : `Average scores are down ${Math.abs(avgScoreImprovement)} pts over the last 30 days.`);
-    }
-    if (studentsAboveTarget.length > 0) {
-      list.push(`${studentsAboveTarget.length} student${studentsAboveTarget.length === 1 ? ' is' : 's are'} currently at or above target score.`);
-    }
-    if (inactiveStudents.length > 0) {
-      list.push(`${inactiveStudents.length} student${inactiveStudents.length === 1 ? '' : 's'} haven't attempted a test in over a week.`);
-    }
-    if (openDoubtsCount > 0) {
-      list.push(`${openDoubtsCount} question${openDoubtsCount === 1 ? ' is' : 's are'} marked as open doubts awaiting review.`);
-    }
-    return list.slice(0, 5);
-  }, [subjectStrength, avgScoreImprovement, studentsAboveTarget, inactiveStudents, openDoubtsCount]);
-
+  // Every student with a target date, nearest first — plus how long it's been since
+  // their last logged tutoring session, so this doubles as an at-a-glance check-in list.
   const upcomingTargets = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return students
       .filter((s) => s.targetDate)
-      .map((s) => ({ student: s, date: new Date(s.targetDate as string) }))
+      .map((s) => ({ student: s, date: new Date(s.targetDate as string), dSession: daysSince(studentActivity[s.id]?.lastSessionDate) }))
       .filter((t) => !isNaN(t.date.getTime()) && t.date >= today)
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(0, 4);
-  }, [students]);
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [students, studentActivity]);
 
   const nextTarget = upcomingTargets[0];
   const daysUntilNextTarget = nextTarget ? Math.ceil((nextTarget.date.getTime() - Date.now()) / 86_400_000) : null;
@@ -222,7 +209,7 @@ export function SuperAdminDashboard() {
       .map((u) => ({ id: `signup-${u.id}`, text: `${u.name} joined as ${u.role.replace('_', ' ')}`, timestamp: u.createdAt }));
     return [...recentActivity, ...signups]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 6);
+      .slice(0, 30);
   }, [recentActivity, users]);
 
   const mocksCompletedThisWeek = activityData.reduce((a, d) => a + d.completions, 0);
@@ -280,12 +267,36 @@ export function SuperAdminDashboard() {
     }
   };
 
-  const publishedTests = tests.filter((t) => t.status === 'PUBLISHED');
+  const handleAddSatDate = async () => {
+    if (!newSatDate) return;
+    setSatDateSaving(true);
+    try {
+      const next = [...new Set([...satTestDates, newSatDate])].sort();
+      const r = await api.updateSettings({ satTestDates: next });
+      setSatTestDates(r.satTestDates ?? next);
+      setNewSatDate('');
+    } catch {
+      // silent
+    } finally {
+      setSatDateSaving(false);
+    }
+  };
+
+  const handleRemoveSatDate = async (date: string) => {
+    const next = satTestDates.filter((d) => d !== date);
+    setSatTestDates(next); // optimistic — this list is small and low-stakes to roll back on failure
+    try {
+      await api.updateSettings({ satTestDates: next });
+    } catch {
+      setSatTestDates(satTestDates);
+    }
+  };
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'overview', label: 'Overview', icon: <Activity size={14} /> },
     { key: 'users', label: 'User Management', icon: <Users size={14} /> },
     { key: 'permissions', label: 'Roles & Permissions', icon: <Shield size={14} /> },
+    { key: 'sat_dates', label: 'SAT Dates', icon: <CalendarDays size={14} /> },
     { key: 'system', label: 'System', icon: <Settings size={14} /> },
   ];
 
@@ -323,44 +334,21 @@ export function SuperAdminDashboard() {
         return (
           <div className="space-y-5 md:space-y-6">
             {/* Info strip */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                  <CalendarDays size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-400">Next Target Exam</p>
-                  <p className="text-sm font-semibold text-slate-900 truncate">
-                    {nextTarget ? nextTarget.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-                  </p>
-                  <p className="text-xs text-slate-400">{daysUntilNextTarget != null ? `${daysUntilNextTarget} days left` : 'No target set'}</p>
-                </div>
+            <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3 max-w-sm">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                <CalendarDays size={16} />
               </div>
-              <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-400">Students Need Attention</p>
-                  <p className="text-sm font-semibold text-slate-900">{attentionList.length}</p>
-                  <p className="text-xs text-slate-400">Below target or inactive</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
-                  <HelpCircle size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-400">Open Doubts</p>
-                  <p className="text-sm font-semibold text-slate-900">{openDoubtsCount}</p>
-                  <p className="text-xs text-slate-400">Marked still-a-doubt</p>
-                </div>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-400">Next Target Exam</p>
+                <p className="text-sm font-semibold text-slate-900 truncate">
+                  {nextTarget ? nextTarget.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                </p>
+                <p className="text-xs text-slate-400">{daysUntilNextTarget != null ? `${daysUntilNextTarget} days left` : 'No target set'}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               <StatCard title="Total Users" value={loading ? '…' : users.length} subtitle={`${roleCounts['student'] ?? 0} students`} icon={<Users size={20} />} color="blue" />
-              <StatCard title="Published Tests" value={loading ? '…' : publishedTests.length} subtitle={`${draftTests.length} drafts`} icon={<Activity size={20} />} color="emerald" />
               <StatCard title="Tutors" value={loading ? '…' : roleCounts['tutor'] ?? 0} subtitle="active tutors" icon={<Shield size={20} />} color="purple" />
               <StatCard title="Admins" value={loading ? '…' : (roleCounts['admin'] ?? 0) + (roleCounts['super_admin'] ?? 0)} subtitle="platform admins" icon={<Zap size={20} />} color="amber" />
             </div>
@@ -375,9 +363,161 @@ export function SuperAdminDashboard() {
               <StatCard title="Avg Accuracy" value={overallAccuracy != null ? `${overallAccuracy}%` : '—'} subtitle="recent submitted attempts" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {/* Donut Chart: Users by Role */}
-              <Card className="lg:col-span-1 flex flex-col justify-between">
+            {/* Students Requiring Attention + Upcoming Target Dates — both full, scrollable student lists */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <Card padding="none">
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Students Requiring Attention</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Below target, or behind on mocks / homework / sessions</p>
+                  </div>
+                  <Link to="/students" className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 flex-shrink-0">
+                    View all <ArrowRight size={12} />
+                  </Link>
+                </div>
+                {attentionList.length === 0 ? (
+                  <p className="px-5 py-4 text-sm text-slate-400">Nobody needs attention right now.</p>
+                ) : (
+                  <div className="divide-y divide-slate-50 max-h-96 overflow-y-auto">
+                    {attentionList.map(({ student, reason, severity, dMock, dHw, dSession }) => (
+                      <div key={student.id} className="flex items-center gap-3 px-5 py-3">
+                        <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-semibold text-xs flex-shrink-0">
+                          {student.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-800 truncate">{student.name}</p>
+                          <p className="text-xs text-slate-400 truncate">{reason}</p>
+                          <p className="text-[11px] text-slate-300 truncate mt-0.5">
+                            Mock: {dMock != null ? `${dMock}d ago` : 'never'} · HW: {dHw != null ? `${dHw}d ago` : 'never'} · Session: {dSession != null ? `${dSession}d ago` : 'never'}
+                          </p>
+                        </div>
+                        <Badge variant={severity === 'High' ? 'danger' : severity === 'Medium' ? 'warning' : 'default'} size="sm">
+                          {severity}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <Card padding="none">
+                <div className="px-5 py-3.5 border-b border-slate-50">
+                  <h3 className="font-bold text-slate-800 text-sm">Upcoming Target Dates</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Every student with a target date, nearest first</p>
+                </div>
+                {upcomingTargets.length === 0 ? (
+                  <p className="px-5 py-4 text-sm text-slate-400">No target dates set yet.</p>
+                ) : (
+                  <div className="divide-y divide-slate-50 max-h-96 overflow-y-auto">
+                    {upcomingTargets.map(({ student, date, dSession }) => {
+                      const days = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+                      return (
+                        <div key={student.id} className="flex items-center gap-3 px-5 py-3">
+                          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+                            <Target size={14} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-slate-800 truncate">{student.name}</p>
+                            <p className="text-xs text-slate-400">{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <Badge variant="info" size="sm">{days}d left</Badge>
+                            <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 justify-end">
+                              <Clock size={10} /> {dSession != null ? `${dSession}d since last class` : 'no class yet'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            {/* Score Distribution + Students by Score Range (merged) + Subject Strength + User Distribution */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+              <Card className="lg:col-span-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Score Distribution</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Click a bar to see those students</p>
+                  </div>
+                  {selectedRange && (
+                    <button onClick={() => setSelectedRange(null)} className="text-xs text-purple-600 hover:text-purple-700 flex-shrink-0">Clear</button>
+                  )}
+                </div>
+                <div className="mt-4">
+                  {loading ? (
+                    <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">Loading…</p></div>
+                  ) : scoreDistData.length === 0 ? (
+                    <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">No score distribution data</p></div>
+                  ) : (
+                    <ScoreDistributionBars
+                      data={scoreDistData}
+                      selectedRange={selectedRange}
+                      onSelect={(range) => setSelectedRange((prev) => (prev === range ? null : range))}
+                      accent="purple"
+                    />
+                  )}
+                </div>
+                {/* Students in the clicked range, right under the bars they came from. */}
+                {selectedRange && (
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-slate-600">Students: {selectedRange}</p>
+                      <Badge variant="info" size="sm">{studentsInSelectedRange.length}</Badge>
+                    </div>
+                    {studentsInSelectedRange.length === 0 ? (
+                      <p className="text-sm text-slate-400 py-2">No students in this range.</p>
+                    ) : (
+                      <div className="divide-y divide-slate-50 max-h-56 overflow-y-auto">
+                        {studentsInSelectedRange.map((s) => (
+                          <div key={s.id} className="flex items-center gap-3 py-2.5">
+                            <div className="w-7 h-7 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 font-semibold text-xs flex-shrink-0">
+                              {s.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-slate-800 truncate">{s.name}</p>
+                            </div>
+                            <p className="text-sm font-semibold text-slate-900 flex-shrink-0">{s.avgScore?.toFixed(0)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+
+              <Card>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Subject Strength</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Accuracy by section</p>
+                </div>
+                {subjectChartData.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-8 text-center">No graded attempts yet.</p>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={110}>
+                      <PieChart>
+                        <Pie data={subjectChartData} cx="50%" cy="50%" innerRadius={32} outerRadius={50} dataKey="value" stroke="none" paddingAngle={2}>
+                          {subjectChartData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="space-y-2 mt-2">
+                      {subjectChartData.map((d) => (
+                        <div key={d.name} className="flex items-center gap-2 text-xs">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
+                          <span className="text-slate-500 flex-1">{d.name}</span>
+                          <span className="font-semibold text-slate-800">{d.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </Card>
+
+              <Card className="flex flex-col justify-between">
                 <div>
                   <h3 className="font-bold text-slate-800 text-sm">User Distribution</h3>
                   <p className="text-xs text-slate-400 mt-0.5">Active platform members by role</p>
@@ -424,187 +564,9 @@ export function SuperAdminDashboard() {
                   )}
                 </div>
               </Card>
-
-              {/* Area Chart: Test Activity */}
-              <Card className="lg:col-span-2">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-sm">Test Activity</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Daily attempts vs completions (last 7 days)</p>
-                </div>
-                <div className="mt-4">
-                  {loading ? (
-                    <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">Loading…</p></div>
-                  ) : activityData.length === 0 ? (
-                    <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">No recent activity</p></div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={170}>
-                      <AreaChart data={activityData} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
-                        <defs>
-                          <linearGradient id="superAttempts" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="superCompletions" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
-                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{
-                            borderRadius: '8px',
-                            border: '1px solid #f1f5f9',
-                            fontSize: '11px',
-                            boxShadow: 'none'
-                          }}
-                        />
-                        <Area type="monotone" dataKey="attempts" stroke="#3b82f6" strokeWidth={1.5} fill="url(#superAttempts)" name="Attempts" />
-                        <Area type="monotone" dataKey="completions" stroke="#10b981" strokeWidth={1.5} fill="url(#superCompletions)" name="Completions" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </Card>
             </div>
 
-            {/* Upcoming Target Exams */}
-            <Card padding="none">
-              <div className="px-5 py-3.5 border-b border-slate-50">
-                <h3 className="font-bold text-slate-800 text-sm">Upcoming Target Exams</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Nearest student target dates</p>
-              </div>
-              {upcomingTargets.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-slate-400">No target dates set yet.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 divide-slate-50">
-                  {upcomingTargets.map(({ student, date }) => {
-                    const days = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
-                    return (
-                      <div key={student.id} className="flex items-center gap-3 px-5 py-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
-                          <Target size={14} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-800 truncate">{student.name}</p>
-                          <p className="text-xs text-slate-400">{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        </div>
-                        <Badge variant="info" size="sm">{days}d</Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-
-            {/* Bar Chart: Score Distribution + Attention + Insights + Subject Strength */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-              <Card>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Score Distribution</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Click a bar to see those students</p>
-                  </div>
-                  {selectedRange && (
-                    <button onClick={() => setSelectedRange(null)} className="text-xs text-purple-600 hover:text-purple-700 flex-shrink-0">Clear</button>
-                  )}
-                </div>
-                <div className="mt-4">
-                  {loading ? (
-                    <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">Loading…</p></div>
-                  ) : scoreDistData.length === 0 ? (
-                    <div className="h-40 flex items-center justify-center"><p className="text-sm text-slate-400">No score distribution data</p></div>
-                  ) : (
-                    <ScoreDistributionBars
-                      data={scoreDistData}
-                      selectedRange={selectedRange}
-                      onSelect={(range) => setSelectedRange((prev) => (prev === range ? null : range))}
-                      accent="purple"
-                    />
-                  )}
-                </div>
-              </Card>
-
-              <Card padding="none">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
-                  <h3 className="font-bold text-slate-800 text-sm">Students Requiring Attention</h3>
-                  <Link to="/students" className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
-                    View all <ArrowRight size={12} />
-                  </Link>
-                </div>
-                {attentionList.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-slate-400">Nobody needs attention right now.</p>
-                ) : (
-                  <div className="divide-y divide-slate-50">
-                    {attentionList.map(({ student, reason, severity }) => (
-                      <div key={student.id} className="flex items-center gap-3 px-5 py-3">
-                        <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-semibold text-xs flex-shrink-0">
-                          {student.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-800 truncate">{student.name}</p>
-                          <p className="text-xs text-slate-400 truncate">{reason}</p>
-                        </div>
-                        <Badge variant={severity === 'High' ? 'danger' : severity === 'Medium' ? 'warning' : 'default'} size="sm">
-                          {severity}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-
-              <Card padding="none">
-                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-50">
-                  <Sparkles size={14} className="text-purple-500" />
-                  <h3 className="font-bold text-slate-800 text-sm">Insights</h3>
-                </div>
-                {insights.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-slate-400">Not enough data yet.</p>
-                ) : (
-                  <ul className="px-5 py-4 space-y-3">
-                    {insights.map((text, i) => (
-                      <li key={i} className="text-sm text-slate-600 flex gap-2">
-                        <span className="text-slate-300 flex-shrink-0">•</span>
-                        {text}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Card>
-
-              <Card>
-                <div>
-                  <h3 className="font-bold text-slate-800 text-sm">Subject Strength</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Accuracy by section</p>
-                </div>
-                {subjectChartData.length === 0 ? (
-                  <p className="text-sm text-slate-400 py-8 text-center">No graded attempts yet.</p>
-                ) : (
-                  <>
-                    <ResponsiveContainer width="100%" height={110}>
-                      <PieChart>
-                        <Pie data={subjectChartData} cx="50%" cy="50%" innerRadius={32} outerRadius={50} dataKey="value" stroke="none" paddingAngle={2}>
-                          {subjectChartData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="space-y-2 mt-2">
-                      {subjectChartData.map((d) => (
-                        <div key={d.name} className="flex items-center gap-2 text-xs">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
-                          <span className="text-slate-500 flex-1">{d.name}</span>
-                          <span className="font-semibold text-slate-800">{d.value}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </Card>
-            </div>
-
-            {/* Tutor Overview + Learning Analytics + Top Performers */}
+            {/* Tutor Overview + Learning Analytics + Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <Card padding="none">
                 <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
@@ -664,66 +626,6 @@ export function SuperAdminDashboard() {
               </Card>
 
               <Card padding="none">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
-                  <h3 className="font-bold text-slate-800 text-sm">
-                    {selectedRange ? `Students: ${selectedRange}` : 'Students by Score Range'}
-                  </h3>
-                  {selectedRange && <Badge variant="info" size="sm">{studentsInSelectedRange.length}</Badge>}
-                </div>
-                {!selectedRange ? (
-                  <p className="px-5 py-6 text-sm text-slate-400 text-center">Click a bar in Score Distribution to see the students in that range.</p>
-                ) : studentsInSelectedRange.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-slate-400">No students in this range.</p>
-                ) : (
-                  <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
-                    {studentsInSelectedRange.map((s) => (
-                      <div key={s.id} className="flex items-center gap-3 px-5 py-3">
-                        <div className="w-7 h-7 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 font-semibold text-xs flex-shrink-0">
-                          {s.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-800 truncate">{s.name}</p>
-                        </div>
-                        <p className="text-sm font-semibold text-slate-900 flex-shrink-0">{s.avgScore?.toFixed(0)}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </div>
-
-            {/* Recent Tests + Recent Activity + Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <Card padding="none">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-50">
-                  <h3 className="font-bold text-slate-800 text-sm">Recent Tests</h3>
-                  <Link to="/tests" className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
-                    View all <ArrowRight size={12} />
-                  </Link>
-                </div>
-                <div className="divide-y divide-slate-50">
-                  {tests.length === 0 ? (
-                    <p className="px-5 py-4 text-sm text-slate-400">No tests yet.</p>
-                  ) : (
-                    tests.slice(0, 4).map((test) => (
-                      <div key={test.id} className="flex items-center gap-3 px-5 py-3">
-                        <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
-                          <FileText size={13} className="text-slate-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-800 truncate">{test.title}</p>
-                          <p className="text-xs text-slate-400">{test.sections?.length ?? 0} sections</p>
-                        </div>
-                        <Badge variant={test.status === 'PUBLISHED' ? 'success' : test.status === 'DRAFT' ? 'warning' : 'default'} size="sm">
-                          {test.status.toLowerCase()}
-                        </Badge>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </Card>
-
-              <Card padding="none">
                 <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-50">
                   <Activity size={14} className="text-purple-500" />
                   <h3 className="font-bold text-slate-800 text-sm">Recent Activity</h3>
@@ -731,7 +633,7 @@ export function SuperAdminDashboard() {
                 {mergedActivity.length === 0 ? (
                   <p className="px-5 py-4 text-sm text-slate-400">Nothing yet.</p>
                 ) : (
-                  <div className="divide-y divide-slate-50">
+                  <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
                     {mergedActivity.map((item) => (
                       <div key={item.id} className="px-5 py-3">
                         <p className="text-sm text-slate-700">{item.text}</p>
@@ -740,36 +642,6 @@ export function SuperAdminDashboard() {
                     ))}
                   </div>
                 )}
-              </Card>
-
-              <Card>
-                <h3 className="font-bold text-slate-800 text-sm mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <Link to="/students" className="flex flex-col items-center gap-2 p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors">
-                    <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><UserPlus size={16} /></div>
-                    <span className="text-xs text-slate-600 text-center">Add Student</span>
-                  </Link>
-                  <Link to="/tutors" className="flex flex-col items-center gap-2 p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><UserCheck size={16} /></div>
-                    <span className="text-xs text-slate-600 text-center">Add Tutor</span>
-                  </Link>
-                  <Link to="/test-builder" className="flex flex-col items-center gap-2 p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors">
-                    <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><ClipboardList size={16} /></div>
-                    <span className="text-xs text-slate-600 text-center">Create Test</span>
-                  </Link>
-                  <Link to="/analytics" className="flex flex-col items-center gap-2 p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors">
-                    <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center"><BarChart3 size={16} /></div>
-                    <span className="text-xs text-slate-600 text-center">Analytics</span>
-                  </Link>
-                  <Link to="/question-bank" className="flex flex-col items-center gap-2 p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors">
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><Database size={16} /></div>
-                    <span className="text-xs text-slate-600 text-center">Question Bank</span>
-                  </Link>
-                  <button onClick={() => setTab('system')} className="flex flex-col items-center gap-2 p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors">
-                    <div className="w-9 h-9 rounded-lg bg-red-50 text-red-500 flex items-center justify-center"><Settings size={16} /></div>
-                    <span className="text-xs text-slate-600 text-center">System</span>
-                  </button>
-                </div>
               </Card>
             </div>
           </div>
@@ -943,6 +815,68 @@ export function SuperAdminDashboard() {
           </Card>
         </div>
       )}
+
+      {/* SAT Dates */}
+      {tab === 'sat_dates' && (() => {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const sorted = [...satTestDates].sort();
+        return (
+          <div className="space-y-4">
+            <Card>
+              <h3 className="font-bold text-slate-800 text-sm mb-1">Add a Test Date</h3>
+              <p className="text-xs text-slate-400 mb-3">Official SAT administration dates — shown across the platform's upcoming-exam views.</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input type="date" value={newSatDate} onChange={(e) => setNewSatDate(e.target.value)}
+                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                <Button size="sm" icon={<Plus size={13} />} onClick={handleAddSatDate} disabled={!newSatDate || satDateSaving}>
+                  {satDateSaving ? 'Adding…' : 'Add Date'}
+                </Button>
+              </div>
+            </Card>
+
+            <Card padding="none">
+              <div className="px-5 py-3.5 border-b border-slate-50">
+                <h3 className="font-bold text-slate-800 text-sm">All Upcoming SAT Test Dates</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Sorted soonest first</p>
+              </div>
+              {sorted.length === 0 ? (
+                <p className="px-5 py-8 text-sm text-slate-400 text-center">No test dates added yet.</p>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {sorted.map((date) => {
+                    const d = new Date(`${date}T00:00:00`);
+                    const days = Math.ceil((d.getTime() - today.getTime()) / 86_400_000);
+                    const isPast = days < 0;
+                    return (
+                      <div key={date} className={`flex items-center gap-3 px-5 py-3 ${isPast ? 'opacity-50' : ''}`}>
+                        <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+                          <CalendarDays size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900">
+                            {d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                        {isPast ? (
+                          <Badge size="sm">Passed</Badge>
+                        ) : days === 0 ? (
+                          <Badge variant="danger" size="sm">Today</Badge>
+                        ) : (
+                          <Badge variant="info" size="sm">{days}d left</Badge>
+                        )}
+                        <button onClick={() => handleRemoveSatDate(date)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0" title="Remove date">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* System */}
       {tab === 'system' && (

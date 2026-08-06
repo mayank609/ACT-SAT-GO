@@ -549,13 +549,19 @@ export const api = {
       body: JSON.stringify({ tutorId, studentId, entryId, ...body }),
     }),
 
-  // Platform-wide settings (e.g. the "Next SAT Date" shown in admin/tutor sidebars)
-  getSettings: () => request<{ nextSatDate: string | null }>('/api/settings'),
-  updateSettings: (body: { nextSatDate: string | null }) =>
-    request<{ nextSatDate: string | null }>('/api/settings', {
+  // Platform-wide settings (e.g. the "Next SAT Date" shown in admin/tutor sidebars,
+  // and the full official test-date calendar shown in the super admin console)
+  getSettings: () => request<{ nextSatDate: string | null; satTestDates: string[] }>('/api/settings'),
+  updateSettings: (body: { nextSatDate?: string | null; satTestDates?: string[] }) =>
+    request<{ nextSatDate?: string | null; satTestDates?: string[] }>('/api/settings', {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
+
+  // Per-student "last mock / last homework / last tutoring session" — drives the
+  // super admin dashboard's attention list and target-date list.
+  getStudentActivity: () =>
+    request<{ activity: Array<{ studentId: string; lastMockDate: string | null; lastHwDate: string | null; lastSessionDate: string | null }> }>('/api/analytics/student-activity'),
 
   deleteImage: async (path: string) => {
     const res = await fetch(`${BASE}/api/images/delete`, {
