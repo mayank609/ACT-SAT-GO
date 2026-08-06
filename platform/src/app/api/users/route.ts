@@ -114,11 +114,7 @@ export async function GET(request: NextRequest) {
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { randomUUID } from 'crypto'
-
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('') + '@1'
-}
+import { generateTempPassword } from '@/lib/tempPassword'
 
 export async function POST(request: NextRequest) {
   try {
