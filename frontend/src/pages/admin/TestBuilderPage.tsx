@@ -11,6 +11,7 @@ import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { MathRenderer } from '../../components/admin/MathRenderer';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
+import { parseNumericAnswer } from '../../lib/numericAnswer';
 import { ALL_DOMAIN_NAMES } from '../../data/satDomains';
 import { useSubdomainSkills } from '../../hooks/useSubdomainSkills';
 import { useSubdomains } from '../../hooks/useSubdomains';
@@ -2162,8 +2163,15 @@ export function TestBuilderPage() {
         ...q,
         correctAnswer: (() => {
           if (q.type === 'numeric') {
-            const n = typeof q.correctAnswer === 'number' ? q.correctAnswer : parseFloat(String(q.correctAnswer));
-            return isNaN(n) ? 0 : n;
+            // The editor stores every accepted equivalent form ("3/4", "0.75", ...) as
+            // an array of strings, but the backend keeps one canonical decimal value
+            // (grading already normalizes fractions/decimals to match any equal form).
+            // Parsing must be fraction-aware — plain parseFloat("3/4") stops at the
+            // "/" and silently truncates it to 3, which is what was destroying fractions
+            // here before: the whole array got stringified and parsed as one blob.
+            const forms = getNumericAnswers(q.correctAnswer);
+            const parsed = forms.map((f) => parseNumericAnswer(f)).find((v) => v !== null);
+            return parsed ?? 0;
           }
           if (Array.isArray(q.correctAnswer)) return q.correctAnswer.length ? q.correctAnswer : ['a'];
           return (q.correctAnswer as string) || 'a';
