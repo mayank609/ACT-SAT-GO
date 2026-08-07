@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Recent activity feed: most recently completed attempts (already loaded above).
-    const recentActivity = recentAttempts.slice(0, 6).map((a) => {
+    const recentActivity = recentAttempts.slice(0, 30).map((a) => {
       const perms = (a.student.permissions ?? {}) as Record<string, unknown>
       const name = (perms.displayName as string) ?? a.student.email.split('@')[0]
       return {
