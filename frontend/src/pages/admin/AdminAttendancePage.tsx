@@ -7,7 +7,7 @@ import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { LogSessionModal, type SavedSessionEntry } from '../../components/common/LogSessionModal';
 import { api } from '../../lib/api';
-import { SUBJECTS, SESSION_TYPES, STATUSES, statusVariant, toLines, type DbTest } from '../../lib/sessionLog';
+import { SUBJECTS, SESSION_TYPES, STATUSES, statusVariant, toLines, sortSessionEntries, type DbTest } from '../../lib/sessionLog';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface AttendanceEntry {
@@ -161,11 +161,7 @@ export function AdminAttendancePage() {
           )
         );
         if (cancelled) return;
-        const merged = lists.flat().sort((a, b) =>
-          new Date(b.classDate).getTime() - new Date(a.classDate).getTime() ||
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setEntries(merged);
+        setEntries(sortSessionEntries(lists.flat()));
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     api.getAllTests()
@@ -175,7 +171,7 @@ export function AdminAttendancePage() {
   }, []);
 
   const handleSessionSaved = (saved: SavedSessionEntry) => {
-    setEntries(prev => [saved, ...prev]);
+    setEntries(prev => sortSessionEntries([saved, ...prev]));
   };
 
   const tutorStats: TutorStat[] = useMemo(() => {

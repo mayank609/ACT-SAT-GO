@@ -10,7 +10,7 @@ import { StatCard } from '../../components/common/Card';
 import { StarRating } from '../../components/common/StarRating';
 import { LogSessionModal, type SavedSessionEntry } from '../../components/common/LogSessionModal';
 import { api, type ClassProgressEntry } from '../../lib/api';
-import { SUBJECTS, STATUSES, statusVariant, toLines, type DbTest } from '../../lib/sessionLog';
+import { SUBJECTS, STATUSES, statusVariant, toLines, sortSessionEntries, type DbTest } from '../../lib/sessionLog';
 import { useAuthStore } from '../../store/useAuthStore';
 
 interface Session extends ClassProgressEntry {
@@ -98,11 +98,7 @@ export function AttendancePage() {
               .catch(() => [] as Session[])
           )
         );
-        const merged = lists.flat().sort((a, b) =>
-          new Date(b.classDate).getTime() - new Date(a.classDate).getTime() ||
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setEntries(merged);
+        setEntries(sortSessionEntries(lists.flat()));
       })
       .finally(() => setLoading(false));
     api.getAllTests()
@@ -154,7 +150,7 @@ export function AttendancePage() {
   const tutorStudentsMap = useMemo(() => (dbId ? new Map([[dbId, students]]) : new Map()), [dbId, students]);
 
   const handleSessionSaved = (saved: SavedSessionEntry) => {
-    setEntries(prev => [saved, ...prev]);
+    setEntries(prev => sortSessionEntries([saved, ...prev]));
   };
 
   const sessionHistory = selected ? entries.filter(e => e.studentId === selected.studentId && e.id !== selected.id) : [];
