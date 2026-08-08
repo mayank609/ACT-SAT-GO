@@ -2167,21 +2167,23 @@ export function TestBuilderPage() {
     // The editor stores every accepted form ("3/4", "0.75", "20.25", ...) as an
     // array of strings — these can be equivalent representations of one value
     // (grading already matches any of those against a single stored decimal) or
-    // genuinely distinct correct answers (e.g. two different equation roots), so
-    // every distinct parsed value is kept and sent to the backend, not just the
-    // first. Parsing is fraction-aware — plain parseFloat("3/4") stops at the "/"
-    // and would silently truncate it to 3. correctAnswerDisplay carries the
-    // as-typed strings alongside the parsed decimals, so reopening the editor
-    // shows "3/4" again instead of the "0.75" it grades against.
+    // genuinely distinct correct answers (e.g. two different equation roots). The
+    // UI explicitly invites entering several equivalent forms of the same value
+    // (its own placeholders suggest "3/4", "0.75", ".75" as three separate rows),
+    // so correctAnswerDisplay must keep every row the admin typed, de-duping only
+    // exact repeated text — NOT by parsed value, or two rows that happen to be
+    // numerically equal (like "3/4" and "0.75") would collapse into one and the
+    // second row would silently vanish on the next reload. correctAnswer (used
+    // for grading) is a separate, smaller list: the distinct parsed values, since
+    // grading only needs to know which values count as correct, not how many
+    // textual forms were entered for each. Parsing is fraction-aware — plain
+    // parseFloat("3/4") stops at the "/" and would silently truncate it to 3.
     const numericAnswerFields = (correctAnswer: Question['correctAnswer']) => {
-      const forms = getNumericAnswers(correctAnswer);
-      const seen = new Map<number, string>();
-      for (const f of forms) {
-        const v = parseNumericAnswer(f);
-        if (v !== null && !seen.has(v)) seen.set(v, f);
-      }
-      const unique = [...seen.keys()];
-      const display = [...seen.values()];
+      const forms = getNumericAnswers(correctAnswer)
+        .map((f) => f.trim())
+        .filter((f) => f !== '' && parseNumericAnswer(f) !== null);
+      const display = [...new Set(forms)];
+      const unique = [...new Set(display.map((f) => parseNumericAnswer(f) as number))];
       return unique.length
         ? { correctAnswer: unique, correctAnswerDisplay: display }
         : { correctAnswer: [0], correctAnswerDisplay: ['0'] };
