@@ -11,7 +11,7 @@ import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { MathRenderer } from '../../components/admin/MathRenderer';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Section, Question, QuestionType, Difficulty, TestStatus } from '../../types';
-import { parseNumericAnswer } from '../../lib/numericAnswer';
+import { parseNumericAnswer, sanitizeNumericInput } from '../../lib/numericAnswer';
 import { ALL_DOMAIN_NAMES } from '../../data/satDomains';
 import { useSubdomainSkills } from '../../hooks/useSubdomainSkills';
 import { useSubdomains } from '../../hooks/useSubdomains';
@@ -359,10 +359,9 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                           <input
                             type="text"
                             value={ans}
-                            maxLength={7}
+                            maxLength={limit}
                             onChange={(e) => {
-                              let val = e.target.value.replace(/[^0-9./\-]/g, '');
-                              if (val.indexOf('-') > 0) val = val.replace(/-/g, '');
+                              const val = sanitizeNumericInput(e.target.value);
                               const next = [...answers];
                               next[i] = val;
                               setAnswers(next);
