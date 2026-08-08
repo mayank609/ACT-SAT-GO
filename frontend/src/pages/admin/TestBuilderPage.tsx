@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon, Database, Search, X, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
@@ -1913,6 +1913,13 @@ export function TestBuilderPage() {
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
   const [showBankPicker, setShowBankPicker] = useState(false);
 
+  // Autosave
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastAutosavedAt, setLastAutosavedAt] = useState<Date | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveInFlightRef = useRef(false);
+  const isFirstAutosaveRunRef = useRef(true);
+
   const [testSettings, setTestSettings] = useState({
     allowBackNavigation: false,
     showResults: true,
@@ -2150,15 +2157,10 @@ export function TestBuilderPage() {
   const hasUntimedSection = sections.some(s => s.timeLimit === 0);
   const totalMarks = sections.reduce((a, s) => a + s.questions.reduce((b, q) => b + (q.marks ?? 1), 0), 0);
 
-  const handleSave = async () => {
-    if (!testTitle.trim()) {
-      setTitleError(true);
-      return;
-    }
-    setTitleError(false);
-    setIsSavingTest(true);
-
-    // Sanitize: ensure no NaN/null/undefined correctAnswer reaches the backend
+  // Shared by the manual Save button and autosave — sanitizes correctAnswer
+  // (ensures no NaN/null/undefined reaches the backend) and builds the payload
+  // both paths send.
+  const buildTestPayload = () => {
     const sanitizedSections = sections.map(sec => ({
       ...sec,
       questions: sec.questions.map(q => ({
@@ -2183,33 +2185,44 @@ export function TestBuilderPage() {
       })),
     }));
 
+    return {
+      title: testTitle.trim(),
+      description: testDesc.trim() || undefined,
+      sections: sanitizedSections,
+      status: testSettings.publishStatus,
+      category: testSettings.category || undefined,
+      subCategory: testSettings.category === 'Practice Sheet' && testSettings.subCategory
+        ? (testSettings.assignmentType ? `${testSettings.subCategory}-${testSettings.assignmentType}` : testSettings.subCategory)
+        : testSettings.subCategory || undefined,
+    };
+  };
+
+  const handleSave = async () => {
+    if (!testTitle.trim()) {
+      setTitleError(true);
+      return;
+    }
+    setTitleError(false);
+    setIsSavingTest(true);
+    // A manual save takes over from autosave — cancel any pending debounce so
+    // it can't fire mid-navigation and race this request.
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+
     try {
+      const payload = buildTestPayload();
       if (editTestId) {
-        await api.updateTest(editTestId, {
-          title: testTitle.trim(),
-          description: testDesc.trim() || undefined,
-          sections: sanitizedSections,
-          status: testSettings.publishStatus,
-          category: testSettings.category || undefined,
-          subCategory: testSettings.category === 'Practice Sheet' && testSettings.subCategory
-            ? (testSettings.assignmentType ? `${testSettings.subCategory}-${testSettings.assignmentType}` : testSettings.subCategory)
-            : testSettings.subCategory || undefined,
-        });
+        await api.updateTest(editTestId, payload);
       } else {
-        await api.createTest({
-          title: testTitle.trim(),
-          description: testDesc.trim() || undefined,
-          sections: sanitizedSections,
-          status: testSettings.publishStatus,
-          category: testSettings.category || undefined,
-          subCategory: testSettings.category === 'Practice Sheet' && testSettings.subCategory
-            ? (testSettings.assignmentType ? `${testSettings.subCategory}-${testSettings.assignmentType}` : testSettings.subCategory)
-            : testSettings.subCategory || undefined,
+        const res = await api.createTest({
+          ...payload,
           createdById: dbId ?? user?.id ?? '',
           allowBackNavigation: testSettings.allowBackNavigation,
           showResults: testSettings.showResults,
         });
+        if (res.test?.id) setEditTestId(res.test.id);
       }
+      setAutosaveStatus('saved');
+      setLastAutosavedAt(new Date());
       setSaved(true);
       setTimeout(() => navigate('/tests'), 1000);
     } catch (err: unknown) {
@@ -2219,6 +2232,56 @@ export function TestBuilderPage() {
       setIsSavingTest(false);
     }
   };
+
+  // ── Autosave ──────────────────────────────────────────────────────────────
+  // Debounced: fires a few seconds after the admin stops making changes, so a
+  // long editing session is never more than a few seconds from being saved —
+  // without hammering the API on every keystroke. The first test a new draft
+  // autosaves creates it and remembers the id, so every save after that (auto
+  // or manual) updates the same test instead of creating duplicates.
+  const performAutosave = useCallback(async () => {
+    if (!testTitle.trim() || isSavingTest || autosaveInFlightRef.current) return;
+    autosaveInFlightRef.current = true;
+    setAutosaveStatus('saving');
+    try {
+      const payload = buildTestPayload();
+      if (editTestId) {
+        await api.updateTest(editTestId, payload);
+      } else {
+        const res = await api.createTest({
+          ...payload,
+          createdById: dbId ?? user?.id ?? '',
+          allowBackNavigation: testSettings.allowBackNavigation,
+          showResults: testSettings.showResults,
+        });
+        if (res.test?.id) setEditTestId(res.test.id);
+      }
+      setAutosaveStatus('saved');
+      setLastAutosavedAt(new Date());
+    } catch {
+      setAutosaveStatus('error');
+    } finally {
+      autosaveInFlightRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testTitle, testDesc, sections, testSettings, editTestId, isSavingTest, dbId, user?.id]);
+
+  useEffect(() => {
+    // Nothing to autosave yet: type not chosen, an existing test is still
+    // loading, or the very first settle-render after either of those.
+    if (!typeSelected || isLoadingEdit) return;
+    if (isFirstAutosaveRunRef.current) {
+      isFirstAutosaveRunRef.current = false;
+      return;
+    }
+    if (!testTitle.trim()) return; // nothing meaningful to save yet
+    if (saved) return; // already on the way to /tests after a manual save
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => { performAutosave(); }, 3000);
+    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testTitle, testDesc, sections, testSettings, typeSelected, isLoadingEdit]);
 
   if (isLoadingEdit) {
     return (
@@ -2324,6 +2387,22 @@ export function TestBuilderPage() {
           <p className="text-slate-500 text-sm mt-0.5">
             {editTestId ? 'Edit questions and sections, then save.' : 'Create and manage test content'}
           </p>
+          {autosaveStatus !== 'idle' && (
+            <p className="text-xs mt-1 flex items-center gap-1.5">
+              {autosaveStatus === 'saving' && (
+                <span className="flex items-center gap-1 text-slate-400"><Loader2 size={11} className="animate-spin" /> Saving…</span>
+              )}
+              {autosaveStatus === 'saved' && (
+                <span className="flex items-center gap-1 text-emerald-600">
+                  <CheckCircle2 size={11} />
+                  {lastAutosavedAt ? `Saved ${lastAutosavedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Saved'}
+                </span>
+              )}
+              {autosaveStatus === 'error' && (
+                <span className="flex items-center gap-1 text-red-500"><AlertCircle size={11} /> Autosave failed — click Save to retry</span>
+              )}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" icon={<Settings2 size={14} />} onClick={() => setShowSettings(true)}>Settings</Button>
