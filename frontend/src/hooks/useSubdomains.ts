@@ -1,41 +1,28 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SUBDOMAINS_BY_DOMAIN } from '../data/satDomains';
-
-const STORAGE_KEY = 'actsatgo:domain_subdomains';
-const EVENT = 'actsatgo:domain-subdomains-updated';
+import { api } from '../lib/api';
 
 export type SubdomainsMap = Record<string, string[]>;
 
-function load(): SubdomainsMap {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return SUBDOMAINS_BY_DOMAIN;
-    // Merge stored overrides onto defaults so any new default domains shipped in a
-    // later app version still show up even if the admin saved an older map.
-    return { ...SUBDOMAINS_BY_DOMAIN, ...(JSON.parse(raw) as SubdomainsMap) };
-  } catch {
-    return SUBDOMAINS_BY_DOMAIN;
-  }
-}
-
-function persist(map: SubdomainsMap) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-  window.dispatchEvent(new Event(EVENT));
-}
-
 /**
- * Admin-editable Domain → Subdomain taxonomy, persisted to localStorage.
- * Mirrors {@link useSubdomainSkills} (which manages Subdomain → Skill). Both the
- * Skills Management page and the Test Builder read from here so a subdomain added
- * in one place is immediately taggable in the other.
+ * Admin-editable Domain → Subdomain taxonomy, shared across every admin/super-admin
+ * via the backend (previously stored per-browser in localStorage, so a subdomain one
+ * admin added was invisible to everyone else). Mirrors {@link useSubdomainSkills}
+ * (which manages Subdomain → Skill). Both the Skills Management page and the Test
+ * Builder read from here so a subdomain added in one place is immediately taggable
+ * in the other.
  */
 export function useSubdomains() {
-  const [subdomainsByDomain, setMap] = useState<SubdomainsMap>(load);
+  const [subdomainsByDomain, setMap] = useState<SubdomainsMap>(SUBDOMAINS_BY_DOMAIN);
 
   useEffect(() => {
-    const handler = () => setMap(load());
-    window.addEventListener(EVENT, handler);
-    return () => window.removeEventListener(EVENT, handler);
+    api.getTaxonomy()
+      .then((r) => setMap({ ...SUBDOMAINS_BY_DOMAIN, ...r.subdomainsByDomain }))
+      .catch(() => {});
+  }, []);
+
+  const persist = useCallback((map: SubdomainsMap) => {
+    api.updateTaxonomy({ subdomainsByDomain: map }).catch(() => {});
   }, []);
 
   const addSubdomain = useCallback((domain: string, name: string) => {
@@ -48,7 +35,7 @@ export function useSubdomains() {
       persist(updated);
       return updated;
     });
-  }, []);
+  }, [persist]);
 
   const removeSubdomain = useCallback((domain: string, name: string) => {
     setMap(prev => {
@@ -56,12 +43,11 @@ export function useSubdomains() {
       persist(updated);
       return updated;
     });
-  }, []);
+  }, [persist]);
 
   const resetToDefaults = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
     setMap(SUBDOMAINS_BY_DOMAIN);
-    window.dispatchEvent(new Event(EVENT));
+    api.updateTaxonomy({ subdomainsByDomain: {} }).catch(() => {});
   }, []);
 
   return { subdomainsByDomain, addSubdomain, removeSubdomain, resetToDefaults };

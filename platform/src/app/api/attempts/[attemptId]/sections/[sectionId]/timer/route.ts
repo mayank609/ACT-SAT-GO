@@ -4,6 +4,9 @@ import { redis } from '@/lib/redis'
 
 export const dynamic = 'force-dynamic'
 
+// See start/route.ts — durationMinutes === 0 means "Untimed", not "0 seconds allowed".
+const NO_LIMIT_MS = 1000 * 60 * 60 * 24 * 365 * 10 // 10 years
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ attemptId: string; sectionId: string }> }
@@ -21,7 +24,10 @@ export async function GET(
       })
 
       if (sectionAttempt && sectionAttempt.startedAt && !sectionAttempt.completedAt) {
-        endTime = new Date(sectionAttempt.startedAt).getTime() + sectionAttempt.section.durationMinutes * 60 * 1000
+        const durationMs = sectionAttempt.section.durationMinutes > 0
+          ? sectionAttempt.section.durationMinutes * 60 * 1000
+          : NO_LIMIT_MS
+        endTime = new Date(sectionAttempt.startedAt).getTime() + durationMs
         // Set it back in Redis so subsequent requests don't hit the DB
         await redis.set(`timer:${attemptId}:${sectionId}`, endTime, { ex: 60 * 60 * 4 })
       }

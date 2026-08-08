@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
+import { parseNumericValue } from '@/lib/numericAnswer'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,11 +72,26 @@ function transformOptions(
 }
 
 function transformCorrectAnswer(
-  answer: string | string[] | number,
+  answer: string | string[] | number | number[],
+  dbType: 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE',
 ): Prisma.InputJsonValue {
+  if (dbType === 'NUMERIC') {
+    // A numeric question can accept several distinct correct values (e.g. two
+    // different equation roots), not just several equivalent forms of one value —
+    // `value` stays the primary/representative one so every existing grading and
+    // display path (which only ever reads `.value`) keeps working unchanged;
+    // `values` is the full accepted set, consulted only by grading when present.
+    // parseNumericValue is fraction-aware, so this is safe whether the caller
+    // sends pre-parsed numbers or raw form strings like "81/4".
+    const raw = Array.isArray(answer) ? answer : [answer]
+    const nums = raw.map((v) => parseNumericValue(v)).filter((n): n is number => n !== null)
+    const unique = [...new Set(nums)]
+    const values = unique.length ? unique : [0]
+    return (values.length > 1 ? { value: values[0], values } : { value: values[0] }) as Prisma.InputJsonValue
+  }
   if (typeof answer === 'number') return { value: answer } as Prisma.InputJsonValue
   if (Array.isArray(answer))
-    return { keys: answer.map((k) => k.toUpperCase()) } as Prisma.InputJsonValue
+    return { keys: answer.map((k) => String(k).toUpperCase()) } as Prisma.InputJsonValue
   return { key: answer.toUpperCase() } as Prisma.InputJsonValue
 }
 
@@ -83,7 +99,7 @@ interface FrontendQuestion {
   text: string
   type: FrontendType
   options?: Array<{ id: string; text: string }>
-  correctAnswer: string | string[] | number
+  correctAnswer: string | string[] | number | number[]
   topic?: string
   subTopic?: string
   skill?: string
@@ -182,7 +198,7 @@ export async function POST(request: NextRequest) {
             },
           } as Prisma.InputJsonValue,
           options: q.options ? transformOptions(q.options) : undefined,
-          correctAnswer: transformCorrectAnswer(q.correctAnswer),
+          correctAnswer: transformCorrectAnswer(q.correctAnswer, dbType),
           difficultyLevel: dbDiff,
           topicId,
         })
@@ -205,7 +221,7 @@ export async function POST(request: NextRequest) {
                 },
               } as Prisma.InputJsonValue,
               options: child.options ? transformOptions(child.options) : undefined,
-              correctAnswer: transformCorrectAnswer(child.correctAnswer),
+              correctAnswer: transformCorrectAnswer(child.correctAnswer, TYPE_MAP[child.type] || 'MCQ'),
               difficultyLevel: (DIFF_MAP[child.difficulty] || 'MEDIUM') as any,
               topicId: child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null,
               parentQuestionId: questionId,

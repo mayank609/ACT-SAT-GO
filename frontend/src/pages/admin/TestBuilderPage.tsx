@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Save, Eye, Settings2, Menu, AlertCircle, Upload, Download, FileText, CheckCircle2, Loader2, Grid3X3, ImageIcon, Database, Search, X, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
@@ -291,7 +291,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                 {question.options.map((opt) => {
                   const isCorrect = question.type === 'mcq_single'
                     ? question.correctAnswer === opt.id
-                    : Array.isArray(question.correctAnswer) && question.correctAnswer.includes(opt.id);
+                    : Array.isArray(question.correctAnswer) && (question.correctAnswer as string[]).includes(opt.id);
                   return (
                     <div key={opt.id} className={`flex items-start gap-2 rounded-xl border p-2 transition-colors ${isCorrect ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'}`}>
                       {question.type === 'mcq_single' ? (
@@ -301,7 +301,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                       ) : (
                         <input type="checkbox" checked={isCorrect}
                           onChange={(e) => {
-                            const curr = Array.isArray(question.correctAnswer) ? question.correctAnswer : [];
+                            const curr = Array.isArray(question.correctAnswer) ? (question.correctAnswer as string[]) : [];
                             onUpdate({ ...question, correctAnswer: e.target.checked ? [...curr, opt.id] : curr.filter((x) => x !== opt.id) });
                           }}
                           className="rounded text-emerald-600 mt-2.5 flex-shrink-0" />
@@ -496,7 +496,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                                 {linkedQ.options.map((opt) => {
                                   const isCorrect = linkedQ.type === 'mcq_single'
                                     ? linkedQ.correctAnswer === opt.id
-                                    : Array.isArray(linkedQ.correctAnswer) && linkedQ.correctAnswer.includes(opt.id);
+                                    : Array.isArray(linkedQ.correctAnswer) && (linkedQ.correctAnswer as string[]).includes(opt.id);
                                   return (
                                     <div key={opt.id} className="flex items-center gap-1.5">
                                       {linkedQ.type === 'mcq_single' ? (
@@ -518,7 +518,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                                           type="checkbox"
                                           checked={isCorrect}
                                           onChange={(e) => {
-                                            const curr = Array.isArray(linkedQ.correctAnswer) ? linkedQ.correctAnswer : [];
+                                            const curr = Array.isArray(linkedQ.correctAnswer) ? (linkedQ.correctAnswer as string[]) : [];
                                             const updated = {
                                               ...linkedQ,
                                               correctAnswer: e.target.checked ? [...curr, opt.id] : curr.filter((x) => x !== opt.id),
@@ -1778,8 +1778,9 @@ function BankPickerModal({ onAdd, onClose }: { onAdd: (questions: Question[]) =>
           : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
 
         const ca = (q.correctAnswer ?? {}) as Record<string, unknown>;
-        let correctAnswer: string | string[] | number;
-        if (ca.value !== undefined) correctAnswer = ca.value as number;
+        let correctAnswer: string | string[] | number | number[];
+        if (Array.isArray(ca.values)) correctAnswer = ca.values as number[];
+        else if (ca.value !== undefined) correctAnswer = ca.value as number;
         else if (ca.keys) correctAnswer = (ca.keys as string[]).map((k: string) => k.toLowerCase());
         else correctAnswer = ((ca.key as string) ?? 'a').toLowerCase();
 
@@ -1912,6 +1913,13 @@ export function TestBuilderPage() {
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
   const [showBankPicker, setShowBankPicker] = useState(false);
 
+  // Autosave
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastAutosavedAt, setLastAutosavedAt] = useState<Date | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveInFlightRef = useRef(false);
+  const isFirstAutosaveRunRef = useRef(true);
+
   const [testSettings, setTestSettings] = useState({
     allowBackNavigation: false,
     showResults: true,
@@ -1997,8 +2005,9 @@ export function TestBuilderPage() {
             : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
 
           const ca = (q.correctAnswer ?? {}) as Record<string, unknown>;
-          let correctAnswer: string | string[] | number;
-          if (ca.value !== undefined) correctAnswer = ca.value as number;
+          let correctAnswer: string | string[] | number | number[];
+          if (Array.isArray(ca.values)) correctAnswer = ca.values as number[];
+          else if (ca.value !== undefined) correctAnswer = ca.value as number;
           else if (ca.keys) correctAnswer = (ca.keys as string[]).map((k: string) => k.toLowerCase());
           else correctAnswer = ((ca.key as string) ?? 'a').toLowerCase();
 
@@ -2013,8 +2022,9 @@ export function TestBuilderPage() {
               : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
 
             const cqCa = (cq.correctAnswer ?? {}) as Record<string, unknown>;
-            let cqCorrectAnswer: string | string[] | number;
-            if (cqCa.value !== undefined) cqCorrectAnswer = cqCa.value as number;
+            let cqCorrectAnswer: string | string[] | number | number[];
+            if (Array.isArray(cqCa.values)) cqCorrectAnswer = cqCa.values as number[];
+            else if (cqCa.value !== undefined) cqCorrectAnswer = cqCa.value as number;
             else if (cqCa.keys) cqCorrectAnswer = (cqCa.keys as string[]).map((k: string) => k.toLowerCase());
             else cqCorrectAnswer = ((cqCa.key as string) ?? 'a').toLowerCase();
 
@@ -2147,30 +2157,27 @@ export function TestBuilderPage() {
   const hasUntimedSection = sections.some(s => s.timeLimit === 0);
   const totalMarks = sections.reduce((a, s) => a + s.questions.reduce((b, q) => b + (q.marks ?? 1), 0), 0);
 
-  const handleSave = async () => {
-    if (!testTitle.trim()) {
-      setTitleError(true);
-      return;
-    }
-    setTitleError(false);
-    setIsSavingTest(true);
-
-    // Sanitize: ensure no NaN/null/undefined correctAnswer reaches the backend
+  // Shared by the manual Save button and autosave — sanitizes correctAnswer
+  // (ensures no NaN/null/undefined reaches the backend) and builds the payload
+  // both paths send.
+  const buildTestPayload = () => {
     const sanitizedSections = sections.map(sec => ({
       ...sec,
       questions: sec.questions.map(q => ({
         ...q,
         correctAnswer: (() => {
           if (q.type === 'numeric') {
-            // The editor stores every accepted equivalent form ("3/4", "0.75", ...) as
-            // an array of strings, but the backend keeps one canonical decimal value
-            // (grading already normalizes fractions/decimals to match any equal form).
-            // Parsing must be fraction-aware — plain parseFloat("3/4") stops at the
-            // "/" and silently truncates it to 3, which is what was destroying fractions
-            // here before: the whole array got stringified and parsed as one blob.
+            // The editor stores every accepted form ("3/4", "0.75", "20.25", ...) as an
+            // array of strings — these can be equivalent representations of one value
+            // (grading already matches any of those against a single stored decimal) or
+            // genuinely distinct correct answers (e.g. two different equation roots), so
+            // every distinct parsed value is kept and sent to the backend, not just the
+            // first. Parsing is fraction-aware — plain parseFloat("3/4") stops at the "/"
+            // and would silently truncate it to 3.
             const forms = getNumericAnswers(q.correctAnswer);
-            const parsed = forms.map((f) => parseNumericAnswer(f)).find((v) => v !== null);
-            return parsed ?? 0;
+            const parsed = forms.map((f) => parseNumericAnswer(f)).filter((v): v is number => v !== null);
+            const unique = [...new Set(parsed)];
+            return unique.length ? unique : [0];
           }
           if (Array.isArray(q.correctAnswer)) return q.correctAnswer.length ? q.correctAnswer : ['a'];
           return (q.correctAnswer as string) || 'a';
@@ -2178,33 +2185,44 @@ export function TestBuilderPage() {
       })),
     }));
 
+    return {
+      title: testTitle.trim(),
+      description: testDesc.trim() || undefined,
+      sections: sanitizedSections,
+      status: testSettings.publishStatus,
+      category: testSettings.category || undefined,
+      subCategory: testSettings.category === 'Practice Sheet' && testSettings.subCategory
+        ? (testSettings.assignmentType ? `${testSettings.subCategory}-${testSettings.assignmentType}` : testSettings.subCategory)
+        : testSettings.subCategory || undefined,
+    };
+  };
+
+  const handleSave = async () => {
+    if (!testTitle.trim()) {
+      setTitleError(true);
+      return;
+    }
+    setTitleError(false);
+    setIsSavingTest(true);
+    // A manual save takes over from autosave — cancel any pending debounce so
+    // it can't fire mid-navigation and race this request.
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+
     try {
+      const payload = buildTestPayload();
       if (editTestId) {
-        await api.updateTest(editTestId, {
-          title: testTitle.trim(),
-          description: testDesc.trim() || undefined,
-          sections: sanitizedSections,
-          status: testSettings.publishStatus,
-          category: testSettings.category || undefined,
-          subCategory: testSettings.category === 'Practice Sheet' && testSettings.subCategory
-            ? (testSettings.assignmentType ? `${testSettings.subCategory}-${testSettings.assignmentType}` : testSettings.subCategory)
-            : testSettings.subCategory || undefined,
-        });
+        await api.updateTest(editTestId, payload);
       } else {
-        await api.createTest({
-          title: testTitle.trim(),
-          description: testDesc.trim() || undefined,
-          sections: sanitizedSections,
-          status: testSettings.publishStatus,
-          category: testSettings.category || undefined,
-          subCategory: testSettings.category === 'Practice Sheet' && testSettings.subCategory
-            ? (testSettings.assignmentType ? `${testSettings.subCategory}-${testSettings.assignmentType}` : testSettings.subCategory)
-            : testSettings.subCategory || undefined,
+        const res = await api.createTest({
+          ...payload,
           createdById: dbId ?? user?.id ?? '',
           allowBackNavigation: testSettings.allowBackNavigation,
           showResults: testSettings.showResults,
         });
+        if (res.test?.id) setEditTestId(res.test.id);
       }
+      setAutosaveStatus('saved');
+      setLastAutosavedAt(new Date());
       setSaved(true);
       setTimeout(() => navigate('/tests'), 1000);
     } catch (err: unknown) {
@@ -2214,6 +2232,56 @@ export function TestBuilderPage() {
       setIsSavingTest(false);
     }
   };
+
+  // ── Autosave ──────────────────────────────────────────────────────────────
+  // Debounced: fires a few seconds after the admin stops making changes, so a
+  // long editing session is never more than a few seconds from being saved —
+  // without hammering the API on every keystroke. The first test a new draft
+  // autosaves creates it and remembers the id, so every save after that (auto
+  // or manual) updates the same test instead of creating duplicates.
+  const performAutosave = useCallback(async () => {
+    if (!testTitle.trim() || isSavingTest || autosaveInFlightRef.current) return;
+    autosaveInFlightRef.current = true;
+    setAutosaveStatus('saving');
+    try {
+      const payload = buildTestPayload();
+      if (editTestId) {
+        await api.updateTest(editTestId, payload);
+      } else {
+        const res = await api.createTest({
+          ...payload,
+          createdById: dbId ?? user?.id ?? '',
+          allowBackNavigation: testSettings.allowBackNavigation,
+          showResults: testSettings.showResults,
+        });
+        if (res.test?.id) setEditTestId(res.test.id);
+      }
+      setAutosaveStatus('saved');
+      setLastAutosavedAt(new Date());
+    } catch {
+      setAutosaveStatus('error');
+    } finally {
+      autosaveInFlightRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testTitle, testDesc, sections, testSettings, editTestId, isSavingTest, dbId, user?.id]);
+
+  useEffect(() => {
+    // Nothing to autosave yet: type not chosen, an existing test is still
+    // loading, or the very first settle-render after either of those.
+    if (!typeSelected || isLoadingEdit) return;
+    if (isFirstAutosaveRunRef.current) {
+      isFirstAutosaveRunRef.current = false;
+      return;
+    }
+    if (!testTitle.trim()) return; // nothing meaningful to save yet
+    if (saved) return; // already on the way to /tests after a manual save
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => { performAutosave(); }, 3000);
+    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testTitle, testDesc, sections, testSettings, typeSelected, isLoadingEdit]);
 
   if (isLoadingEdit) {
     return (
@@ -2319,6 +2387,22 @@ export function TestBuilderPage() {
           <p className="text-slate-500 text-sm mt-0.5">
             {editTestId ? 'Edit questions and sections, then save.' : 'Create and manage test content'}
           </p>
+          {autosaveStatus !== 'idle' && (
+            <p className="text-xs mt-1 flex items-center gap-1.5">
+              {autosaveStatus === 'saving' && (
+                <span className="flex items-center gap-1 text-slate-400"><Loader2 size={11} className="animate-spin" /> Saving…</span>
+              )}
+              {autosaveStatus === 'saved' && (
+                <span className="flex items-center gap-1 text-emerald-600">
+                  <CheckCircle2 size={11} />
+                  {lastAutosavedAt ? `Saved ${lastAutosavedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Saved'}
+                </span>
+              )}
+              {autosaveStatus === 'error' && (
+                <span className="flex items-center gap-1 text-red-500"><AlertCircle size={11} /> Autosave failed — click Save to retry</span>
+              )}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" icon={<Settings2 size={14} />} onClick={() => setShowSettings(true)}>Settings</Button>

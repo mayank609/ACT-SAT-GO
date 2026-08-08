@@ -24,7 +24,7 @@ export interface Question {
   text: string;
   type: QuestionType;
   options?: Option[];
-  correctAnswer: string | string[] | number;
+  correctAnswer: string | string[] | number | number[];
   subject?: string;
   referenceId?: string;
   topic: string;

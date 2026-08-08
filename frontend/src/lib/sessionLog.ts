@@ -57,6 +57,16 @@ export function toLines(text: string): string[] {
   return text.split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
+// Session History lists are always shown most-recent-first by the session's actual
+// classDate, not by when the row was logged/inserted — a session logged today for a
+// missed date last week must still land in its correct date position, not at the top.
+export function sortSessionEntries<T extends { classDate: string; createdAt: string }>(entries: T[]): T[] {
+  return [...entries].sort((a, b) =>
+    new Date(b.classDate).getTime() - new Date(a.classDate).getTime() ||
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
 export interface DbTest {
   id: string;
   title: string;

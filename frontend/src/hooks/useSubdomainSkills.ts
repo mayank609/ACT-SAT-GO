@@ -1,34 +1,26 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SKILLS_BY_SUBDOMAIN } from '../data/satDomains';
-
-const STORAGE_KEY = 'actsatgo:subdomain_skills';
-const EVENT = 'actsatgo:subdomain-skills-updated';
+import { api } from '../lib/api';
 
 export type SkillsMap = Record<string, string[]>;
 
-function load(): SkillsMap {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return SKILLS_BY_SUBDOMAIN;
-    // Merge stored overrides onto defaults so any new subdomains added later are present
-    return { ...SKILLS_BY_SUBDOMAIN, ...(JSON.parse(raw) as SkillsMap) };
-  } catch {
-    return SKILLS_BY_SUBDOMAIN;
-  }
-}
-
-function persist(map: SkillsMap) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-  window.dispatchEvent(new Event(EVENT));
-}
-
+/**
+ * Admin-editable Subdomain → Skill taxonomy, shared across every admin/super-admin
+ * via the backend (previously stored per-browser in localStorage, so a skill one
+ * admin added was invisible to everyone else). Merges the backend's overrides onto
+ * the built-in defaults so new default subdomains shipped later still show up.
+ */
 export function useSubdomainSkills() {
-  const [skillsMap, setSkillsMap] = useState<SkillsMap>(load);
+  const [skillsMap, setSkillsMap] = useState<SkillsMap>(SKILLS_BY_SUBDOMAIN);
 
   useEffect(() => {
-    const handler = () => setSkillsMap(load());
-    window.addEventListener(EVENT, handler);
-    return () => window.removeEventListener(EVENT, handler);
+    api.getTaxonomy()
+      .then((r) => setSkillsMap({ ...SKILLS_BY_SUBDOMAIN, ...r.skillsMap }))
+      .catch(() => {});
+  }, []);
+
+  const persist = useCallback((map: SkillsMap) => {
+    api.updateTaxonomy({ skillsMap: map }).catch(() => {});
   }, []);
 
   const addSkill = useCallback((subdomain: string, skill: string) => {
@@ -41,7 +33,7 @@ export function useSubdomainSkills() {
       persist(updated);
       return updated;
     });
-  }, []);
+  }, [persist]);
 
   const removeSkill = useCallback((subdomain: string, skill: string) => {
     setSkillsMap(prev => {
@@ -49,12 +41,11 @@ export function useSubdomainSkills() {
       persist(updated);
       return updated;
     });
-  }, []);
+  }, [persist]);
 
   const resetToDefaults = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
     setSkillsMap(SKILLS_BY_SUBDOMAIN);
-    window.dispatchEvent(new Event(EVENT));
+    api.updateTaxonomy({ skillsMap: {} }).catch(() => {});
   }, []);
 
   return { skillsMap, addSkill, removeSkill, resetToDefaults };
