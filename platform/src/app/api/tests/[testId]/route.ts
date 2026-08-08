@@ -93,9 +93,11 @@ function transformCorrectAnswer(
     const values = unique.length ? unique : [0]
     // The editor lets an admin type "3/4" — parsing it to 0.75 for grading must
     // not erase that original form, or every reload silently rewrites fractions
-    // to decimals. displayValues carries the as-typed strings, aligned to values
-    // by dedup order; grading never reads it, only the editor's re-population.
-    const display = Array.isArray(displayValues) && displayValues.length === unique.length ? displayValues : undefined
+    // to decimals. displayValues carries every as-typed form; it's not required
+    // to have the same length as values, since several display forms commonly
+    // parse to the same value (that's the point of "add every equivalent form") —
+    // grading never reads this field, only the editor's re-population.
+    const display = Array.isArray(displayValues) && displayValues.length > 0 ? displayValues : undefined
     return {
       value: values[0],
       ...(values.length > 1 ? { values } : {}),

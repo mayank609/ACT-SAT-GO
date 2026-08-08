@@ -88,10 +88,12 @@ function transformCorrectAnswer(
     const nums = raw.map((v) => parseNumericValue(v)).filter((n): n is number => n !== null)
     const unique = [...new Set(nums)]
     const values = unique.length ? unique : [0]
-    // displayValues carries the as-typed strings (e.g. "3/4") aligned to values by
-    // dedup order, so re-opening the editor shows the fraction instead of the
-    // decimal it was parsed to for grading. Grading itself never reads this.
-    const display = Array.isArray(displayValues) && displayValues.length === unique.length ? displayValues : undefined
+    // displayValues carries every as-typed form (e.g. "3/4", "0.75") so re-opening
+    // the editor shows exactly what was entered instead of the decimal(s) it was
+    // parsed to for grading. It's not required to have the same length as values —
+    // several display forms commonly parse to the same value (that's the point of
+    // "add every equivalent form"). Grading itself never reads this field.
+    const display = Array.isArray(displayValues) && displayValues.length > 0 ? displayValues : undefined
     return {
       value: values[0],
       ...(values.length > 1 ? { values } : {}),
