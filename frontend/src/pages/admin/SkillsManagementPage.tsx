@@ -312,9 +312,7 @@ export function SkillsManagementPage() {
       </div>
 
       <p className="text-xs text-slate-400 text-center">
-        Subdomains &amp; skills are stored locally in this browser. For team-wide persistence, ask your backend admin to add
-        <code className="font-mono bg-slate-100 px-1 rounded mx-1">domain_subdomains</code> /
-        <code className="font-mono bg-slate-100 px-1 rounded">subdomain_skills</code> config endpoints.
+        Subdomains &amp; skills are shared platform-wide — anything added or removed here is immediately visible to every admin and super admin.
       </p>
     </div>
   );

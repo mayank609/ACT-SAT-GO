@@ -563,6 +563,15 @@ export const api = {
   getStudentActivity: () =>
     request<{ activity: Array<{ studentId: string; lastMockDate: string | null; lastHwDate: string | null; lastSessionDate: string | null }> }>('/api/analytics/student-activity'),
 
+  // Shared Domain → Subdomain → Skill taxonomy overrides — visible to every admin/
+  // super-admin, not just whoever added them (previously stored per-browser).
+  getTaxonomy: () => request<{ subdomainsByDomain: Record<string, string[]>; skillsMap: Record<string, string[]> }>('/api/taxonomy'),
+  updateTaxonomy: (body: { subdomainsByDomain?: Record<string, string[]>; skillsMap?: Record<string, string[]> }) =>
+    request<{ subdomainsByDomain?: Record<string, string[]>; skillsMap?: Record<string, string[]> }>('/api/taxonomy', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
   deleteImage: async (path: string) => {
     const res = await fetch(`${BASE}/api/images/delete`, {
       method: 'POST',
