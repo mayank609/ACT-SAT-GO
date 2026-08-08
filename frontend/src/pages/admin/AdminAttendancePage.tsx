@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Search, Clock, Pencil, Trash2, X, Save } from 'lucide-react';
+import { Loader2, Search, Clock, Pencil, Trash2, X, Save, PlusCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
+import { LogSessionModal, type SavedSessionEntry } from '../../components/common/LogSessionModal';
 import { api } from '../../lib/api';
-
-const SUBJECTS = ['SAT Math', 'SAT Reading', 'SAT Writing', 'ACT Math', 'ACT English', 'ACT Reading', 'ACT Science', 'Other'];
-const SESSION_TYPES = ['Core Prep', 'Review Session', 'Doubt Session', 'Master Class'];
-const STATUSES = ['Completed', 'No Show - Tutor', 'No Show - Student', 'Cancelled'];
+import { SUBJECTS, SESSION_TYPES, STATUSES, statusVariant, toLines, type DbTest } from '../../lib/sessionLog';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface AttendanceEntry {
   id: string;
@@ -30,18 +29,6 @@ interface AttendanceEntry {
   status?: string;
 }
 
-function toLines(text: string): string[] {
-  return text.split('\n').map(l => l.trim()).filter(Boolean);
-}
-
-const statusVariant = (status?: string): 'success' | 'danger' | 'default' | 'info' => {
-  if (status === 'Completed') return 'success';
-  // Covers both new ("No Show - Tutor"/"No Show - Student") and legacy ("No Show") values.
-  if (status?.startsWith('No Show')) return 'danger';
-  if (status === 'Scheduled') return 'info';
-  return 'default';
-};
-
 interface TutorStat {
   tutorId: string;
   tutorName: string;
@@ -58,8 +45,13 @@ const fmtAmount = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFracti
 
 export function AdminAttendancePage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [entries, setEntries] = useState<AttendanceEntry[]>([]);
   const [tutorRates, setTutorRates] = useState<Map<string, number>>(new Map());
+  const [tutorList, setTutorList] = useState<{ id: string; name: string }[]>([]);
+  const [tutorStudentsMap, setTutorStudentsMap] = useState<Map<string, { id: string; name: string }[]>>(new Map());
+  const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
+  const [logOpen, setLogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tutorFilter, setTutorFilter] = useState('all');
   const [studentFilter, setStudentFilter] = useState('all');
@@ -140,6 +132,20 @@ export function AdminAttendancePage() {
     setLoading(true);
     api.getTutorAssignments()
       .then(async ({ assignments }) => {
+        if (cancelled) return;
+        // Every tutor-student pair, independent of whether any session has been
+        // logged for it yet — this is what lets an admin pick "who" to log for.
+        const studentsByTutor = new Map<string, { id: string; name: string }[]>();
+        const tutorsById = new Map<string, string>();
+        for (const a of assignments) {
+          tutorsById.set(a.tutorId, a.tutor.name);
+          const list = studentsByTutor.get(a.tutorId) ?? [];
+          list.push({ id: a.studentId, name: a.student.name });
+          studentsByTutor.set(a.tutorId, list);
+        }
+        setTutorStudentsMap(studentsByTutor);
+        setTutorList(Array.from(tutorsById.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
+
         const lists = await Promise.all(
           assignments.map(a =>
             api.getClassProgress(a.tutorId, a.studentId)
@@ -162,8 +168,15 @@ export function AdminAttendancePage() {
         setEntries(merged);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
+    api.getAllTests()
+      .then(r => setPublishedTests((r.tests as DbTest[]).filter(t => t.status === 'PUBLISHED')))
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  const handleSessionSaved = (saved: SavedSessionEntry) => {
+    setEntries(prev => [saved, ...prev]);
+  };
 
   const tutorStats: TutorStat[] = useMemo(() => {
     const byTutor = new Map<string, AttendanceEntry[]>();
@@ -225,9 +238,14 @@ export function AdminAttendancePage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Attendance</h1>
-        <p className="text-slate-400 text-sm">Track how much every tutor is teaching and what's being covered.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Attendance</h1>
+          <p className="text-slate-400 text-sm">Track how much every tutor is teaching and what's being covered.</p>
+        </div>
+        <Button size="sm" icon={<PlusCircle size={14} />} onClick={() => setLogOpen(true)} disabled={tutorList.length === 0}>
+          Log a Session
+        </Button>
       </div>
 
       {/* Tutor teaching activity */}
@@ -496,6 +514,17 @@ export function AdminAttendancePage() {
           </p>
         )}
       </Modal>
+
+      {/* Log a session on a tutor's behalf */}
+      <LogSessionModal
+        isOpen={logOpen}
+        onClose={() => setLogOpen(false)}
+        authorName={user?.name ?? 'Admin'}
+        tutors={tutorList}
+        studentsByTutor={tutorStudentsMap}
+        publishedTests={publishedTests}
+        onSaved={handleSessionSaved}
+      />
     </div>
   );
 }

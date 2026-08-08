@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { redis } from '@/lib/redis'
-import { requireRole } from '@/lib/auth'
+import { requireRole, requireUser } from '@/lib/auth'
 
 const ENTRY_TTL = 60 * 60 * 24 * 365 // 1 year
 
@@ -50,7 +50,12 @@ export async function GET(request: NextRequest) {
 
 // POST /api/class-progress — body: { tutorId, studentId, topic, homework?, notes?, classDate?, author,
 //   startTime?, durationMinutes?, subject?, status?, understanding?, attendance?, engagement?, nextSessionGoal?, nextSessionAt? }
+// Logs a new session. Only the tutor themselves, or an admin/super-admin logging on
+// a tutor's behalf, may write to a given tutorId's session log.
 export async function POST(request: NextRequest) {
+  const caller = await requireUser(request)
+  if (caller instanceof NextResponse) return caller
+
   try {
     const {
       tutorId, studentId, topic, homework, notes, classDate, author,
@@ -58,6 +63,11 @@ export async function POST(request: NextRequest) {
     } = await request.json()
     if (!tutorId || !studentId || !topic) {
       return NextResponse.json({ error: 'tutorId, studentId, topic required' }, { status: 400 })
+    }
+    const isSelf = caller.id === tutorId
+    const isStaff = caller.role === 'ADMIN' || caller.role === 'SUPER_ADMIN'
+    if (!isSelf && !isStaff) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
     const entries = await loadEntries(tutorId, studentId)
     const entry: ClassProgressEntry = {
