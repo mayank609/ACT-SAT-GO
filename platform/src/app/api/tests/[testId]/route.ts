@@ -79,6 +79,7 @@ function transformOptions(options: Array<{ id: string; text: string }>): Prisma.
 function transformCorrectAnswer(
   answer: string | string[] | number | number[] | null | undefined,
   dbType: 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE',
+  displayValues?: string[],
 ): Prisma.InputJsonValue {
   if (answer === null || answer === undefined) return { key: 'A' } as Prisma.InputJsonValue
   if (dbType === 'NUMERIC') {
@@ -90,7 +91,16 @@ function transformCorrectAnswer(
     const nums = raw.map((v) => parseNumericValue(v)).filter((n): n is number => n !== null)
     const unique = [...new Set(nums)]
     const values = unique.length ? unique : [0]
-    return (values.length > 1 ? { value: values[0], values } : { value: values[0] }) as Prisma.InputJsonValue
+    // The editor lets an admin type "3/4" — parsing it to 0.75 for grading must
+    // not erase that original form, or every reload silently rewrites fractions
+    // to decimals. displayValues carries the as-typed strings, aligned to values
+    // by dedup order; grading never reads it, only the editor's re-population.
+    const display = Array.isArray(displayValues) && displayValues.length === unique.length ? displayValues : undefined
+    return {
+      value: values[0],
+      ...(values.length > 1 ? { values } : {}),
+      ...(display ? { displayValues: display } : {}),
+    } as Prisma.InputJsonValue
   }
   if (typeof answer === 'number') {
     return { value: isNaN(answer) ? 0 : answer } as Prisma.InputJsonValue
@@ -108,6 +118,7 @@ interface FrontendQuestion {
   type: FrontendType
   options?: Array<{ id: string; text: string }>
   correctAnswer: string | string[] | number | number[]
+  correctAnswerDisplay?: string[]
   topic?: string
   subTopic?: string
   skill?: string
@@ -232,7 +243,7 @@ export async function PATCH(
           },
         } as Prisma.InputJsonValue,
         options: q.options ? transformOptions(q.options) : Prisma.DbNull,
-        correctAnswer: transformCorrectAnswer(q.correctAnswer, dbType),
+        correctAnswer: transformCorrectAnswer(q.correctAnswer, dbType, q.correctAnswerDisplay),
         difficultyLevel: dbDiff as any,
         topicId: q.topic ? (topicMap.get(q.topic.toLowerCase()) ?? null) : null,
         parentQuestionId,
