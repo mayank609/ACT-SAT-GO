@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { SKILLS_BY_SUBDOMAIN } from '../data/satDomains';
 import { api } from '../lib/api';
 
@@ -12,6 +12,8 @@ export type SkillsMap = Record<string, string[]>;
  */
 export function useSubdomainSkills() {
   const [skillsMap, setSkillsMap] = useState<SkillsMap>(SKILLS_BY_SUBDOMAIN);
+  const skillsMapRef = useRef(skillsMap);
+  useEffect(() => { skillsMapRef.current = skillsMap; }, [skillsMap]);
 
   useEffect(() => {
     api.getTaxonomy()
@@ -19,29 +21,36 @@ export function useSubdomainSkills() {
       .catch(() => {});
   }, []);
 
-  const persist = useCallback((map: SkillsMap) => {
-    api.updateTaxonomy({ skillsMap: map }).catch(() => {});
+  // Re-fetches the latest server state right before applying a mutation and
+  // persisting the result. A locally-held snapshot can be stale — this component
+  // may have been open for a while — and a write built on top of stale state
+  // would silently erase whatever another admin added to the shared taxonomy in
+  // the meantime, since PUT replaces the whole map. Basing every write on a fresh
+  // read keeps additions from different admins/sessions from clobbering each other.
+  const mutate = useCallback(async (fn: (current: SkillsMap) => SkillsMap) => {
+    let base = skillsMapRef.current;
+    try {
+      const r = await api.getTaxonomy();
+      base = { ...SKILLS_BY_SUBDOMAIN, ...r.skillsMap };
+    } catch { /* fall back to local state if the refetch fails */ }
+    const updated = fn(base);
+    setSkillsMap(updated);
+    await api.updateTaxonomy({ skillsMap: updated }).catch(() => {});
   }, []);
 
   const addSkill = useCallback((subdomain: string, skill: string) => {
     const trimmed = skill.trim();
     if (!trimmed) return;
-    setSkillsMap(prev => {
+    mutate(prev => {
       const existing = prev[subdomain] ?? [];
       if (existing.some(s => s.toLowerCase() === trimmed.toLowerCase())) return prev;
-      const updated = { ...prev, [subdomain]: [...existing, trimmed] };
-      persist(updated);
-      return updated;
+      return { ...prev, [subdomain]: [...existing, trimmed] };
     });
-  }, [persist]);
+  }, [mutate]);
 
   const removeSkill = useCallback((subdomain: string, skill: string) => {
-    setSkillsMap(prev => {
-      const updated = { ...prev, [subdomain]: (prev[subdomain] ?? []).filter(s => s !== skill) };
-      persist(updated);
-      return updated;
-    });
-  }, [persist]);
+    mutate(prev => ({ ...prev, [subdomain]: (prev[subdomain] ?? []).filter(s => s !== skill) }));
+  }, [mutate]);
 
   const resetToDefaults = useCallback(() => {
     setSkillsMap(SKILLS_BY_SUBDOMAIN);
