@@ -74,6 +74,7 @@ function transformOptions(
 function transformCorrectAnswer(
   answer: string | string[] | number | number[],
   dbType: 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE',
+  displayValues?: string[],
 ): Prisma.InputJsonValue {
   if (dbType === 'NUMERIC') {
     // A numeric question can accept several distinct correct values (e.g. two
@@ -87,7 +88,15 @@ function transformCorrectAnswer(
     const nums = raw.map((v) => parseNumericValue(v)).filter((n): n is number => n !== null)
     const unique = [...new Set(nums)]
     const values = unique.length ? unique : [0]
-    return (values.length > 1 ? { value: values[0], values } : { value: values[0] }) as Prisma.InputJsonValue
+    // displayValues carries the as-typed strings (e.g. "3/4") aligned to values by
+    // dedup order, so re-opening the editor shows the fraction instead of the
+    // decimal it was parsed to for grading. Grading itself never reads this.
+    const display = Array.isArray(displayValues) && displayValues.length === unique.length ? displayValues : undefined
+    return {
+      value: values[0],
+      ...(values.length > 1 ? { values } : {}),
+      ...(display ? { displayValues: display } : {}),
+    } as Prisma.InputJsonValue
   }
   if (typeof answer === 'number') return { value: answer } as Prisma.InputJsonValue
   if (Array.isArray(answer))
@@ -100,6 +109,7 @@ interface FrontendQuestion {
   type: FrontendType
   options?: Array<{ id: string; text: string }>
   correctAnswer: string | string[] | number | number[]
+  correctAnswerDisplay?: string[]
   topic?: string
   subTopic?: string
   skill?: string
@@ -198,7 +208,7 @@ export async function POST(request: NextRequest) {
             },
           } as Prisma.InputJsonValue,
           options: q.options ? transformOptions(q.options) : undefined,
-          correctAnswer: transformCorrectAnswer(q.correctAnswer, dbType),
+          correctAnswer: transformCorrectAnswer(q.correctAnswer, dbType, q.correctAnswerDisplay),
           difficultyLevel: dbDiff,
           topicId,
         })
@@ -221,7 +231,7 @@ export async function POST(request: NextRequest) {
                 },
               } as Prisma.InputJsonValue,
               options: child.options ? transformOptions(child.options) : undefined,
-              correctAnswer: transformCorrectAnswer(child.correctAnswer, TYPE_MAP[child.type] || 'MCQ'),
+              correctAnswer: transformCorrectAnswer(child.correctAnswer, TYPE_MAP[child.type] || 'MCQ', child.correctAnswerDisplay),
               difficultyLevel: (DIFF_MAP[child.difficulty] || 'MEDIUM') as any,
               topicId: child.topic ? (topicMap.get(child.topic.toLowerCase()) ?? null) : null,
               parentQuestionId: questionId,

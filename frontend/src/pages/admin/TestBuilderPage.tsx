@@ -2006,7 +2006,10 @@ export function TestBuilderPage() {
 
           const ca = (q.correctAnswer ?? {}) as Record<string, unknown>;
           let correctAnswer: string | string[] | number | number[];
-          if (Array.isArray(ca.values)) correctAnswer = ca.values as number[];
+          // Prefer the as-typed forms ("3/4") over the parsed decimal they were
+          // stored as, so reopening the editor doesn't silently rewrite fractions.
+          if (Array.isArray(ca.displayValues) && ca.displayValues.length > 0) correctAnswer = ca.displayValues as string[];
+          else if (Array.isArray(ca.values)) correctAnswer = ca.values as number[];
           else if (ca.value !== undefined) correctAnswer = ca.value as number;
           else if (ca.keys) correctAnswer = (ca.keys as string[]).map((k: string) => k.toLowerCase());
           else correctAnswer = ((ca.key as string) ?? 'a').toLowerCase();
@@ -2161,28 +2164,40 @@ export function TestBuilderPage() {
   // (ensures no NaN/null/undefined reaches the backend) and builds the payload
   // both paths send.
   const buildTestPayload = () => {
+    // The editor stores every accepted form ("3/4", "0.75", "20.25", ...) as an
+    // array of strings — these can be equivalent representations of one value
+    // (grading already matches any of those against a single stored decimal) or
+    // genuinely distinct correct answers (e.g. two different equation roots), so
+    // every distinct parsed value is kept and sent to the backend, not just the
+    // first. Parsing is fraction-aware — plain parseFloat("3/4") stops at the "/"
+    // and would silently truncate it to 3. correctAnswerDisplay carries the
+    // as-typed strings alongside the parsed decimals, so reopening the editor
+    // shows "3/4" again instead of the "0.75" it grades against.
+    const numericAnswerFields = (correctAnswer: Question['correctAnswer']) => {
+      const forms = getNumericAnswers(correctAnswer);
+      const seen = new Map<number, string>();
+      for (const f of forms) {
+        const v = parseNumericAnswer(f);
+        if (v !== null && !seen.has(v)) seen.set(v, f);
+      }
+      const unique = [...seen.keys()];
+      const display = [...seen.values()];
+      return unique.length
+        ? { correctAnswer: unique, correctAnswerDisplay: display }
+        : { correctAnswer: [0], correctAnswerDisplay: ['0'] };
+    };
+
     const sanitizedSections = sections.map(sec => ({
       ...sec,
-      questions: sec.questions.map(q => ({
-        ...q,
-        correctAnswer: (() => {
-          if (q.type === 'numeric') {
-            // The editor stores every accepted form ("3/4", "0.75", "20.25", ...) as an
-            // array of strings — these can be equivalent representations of one value
-            // (grading already matches any of those against a single stored decimal) or
-            // genuinely distinct correct answers (e.g. two different equation roots), so
-            // every distinct parsed value is kept and sent to the backend, not just the
-            // first. Parsing is fraction-aware — plain parseFloat("3/4") stops at the "/"
-            // and would silently truncate it to 3.
-            const forms = getNumericAnswers(q.correctAnswer);
-            const parsed = forms.map((f) => parseNumericAnswer(f)).filter((v): v is number => v !== null);
-            const unique = [...new Set(parsed)];
-            return unique.length ? unique : [0];
-          }
-          if (Array.isArray(q.correctAnswer)) return q.correctAnswer.length ? q.correctAnswer : ['a'];
-          return (q.correctAnswer as string) || 'a';
-        })(),
-      })),
+      questions: sec.questions.map(q => {
+        if (q.type === 'numeric') {
+          // Top-level numeric questions use the fraction-capable grid-in editor
+          // above, so their correctAnswer carries display forms worth preserving.
+          return { ...q, ...numericAnswerFields(q.correctAnswer) };
+        }
+        const correctAnswer = Array.isArray(q.correctAnswer) ? (q.correctAnswer.length ? q.correctAnswer : ['a']) : ((q.correctAnswer as string) || 'a');
+        return { ...q, correctAnswer };
+      }),
     }));
 
     return {
