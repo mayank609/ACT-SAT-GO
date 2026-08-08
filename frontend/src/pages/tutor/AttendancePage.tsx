@@ -1,75 +1,24 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ClipboardList, PlusCircle, X, RotateCcw, Star, Clock, ChevronLeft, ChevronRight,
-  Calendar, User as UserIcon, Search, CheckSquare, Square, Users, CheckCircle2,
+  ClipboardList, PlusCircle, X, RotateCcw, Clock, ChevronLeft, ChevronRight,
+  Calendar, User as UserIcon, Users, CheckCircle2,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
-import { Modal } from '../../components/common/Modal';
 import { StatCard } from '../../components/common/Card';
-import { api, type ClassProgressEntry, type ClassProgressInput } from '../../lib/api';
-import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
+import { StarRating } from '../../components/common/StarRating';
+import { LogSessionModal, type SavedSessionEntry } from '../../components/common/LogSessionModal';
+import { api, type ClassProgressEntry } from '../../lib/api';
+import { SUBJECTS, STATUSES, statusVariant, toLines, type DbTest } from '../../lib/sessionLog';
 import { useAuthStore } from '../../store/useAuthStore';
-import toast from 'react-hot-toast';
 
 interface Session extends ClassProgressEntry {
   studentId: string;
   studentName: string;
 }
 
-interface DbTest { id: string; title: string; status: string; category?: string; subCategory?: string; sections: unknown[] }
-
-const SUBJECTS = ['SAT Math', 'SAT Reading', 'SAT Writing', 'ACT Math', 'ACT English', 'ACT Reading', 'ACT Science', 'Other'];
-const STATUSES = ['Completed', 'No Show', 'Cancelled', 'Scheduled'] as const;
-const ENGAGEMENTS = ['High', 'Medium', 'Low'] as const;
-const HW_SUBFILTERS = ['HW', 'English', 'Maths', 'All'] as const;
 const PAGE_SIZE = 10;
-
-const SESSION_TYPES = ['Core Prep', 'Review Session', 'Doubt Session', 'Master Class'] as const;
-// Core Prep and Master Class run a full 60-minute session; Review and Doubt
-// sessions default to a shorter 30-minute slot. Tutors can still edit the
-// duration field afterward — this only sets the default on type change.
-const SESSION_TYPE_DEFAULT_DURATION: Record<(typeof SESSION_TYPES)[number], number> = {
-  'Core Prep': 60,
-  'Review Session': 30,
-  'Doubt Session': 30,
-  'Master Class': 60,
-};
-
-const READING_TOPICS = [
-  'Words in Context', 'Traps', 'Main Idea', 'Purpose', 'Fact / Inference',
-  'Illustrating Claims', 'Logically Text Completion', 'Command of Evidence',
-  'Cross Text Connections', 'Overall Structure',
-];
-const WRITING_TOPICS = [
-  'Subject-Verb Agreement-1', 'Subject-Verb Agreement-2', 'Verb Forms & Tenses', 'Modifiers',
-  'Parallel Structures & Faulty Comparisons', 'Pronoun Antecedent', 'Plurals and Possessives',
-  'Sentence Structure', 'Linking Clauses', 'Punctuation', 'Supplements', 'Transitions',
-  'Rhetorical Synthesis', 'Command of Evidence : Quantitative',
-];
-const MATH_TOPICS = [
-  'Linear Equation', 'Algebra', 'Functions & Polynomial', 'Quadratic Equations', 'Parabola',
-  'Percentage, Proportions and Unit Conversions', 'Exponential Functions and Radical Function',
-  'Statistics', 'Research Methodology', 'Geometry', 'Trigonometry',
-];
-
-// Picks the curated topic checklist for a given Subject dropdown value; subjects
-// outside SAT/ACT Math/Reading/Writing-English (e.g. ACT Science, Other) fall
-// back to the free-text textarea only.
-function topicsForSubject(subject: string): string[] {
-  if (subject.includes('Math')) return MATH_TOPICS;
-  if (subject.includes('Reading')) return READING_TOPICS;
-  if (subject.includes('Writing') || subject.includes('English')) return WRITING_TOPICS;
-  return [];
-}
-
-const statusVariant = (status?: string): 'success' | 'danger' | 'default' | 'info' => {
-  if (status === 'Completed') return 'success';
-  if (status === 'No Show') return 'danger';
-  if (status === 'Scheduled') return 'info';
-  return 'default';
-};
 
 const fmtDate = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const fmtDateLong = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -93,32 +42,10 @@ function formatTimeRange(startTime?: string, durationMinutes?: number): string {
   return `${start.label} – ${end.label}`;
 }
 
-function toLines(text: string): string[] {
-  return text.split('\n').map(l => l.trim()).filter(Boolean);
-}
-
 // Table preview only — the full text is still shown in the title tooltip and in
 // the session detail drawer when a row is clicked.
 function truncateChars(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
-}
-
-function StarRating({ value, onChange, size = 16 }: { value: number; onChange?: (v: number) => void; size?: number }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          disabled={!onChange}
-          onClick={() => onChange?.(n)}
-          className={onChange ? 'cursor-pointer' : 'cursor-default'}
-        >
-          <Star size={size} className={n <= value ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} />
-        </button>
-      ))}
-    </div>
-  );
 }
 
 function Row({ label, children, last = false }: { label: string; children: ReactNode; last?: boolean }) {
@@ -132,12 +59,6 @@ function Row({ label, children, last = false }: { label: string; children: React
   );
 }
 
-const emptyForm = {
-  studentId: '', classDate: new Date().toISOString().split('T')[0], startTime: '', durationMinutes: '60', actualDurationMinutes: '',
-  subject: SUBJECTS[0], status: 'Completed' as string, sessionType: 'Core Prep' as string, topic: '', homeworkTestIds: [] as string[], notes: '',
-  understanding: 0, attendance: 'Present', engagement: 'High' as string, nextSessionGoal: '', nextSessionAt: '',
-};
-
 export function AttendancePage() {
   const { user, dbId } = useAuthStore();
   const navigate = useNavigate();
@@ -146,8 +67,6 @@ export function AttendancePage() {
   const [entries, setEntries] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
-  const [hwSearch, setHwSearch] = useState('');
-  const [hwSubFilter, setHwSubFilter] = useState<typeof HW_SUBFILTERS[number]>('HW');
 
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -164,8 +83,6 @@ export function AttendancePage() {
   const closeSession = () => { setDrawerVisible(false); setTimeout(() => setSelected(null), 200); };
 
   const [logOpen, setLogOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
 
   const loadAll = () => {
     if (!dbId) { setLoading(false); return; }
@@ -232,88 +149,12 @@ export function AttendancePage() {
     setDateFrom(''); setDateTo(''); setStudentFilter('all'); setSubjectFilter('all'); setStatusFilter('all');
   };
 
-  const openLog = () => {
-    setForm({ ...emptyForm });
-    setHwSearch('');
-    setHwSubFilter('HW');
-    setLogOpen(true);
-  };
+  const openLog = () => setLogOpen(true);
 
-  const toggleHomeworkTest = (testId: string) => {
-    setForm(f => ({
-      ...f,
-      homeworkTestIds: f.homeworkTestIds.includes(testId)
-        ? f.homeworkTestIds.filter(id => id !== testId)
-        : [...f.homeworkTestIds, testId],
-    }));
-  };
+  const tutorStudentsMap = useMemo(() => (dbId ? new Map([[dbId, students]]) : new Map()), [dbId, students]);
 
-  const topicOptions = useMemo(() => topicsForSubject(form.subject), [form.subject]);
-  const selectedTopicLines = useMemo(() => toLines(form.topic), [form.topic]);
-
-  const toggleTopic = (topic: string) => {
-    setForm(f => {
-      const lines = toLines(f.topic);
-      const next = lines.includes(topic) ? lines.filter(l => l !== topic) : [...lines, topic];
-      return { ...f, topic: next.join('\n') };
-    });
-  };
-
-  const homeworkOptions = useMemo(() => {
-    return publishedTests
-      .filter(t => (t.category ?? 'Other') === 'Practice Sheet')
-      .filter(t => {
-        if (hwSubFilter === 'All') return true;
-        if (hwSubFilter === 'HW') return isHW(t);
-        if (hwSubFilter === 'English') return isEnglish(t);
-        if (hwSubFilter === 'Maths') return isMath(t);
-        return true;
-      })
-      .filter(t => !hwSearch.trim() || t.title.toLowerCase().includes(hwSearch.trim().toLowerCase()));
-  }, [publishedTests, hwSubFilter, hwSearch]);
-
-  const handleSave = async () => {
-    if (!dbId || !form.studentId || !form.topic.trim()) return;
-    setSaving(true);
-    try {
-      const homeworkTitles = form.homeworkTestIds
-        .map(id => publishedTests.find(t => t.id === id)?.title)
-        .filter((t): t is string => Boolean(t));
-
-      if (form.homeworkTestIds.length > 0) {
-        await Promise.all(
-          form.homeworkTestIds.map(testId => api.createTestAssignments({ testId, studentIds: [form.studentId] }))
-        );
-      }
-
-      const body: ClassProgressInput = {
-        topic: form.topic.trim(),
-        homework: homeworkTitles.join('\n') || undefined,
-        notes: form.notes.trim() || undefined,
-        classDate: form.classDate,
-        author: user?.name ?? 'Tutor',
-        startTime: form.startTime || undefined,
-        durationMinutes: form.durationMinutes ? Number(form.durationMinutes) : undefined,
-        actualDurationMinutes: form.actualDurationMinutes ? Number(form.actualDurationMinutes) : undefined,
-        subject: form.subject,
-        status: form.status,
-        sessionType: form.sessionType,
-        understanding: form.understanding || undefined,
-        attendance: form.attendance,
-        engagement: form.engagement,
-        nextSessionGoal: form.nextSessionGoal.trim() || undefined,
-        nextSessionAt: form.nextSessionAt || undefined,
-      };
-      const { entry } = await api.addClassProgress(dbId, form.studentId, body);
-      const studentName = students.find(s => s.id === form.studentId)?.name ?? 'Student';
-      setEntries(prev => [{ ...entry, studentId: form.studentId, studentName }, ...prev]);
-      toast.success(form.homeworkTestIds.length > 0 ? 'Session logged and homework assigned.' : 'Session logged.');
-      setLogOpen(false);
-    } catch {
-      toast.error('Failed to log session.');
-    } finally {
-      setSaving(false);
-    }
+  const handleSessionSaved = (saved: SavedSessionEntry) => {
+    setEntries(prev => [saved, ...prev]);
   };
 
   const sessionHistory = selected ? entries.filter(e => e.studentId === selected.studentId && e.id !== selected.id) : [];
@@ -617,218 +458,15 @@ export function AttendancePage() {
         </div>
       )}
 
-      {/* Log Session Modal */}
-      <Modal isOpen={logOpen} onClose={() => setLogOpen(false)} title="Log a Session" size="md"
-        footer={
-          <div className="flex gap-2 justify-end">
-            <Button variant="secondary" size="sm" onClick={() => setLogOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={!form.studentId || !form.topic.trim() || saving}>
-              {saving ? 'Saving...' : 'Save Session'}
-            </Button>
-          </div>
-        }>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Student</label>
-              <select value={form.studentId} onChange={(e) => setForm(f => ({ ...f, studentId: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100">
-                <option value="">Select student…</option>
-                {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Subject</label>
-              <select value={form.subject} onChange={(e) => setForm(f => ({ ...f, subject: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100">
-                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Session Type</label>
-            <div className="flex flex-wrap gap-1.5">
-              {SESSION_TYPES.map(t => (
-                <button key={t} type="button"
-                  onClick={() => setForm(f => ({ ...f, sessionType: t, durationMinutes: String(SESSION_TYPE_DEFAULT_DURATION[t]) }))}
-                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-                    form.sessionType === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}>
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
-              <input type="date" value={form.classDate} onChange={(e) => setForm(f => ({ ...f, classDate: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Start Time</label>
-              <input type="time" value={form.startTime} onChange={(e) => setForm(f => ({ ...f, startTime: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Scheduled Duration (min)</label>
-              <input type="number" min={0} value={form.durationMinutes} onChange={(e) => setForm(f => ({ ...f, durationMinutes: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Actual Duration (min)</label>
-              <input type="number" min={0} value={form.actualDurationMinutes} onChange={(e) => setForm(f => ({ ...f, actualDurationMinutes: e.target.value }))}
-                placeholder="How long the session actually ran"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
-            <div className="flex flex-wrap gap-1.5">
-              {STATUSES.map(s => (
-                <button key={s} type="button" onClick={() => setForm(f => ({ ...f, status: s }))}
-                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
-                    form.status === s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {topicOptions.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium text-slate-600">Topics Covered</label>
-                {selectedTopicLines.length > 0 && (
-                  <span className="text-xs font-semibold text-blue-600">{selectedTopicLines.length} selected</span>
-                )}
-              </div>
-              <div className="border border-slate-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto divide-y divide-slate-50">
-                {topicOptions.map(topic => {
-                  const isSelected = selectedTopicLines.includes(topic);
-                  return (
-                    <label key={topic}
-                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleTopic(topic)} className="sr-only" />
-                      {isSelected ? <CheckSquare size={14} className="text-blue-600 flex-shrink-0" /> : <Square size={14} className="text-slate-300 flex-shrink-0" />}
-                      <span className="text-sm text-slate-700 flex-1">{topic}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              {topicOptions.length > 0 ? 'Topics Covered (one per line — checked items above are added here automatically)' : 'Topics Covered (one per line)'}
-            </label>
-            <textarea value={form.topic} onChange={(e) => setForm(f => ({ ...f, topic: e.target.value }))}
-              placeholder={'Linear equations in one variable\nWord problems using equations'} rows={3}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" autoFocus={topicOptions.length === 0} />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-slate-600">Homework Assigned (from Test Builder, optional)</label>
-              {form.homeworkTestIds.length > 0 && (
-                <span className="text-xs font-semibold text-blue-600">{form.homeworkTestIds.length} selected</span>
-              )}
-            </div>
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-50 border-b border-slate-200">
-                <div className="flex gap-1">
-                  {HW_SUBFILTERS.map(f => (
-                    <button key={f} type="button" onClick={() => setHwSubFilter(f)}
-                      className={`px-2 py-1 rounded-md text-[11px] font-bold transition-colors ${
-                        hwSubFilter === f ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                      }`}>
-                      {f}
-                    </button>
-                  ))}
-                </div>
-                <div className="relative flex-1 min-w-[140px]">
-                  <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <input type="text" value={hwSearch} onChange={(e) => setHwSearch(e.target.value)}
-                    placeholder="Search worksheets…"
-                    className="w-full pl-6 pr-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                </div>
-              </div>
-              <div className="max-h-40 overflow-y-auto divide-y divide-slate-50">
-                {homeworkOptions.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-4">No published worksheets match.</p>
-                ) : homeworkOptions.map(t => {
-                  const isSelected = form.homeworkTestIds.includes(t.id);
-                  return (
-                    <label key={t.id}
-                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleHomeworkTest(t.id)} className="sr-only" />
-                      {isSelected ? <CheckSquare size={14} className="text-blue-600 flex-shrink-0" /> : <Square size={14} className="text-slate-300 flex-shrink-0" />}
-                      <span className="text-sm text-slate-700 truncate flex-1">{t.title}</span>
-                      <span className="text-[10px] text-slate-400 flex-shrink-0">{(t.sections as unknown[]).length} sections</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Tutor Remarks (optional)</label>
-            <textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Student showed good improvement..." rows={2}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" />
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 items-end">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Understanding</label>
-              <StarRating value={form.understanding} onChange={(v) => setForm(f => ({ ...f, understanding: v }))} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Attendance</label>
-              <div className="flex gap-1.5">
-                {['Present', 'Absent'].map(a => (
-                  <button key={a} type="button" onClick={() => setForm(f => ({ ...f, attendance: a }))}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                      form.attendance === a ? (a === 'Absent' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white') : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}>
-                    {a}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Engagement</label>
-              <select value={form.engagement} onChange={(e) => setForm(f => ({ ...f, engagement: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100">
-                {ENGAGEMENTS.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Next Session Goal (optional)</label>
-              <input type="text" value={form.nextSessionGoal} onChange={(e) => setForm(f => ({ ...f, nextSessionGoal: e.target.value }))}
-                placeholder="Finish Module 2 & start inequalities"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Next Session (optional)</label>
-              <input type="datetime-local" value={form.nextSessionAt} onChange={(e) => setForm(f => ({ ...f, nextSessionAt: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
-          </div>
-        </div>
-      </Modal>
+      <LogSessionModal
+        isOpen={logOpen}
+        onClose={() => setLogOpen(false)}
+        authorName={user?.name ?? 'Tutor'}
+        fixedTutorId={dbId ?? undefined}
+        studentsByTutor={tutorStudentsMap}
+        publishedTests={publishedTests}
+        onSaved={handleSessionSaved}
+      />
     </div>
   );
 }
