@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { numericValuesEqual } from '@/lib/numericAnswer'
 
-type AnswerJson = { key?: string; keys?: string[]; value?: number } | null
+type AnswerJson = { key?: string; keys?: string[]; value?: number; values?: number[] } | null
 
 // Digital SAT raw→scaled conversion tables, reproduced exactly from the
 // test-ninjas.com Digital SAT Score Calculator. RW uses a 0–66 index, Math 0–54.
@@ -44,12 +44,17 @@ function isAnswerCorrect(given: unknown, correct: unknown): boolean {
   const c = correct as AnswerJson;
   if (!g || !c) return false;
   
-  // Numeric (supports fraction answers, decimal-equivalent with tolerance)
+  // Numeric (supports fraction answers, decimal-equivalent with tolerance).
+  // A question may accept several distinct correct values — matches if the
+  // given answer equals any one of them.
   if (c.value !== undefined) {
     if (g.value === undefined) return false;
+    if (Array.isArray(c.values) && c.values.length > 0) {
+      return c.values.some((v) => numericValuesEqual(g.value, v));
+    }
     return numericValuesEqual(g.value, c.value);
   }
-  
+
   // MSQ — order-independent, case-insensitive
   if (Array.isArray(c.keys)) {
     if (!Array.isArray(g.keys)) return false;

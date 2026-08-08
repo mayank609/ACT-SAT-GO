@@ -291,7 +291,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                 {question.options.map((opt) => {
                   const isCorrect = question.type === 'mcq_single'
                     ? question.correctAnswer === opt.id
-                    : Array.isArray(question.correctAnswer) && question.correctAnswer.includes(opt.id);
+                    : Array.isArray(question.correctAnswer) && (question.correctAnswer as string[]).includes(opt.id);
                   return (
                     <div key={opt.id} className={`flex items-start gap-2 rounded-xl border p-2 transition-colors ${isCorrect ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'}`}>
                       {question.type === 'mcq_single' ? (
@@ -301,7 +301,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                       ) : (
                         <input type="checkbox" checked={isCorrect}
                           onChange={(e) => {
-                            const curr = Array.isArray(question.correctAnswer) ? question.correctAnswer : [];
+                            const curr = Array.isArray(question.correctAnswer) ? (question.correctAnswer as string[]) : [];
                             onUpdate({ ...question, correctAnswer: e.target.checked ? [...curr, opt.id] : curr.filter((x) => x !== opt.id) });
                           }}
                           className="rounded text-emerald-600 mt-2.5 flex-shrink-0" />
@@ -496,7 +496,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                                 {linkedQ.options.map((opt) => {
                                   const isCorrect = linkedQ.type === 'mcq_single'
                                     ? linkedQ.correctAnswer === opt.id
-                                    : Array.isArray(linkedQ.correctAnswer) && linkedQ.correctAnswer.includes(opt.id);
+                                    : Array.isArray(linkedQ.correctAnswer) && (linkedQ.correctAnswer as string[]).includes(opt.id);
                                   return (
                                     <div key={opt.id} className="flex items-center gap-1.5">
                                       {linkedQ.type === 'mcq_single' ? (
@@ -518,7 +518,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete, onDragStart, onDr
                                           type="checkbox"
                                           checked={isCorrect}
                                           onChange={(e) => {
-                                            const curr = Array.isArray(linkedQ.correctAnswer) ? linkedQ.correctAnswer : [];
+                                            const curr = Array.isArray(linkedQ.correctAnswer) ? (linkedQ.correctAnswer as string[]) : [];
                                             const updated = {
                                               ...linkedQ,
                                               correctAnswer: e.target.checked ? [...curr, opt.id] : curr.filter((x) => x !== opt.id),
@@ -1778,8 +1778,9 @@ function BankPickerModal({ onAdd, onClose }: { onAdd: (questions: Question[]) =>
           : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
 
         const ca = (q.correctAnswer ?? {}) as Record<string, unknown>;
-        let correctAnswer: string | string[] | number;
-        if (ca.value !== undefined) correctAnswer = ca.value as number;
+        let correctAnswer: string | string[] | number | number[];
+        if (Array.isArray(ca.values)) correctAnswer = ca.values as number[];
+        else if (ca.value !== undefined) correctAnswer = ca.value as number;
         else if (ca.keys) correctAnswer = (ca.keys as string[]).map((k: string) => k.toLowerCase());
         else correctAnswer = ((ca.key as string) ?? 'a').toLowerCase();
 
@@ -1997,8 +1998,9 @@ export function TestBuilderPage() {
             : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
 
           const ca = (q.correctAnswer ?? {}) as Record<string, unknown>;
-          let correctAnswer: string | string[] | number;
-          if (ca.value !== undefined) correctAnswer = ca.value as number;
+          let correctAnswer: string | string[] | number | number[];
+          if (Array.isArray(ca.values)) correctAnswer = ca.values as number[];
+          else if (ca.value !== undefined) correctAnswer = ca.value as number;
           else if (ca.keys) correctAnswer = (ca.keys as string[]).map((k: string) => k.toLowerCase());
           else correctAnswer = ((ca.key as string) ?? 'a').toLowerCase();
 
@@ -2013,8 +2015,9 @@ export function TestBuilderPage() {
               : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
 
             const cqCa = (cq.correctAnswer ?? {}) as Record<string, unknown>;
-            let cqCorrectAnswer: string | string[] | number;
-            if (cqCa.value !== undefined) cqCorrectAnswer = cqCa.value as number;
+            let cqCorrectAnswer: string | string[] | number | number[];
+            if (Array.isArray(cqCa.values)) cqCorrectAnswer = cqCa.values as number[];
+            else if (cqCa.value !== undefined) cqCorrectAnswer = cqCa.value as number;
             else if (cqCa.keys) cqCorrectAnswer = (cqCa.keys as string[]).map((k: string) => k.toLowerCase());
             else cqCorrectAnswer = ((cqCa.key as string) ?? 'a').toLowerCase();
 
@@ -2162,15 +2165,17 @@ export function TestBuilderPage() {
         ...q,
         correctAnswer: (() => {
           if (q.type === 'numeric') {
-            // The editor stores every accepted equivalent form ("3/4", "0.75", ...) as
-            // an array of strings, but the backend keeps one canonical decimal value
-            // (grading already normalizes fractions/decimals to match any equal form).
-            // Parsing must be fraction-aware — plain parseFloat("3/4") stops at the
-            // "/" and silently truncates it to 3, which is what was destroying fractions
-            // here before: the whole array got stringified and parsed as one blob.
+            // The editor stores every accepted form ("3/4", "0.75", "20.25", ...) as an
+            // array of strings — these can be equivalent representations of one value
+            // (grading already matches any of those against a single stored decimal) or
+            // genuinely distinct correct answers (e.g. two different equation roots), so
+            // every distinct parsed value is kept and sent to the backend, not just the
+            // first. Parsing is fraction-aware — plain parseFloat("3/4") stops at the "/"
+            // and would silently truncate it to 3.
             const forms = getNumericAnswers(q.correctAnswer);
-            const parsed = forms.map((f) => parseNumericAnswer(f)).find((v) => v !== null);
-            return parsed ?? 0;
+            const parsed = forms.map((f) => parseNumericAnswer(f)).filter((v): v is number => v !== null);
+            const unique = [...new Set(parsed)];
+            return unique.length ? unique : [0];
           }
           if (Array.isArray(q.correctAnswer)) return q.correctAnswer.length ? q.correctAnswer : ['a'];
           return (q.correctAnswer as string) || 'a';

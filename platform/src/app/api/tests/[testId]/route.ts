@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
+import { parseNumericValue } from '@/lib/numericAnswer'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,13 +76,27 @@ function transformOptions(options: Array<{ id: string; text: string }>): Prisma.
   return result as Prisma.InputJsonValue
 }
 
-function transformCorrectAnswer(answer: string | string[] | number | null | undefined): Prisma.InputJsonValue {
+function transformCorrectAnswer(
+  answer: string | string[] | number | number[] | null | undefined,
+  dbType: 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE',
+): Prisma.InputJsonValue {
   if (answer === null || answer === undefined) return { key: 'A' } as Prisma.InputJsonValue
+  if (dbType === 'NUMERIC') {
+    // See platform/src/app/api/tests/route.ts transformCorrectAnswer for the
+    // rationale — `value` stays the primary/representative accepted value so
+    // every existing grading/display path keeps working; `values` (when there's
+    // more than one distinct accepted value) is the full set, for grading only.
+    const raw = Array.isArray(answer) ? answer : [answer]
+    const nums = raw.map((v) => parseNumericValue(v)).filter((n): n is number => n !== null)
+    const unique = [...new Set(nums)]
+    const values = unique.length ? unique : [0]
+    return (values.length > 1 ? { value: values[0], values } : { value: values[0] }) as Prisma.InputJsonValue
+  }
   if (typeof answer === 'number') {
     return { value: isNaN(answer) ? 0 : answer } as Prisma.InputJsonValue
   }
   if (Array.isArray(answer)) {
-    const keys = answer.filter(Boolean).map((k) => k.toUpperCase())
+    const keys = answer.filter(Boolean).map((k) => String(k).toUpperCase())
     return { keys: keys.length ? keys : ['A'] } as Prisma.InputJsonValue
   }
   return { key: (answer || 'A').toUpperCase() } as Prisma.InputJsonValue
@@ -92,7 +107,7 @@ interface FrontendQuestion {
   text: string
   type: FrontendType
   options?: Array<{ id: string; text: string }>
-  correctAnswer: string | string[] | number
+  correctAnswer: string | string[] | number | number[]
   topic?: string
   subTopic?: string
   skill?: string
@@ -217,7 +232,7 @@ export async function PATCH(
           },
         } as Prisma.InputJsonValue,
         options: q.options ? transformOptions(q.options) : Prisma.DbNull,
-        correctAnswer: transformCorrectAnswer(q.correctAnswer),
+        correctAnswer: transformCorrectAnswer(q.correctAnswer, dbType),
         difficultyLevel: dbDiff as any,
         topicId: q.topic ? (topicMap.get(q.topic.toLowerCase()) ?? null) : null,
         parentQuestionId,

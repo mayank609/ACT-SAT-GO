@@ -8,10 +8,13 @@ export const dynamic = 'force-dynamic'
 function isAnswerCorrect(given: unknown, correct: unknown): boolean {
   if (!given || !correct) return false
   const g = given as { key?: string; keys?: string[]; value?: number }
-  const c = correct as { key?: string; keys?: string[]; value?: number }
+  const c = correct as { key?: string; keys?: string[]; value?: number; values?: number[] }
 
   if (c.value !== undefined) {
     if (g.value === undefined) return false
+    if (Array.isArray(c.values) && c.values.length > 0) {
+      return c.values.some((v) => numericValuesEqual(g.value, v))
+    }
     return numericValuesEqual(g.value, c.value)
   }
   if (Array.isArray(c.keys)) {
