@@ -9,7 +9,7 @@ import { api } from '../../lib/api';
 
 const SUBJECTS = ['SAT Math', 'SAT Reading', 'SAT Writing', 'ACT Math', 'ACT English', 'ACT Reading', 'ACT Science', 'Other'];
 const SESSION_TYPES = ['Core Prep', 'Review Session', 'Doubt Session', 'Master Class'];
-const STATUSES = ['Completed', 'No Show', 'Cancelled', 'Scheduled'];
+const STATUSES = ['Completed', 'No Show - Tutor', 'No Show - Student', 'Cancelled'];
 
 interface AttendanceEntry {
   id: string;
@@ -36,7 +36,8 @@ function toLines(text: string): string[] {
 
 const statusVariant = (status?: string): 'success' | 'danger' | 'default' | 'info' => {
   if (status === 'Completed') return 'success';
-  if (status === 'No Show') return 'danger';
+  // Covers both new ("No Show - Tutor"/"No Show - Student") and legacy ("No Show") values.
+  if (status?.startsWith('No Show')) return 'danger';
   if (status === 'Scheduled') return 'info';
   return 'default';
 };

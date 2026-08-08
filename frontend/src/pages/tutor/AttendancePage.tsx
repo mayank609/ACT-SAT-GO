@@ -21,7 +21,7 @@ interface Session extends ClassProgressEntry {
 interface DbTest { id: string; title: string; status: string; category?: string; subCategory?: string; sections: unknown[] }
 
 const SUBJECTS = ['SAT Math', 'SAT Reading', 'SAT Writing', 'ACT Math', 'ACT English', 'ACT Reading', 'ACT Science', 'Other'];
-const STATUSES = ['Completed', 'No Show', 'Cancelled', 'Scheduled'] as const;
+const STATUSES = ['Completed', 'No Show - Tutor', 'No Show - Student', 'Cancelled'] as const;
 const ENGAGEMENTS = ['High', 'Medium', 'Low'] as const;
 const HW_SUBFILTERS = ['HW', 'English', 'Maths', 'All'] as const;
 const PAGE_SIZE = 10;
@@ -66,7 +66,8 @@ function topicsForSubject(subject: string): string[] {
 
 const statusVariant = (status?: string): 'success' | 'danger' | 'default' | 'info' => {
   if (status === 'Completed') return 'success';
-  if (status === 'No Show') return 'danger';
+  // Covers both new ("No Show - Tutor"/"No Show - Student") and legacy ("No Show") values.
+  if (status?.startsWith('No Show')) return 'danger';
   if (status === 'Scheduled') return 'info';
   return 'default';
 };
@@ -250,6 +251,7 @@ export function AttendancePage() {
 
   const topicOptions = useMemo(() => topicsForSubject(form.subject), [form.subject]);
   const selectedTopicLines = useMemo(() => toLines(form.topic), [form.topic]);
+  const isNoShow = form.status.startsWith('No Show');
 
   const toggleTopic = (topic: string) => {
     setForm(f => {
@@ -273,7 +275,7 @@ export function AttendancePage() {
   }, [publishedTests, hwSubFilter, hwSearch]);
 
   const handleSave = async () => {
-    if (!dbId || !form.studentId || !form.topic.trim()) return;
+    if (!dbId || !form.studentId || (!isNoShow && !form.topic.trim())) return;
     setSaving(true);
     try {
       const homeworkTitles = form.homeworkTestIds
@@ -287,7 +289,9 @@ export function AttendancePage() {
       }
 
       const body: ClassProgressInput = {
-        topic: form.topic.trim(),
+        // No topics are covered on a no-show — fall back to the status itself so the
+        // session log still has something meaningful to show in the "Topic" column.
+        topic: form.topic.trim() || (isNoShow ? form.status : ''),
         homework: homeworkTitles.join('\n') || undefined,
         notes: form.notes.trim() || undefined,
         classDate: form.classDate,
@@ -622,7 +626,7 @@ export function AttendancePage() {
         footer={
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setLogOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={!form.studentId || !form.topic.trim() || saving}>
+            <Button size="sm" onClick={handleSave} disabled={!form.studentId || (!isNoShow && !form.topic.trim()) || saving}>
               {saving ? 'Saving...' : 'Save Session'}
             </Button>
           </div>
@@ -692,7 +696,13 @@ export function AttendancePage() {
             <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
             <div className="flex flex-wrap gap-1.5">
               {STATUSES.map(s => (
-                <button key={s} type="button" onClick={() => setForm(f => ({ ...f, status: s }))}
+                <button key={s} type="button"
+                  onClick={() => setForm(f => ({
+                    ...f, status: s,
+                    // Keep attendance consistent with whichever side didn't show —
+                    // it's hidden from the form for a no-show, so it can't be corrected by hand.
+                    attendance: s === 'No Show - Student' ? 'Absent' : s === 'No Show - Tutor' ? 'Present' : f.attendance,
+                  }))}
                   className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
                     form.status === s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}>
@@ -702,117 +712,134 @@ export function AttendancePage() {
             </div>
           </div>
 
-          {topicOptions.length > 0 && (
+          {isNoShow ? (
+            // Nothing was taught on a no-show — swap the topics UI for a single
+            // remarks box (e.g. why they missed it, any follow-up plan).
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium text-slate-600">Topics Covered</label>
-                {selectedTopicLines.length > 0 && (
-                  <span className="text-xs font-semibold text-blue-600">{selectedTopicLines.length} selected</span>
-                )}
-              </div>
-              <div className="border border-slate-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto divide-y divide-slate-50">
-                {topicOptions.map(topic => {
-                  const isSelected = selectedTopicLines.includes(topic);
-                  return (
-                    <label key={topic}
-                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleTopic(topic)} className="sr-only" />
-                      {isSelected ? <CheckSquare size={14} className="text-blue-600 flex-shrink-0" /> : <Square size={14} className="text-slate-300 flex-shrink-0" />}
-                      <span className="text-sm text-slate-700 flex-1">{topic}</span>
-                    </label>
-                  );
-                })}
-              </div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Remarks</label>
+              <textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Reason for the no-show, any follow-up plan..." rows={3} autoFocus
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" />
             </div>
+          ) : (
+            <>
+              {topicOptions.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-slate-600">Topics Covered</label>
+                    {selectedTopicLines.length > 0 && (
+                      <span className="text-xs font-semibold text-blue-600">{selectedTopicLines.length} selected</span>
+                    )}
+                  </div>
+                  <div className="border border-slate-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto divide-y divide-slate-50">
+                    {topicOptions.map(topic => {
+                      const isSelected = selectedTopicLines.includes(topic);
+                      return (
+                        <label key={topic}
+                          className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleTopic(topic)} className="sr-only" />
+                          {isSelected ? <CheckSquare size={14} className="text-blue-600 flex-shrink-0" /> : <Square size={14} className="text-slate-300 flex-shrink-0" />}
+                          <span className="text-sm text-slate-700 flex-1">{topic}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  {topicOptions.length > 0 ? 'Topics Covered (one per line — checked items above are added here automatically)' : 'Topics Covered (one per line)'}
+                </label>
+                <textarea value={form.topic} onChange={(e) => setForm(f => ({ ...f, topic: e.target.value }))}
+                  placeholder={'Linear equations in one variable\nWord problems using equations'} rows={3}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" autoFocus={topicOptions.length === 0} />
+              </div>
+            </>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              {topicOptions.length > 0 ? 'Topics Covered (one per line — checked items above are added here automatically)' : 'Topics Covered (one per line)'}
-            </label>
-            <textarea value={form.topic} onChange={(e) => setForm(f => ({ ...f, topic: e.target.value }))}
-              placeholder={'Linear equations in one variable\nWord problems using equations'} rows={3}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" autoFocus={topicOptions.length === 0} />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-slate-600">Homework Assigned (from Test Builder, optional)</label>
-              {form.homeworkTestIds.length > 0 && (
-                <span className="text-xs font-semibold text-blue-600">{form.homeworkTestIds.length} selected</span>
-              )}
-            </div>
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-50 border-b border-slate-200">
-                <div className="flex gap-1">
-                  {HW_SUBFILTERS.map(f => (
-                    <button key={f} type="button" onClick={() => setHwSubFilter(f)}
-                      className={`px-2 py-1 rounded-md text-[11px] font-bold transition-colors ${
-                        hwSubFilter === f ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                      }`}>
-                      {f}
-                    </button>
-                  ))}
+          {!isNoShow && (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-slate-600">Homework Assigned (from Test Builder, optional)</label>
+                  {form.homeworkTestIds.length > 0 && (
+                    <span className="text-xs font-semibold text-blue-600">{form.homeworkTestIds.length} selected</span>
+                  )}
                 </div>
-                <div className="relative flex-1 min-w-[140px]">
-                  <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <input type="text" value={hwSearch} onChange={(e) => setHwSearch(e.target.value)}
-                    placeholder="Search worksheets…"
-                    className="w-full pl-6 pr-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-50 border-b border-slate-200">
+                    <div className="flex gap-1">
+                      {HW_SUBFILTERS.map(f => (
+                        <button key={f} type="button" onClick={() => setHwSubFilter(f)}
+                          className={`px-2 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                            hwSubFilter === f ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                          }`}>
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="relative flex-1 min-w-[140px]">
+                      <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input type="text" value={hwSearch} onChange={(e) => setHwSearch(e.target.value)}
+                        placeholder="Search worksheets…"
+                        className="w-full pl-6 pr-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                    </div>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto divide-y divide-slate-50">
+                    {homeworkOptions.length === 0 ? (
+                      <p className="text-xs text-slate-400 text-center py-4">No published worksheets match.</p>
+                    ) : homeworkOptions.map(t => {
+                      const isSelected = form.homeworkTestIds.includes(t.id);
+                      return (
+                        <label key={t.id}
+                          className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleHomeworkTest(t.id)} className="sr-only" />
+                          {isSelected ? <CheckSquare size={14} className="text-blue-600 flex-shrink-0" /> : <Square size={14} className="text-slate-300 flex-shrink-0" />}
+                          <span className="text-sm text-slate-700 truncate flex-1">{t.title}</span>
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">{(t.sections as unknown[]).length} sections</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-              <div className="max-h-40 overflow-y-auto divide-y divide-slate-50">
-                {homeworkOptions.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-4">No published worksheets match.</p>
-                ) : homeworkOptions.map(t => {
-                  const isSelected = form.homeworkTestIds.includes(t.id);
-                  return (
-                    <label key={t.id}
-                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleHomeworkTest(t.id)} className="sr-only" />
-                      {isSelected ? <CheckSquare size={14} className="text-blue-600 flex-shrink-0" /> : <Square size={14} className="text-slate-300 flex-shrink-0" />}
-                      <span className="text-sm text-slate-700 truncate flex-1">{t.title}</span>
-                      <span className="text-[10px] text-slate-400 flex-shrink-0">{(t.sections as unknown[]).length} sections</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Tutor Remarks (optional)</label>
-            <textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Student showed good improvement..." rows={2}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" />
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 items-end">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Understanding</label>
-              <StarRating value={form.understanding} onChange={(v) => setForm(f => ({ ...f, understanding: v }))} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Attendance</label>
-              <div className="flex gap-1.5">
-                {['Present', 'Absent'].map(a => (
-                  <button key={a} type="button" onClick={() => setForm(f => ({ ...f, attendance: a }))}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                      form.attendance === a ? (a === 'Absent' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white') : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}>
-                    {a}
-                  </button>
-                ))}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Tutor Remarks (optional)</label>
+                <textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Student showed good improvement..." rows={2}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" />
               </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Engagement</label>
-              <select value={form.engagement} onChange={(e) => setForm(f => ({ ...f, engagement: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100">
-                {ENGAGEMENTS.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
-          </div>
+
+              <div className="grid grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Understanding</label>
+                  <StarRating value={form.understanding} onChange={(v) => setForm(f => ({ ...f, understanding: v }))} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Attendance</label>
+                  <div className="flex gap-1.5">
+                    {['Present', 'Absent'].map(a => (
+                      <button key={a} type="button" onClick={() => setForm(f => ({ ...f, attendance: a }))}
+                        className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                          form.attendance === a ? (a === 'Absent' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white') : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}>
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Engagement</label>
+                  <select value={form.engagement} onChange={(e) => setForm(f => ({ ...f, engagement: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    {ENGAGEMENTS.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
