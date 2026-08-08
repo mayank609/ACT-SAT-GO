@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 
 const REDIS_TTL = 60 * 60 * 4 // 4 hours
+// A section the admin marked "Untimed" in the Test Builder has durationMinutes
+// === 0 — that means no time limit, not "expires immediately". Give it an
+// effectively-unlimited endTime instead of Date.now() + 0.
+const NO_LIMIT_MS = 1000 * 60 * 60 * 24 * 365 * 10 // 10 years
 
 export async function POST(
   _request: NextRequest,
@@ -20,7 +24,9 @@ export async function POST(
       create: { attemptId, sectionId, startedAt: new Date() },
     })
 
-    const endTime = Date.now() + section.durationMinutes * 60 * 1000
+    const endTime = section.durationMinutes > 0
+      ? Date.now() + section.durationMinutes * 60 * 1000
+      : Date.now() + NO_LIMIT_MS
     await redis.set(`timer:${attemptId}:${sectionId}`, endTime, { ex: REDIS_TTL })
 
     return NextResponse.json({ sectionAttempt, endTime }, { status: 201 })

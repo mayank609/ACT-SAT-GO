@@ -14,7 +14,11 @@ import { parseNumericAnswer, isValidNumericInput, sanitizeNumericInput } from '.
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-function useTimer(initialSeconds: number, onExpire: () => void) {
+// `disabled` is for a section the admin marked "Untimed" (timeLimit === 0) — the
+// countdown never runs and never expires, instead of the 0-seconds-remaining
+// case immediately firing onExpire and auto-submitting the section before the
+// student can even see the first question.
+function useTimer(initialSeconds: number, onExpire: () => void, disabled = false) {
   const [seconds, setSeconds] = useState(initialSeconds);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const expiredRef = useRef(false);
@@ -25,6 +29,7 @@ function useTimer(initialSeconds: number, onExpire: () => void) {
   }, [initialSeconds]);
 
   useEffect(() => {
+    if (disabled) return;
     if (seconds <= 0 && !expiredRef.current) {
       expiredRef.current = true;
       onExpire();
@@ -32,7 +37,7 @@ function useTimer(initialSeconds: number, onExpire: () => void) {
     }
     intervalRef.current = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [seconds]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [seconds, disabled]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = (s: number) => { expiredRef.current = false; setSeconds(s); };
   return { seconds, reset };
@@ -380,6 +385,9 @@ export function TestInterfacePage() {
   const currentSectionAttempt = attempt && currentSection ? attempt.sections[currentSection.id] : null;
   const currentQAttempt = currentQuestion && currentSectionAttempt ? currentSectionAttempt.questions[currentQuestion.id] : null;
 
+  // A section explicitly marked "Untimed" in the Test Builder has timeLimit === 0
+  // — that's 0 seconds remaining, not "no limit", unless we special-case it here.
+  const isUntimedSection = (currentSection?.timeLimit ?? 45) === 0;
   const sectionTimeSeconds = (currentSection?.timeLimit ?? 45) * 60;
 
   // Stable expire callback — delegates to ref which is always updated
@@ -388,6 +396,7 @@ export function TestInterfacePage() {
   const { seconds: timeLeft, reset: resetTimer } = useTimer(
     sectionTimeSeconds - (currentSectionAttempt?.timeUsed ?? 0),
     handleTimerExpire,
+    isUntimedSection,
   );
   resetTimerRef.current = resetTimer;
 
@@ -1123,7 +1132,7 @@ export function TestInterfacePage() {
     }
   };
 
-  const isLowTime = timeLeft < 300;
+  const isLowTime = !isUntimedSection && timeLeft < 300;
   const currentQState = getQuestionState(currentSection.id, currentQuestion.id);
   const isMarked = currentQState === 'marked_review' || currentQState === 'answered_marked';
   const isMath = /math/i.test(currentSection.name);
@@ -1215,7 +1224,7 @@ export function TestInterfacePage() {
         <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center select-none">
           {!timerHidden && (
             <span className={`text-xl font-bold tabular-nums leading-none ${isLowTime ? 'text-red-600' : 'text-gray-900'}`}>
-              {formatTime(timeLeft)}
+              {isUntimedSection ? 'Untimed' : formatTime(timeLeft)}
             </span>
           )}
           <button
