@@ -174,29 +174,6 @@ export function AdminAttendancePage() {
     setEntries(prev => sortSessionEntries([saved, ...prev]));
   };
 
-  const tutorStats: TutorStat[] = useMemo(() => {
-    const byTutor = new Map<string, AttendanceEntry[]>();
-    for (const e of entries) {
-      if (!byTutor.has(e.tutorId)) byTutor.set(e.tutorId, []);
-      byTutor.get(e.tutorId)!.push(e);
-    }
-    return Array.from(byTutor.entries()).map(([tutorId, list]) => {
-      // Actual time taught, falling back to the scheduled duration for sessions
-      // where the tutor never logged an actual duration.
-      const totalMinutesTaught = list.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0);
-      const rate = tutorRates.get(tutorId);
-      return {
-        tutorId,
-        tutorName: list[0].tutorName,
-        daysTaught: new Set(list.map(e => e.classDate)).size,
-        sessions: list.length,
-        studentsCovered: new Set(list.map(e => e.studentId)).size,
-        totalMinutesTaught,
-        amount: rate != null ? (totalMinutesTaught / 60) * rate : null,
-      };
-    }).sort((a, b) => b.daysTaught - a.daysTaught);
-  }, [entries, tutorRates]);
-
   const studentOptions = useMemo(() => {
     const byId = new Map<string, string>();
     for (const e of entries) byId.set(e.studentId, e.studentName);
@@ -224,6 +201,36 @@ export function AdminAttendancePage() {
     }
     return list;
   }, [entries, tutorFilter, studentFilter, dateFrom, dateTo, search]);
+
+  // Driven by the same filters as the Session History table below (tutor, student,
+  // date range, search) so picking a tutor here narrows this summary too, instead
+  // of always summarizing every tutor regardless of what's selected.
+  const tutorStats: TutorStat[] = useMemo(() => {
+    const byTutor = new Map<string, AttendanceEntry[]>();
+    for (const e of visible) {
+      if (!byTutor.has(e.tutorId)) byTutor.set(e.tutorId, []);
+      byTutor.get(e.tutorId)!.push(e);
+    }
+    return Array.from(byTutor.entries()).map(([tutorId, list]) => {
+      // Actual time taught, falling back to the scheduled duration for sessions
+      // where the tutor never logged an actual duration. No Show / Cancelled
+      // sessions were never taught, so they don't count toward hours or pay —
+      // only entries missing a status (legacy data) default to counting, same as
+      // the "Completed" fallback used elsewhere for pre-status entries.
+      const taught = list.filter(e => (e.status ?? 'Completed') === 'Completed');
+      const totalMinutesTaught = taught.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0);
+      const rate = tutorRates.get(tutorId);
+      return {
+        tutorId,
+        tutorName: list[0].tutorName,
+        daysTaught: new Set(list.map(e => e.classDate)).size,
+        sessions: list.length,
+        studentsCovered: new Set(list.map(e => e.studentId)).size,
+        totalMinutesTaught,
+        amount: rate != null ? (totalMinutesTaught / 60) * rate : null,
+      };
+    }).sort((a, b) => b.daysTaught - a.daysTaught);
+  }, [visible, tutorRates]);
 
   const hasActiveFilters = tutorFilter !== 'all' || studentFilter !== 'all' || !!dateFrom || !!dateTo || !!search;
   const clearFilters = () => { setTutorFilter('all'); setStudentFilter('all'); setDateFrom(''); setDateTo(''); setSearch(''); };

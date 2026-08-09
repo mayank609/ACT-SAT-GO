@@ -130,7 +130,11 @@ export function AttendancePage() {
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const stats = useMemo(() => {
-    const totalMinutes = filtered.reduce((a, e) => a + (e.durationMinutes ?? 0), 0);
+    // No Show / Cancelled sessions were never taught, so they shouldn't count
+    // toward logged hours.
+    const totalMinutes = filtered
+      .filter(e => (e.status ?? 'Completed') === 'Completed')
+      .reduce((a, e) => a + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0);
     const completedCount = filtered.filter(e => (e.status ?? 'Completed') === 'Completed').length;
     const uniqueStudents = new Set(filtered.map(e => e.studentId)).size;
     return {
