@@ -7,6 +7,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { formatNumericDisplay } from '../../lib/numericAnswer';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -14,6 +15,8 @@ interface DbAnswer {
   key?: string
   keys?: string[]
   value?: number
+  text?: string
+  displayValues?: string[]
 }
 
 interface DbQuestion {
@@ -88,7 +91,7 @@ interface MistakeItem {
 
 function dbAnswerToDisplay(ans: DbAnswer | null): string | string[] | number | null {
   if (!ans) return null
-  if (ans.value !== undefined) return ans.value
+  if (ans.value !== undefined) return ans.text ?? ans.displayValues?.[0] ?? formatNumericDisplay(ans.value)
   if (ans.keys) return ans.keys.map((k) => k.toLowerCase())
   if (ans.key) return ans.key.toLowerCase()
   return null
@@ -344,8 +347,8 @@ function MistakeItemComponent({ item, index }: MistakeItemComponentProps) {
         )}
         {q.type === 'NUMERIC' && (
           <div className="flex gap-4 text-sm mb-3 text-left">
-            <span className="text-slate-500">Your answer: <strong className={item.status === 'wrong' ? 'text-red-500' : 'text-slate-500'}>{item.answerGiven?.value ?? '—'}</strong></span>
-            <span className="text-slate-500">Correct: <strong className="text-emerald-600">{q.correctAnswer.value}</strong></span>
+            <span className="text-slate-500">Your answer: <strong className={item.status === 'wrong' ? 'text-red-500' : 'text-slate-500'}>{item.answerGiven?.text ?? (item.answerGiven?.value !== undefined ? formatNumericDisplay(item.answerGiven.value) : null) ?? '—'}</strong></span>
+            <span className="text-slate-500">Correct: <strong className="text-emerald-600">{q.correctAnswer.displayValues?.[0] ?? (q.correctAnswer.value !== undefined ? formatNumericDisplay(q.correctAnswer.value) : '')}</strong></span>
           </div>
         )}
         <div className="text-xs text-slate-500 mb-3 p-2 bg-slate-50 rounded border border-slate-100">

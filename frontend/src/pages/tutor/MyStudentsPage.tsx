@@ -15,6 +15,7 @@ import { satSectionScore } from '../../lib/analyticsData';
 import { isHW, practiceSubjectOf } from '../../lib/testCategorize';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
+import { formatNumericDisplay } from '../../lib/numericAnswer';
 
 type MainViewTab = 'analysis' | 'test_analysis';
 
@@ -24,6 +25,8 @@ interface TaAnswer {
   key?: string;
   keys?: string[];
   value?: number;
+  text?: string;
+  displayValues?: string[];
 }
 
 interface TaQuestion {
@@ -104,7 +107,7 @@ function taOptionsToDisplay(options: Record<string, string> | null): Array<{ id:
 
 function taAnswerToDisplay(ans: TaAnswer | null): string | string[] | number | null {
   if (!ans) return null;
-  if (ans.value !== undefined) return ans.value;
+  if (ans.value !== undefined) return ans.text ?? ans.displayValues?.[0] ?? formatNumericDisplay(ans.value);
   if (ans.keys) return ans.keys.map((k) => k.toLowerCase());
   if (ans.key) return ans.key.toLowerCase();
   return null;
@@ -135,6 +138,10 @@ function computeTestAnalysis(attempt: TaAttempt): {
   finalScaledScore: number;
   rwScaled: number;
   mathScaled: number;
+  rw1Correct: number; rw1Total: number;
+  rw2Correct: number; rw2Total: number;
+  math1Correct: number; math1Total: number;
+  math2Correct: number; math2Total: number;
 } {
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
@@ -146,6 +153,9 @@ function computeTestAnalysis(attempt: TaAttempt): {
 
   let totalCorrect = 0, totalQuestions = 0;
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
+  let mathGroupIdx = 0, rwGroupIdx = 0;
+  let rw1Correct = 0, rw1Total = 0, rw2Correct = 0, rw2Total = 0;
+  let math1Correct = 0, math1Total = 0, math2Correct = 0, math2Total = 0;
 
   const sections: SectionAnalysis[] = sortedSections.map(sa => {
     const flatQs: TaTestQuestion[] = [];
@@ -183,13 +193,22 @@ function computeTestAnalysis(attempt: TaAttempt): {
     }
 
     const sectionIsMath = /math/i.test(sa.section.name);
-    const sectionIsRW   = /reading|writing|rw/i.test(sa.section.name);
+    const sectionIsRW   = /reading|writing|rw|english/i.test(sa.section.name);
     const isMath = sectionIsMath || (!sectionIsRW && testIsMath);
     const isRW   = sectionIsRW   || (!sectionIsMath && testIsRW);
     const category = isMath ? 'Math' : isRW ? 'Reading and Writing' : sa.section.name;
 
-    if (isMath) { mathCorrect += correct; mathTotal += total; }
-    else if (isRW) { rwCorrect += correct; rwTotal += total; }
+    if (isMath) {
+      mathCorrect += correct; mathTotal += total;
+      if (mathGroupIdx === 0) { math1Correct += correct; math1Total += total; }
+      else { math2Correct += correct; math2Total += total; }
+      mathGroupIdx++;
+    } else if (isRW) {
+      rwCorrect += correct; rwTotal += total;
+      if (rwGroupIdx === 0) { rw1Correct += correct; rw1Total += total; }
+      else { rw2Correct += correct; rw2Total += total; }
+      rwGroupIdx++;
+    }
 
     totalCorrect += correct;
     totalQuestions += total;
@@ -197,37 +216,24 @@ function computeTestAnalysis(attempt: TaAttempt): {
     return { name: sa.section.name, category, correct, incorrect, omitted, total, unvisited, accuracy, timeTaken, bookmarked };
   });
 
-  // Calculate final scaled score directly instead of raw score for SAT
-  let rw1 = 0, rw2 = 0, math1 = 0, math2 = 0;
-  let isSAT = false;
-
-  sections.forEach((s) => {
-    const isMath = s.category === 'Math';
-    const isRW   = s.category === 'Reading and Writing';
-    if (isMath || isRW) isSAT = true;
-    
-    if (isMath) {
-      if (/1|one/i.test(s.name)) math1 += s.correct;
-      else if (/2|two/i.test(s.name)) math2 += s.correct;
-      else math1 += s.correct; // Fallback
-    } else if (isRW) {
-      if (/1|one/i.test(s.name)) rw1 += s.correct;
-      else if (/2|two/i.test(s.name)) rw2 += s.correct;
-      else rw1 += s.correct; // Fallback
-    }
-  });
+  const isSAT = rwTotal > 0 || mathTotal > 0;
 
   // rwScaled/mathScaled stay 0 (never a real scaled value, which floors at 200) when that
   // subject has no sections in this test — e.g. a Math-only Sectional test — so callers can
-  // tell "not applicable" apart from a genuine low score, instead of a fake ~200 floor.
+  // tell "not applicable" apart from a genuine low score.
   let finalScaledScore = totalCorrect;
   let rwScaled = 0;
   let mathScaled = 0;
-  if (rwTotal > 0) rwScaled = satSectionScore(rw1, rw2, rwTotal, false);
-  if (mathTotal > 0) mathScaled = satSectionScore(math1, math2, mathTotal, true);
+  if (rwTotal > 0) rwScaled = satSectionScore(rw1Correct, rw2Correct, rw1Total + rw2Total, false);
+  if (mathTotal > 0) mathScaled = satSectionScore(math1Correct, math2Correct, math1Total + math2Total, true);
   if (isSAT) finalScaledScore = rwScaled + mathScaled;
 
-  return { sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal, isSAT, finalScaledScore, rwScaled, mathScaled };
+  return {
+    sections, totalCorrect, totalQuestions, rwCorrect, rwTotal, mathCorrect, mathTotal,
+    isSAT, finalScaledScore, rwScaled, mathScaled,
+    rw1Correct, rw1Total, rw2Correct, rw2Total,
+    math1Correct, math1Total, math2Correct, math2Total,
+  };
 }
 
 const formatTargetDate = (dateStr: string | null) => {
@@ -382,19 +388,11 @@ export function MyStudentsPage() {
         .filter((a): a is TaAttempt => !!a)
         .map((att) => {
           const an = computeTestAnalysis(att);
-          let rwM1 = 0, rwM2 = 0, mathM1 = 0, mathM2 = 0;
-          let rwM1T = 0, rwM2T = 0, mathM1T = 0, mathM2T = 0;
-          for (const s of an.sections) {
-            const isMath = /math/i.test(s.name);
-            const isRW = /read|writing|rw/i.test(s.name);
-            const isM2 = /2|two/i.test(s.name);
-            if (isMath) { if (isM2) { mathM2 += s.correct; mathM2T += s.total; } else { mathM1 += s.correct; mathM1T += s.total; } }
-            else if (isRW) { if (isM2) { rwM2 += s.correct; rwM2T += s.total; } else { rwM1 += s.correct; rwM1T += s.total; } }
-          }
           return {
             id: att.id, title: att.test.title, category: att.test.category ?? undefined, subCategory: (att.test as any).subCategory ?? undefined,
             startedAt: att.startedAt, completedAt: att.completedAt,
-            rwM1, rwM2, mathM1, mathM2, rwM1T, rwM2T, mathM1T, mathM2T,
+            rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
+            rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
             totalRaw: an.totalCorrect, totalRawT: an.totalQuestions,
             rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore, isSAT: an.isSAT,
             // Scaled score applies to Diagnostic/Mock/Sectional — only Practice Sheet shows a raw count.
@@ -1429,8 +1427,8 @@ export function MyStudentsPage() {
                                   )}
                                   {currentTq.question.type === 'NUMERIC' && (
                                     <div className="flex gap-4 text-sm">
-                                      <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
-                                      <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.value}</strong></span>
+                                      <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</strong></span>
+                                      <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</strong></span>
                                     </div>
                                   )}
                                 </div>
@@ -1486,8 +1484,8 @@ export function MyStudentsPage() {
                                 )}
                                 {currentTq.question.type === 'NUMERIC' && (
                                   <div className="flex gap-4 text-sm mb-3 text-left">
-                                    <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
-                                    <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.value}</strong></span>
+                                    <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</strong></span>
+                                    <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</strong></span>
                                   </div>
                                 )}
                               </div>
@@ -1903,13 +1901,13 @@ export function MyStudentsPage() {
                           <div className="text-sm">
                             <span className="text-slate-500 font-medium">Your answer: </span>
                             <span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>
-                              {studentAnswer?.answerGiven?.value ?? '—'}
+                              {studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}
                             </span>
                           </div>
                           <div className="text-sm">
                             <span className="text-slate-500 font-medium">Correct answer: </span>
                             <span className="font-bold text-emerald-600">
-                              {currentTq.question.correctAnswer.value}
+                              {currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}
                             </span>
                           </div>
                         </div>
@@ -1980,13 +1978,13 @@ export function MyStudentsPage() {
                           <div className="text-sm">
                             <span className="text-slate-500 font-medium">Your answer: </span>
                             <span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>
-                              {studentAnswer?.answerGiven?.value ?? '—'}
+                              {studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}
                             </span>
                           </div>
                           <div className="text-sm">
                             <span className="text-slate-500 font-medium">Correct answer: </span>
                             <span className="font-bold text-emerald-600">
-                              {currentTq.question.correctAnswer.value}
+                              {currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}
                             </span>
                           </div>
                         </div>

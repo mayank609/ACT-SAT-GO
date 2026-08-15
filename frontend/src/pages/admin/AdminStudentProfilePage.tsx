@@ -19,6 +19,7 @@ import { api, type DbUser } from '../../lib/api';
 import { satSectionScore } from '../../lib/analyticsData';
 import toast from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
+import { formatNumericDisplay } from '../../lib/numericAnswer';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend,
@@ -30,6 +31,8 @@ interface TaAnswer {
   key?: string;
   keys?: string[];
   value?: number;
+  text?: string;
+  displayValues?: string[];
 }
 
 interface TaQuestion {
@@ -110,7 +113,7 @@ function taOptionsToDisplay(options: Record<string, string> | null): Array<{ id:
 
 function taAnswerToDisplay(ans: TaAnswer | null): string | string[] | number | null {
   if (!ans) return null;
-  if (ans.value !== undefined) return ans.value;
+  if (ans.value !== undefined) return ans.text ?? ans.displayValues?.[0] ?? formatNumericDisplay(ans.value);
   if (ans.keys) return ans.keys.map((k) => k.toLowerCase());
   if (ans.key) return ans.key.toLowerCase();
   return null;
@@ -1160,8 +1163,8 @@ export function AdminStudentProfilePage() {
                                             )}
                                             {currentTq.question.type === 'NUMERIC' && (
                                               <div className="flex gap-4 text-sm mb-3 text-left">
-                                                <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
-                                                <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.value}</strong></span>
+                                                <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</strong></span>
+                                                <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</strong></span>
                                               </div>
                                             )}
                                           </div>
@@ -1705,8 +1708,8 @@ export function AdminStudentProfilePage() {
                     ) : (
                       currentTq.question.type === 'NUMERIC' && (
                         <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
-                          <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.value ?? '—'}</span></div>
-                          <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.value}</span></div>
+                          <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</span></div>
+                          <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</span></div>
                         </div>
                       )
                     )}
@@ -1752,8 +1755,8 @@ export function AdminStudentProfilePage() {
                     ) : (
                       currentTq.question.type === 'NUMERIC' && (
                         <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
-                          <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.value ?? '—'}</span></div>
-                          <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.value}</span></div>
+                          <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</span></div>
+                          <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</span></div>
                         </div>
                       )
                     )}

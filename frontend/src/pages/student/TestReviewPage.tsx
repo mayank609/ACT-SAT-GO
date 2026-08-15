@@ -13,6 +13,7 @@ import { satSectionScore } from '../../lib/analyticsData';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Modal } from '../../components/common/Modal';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
+import { formatNumericDisplay } from '../../lib/numericAnswer';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,8 @@ interface DbAnswer {
   key?: string
   keys?: string[]
   value?: number
+  text?: string
+  displayValues?: string[]
 }
 
 interface DbQuestion {
@@ -81,7 +84,7 @@ export interface DbAttempt {
 
 function dbAnswerToDisplay(ans: DbAnswer | null): string | string[] | number | null {
   if (!ans) return null
-  if (ans.value !== undefined) return ans.value
+  if (ans.value !== undefined) return ans.text ?? ans.displayValues?.[0] ?? formatNumericDisplay(ans.value)
   if (ans.keys) return ans.keys.map((k) => k.toLowerCase())
   if (ans.key) return ans.key.toLowerCase()
   return null
@@ -302,8 +305,8 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
                 )}
                 {q.type === 'NUMERIC' && (
                   <div className="flex gap-4 text-sm mb-3 text-left">
-                    <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
-                    <span className="text-slate-500">Correct: <strong className="text-blue-600">{q.correctAnswer.value}</strong></span>
+                    <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</strong></span>
+                    <span className="text-slate-500">Correct: <strong className="text-blue-600">{q.correctAnswer.displayValues?.[0] ?? (q.correctAnswer.value !== undefined ? formatNumericDisplay(q.correctAnswer.value) : '')}</strong></span>
                   </div>
                 )}
               </div>
@@ -379,8 +382,8 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
         )}
         {q.type === 'NUMERIC' && (
           <div className="flex gap-4 text-sm mb-3 text-left">
-            <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.value ?? '—'}</strong></span>
-            <span className="text-slate-500">Correct: <strong className="text-blue-600">{q.correctAnswer.value}</strong></span>
+            <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</strong></span>
+            <span className="text-slate-500">Correct: <strong className="text-blue-600">{q.correctAnswer.displayValues?.[0] ?? (q.correctAnswer.value !== undefined ? formatNumericDisplay(q.correctAnswer.value) : '')}</strong></span>
           </div>
         )}
         {q.content.explanation && (
@@ -729,14 +732,14 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
                     <div className="text-sm">
                       <span className="text-slate-500 font-medium">Your answer: </span>
                       <span className={`font-bold ${showAnswer ? (correct ? 'text-blue-600' : 'text-blue-400') : 'text-slate-800'}`}>
-                        {studentAnswer?.answerGiven?.value ?? '—'}
+                        {studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}
                       </span>
                     </div>
                     {showAnswer && (
                       <div className="text-sm">
                         <span className="text-slate-500 font-medium">Correct answer: </span>
                         <span className="font-bold text-blue-600">
-                          {q.correctAnswer.value}
+                          {q.correctAnswer.displayValues?.[0] ?? (q.correctAnswer.value !== undefined ? formatNumericDisplay(q.correctAnswer.value) : '')}
                         </span>
                       </div>
                     )}
@@ -794,14 +797,14 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
                   <div className="text-sm">
                     <span className="text-slate-500 font-medium">Your answer: </span>
                     <span className={`font-bold ${showAnswer ? (correct ? 'text-blue-600' : 'text-blue-400') : 'text-slate-800'}`}>
-                      {studentAnswer?.answerGiven?.value ?? '—'}
+                      {studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}
                     </span>
                   </div>
                   {showAnswer && (
                     <div className="text-sm">
                       <span className="text-slate-500 font-medium">Correct answer: </span>
                       <span className="font-bold text-blue-600">
-                        {q.correctAnswer.value}
+                        {q.correctAnswer.displayValues?.[0] ?? (q.correctAnswer.value !== undefined ? formatNumericDisplay(q.correctAnswer.value) : '')}
                       </span>
                     </div>
                   )}

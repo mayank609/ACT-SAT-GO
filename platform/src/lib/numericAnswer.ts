@@ -38,3 +38,33 @@ export function numericValuesEqual(a: unknown, b: unknown): boolean {
   if (av === null || bv === null) return false;
   return Math.abs(av - bv) <= 1e-9 + 1e-6 * Math.abs(bv);
 }
+
+/** Formats a numeric value for display: terminating decimals remain as decimals, repeating decimals are converted to fractions. */
+export function formatNumericDisplay(val: number): string {
+  if (Number.isInteger(val)) return String(val);
+  
+  // Find fraction representation n/d
+  // Since SAT answers are usually simple fractions, limit denominator to 99
+  for (let d = 2; d <= 99; d++) {
+    const n = Math.round(val * d);
+    if (Math.abs(val - n / d) < 1e-6) {
+      // Check if it is a repeating decimal (simplified denominator has factors other than 2 or 5)
+      const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+      const g = gcd(Math.abs(n), d);
+      const simplifiedD = d / g;
+      
+      let temp = simplifiedD;
+      while (temp % 2 === 0) temp /= 2;
+      while (temp % 5 === 0) temp /= 5;
+      
+      if (temp > 1) {
+        // It's a repeating decimal! Show as fraction
+        return `${n}/${d}`;
+      }
+    }
+  }
+  
+  // Fallback to decimal, limit to 9 decimal places and trim trailing zeros
+  return String(Number(val.toFixed(9)));
+}
+

@@ -74,12 +74,18 @@ function toDbAnswer(type: string, answer: string | string[] | number | null | Re
     return passageAnswers;
   }
   
-  if (type === 'numeric') return { value: typeof answer === 'number' ? answer : parseNumericAnswer(answer as string) };
+  if (type === 'numeric') {
+    const val = typeof answer === 'number' ? answer : parseNumericAnswer(answer as string);
+    if (val === null) return null;
+    return {
+      value: val,
+      text: typeof answer === 'string' ? answer.trim() : String(answer)
+    };
+  }
   if (type === 'mcq_multi') return { keys: (answer as string[]).map((k) => k.toUpperCase()) };
   return { key: (answer as string).toUpperCase() };
 }
 
-// Bluebook-style square button colours (active state handled separately)
 const stateColors: Record<QuestionState, string> = {
   not_visited:    'bg-white border border-[#1b3d6e] text-[#1b3d6e]',
   not_answered:   'bg-white border border-dashed border-[#1b3d6e] text-[#1b3d6e]',
@@ -316,7 +322,7 @@ export function TestInterfacePage() {
             const cached = answersMap[q.id] ?? null;
             const fromDb = dbAnswer?.answerGiven ?? null;
             const answerPayload = cached?.answerGiven ?? fromDb;
-            const normalizedAnswer = answerPayload?.value ?? answerPayload?.keys?.map((k: string) => k.toLowerCase()) ?? answerPayload?.key?.toLowerCase() ?? null;
+            const normalizedAnswer = (q.type?.toLowerCase() === 'numeric' ? (answerPayload?.text ?? answerPayload?.value) : null) ?? answerPayload?.value ?? answerPayload?.keys?.map((k: string) => k.toLowerCase()) ?? answerPayload?.key?.toLowerCase() ?? null;
             const isFlagged = Boolean(cached?.isFlagged ?? dbAnswer?.isFlagged);
             const hasAnswer = normalizedAnswer !== null && normalizedAnswer !== '' && !(Array.isArray(normalizedAnswer) && normalizedAnswer.length === 0);
             const stateFromCache = state?.sections?.[section.id]?.questions?.[q.id]?.state as QuestionState | undefined;
@@ -448,9 +454,7 @@ export function TestInterfacePage() {
 
   const doFinalSubmit = async () => {
     if (!attempt || !currentSection || !currentQuestion) return;
-    const finalAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
-
-    // Preview mode never persists or shows the celebration — just exit.
+    const finalAns = currentQuestion.type === 'numeric' ? numericInput : selectedAnswer;
     if (isPreview) {
       allowNavigationAwayRef.current = true;
       clearAttempt();
@@ -524,7 +528,7 @@ export function TestInterfacePage() {
         api.autosaveAnswer(attempt.id, {
           questionId: currentQuestion.id,
           answerGiven: toDbAnswer(currentQuestion.type,
-            currentQuestion.type === 'numeric' ? parseNumericAnswer(numericInput) : selectedAnswer
+            currentQuestion.type === 'numeric' ? numericInput : selectedAnswer
           ),
           timeSpentSeconds: timeSpent,
           isFlagged: currentQAttempt.state === 'marked_review' || currentQAttempt.state === 'answered_marked',
@@ -881,7 +885,7 @@ export function TestInterfacePage() {
     if (currentQAttempt) {
       const ans = currentQAttempt.selectedAnswer;
       setSelectedAnswer(ans ?? null);
-      setNumericInput(typeof ans === 'number' ? String(ans) : '');
+      setNumericInput(ans !== null && ans !== undefined ? String(ans) : '');
     } else {
       setSelectedAnswer(null);
       setNumericInput('');
@@ -895,7 +899,7 @@ export function TestInterfacePage() {
   // palette counts, the submit modal, and autosave all show it as unanswered.
   useEffect(() => {
     if (!currentSection || !currentQuestion) return;
-    const finalAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
+    const finalAns = currentQuestion.type === 'numeric' ? numericInput : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
     const prevState = currentQAttempt?.state ?? 'not_visited';
     // Don't promote an untouched/empty question just by rendering it — only the
@@ -1070,7 +1074,7 @@ export function TestInterfacePage() {
 
   const saveAndNavigate = async (nextQIdx: number, nextSectionIdx?: number) => {
     if (!currentSection) return;
-    const finalAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
+    const finalAns = currentQuestion.type === 'numeric' ? numericInput : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
     const prevState = getQuestionState(currentSection.id, currentQuestion.id);
     const newState: QuestionState = hasAnswer
@@ -1106,7 +1110,7 @@ export function TestInterfacePage() {
 
   const markForReview = () => {
     if (!currentSection) return;
-    const finalAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
+    const finalAns = currentQuestion.type === 'numeric' ? numericInput : selectedAnswer;
     const hasAnswer = finalAns !== null && finalAns !== '' && !(Array.isArray(finalAns) && finalAns.length === 0);
     // Bluebook behaviour: toggle the review flag on the current question and
     // stay where you are (no auto-advance).
@@ -1952,7 +1956,7 @@ export function TestInterfacePage() {
 
       {/* ── SECTION REVIEW POPUP ─────────────────────────────────────────────── */}
       {showSectionReview && (() => {
-        const liveAns = currentQuestion.type === 'numeric' ? (parseNumericAnswer(numericInput)) : selectedAnswer;
+        const liveAns = currentQuestion.type === 'numeric' ? numericInput : selectedAnswer;
         const liveHasAnswer = liveAns !== null && liveAns !== '' && !(Array.isArray(liveAns) && liveAns.length === 0);
         const liveIsMarked = currentQAttempt?.state === 'marked_review' || currentQAttempt?.state === 'answered_marked';
         const otherQs = Object.entries(currentSectionAttempt?.questions ?? {}).filter(([qId]) => qId !== currentQuestion.id);

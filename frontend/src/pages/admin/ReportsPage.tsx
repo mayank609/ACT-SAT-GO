@@ -1,6 +1,7 @@
 import { fmtSec } from '../../lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
+import { formatNumericDisplay } from '../../lib/numericAnswer';
 import type { DbUser } from '../../lib/api';
 import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, X, Clock, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -642,8 +643,8 @@ export function ReportsPage() {
                       </div>
                     ) : currentTq.question.type === 'NUMERIC' ? (
                       <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
-                        <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.value ?? '—'}</span></div>
-                        <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.value}</span></div>
+                        <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</span></div>
+                        <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</span></div>
                       </div>
                     ) : null}
                   </div>
@@ -678,8 +679,8 @@ export function ReportsPage() {
                     </div>
                   ) : currentTq.question.type === 'NUMERIC' ? (
                     <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2 max-w-3xl">
-                      <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.value ?? '—'}</span></div>
-                      <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.value}</span></div>
+                      <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</span></div>
+                      <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</span></div>
                     </div>
                   ) : null}
                 </div>
@@ -833,7 +834,7 @@ function optionsToDisplay(options: Record<string, string> | null): Array<{ id: s
 
 function answerToDisplay(ans: any): string | string[] | null {
   if (!ans) return null;
-  if (ans.value !== undefined) return ans.value;
+  if (ans.value !== undefined) return ans.text ?? ans.displayValues?.[0] ?? formatNumericDisplay(ans.value);
   if (ans.keys) return ans.keys.map((k: any) => k.toLowerCase());
   if (ans.key) return ans.key.toLowerCase();
   return null;
