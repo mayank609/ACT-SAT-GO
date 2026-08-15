@@ -1,7 +1,7 @@
 import { fmtSec } from '../../lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
-import { formatNumericDisplay } from '../../lib/numericAnswer';
+import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
 import type { DbUser } from '../../lib/api';
 import { CheckCircle, XCircle, Minus, TrendingUp, FileSearch, AlertTriangle, Target, Loader2, X, Clock, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -811,8 +811,7 @@ export function ReportsPage() {
 function answersMatchFn(given: any, correct: any): boolean {
   if (!given || !correct) return false;
   if (correct.value !== undefined) {
-    if (given.value === undefined) return false;
-    return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
+    return numericEqual(given.value, correct.value);
   }
   if (correct.keys) {
     if (!given.keys) return false;

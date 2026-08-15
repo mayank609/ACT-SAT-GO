@@ -138,12 +138,13 @@ export interface QRecord {
   time: number;
 }
 
+import { numericEqual } from './numericAnswer';
+
 // Mirrors `taAnswersMatch` (QuestionWiseReport) — the app-wide correctness check.
 function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
   if (!given || !correct) return false;
   if (correct.value !== undefined) {
-    if (given.value === undefined) return false;
-    return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
+    return numericEqual(given.value, correct.value);
   }
   if (correct.keys) {
     if (!given.keys) return false;

@@ -10,7 +10,7 @@ import { Modal } from '../common/Modal';
 import { RichContentRenderer } from './RichContentRenderer';
 import { OptionRenderer } from './OptionRenderer';
 import { DesmosCalculator } from '../calculator/DesmosCalculator';
-import { formatNumericDisplay } from '../../lib/numericAnswer';
+import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
 
 // ─── Exported types ──────────────────────────────────────────────────────────
 
@@ -53,7 +53,6 @@ export interface TaSectionAttempt {
   section: {
     id: string;
     name: string;
-    durationMinutes: number;
     orderIndex: number;
     questions: TaTestQuestion[];
   };
@@ -65,19 +64,21 @@ export interface TaAttemptAnswer {
   answerGiven: TaAnswer | null;
   timeSpentSeconds: number;
   isFlagged: boolean;
-  doubtStatus?: string | null;
+  doubtStatus: 'doubt' | 'cleared' | null;
 }
 
 export interface TaAttempt {
   id: string;
   testId: string;
-  status: string;
-  totalScore: number | null;
   startedAt: string;
   completedAt: string | null;
-  test: { id: string; title: string; category?: string };
-  sectionAttempts: TaSectionAttempt[];
-  answers: TaAttemptAnswer[];
+  test: {
+    id: string;
+    title: string;
+    category?: string | null;
+    sections: { id: string; name: string; orderIndex: number; questions: { id: string; questionId: string; orderIndex: number; question: TaQuestion }[] }[]
+  }
+  answers: TaAttemptAnswer[]
 }
 
 export interface SectionAnalysis {
@@ -97,8 +98,7 @@ export interface SectionAnalysis {
 export function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
   if (!given || !correct) return false;
   if (correct.value !== undefined) {
-    if (given.value === undefined) return false;
-    return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
+    return numericEqual(given.value, correct.value);
   }
   if (correct.keys) {
     if (!given.keys) return false;

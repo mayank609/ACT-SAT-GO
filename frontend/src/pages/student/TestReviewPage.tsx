@@ -13,7 +13,7 @@ import { satSectionScore } from '../../lib/analyticsData';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Modal } from '../../components/common/Modal';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
-import { formatNumericDisplay } from '../../lib/numericAnswer';
+import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
 
@@ -94,8 +94,7 @@ function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
   if (!given || !correct) return false
   // Numeric
   if (correct.value !== undefined) {
-    if (given.value === undefined) return false;
-    return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
+    return numericEqual(given.value, correct.value);
   }
   // MSQ — order-independent
   if (correct.keys) {

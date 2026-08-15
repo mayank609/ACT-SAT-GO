@@ -7,7 +7,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { formatNumericDisplay } from '../../lib/numericAnswer';
+import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ function dbAnswerToDisplay(ans: DbAnswer | null): string | string[] | number | n
 
 function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
   if (!given) return false
-  if (correct.value !== undefined) return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value))
+  if (correct.value !== undefined) return numericEqual(given.value, correct.value)
   if (correct.keys) {
     return (
       JSON.stringify([...(given.keys ?? [])].sort()) ===

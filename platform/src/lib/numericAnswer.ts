@@ -32,11 +32,29 @@ export function parseNumericValue(input: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function checkSatEquivalent(av: number, bv: number): boolean {
+  for (let d = 2; d <= 99; d++) {
+    const n = Math.round(av * d);
+    if (Math.abs(av - n / d) < 0.02) {
+      const V = n / d;
+      if (Math.abs(bv - V) <= 1e-9 + 1e-6 * Math.abs(V)) return true;
+      for (let p = 2; p <= 6; p++) {
+        if (Math.abs(bv - Number(V.toFixed(p))) < 1e-9) return true;
+        const factor = Math.pow(10, p);
+        const truncated = (V >= 0 ? Math.floor(V * factor) : Math.ceil(V * factor)) / factor;
+        if (Math.abs(bv - truncated) < 1e-9) return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function numericValuesEqual(a: unknown, b: unknown): boolean {
   const av = parseNumericValue(a);
   const bv = parseNumericValue(b);
   if (av === null || bv === null) return false;
-  return Math.abs(av - bv) <= 1e-9 + 1e-6 * Math.abs(bv);
+  if (Math.abs(av - bv) <= 1e-9 + 1e-6 * Math.abs(bv)) return true;
+  return checkSatEquivalent(av, bv) || checkSatEquivalent(bv, av);
 }
 
 /** Formats a numeric value for display: terminating decimals remain as decimals, repeating decimals are converted to fractions. */

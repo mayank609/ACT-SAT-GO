@@ -15,7 +15,7 @@ import { satSectionScore } from '../../lib/analyticsData';
 import { isHW, practiceSubjectOf } from '../../lib/testCategorize';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
-import { formatNumericDisplay } from '../../lib/numericAnswer';
+import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
 
 type MainViewTab = 'analysis' | 'test_analysis';
 
@@ -67,6 +67,7 @@ interface TaAttemptAnswer {
   answerGiven: TaAnswer | null;
   timeSpentSeconds: number;
   isFlagged: boolean;
+  doubtStatus: 'doubt' | 'cleared' | null;
 }
 
 interface TaAttempt {
@@ -84,8 +85,7 @@ interface TaAttempt {
 function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
   if (!given || !correct) return false;
   if (correct.value !== undefined) {
-    if (given.value === undefined) return false;
-    return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
+    return numericEqual(given.value, correct.value);
   }
   if (correct.keys) {
     if (!given.keys) return false;

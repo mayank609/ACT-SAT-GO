@@ -19,7 +19,7 @@ import { satSectionScore } from '../../lib/analyticsData';
 import { practiceSubjectOf } from '../../lib/testCategorize';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES } from '../../data/satDomains';
-import { formatNumericDisplay } from '../../lib/numericAnswer';
+import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
 
 type MainViewTab = 'analysis' | 'test_analysis';
 
@@ -60,7 +60,6 @@ interface TaSectionAttempt {
   section: {
     id: string;
     name: string;
-    durationMinutes: number;
     orderIndex: number;
     questions: TaTestQuestion[];
   };
@@ -72,7 +71,7 @@ interface TaAttemptAnswer {
   answerGiven: TaAnswer | null;
   timeSpentSeconds: number;
   isFlagged: boolean;
-  doubtStatus?: string | null;
+  doubtStatus: 'doubt' | 'cleared' | null;
 }
 
 interface TaAttempt {
@@ -92,8 +91,7 @@ interface DbTest { id: string; title: string; status: string; category?: string;
 function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
   if (!given || !correct) return false;
   if (correct.value !== undefined) {
-    if (given.value === undefined) return false;
-    return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
+    return numericEqual(given.value, correct.value);
   }
   if (correct.keys) {
     if (!given.keys) return false;

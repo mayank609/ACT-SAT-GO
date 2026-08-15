@@ -40,11 +40,29 @@ export function parseNumericAnswer(input: string | number | null | undefined): n
   return Number.isFinite(n) ? n : null;
 }
 
+function checkSatEquivalent(av: number, bv: number): boolean {
+  for (let d = 2; d <= 99; d++) {
+    const n = Math.round(av * d);
+    if (Math.abs(av - n / d) < 0.02) {
+      const V = n / d;
+      if (Math.abs(bv - V) <= 1e-9 + 1e-6 * Math.abs(V)) return true;
+      for (let p = 2; p <= 6; p++) {
+        if (Math.abs(bv - Number(V.toFixed(p))) < 1e-9) return true;
+        const factor = Math.pow(10, p);
+        const truncated = (V >= 0 ? Math.floor(V * factor) : Math.ceil(V * factor)) / factor;
+        if (Math.abs(bv - truncated) < 1e-9) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** Decimal-equivalent comparison with a small relative tolerance. */
 export function numericEqual(a: number | null | undefined, b: number | null | undefined): boolean {
   if (a === null || a === undefined || b === null || b === undefined) return false;
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
-  return Math.abs(a - b) <= 1e-9 + 1e-6 * Math.abs(b);
+  if (Math.abs(a - b) <= 1e-9 + 1e-6 * Math.abs(b)) return true;
+  return checkSatEquivalent(a, b) || checkSatEquivalent(b, a);
 }
 
 /** True if the input is a syntactically valid numeric/fraction answer (or empty). */

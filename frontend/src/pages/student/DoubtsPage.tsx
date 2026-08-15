@@ -6,7 +6,7 @@ import { RichContentRenderer } from '../../components/admin/RichContentRenderer'
 import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { formatNumericDisplay } from '../../lib/numericAnswer';
+import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,9 @@ interface DbAttempt {
   id: string
   testId: string
   status: string
+  totalScore: number | null
+  startedAt: string
+  completedAt: string | null
   test: { id: string; title: string }
   sectionAttempts: DbSectionAttempt[]
   answers: DbAttemptAnswer[]
@@ -92,7 +95,7 @@ function dbOptionsToDisplay(options: Record<string, string> | null): Array<{ id:
 
 function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
   if (!given) return false;
-  if (correct.value !== undefined) return Math.abs(Number(given.value) - Number(correct.value)) <= 1e-9 + 1e-6 * Math.abs(Number(correct.value));
+  if (correct.value !== undefined) return numericEqual(given.value, correct.value);
   if (correct.keys) {
     return JSON.stringify([...(given.keys ?? [])].sort()) === JSON.stringify([...correct.keys].sort());
   }
