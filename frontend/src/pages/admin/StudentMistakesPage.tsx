@@ -60,6 +60,7 @@ interface DbAttemptAnswer {
   answerGiven: DbAnswer | null;
   timeSpentSeconds: number;
   isFlagged: boolean;
+  doubtStatus?: 'doubt' | 'cleared' | null;
 }
 
 interface DbAttempt {
@@ -74,10 +75,13 @@ interface DbAttempt {
 
 interface MistakeItem {
   attemptId: string;
+  testId: string;
   testTitle: string;
   sectionName: string;
+  questionId: string;
   question: DbQuestion;
   answerGiven: DbAnswer | null;
+  timeSpentSeconds: number;
   status: 'wrong' | 'unattempted';
   orderIndex: number;
   parentQuestionText?: string;

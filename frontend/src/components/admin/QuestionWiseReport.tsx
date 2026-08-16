@@ -71,6 +71,7 @@ export interface TaAttemptAnswer {
 export interface TaAttempt {
   id: string;
   testId: string;
+  totalScore: number | null;
   startedAt: string;
   completedAt: string | null;
   test: {
@@ -79,6 +80,7 @@ export interface TaAttempt {
     category?: string | null;
     sections: { id: string; name: string; orderIndex: number; questions: { id: string; questionId: string; orderIndex: number; question: TaQuestion }[] }[]
   }
+  sectionAttempts: TaSectionAttempt[]
   answers: TaAttemptAnswer[]
 }
 
