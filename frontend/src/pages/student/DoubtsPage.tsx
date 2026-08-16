@@ -14,6 +14,7 @@ interface DbAnswer {
   key?: string
   keys?: string[]
   value?: number
+  values?: number[]
   text?: string
   displayValues?: string[]
 }
@@ -95,7 +96,12 @@ function dbOptionsToDisplay(options: Record<string, string> | null): Array<{ id:
 
 function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
   if (!given) return false;
-  if (correct.value !== undefined) return numericEqual(given.value, correct.value);
+  if (correct.value !== undefined) {
+    if (Array.isArray(correct.values) && correct.values.length > 0) {
+      return correct.values.some((v) => numericEqual(given.value, v));
+    }
+    return numericEqual(given.value, correct.value);
+  }
   if (correct.keys) {
     return JSON.stringify([...(given.keys ?? [])].sort()) === JSON.stringify([...correct.keys].sort());
   }

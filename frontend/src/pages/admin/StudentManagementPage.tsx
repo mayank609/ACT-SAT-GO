@@ -29,6 +29,7 @@ interface TaAnswer {
   key?: string;
   keys?: string[];
   value?: number;
+  values?: number[];
   text?: string;
   displayValues?: string[];
 }
@@ -91,6 +92,9 @@ interface DbTest { id: string; title: string; status: string; category?: string;
 function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
   if (!given || !correct) return false;
   if (correct.value !== undefined) {
+    if (Array.isArray(correct.values) && correct.values.length > 0) {
+      return correct.values.some((v) => numericEqual(given.value, v));
+    }
     return numericEqual(given.value, correct.value);
   }
   if (correct.keys) {

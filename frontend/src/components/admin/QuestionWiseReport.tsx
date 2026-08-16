@@ -18,6 +18,7 @@ export interface TaAnswer {
   key?: string;
   keys?: string[];
   value?: number;
+  values?: number[];
   text?: string;
   displayValues?: string[];
 }
@@ -98,6 +99,12 @@ export interface SectionAnalysis {
 export function taAnswersMatch(given: TaAnswer | null, correct: TaAnswer): boolean {
   if (!given || !correct) return false;
   if (correct.value !== undefined) {
+    // A numeric question can accept several equivalent typed forms (e.g. "32/3"
+    // and "10.66"); `values` carries the full set when there's more than one —
+    // matching only `.value` (the first form) would wrongly mark the others wrong.
+    if (Array.isArray(correct.values) && correct.values.length > 0) {
+      return correct.values.some((v) => numericEqual(given.value, v));
+    }
     return numericEqual(given.value, correct.value);
   }
   if (correct.keys) {

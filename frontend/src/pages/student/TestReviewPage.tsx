@@ -21,6 +21,7 @@ interface DbAnswer {
   key?: string
   keys?: string[]
   value?: number
+  values?: number[]
   text?: string
   displayValues?: string[]
 }
@@ -94,6 +95,9 @@ function answersMatch(given: DbAnswer | null, correct: DbAnswer): boolean {
   if (!given || !correct) return false
   // Numeric
   if (correct.value !== undefined) {
+    if (Array.isArray(correct.values) && correct.values.length > 0) {
+      return correct.values.some((v) => numericEqual(given.value, v));
+    }
     return numericEqual(given.value, correct.value);
   }
   // MSQ — order-independent

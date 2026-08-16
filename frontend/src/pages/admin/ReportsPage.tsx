@@ -811,6 +811,9 @@ export function ReportsPage() {
 function answersMatchFn(given: any, correct: any): boolean {
   if (!given || !correct) return false;
   if (correct.value !== undefined) {
+    if (Array.isArray(correct.values) && correct.values.length > 0) {
+      return correct.values.some((v: number) => numericEqual(given.value, v));
+    }
     return numericEqual(given.value, correct.value);
   }
   if (correct.keys) {
