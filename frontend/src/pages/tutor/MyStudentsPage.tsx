@@ -78,7 +78,7 @@ interface TaAttempt {
   totalScore: number | null;
   startedAt: string;
   completedAt: string | null;
-  test: { id: string; title: string; category?: string };
+  test: { id: string; title: string; category?: string; subCategory?: string };
   sectionAttempts: TaSectionAttempt[];
   answers: TaAttemptAnswer[];
 }
@@ -150,10 +150,15 @@ function computeTestAnalysis(attempt: TaAttempt): {
   const answersMap = new Map(attempt.answers.map(a => [a.questionId, a]));
   const sortedSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
 
+  // Test Builder tags homework tests via subCategory "{Subject}-Homework" (e.g.
+  // "Reading-Homework") — titles like "R-4 Command of Evidence" don't spell out
+  // "reading" anywhere, so subCategory must be checked too or these silently
+  // fall through unclassified (correct/total never added to any RW/Math bucket).
   const testTitle = (attempt.test.title ?? '').toLowerCase();
   const testCat   = (attempt.test.category ?? '').toLowerCase();
-  const testIsMath = /\bmhw\b|math[\s-]hw|math\s*homework|\bmath\b|algebra|geometry|calc/.test(testTitle) || /math/i.test(testCat);
-  const testIsRW   = /\brhw\b|reading[\s-]hw|writing[\s-]hw|english[\s-]hw|\breading\b|\bwriting\b|\benglish\b|verbal|grammar|\brw\b/.test(testTitle) || /rw|english/i.test(testCat);
+  const testSub   = (attempt.test.subCategory ?? '').toLowerCase();
+  const testIsMath = /\bmhw\b|math[\s-]hw|math\s*homework|\bmath\b|algebra|geometry|calc/.test(testTitle) || /math/i.test(testCat) || testSub.includes('math') || testSub.includes('quant');
+  const testIsRW   = /\brhw\b|reading[\s-]hw|writing[\s-]hw|english[\s-]hw|\breading\b|\bwriting\b|\benglish\b|verbal|grammar|\brw\b/.test(testTitle) || /rw|english/i.test(testCat) || testSub.includes('rw') || testSub.includes('english') || testSub.includes('reading') || testSub.includes('writing');
 
   let totalCorrect = 0, totalQuestions = 0;
   let rwCorrect = 0, rwTotal = 0, mathCorrect = 0, mathTotal = 0;
