@@ -8,6 +8,17 @@ gracefully until the backend pieces below are in place.
 
 ---
 
+## ✅ 2026-08-16 — Fixed RW1/section scores showing 0 or "—" for completed attempts (DONE, no DB action needed)
+
+**Why:** Admin table (Student Profile → attempts list) was showing `RW1: —` or `RW1: 0/12` for attempts the student had genuinely taken. Two root causes found in code, both fixed — no schema/env change needed, just flagging so you're aware in case you spot stale rows on your own DB copy:
+
+1. **`GET /api/attempts/[attemptId]/route.ts`** only synthesized fallback `SectionAttempt` rows when the *entire* `sectionAttempts` array was empty. If just one section (e.g. RW1) was missing its row — because `startSection`/`submitSection` never fired successfully for it — that section vanished from the response entirely instead of showing a real (possibly zero) score. Now backfills per-section.
+2. **Frontend (`TestInterfacePage.tsx`)** had two data-loss races around section submission: (a) `saveAndNavigate` fired the last question's autosave without awaiting it before calling `submitSection`, which reads the Redis answer cache immediately — a slow autosave could lose the race and get flushed as empty; (b) timer-expiry (`timerExpireHandlerRef`) transitioned to the next section without ever autosaving the in-progress question at all. Both now await/flush before transitioning. Also added retry-with-backoff on `submitSection` calls (previously a single dropped request silently stranded all of that section's Redis-cached answers in Redis forever, un-flushed to Postgres, while the UI still showed "Test complete!").
+
+**If you want to check for pre-existing bad data:** any `TestAttempt` with `status = 'SUBMITTED'` but fewer `SectionAttempt` rows than `Test.sections.length` for its test is a past instance of this bug — those attempts' missing-section answers may still be sitting in the Redis `answers:{attemptId}` hash (no TTL was set on that key) and could potentially be recovered by re-running the submit flow for the missing section, rather than being lost.
+
+---
+
 ## ✅ 2026-07-01 — Manual diagnostic score fields on student profile (DONE)
 
 **Why:** Some students take a diagnostic test outside the platform (e.g., College Board, Khan Academy, or a paper test). Admins can now enter these scores manually when creating or editing a student. The scores show in the analysis table as a fallback when no in-platform diagnostic attempt exists (displayed in purple with a small "M" superscript to distinguish them from computed scores).

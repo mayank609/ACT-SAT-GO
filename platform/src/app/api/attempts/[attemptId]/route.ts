@@ -84,18 +84,27 @@ export async function GET(
     }
     console.log(`  - Sample Answer IDs:`, attempt.answers.slice(0, 3).map(a => a.questionId));
     
-    // If sectionAttempts is empty, create synthetic ones from test.sections
+    // Backfill any section missing its own SectionAttempt row (not just when
+    // the whole array is empty) — otherwise that module silently disappears
+    // from the response instead of showing a real (possibly zero) score.
     let sectionAttempts = attempt.sectionAttempts
-    if (sectionAttempts.length === 0 && attempt.test?.sections) {
-      console.log(`[BACKEND] Creating synthetic section attempts`);
-      sectionAttempts = attempt.test.sections.map(section => ({
-        id: `synthetic-${section.id}`,
-        attemptId: attempt.id,
-        sectionId: section.id,
-        startedAt: attempt.startedAt,
-        completedAt: attempt.completedAt || attempt.startedAt,
-        section: section,
-      })) as any
+    if (attempt.test?.sections) {
+      const existingSectionIds = new Set(sectionAttempts.map((sa) => sa.sectionId))
+      const missingSections = attempt.test.sections.filter((section) => !existingSectionIds.has(section.id))
+      if (missingSections.length > 0) {
+        console.log(`[BACKEND] Backfilling ${missingSections.length} missing section attempt(s): ${missingSections.map(s => s.name).join(', ')}`);
+        const synthetic = missingSections.map(section => ({
+          id: `synthetic-${section.id}`,
+          attemptId: attempt.id,
+          sectionId: section.id,
+          startedAt: attempt.startedAt,
+          completedAt: attempt.completedAt || attempt.startedAt,
+          section: section,
+        })) as any
+        sectionAttempts = [...sectionAttempts, ...synthetic].sort(
+          (a, b) => a.section.orderIndex - b.section.orderIndex
+        )
+      }
     }
     
     return NextResponse.json({ attempt: { ...attempt, sectionAttempts } })

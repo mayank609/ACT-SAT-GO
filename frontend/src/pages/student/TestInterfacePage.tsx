@@ -43,6 +43,28 @@ function useTimer(initialSeconds: number, onExpire: () => void, disabled = false
   return { seconds, reset };
 }
 
+// A single dropped request at submit time silently strands the student's
+// answers in Redis (never flushed to Postgres) while the UI moves on as if
+// nothing happened. Retry with backoff before giving up.
+async function withRetry(fn: () => Promise<unknown>, label: string, attempts = 3): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await fn();
+      return true;
+    } catch (err) {
+      console.error(`[Test] ${label} failed (attempt ${i + 1}/${attempts}):`, err);
+      if (i < attempts - 1) await new Promise((res) => setTimeout(res, 1000 * (i + 1)));
+    }
+  }
+  return false;
+}
+
+// submitSection is the point where Redis-cached answers get flushed into
+// Postgres and the section is marked complete.
+function submitSectionWithRetry(attemptId: string, sectionId: string): Promise<boolean> {
+  return withRetry(() => api.submitSection(attemptId, sectionId), `submitSection(${sectionId})`);
+}
+
 function formatTime(s: number) {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -186,6 +208,8 @@ export function TestInterfacePage() {
   const breakEndHandlerRef = useRef<() => void>(() => {});
   const [finished, setFinished] = useState(false);
   const [finishedAttemptId, setFinishedAttemptId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [timerHidden, setTimerHidden] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
   const [showSectionDirections, setShowSectionDirections] = useState(!searchParams.get('attemptId'));
@@ -422,7 +446,7 @@ export function TestInterfacePage() {
       setShowBreak(true);
       // Submit the finished section in the background so it's ready when break ends
       if (!isPreview) {
-        api.submitSection(attempt.id, fromSectionId).catch(() => {});
+        submitSectionWithRetry(attempt.id, fromSectionId);
       }
       return;
     }
@@ -438,7 +462,7 @@ export function TestInterfacePage() {
     resetTimerRef.current(fullTime);
     try {
       if (!isPreview) {
-        await api.submitSection(attempt.id, fromSectionId);
+        await submitSectionWithRetry(attempt.id, fromSectionId);
         const result = await api.startSection(attempt.id, test.sections[toSectionIdx].id) as { endTime: number };
         // Refine with exact server endTime
         resetTimerRef.current(Math.max(10, Math.floor((result.endTime - Date.now()) / 1000)));
@@ -462,20 +486,32 @@ export function TestInterfacePage() {
       return;
     }
 
+    setSubmitting(true);
+    setSubmitError(false);
+
     // Autosave last question's answer — await it so the answer is persisted
     // BEFORE submitSection triggers scoring (otherwise the last answer can be
     // dropped from the score in a race).
     const finalTimeSpent = currentQAttempt?.timeSpent ?? 0
     const isFinalMarked = currentQAttempt?.state === 'marked_review' || currentQAttempt?.state === 'answered_marked'
     console.log(`[Test] Autosaving final Q${currentQuestion.id}: ${finalTimeSpent}s`)
-    await api.autosaveAnswer(attempt.id, {
+    await withRetry(() => api.autosaveAnswer(attempt.id, {
       questionId: currentQuestion.id,
       answerGiven: toDbAnswer(currentQuestion.type, finalAns),
       timeSpentSeconds: finalTimeSpent,
       isFlagged: isFinalMarked,
-    }).catch(() => {});
-    // Submit last section (also triggers score calculation in backend)
-    await api.submitSection(attempt.id, currentSection.id).catch(() => {});
+    }), `autosave final Q${currentQuestion.id}`);
+    // Submit last section (also triggers score calculation in backend). If
+    // this never succeeds, the student's answers stay cached in Redis rather
+    // than being silently discarded — surface the failure instead of showing
+    // a false "finished" screen so they know to retry.
+    const submitted = await submitSectionWithRetry(attempt.id, currentSection.id);
+    setSubmitting(false);
+
+    if (!submitted) {
+      setSubmitError(true);
+      return;
+    }
 
     // Allow leaving the page (disarm the navigation blocker) and show the
     // "You're All Finished!" celebration. We keep the attempt id so the
@@ -541,8 +577,24 @@ export function TestInterfacePage() {
   timerExpireHandlerRef.current = () => {
     if (!test || !attempt || !currentSection) return;
     if (currentSectionIdx < test.sections.length - 1) {
-      advanceSection();
-      doSectionTransition(currentSection.id, currentSectionIdx + 1);
+      // Unlike saveAndNavigate/doFinalSubmit, timer expiry isn't triggered by
+      // the student navigating away, so the in-progress question's answer was
+      // never flushed to Redis. Save it before submitSection reads the cache
+      // — otherwise whatever they last selected is silently dropped.
+      const finish = async () => {
+        if (currentQuestion && !isPreview) {
+          const finalAns = currentQuestion.type === 'numeric' ? numericInput : selectedAnswer;
+          await withRetry(() => api.autosaveAnswer(attempt.id, {
+            questionId: currentQuestion.id,
+            answerGiven: toDbAnswer(currentQuestion.type, finalAns),
+            timeSpentSeconds: currentQAttempt?.timeSpent ?? 0,
+            isFlagged: currentQAttempt?.state === 'marked_review' || currentQAttempt?.state === 'answered_marked',
+          }), `autosave on timer expiry Q${currentQuestion.id}`);
+        }
+        advanceSection();
+        doSectionTransition(currentSection.id, currentSectionIdx + 1);
+      };
+      finish();
     } else {
       doFinalSubmit();
     }
@@ -1083,11 +1135,14 @@ export function TestInterfacePage() {
 
     updateQuestionState(currentSection.id, currentQuestion.id, newState, finalAns as any);
 
-    // Autosave to Redis
+    // Autosave to Redis. When this navigation is leaving the section entirely,
+    // await it first — doSectionTransition's submitSection call reads the Redis
+    // answer cache immediately after, and a fire-and-forget request here can
+    // lose the race, silently dropping this question's answer from the section.
     if (!isPreview) {
       const timeForQ = currentQAttempt?.timeSpent ?? 0
       console.log(`[Test] Autosaving Q${currentQuestion.id} (${newState}): ${timeForQ}s`)
-      api.autosaveAnswer(attempt.id, {
+      const doSave = () => api.autosaveAnswer(attempt.id, {
         questionId: currentQuestion.id,
         answerGiven: toDbAnswer(currentQuestion.type, finalAns),
         timeSpentSeconds: timeForQ,
@@ -1097,7 +1152,12 @@ export function TestInterfacePage() {
           currentQuestionIndex: nextSectionIdx !== undefined ? 0 : nextQIdx,
           sections: attempt.sections,
         },
-      }).catch(() => {});
+      });
+      if (nextSectionIdx !== undefined) {
+        await withRetry(doSave, `autosave before leaving section Q${currentQuestion.id}`);
+      } else {
+        doSave().catch(() => {});
+      }
     }
 
     if (nextSectionIdx !== undefined) {
@@ -2225,11 +2285,13 @@ export function TestInterfacePage() {
       </Modal>
 
       {/* ── SUBMIT MODAL ─────────────────────────────────────────────────────── */}
-      <Modal isOpen={showSubmitModal} onClose={() => setShowSubmitModal(false)} title="Submit Test" size="sm"
+      <Modal isOpen={showSubmitModal} onClose={() => { if (!submitting) setShowSubmitModal(false); }} title="Submit Test" size="sm"
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowSubmitModal(false)}>Go Back</Button>
-            <Button variant="success" size="sm" icon={<Send size={14} />} onClick={doFinalSubmit}>Submit</Button>
+            <Button variant="secondary" size="sm" disabled={submitting} onClick={() => setShowSubmitModal(false)}>Go Back</Button>
+            <Button variant="success" size="sm" icon={<Send size={14} />} disabled={submitting} onClick={doFinalSubmit}>
+              {submitting ? 'Submitting…' : submitError ? 'Retry Submit' : 'Submit'}
+            </Button>
           </div>
         }
       >
@@ -2248,10 +2310,17 @@ export function TestInterfacePage() {
               </div>
             );
           })}
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
-            <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
-            Once submitted, you cannot change your answers.
-          </div>
+          {submitError ? (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+              Submission failed — your answers are still saved. Check your connection and tap "Retry Submit".
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+              Once submitted, you cannot change your answers.
+            </div>
+          )}
         </div>
       </Modal>
 
