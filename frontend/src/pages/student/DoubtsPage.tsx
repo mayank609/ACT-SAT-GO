@@ -180,7 +180,7 @@ function DoubtItemComponent({ item, index, onCleared }: {
       {q.type === 'NUMERIC' && (
         <div className="flex gap-4 text-sm mb-3 text-left">
           <span className="text-slate-500">Your answer: <strong className="text-slate-700">{item.answerGiven?.text ?? (item.answerGiven?.value !== undefined ? formatNumericDisplay(item.answerGiven.value) : null) ?? '—'}</strong></span>
-          <span className="text-slate-500">Correct: <strong className="text-emerald-600">{q.correctAnswer.displayValues?.[0] ?? (q.correctAnswer.value !== undefined ? formatNumericDisplay(q.correctAnswer.value) : '')}</strong></span>
+          <span className="text-slate-500">Correct: <strong className="text-emerald-600">{(q.correctAnswer.displayValues && q.correctAnswer.displayValues.length > 0 ? q.correctAnswer.displayValues.join(' or ') : (q.correctAnswer.value !== undefined ? formatNumericDisplay(q.correctAnswer.value) : ''))}</strong></span>
         </div>
       )}
       <div className="text-xs text-slate-500 mb-3 p-2 bg-slate-50 rounded border border-slate-100 flex items-center justify-between gap-2">

@@ -319,7 +319,7 @@ function QuestionDisplay({
   ) : currentTq.question.type === 'NUMERIC' ? (
     <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2 text-sm">
       <div><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</span></div>
-      <div><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</span></div>
+      <div><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{(currentTq.question.correctAnswer.displayValues && currentTq.question.correctAnswer.displayValues.length > 0 ? currentTq.question.correctAnswer.displayValues.join(' or ') : (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : ''))}</span></div>
     </div>
   ) : null;
 

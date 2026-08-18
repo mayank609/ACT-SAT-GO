@@ -1173,7 +1173,7 @@ export function AdminStudentProfilePage() {
                                             {currentTq.question.type === 'NUMERIC' && (
                                               <div className="flex gap-4 text-sm mb-3 text-left">
                                                 <span className="text-slate-500">Your answer: <strong className={correct ? 'text-blue-600' : 'text-blue-400'}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</strong></span>
-                                                <span className="text-slate-500">Correct: <strong className="text-blue-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</strong></span>
+                                                <span className="text-slate-500">Correct: <strong className="text-blue-600">{(currentTq.question.correctAnswer.displayValues && currentTq.question.correctAnswer.displayValues.length > 0 ? currentTq.question.correctAnswer.displayValues.join(' or ') : (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : ''))}</strong></span>
                                               </div>
                                             )}
                                           </div>
@@ -1718,7 +1718,7 @@ export function AdminStudentProfilePage() {
                       currentTq.question.type === 'NUMERIC' && (
                         <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
                           <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</span></div>
-                          <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</span></div>
+                          <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{(currentTq.question.correctAnswer.displayValues && currentTq.question.correctAnswer.displayValues.length > 0 ? currentTq.question.correctAnswer.displayValues.join(' or ') : (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : ''))}</span></div>
                         </div>
                       )
                     )}
@@ -1765,7 +1765,7 @@ export function AdminStudentProfilePage() {
                       currentTq.question.type === 'NUMERIC' && (
                         <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-col gap-2">
                           <div className="text-sm"><span className="text-slate-500 font-medium">Your answer: </span><span className={`font-bold ${correct ? 'text-emerald-600' : 'text-red-500'}`}>{studentAnswer?.answerGiven?.text ?? (studentAnswer?.answerGiven?.value !== undefined ? formatNumericDisplay(studentAnswer.answerGiven.value) : null) ?? '—'}</span></div>
-                          <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{currentTq.question.correctAnswer.displayValues?.[0] ?? (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : '')}</span></div>
+                          <div className="text-sm"><span className="text-slate-500 font-medium">Correct answer: </span><span className="font-bold text-emerald-600">{(currentTq.question.correctAnswer.displayValues && currentTq.question.correctAnswer.displayValues.length > 0 ? currentTq.question.correctAnswer.displayValues.join(' or ') : (currentTq.question.correctAnswer.value !== undefined ? formatNumericDisplay(currentTq.question.correctAnswer.value) : ''))}</span></div>
                         </div>
                       )
                     )}
