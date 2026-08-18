@@ -4,6 +4,13 @@ const TOKEN_KEY = 'spg_admin_token';
 
 export type LeadStatus = 'Pending' | 'In Progress' | 'Contacted' | 'Resolved';
 
+// Tutor recruitment pipeline (Status 1) and post-hire lifecycle (Status 2) —
+// tracked separately from the generic LeadStatus above, which stays as-is for
+// Student leads. A tutor applicant can be e.g. "Selected" (Status 1) and later
+// "Onboarded" (Status 2) — these are independent axes, not one linear status.
+export type TutorRecruitmentStatus = 'Rejected' | 'Shortlisted' | 'Interviewed' | 'Selected';
+export type TutorOnboardingStatus = 'Onboarded' | 'Inactive' | 'EOC';
+
 export interface Lead {
   id: string;
   name: string;
@@ -28,6 +35,9 @@ export interface Lead {
   } | null;
   videoUrl?: string;
   remarks?: string;
+  companiesWorkedWith?: string;
+  recruitmentStatus?: TutorRecruitmentStatus;
+  onboardingStatus?: TutorOnboardingStatus;
 }
 
 export interface Job {
@@ -53,6 +63,8 @@ export interface BlogPost {
 }
 
 export const LEAD_STATUSES: LeadStatus[] = ['Pending', 'In Progress', 'Contacted', 'Resolved'];
+export const TUTOR_RECRUITMENT_STATUSES: TutorRecruitmentStatus[] = ['Rejected', 'Shortlisted', 'Interviewed', 'Selected'];
+export const TUTOR_ONBOARDING_STATUSES: TutorOnboardingStatus[] = ['Onboarded', 'Inactive', 'EOC'];
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 export function getToken(): string | null {
@@ -135,6 +147,18 @@ export async function updateLeadStatus(id: string, status: LeadStatus): Promise<
   return data.query;
 }
 
+// Generic partial update — used for tutor-only fields (recruitmentStatus,
+// onboardingStatus, companiesWorkedWith) that don't warrant their own endpoint.
+export async function updateLeadFields(id: string, fields: Partial<Lead>): Promise<Lead> {
+  const res = await authFetch(`/api/queries/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(fields),
+  });
+  if (!res.ok) throw new Error('Failed to update lead');
+  const data = await res.json();
+  return data.query;
+}
+
 export async function deleteLead(id: string): Promise<void> {
   const res = await authFetch(`/api/queries/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete lead');
@@ -160,6 +184,9 @@ export async function createLead(data: {
   } | null;
   videoUrl?: string;
   remarks?: string;
+  companiesWorkedWith?: string;
+  recruitmentStatus?: TutorRecruitmentStatus;
+  onboardingStatus?: TutorOnboardingStatus;
 }): Promise<Lead> {
   const res = await authFetch('/api/queries', {
     method: 'POST',

@@ -356,7 +356,8 @@ app.post('/api/queries', async (req, res) => {
   const {
     name, email, phone, exam, message, type, status,
     grade, source, stage, counselor, lastActivity, nextFollowup, leadScore,
-    city, subject, testPrep, grades, hourlyRate, cvFile, videoUrl, remarks
+    city, subject, testPrep, grades, hourlyRate, cvFile, videoUrl, remarks,
+    companiesWorkedWith, recruitmentStatus, onboardingStatus
   } = req.body || {};
 
   if (!email) {
@@ -365,6 +366,8 @@ app.post('/api/queries', async (req, res) => {
 
   const validStatuses = ['Pending', 'In Progress', 'Contacted', 'Resolved', 'Active', 'Archived'];
   const validStages = ['New Lead', 'Contacted', 'Qualified', 'Proposal Sent', 'Interested', 'Uncontacted', 'Enrolled', 'Lost/Drop'];
+  const validRecruitmentStatuses = ['Rejected', 'Shortlisted', 'Interviewed', 'Selected'];
+  const validOnboardingStatuses = ['Onboarded', 'Inactive', 'EOC'];
   const newQuery = {
     id: 'q_' + crypto.randomBytes(6).toString('hex') + '_' + Date.now(),
     name: name || 'Anonymous',
@@ -391,6 +394,9 @@ app.post('/api/queries', async (req, res) => {
     cvFile: cvFile || null,
     videoUrl: videoUrl || '',
     remarks: remarks || '',
+    companiesWorkedWith: companiesWorkedWith || '',
+    recruitmentStatus: validRecruitmentStatuses.includes(recruitmentStatus) ? recruitmentStatus : '',
+    onboardingStatus: validOnboardingStatuses.includes(onboardingStatus) ? onboardingStatus : '',
   };
 
   try {
@@ -408,7 +414,8 @@ app.put('/api/queries/:id', requireAuth, async (req, res) => {
   const allowedFields = [
     'status', 'stage', 'counselor', 'grade', 'source', 'exam',
     'leadScore', 'lastActivity', 'nextFollowup', 'name', 'email', 'phone', 'message',
-    'city', 'subject', 'testPrep', 'grades', 'hourlyRate', 'cvFile', 'videoUrl', 'remarks'
+    'city', 'subject', 'testPrep', 'grades', 'hourlyRate', 'cvFile', 'videoUrl', 'remarks',
+    'companiesWorkedWith', 'recruitmentStatus', 'onboardingStatus'
   ];
   const updates = {};
   for (const field of allowedFields) {

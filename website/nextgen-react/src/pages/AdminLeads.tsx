@@ -3,14 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import {
   AuthError,
   LEAD_STATUSES,
+  TUTOR_RECRUITMENT_STATUSES,
+  TUTOR_ONBOARDING_STATUSES,
   clearToken,
   createLead,
   deleteLead,
   fetchLeads,
   isAuthed,
   updateLeadStatus,
+  updateLeadFields,
   type Lead,
   type LeadStatus,
+  type TutorRecruitmentStatus,
+  type TutorOnboardingStatus,
   fetchJobs,
   createJob,
   deleteJob,
@@ -39,10 +44,12 @@ const EMPTY_TUTOR_FORM = {
   hourlyRate: '',
   videoUrl: '',
   remarks: '',
-  status: 'Pending' as LeadStatus,
+  companiesWorkedWith: '',
+  recruitmentStatus: 'Shortlisted' as TutorRecruitmentStatus,
+  onboardingStatus: '' as TutorOnboardingStatus | '',
 };
 
-const statusClass = (s: LeadStatus) => 's-' + s.toLowerCase().replace(/\s+/g, '-');
+const statusClass = (s: string) => 's-' + s.toLowerCase().replace(/\s+/g, '-');
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -64,7 +71,7 @@ export function AdminLeads() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | LeadStatus>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | LeadStatus | TutorRecruitmentStatus>('All');
   const [activeTab, setActiveTab] = useState<'students' | 'tutors' | 'hirings' | 'blogs'>('students');
 
   // Leads Modal State
@@ -143,6 +150,33 @@ export function AdminLeads() {
     }
   };
 
+  const handleRecruitmentStatusChange = async (id: string, recruitmentStatus: TutorRecruitmentStatus) => {
+    const prev = leads;
+    setLeads((cur) => cur.map((l) => (l.id === id ? { ...l, recruitmentStatus } : l)));
+    try {
+      await updateLeadFields(id, { recruitmentStatus });
+    } catch (err) {
+      setLeads(prev);
+      if (err instanceof AuthError) logout();
+      else setError(err instanceof Error ? err.message : 'Failed to update status');
+    }
+  };
+
+  const handleOnboardingStatusChange = async (id: string, onboardingStatus: TutorOnboardingStatus | '') => {
+    const prev = leads;
+    setLeads((cur) => cur.map((l) => (l.id === id ? { ...l, onboardingStatus: onboardingStatus || undefined } : l)));
+    try {
+      // Send '' rather than undefined so clearing back to "Not set" actually
+      // persists — JSON.stringify drops undefined keys, and the PUT handler
+      // only updates fields present in the body.
+      await updateLeadFields(id, { onboardingStatus: (onboardingStatus || '') as TutorOnboardingStatus });
+    } catch (err) {
+      setLeads(prev);
+      if (err instanceof AuthError) logout();
+      else setError(err instanceof Error ? err.message : 'Failed to update status');
+    }
+  };
+
   const handleAddLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm.email) { setAddError('Email is required'); return; }
@@ -216,8 +250,10 @@ export function AdminLeads() {
         videoUrl: addTutorForm.videoUrl,
         message: addTutorForm.remarks,
         remarks: addTutorForm.remarks,
+        companiesWorkedWith: addTutorForm.companiesWorkedWith,
+        recruitmentStatus: addTutorForm.recruitmentStatus,
+        onboardingStatus: addTutorForm.onboardingStatus || undefined,
         type: 'Tutor',
-        status: addTutorForm.status,
       });
       setLeads((cur) => [newLead, ...cur]);
       setShowAddTutorModal(false);
@@ -333,7 +369,13 @@ export function AdminLeads() {
         const isTutor = l.type === 'Tutor';
         if (activeTab === 'students' && isTutor) return false;
         if (activeTab === 'tutors' && !isTutor) return false;
-        if (statusFilter !== 'All' && l.status !== statusFilter) return false;
+        if (statusFilter !== 'All') {
+          if (activeTab === 'tutors') {
+            if (l.recruitmentStatus !== statusFilter) return false;
+          } else if (l.status !== statusFilter) {
+            return false;
+          }
+        }
         if (!q) return true;
         const searchFields = [
           l.name,
@@ -346,6 +388,7 @@ export function AdminLeads() {
           l.grades,
           l.hourlyRate,
           l.remarks,
+          l.companiesWorkedWith,
           ...(l.testPrep || []),
         ].map((f) => (f || '').toLowerCase());
         return searchFields.some((f) => f.includes(q));
@@ -392,40 +435,40 @@ export function AdminLeads() {
         ? jobs.length
         : blogs.length;
 
-  const pendingCount = activeTab === 'students' 
-    ? studentLeads.filter((l) => l.status === 'Pending').length 
+  const pendingCount = activeTab === 'students'
+    ? studentLeads.filter((l) => l.status === 'Pending').length
     : activeTab === 'tutors'
-      ? tutorLeads.filter((l) => l.status === 'Pending').length
+      ? tutorLeads.filter((l) => l.recruitmentStatus === 'Shortlisted').length
       : activeTab === 'hirings'
         ? jobs.filter((j) => j.dept === 'Academics').length
         : blogs.filter((b) => b.tag === 'STUDY TIPS').length;
-    
-  const stat3Label = activeTab === 'students' 
-    ? 'Consultations' 
+
+  const stat3Label = activeTab === 'students'
+    ? 'Consultations'
     : activeTab === 'tutors'
-      ? 'In Progress'
+      ? 'Interviewed'
       : activeTab === 'hirings'
         ? 'Operations'
         : 'SAT/ACT Tags';
-  const stat3Val = activeTab === 'students' 
-    ? studentLeads.filter((l) => l.type === 'Consultation').length 
+  const stat3Val = activeTab === 'students'
+    ? studentLeads.filter((l) => l.type === 'Consultation').length
     : activeTab === 'tutors'
-      ? tutorLeads.filter((l) => l.status === 'In Progress').length
+      ? tutorLeads.filter((l) => l.recruitmentStatus === 'Interviewed').length
       : activeTab === 'hirings'
         ? jobs.filter((j) => j.dept === 'Operations').length
         : blogs.filter((b) => b.tag === 'SAT' || b.tag === 'ACT').length;
 
-  const stat4Label = activeTab === 'students' 
-    ? 'Newsletter' 
+  const stat4Label = activeTab === 'students'
+    ? 'Newsletter'
     : activeTab === 'tutors'
-      ? 'Contacted / Resolved'
+      ? 'Selected / Onboarded'
       : activeTab === 'hirings'
         ? 'Marketing & Others'
         : 'Other Tags';
   const stat4Val = activeTab === 'students'
     ? studentLeads.filter((l) => l.type === 'Newsletter').length
     : activeTab === 'tutors'
-      ? tutorLeads.filter((l) => l.status === 'Contacted' || l.status === 'Resolved').length
+      ? tutorLeads.filter((l) => l.recruitmentStatus === 'Selected' || l.onboardingStatus === 'Onboarded').length
       : activeTab === 'hirings'
         ? jobs.filter((j) => j.dept !== 'Academics' && j.dept !== 'Operations').length
         : blogs.filter((b) => b.tag !== 'STUDY TIPS' && b.tag !== 'SAT' && b.tag !== 'ACT').length;
@@ -494,11 +537,13 @@ export function AdminLeads() {
           <div className="admin-stat is-pending">
             <strong>{pendingCount}</strong>
             <span>
-              {activeTab === 'students' || activeTab === 'tutors' 
-                ? 'Pending' 
-                : activeTab === 'hirings' 
-                  ? 'Academics' 
-                  : 'Study Tips'}
+              {activeTab === 'students'
+                ? 'Pending'
+                : activeTab === 'tutors'
+                  ? 'Shortlisted'
+                  : activeTab === 'hirings'
+                    ? 'Academics'
+                    : 'Study Tips'}
             </span>
           </div>
           <div className="admin-stat">
@@ -527,9 +572,9 @@ export function AdminLeads() {
             onChange={(e) => setSearch(e.target.value)}
           />
           {(activeTab === 'students' || activeTab === 'tutors') && (
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'All' | LeadStatus)}>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'All' | LeadStatus | TutorRecruitmentStatus)}>
               <option value="All">All statuses</option>
-              {LEAD_STATUSES.map((s) => (
+              {(activeTab === 'tutors' ? TUTOR_RECRUITMENT_STATUSES : LEAD_STATUSES).map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -642,11 +687,13 @@ export function AdminLeads() {
                       <th>Tutor Name</th>
                       <th>Contact &amp; Location</th>
                       <th>Expertise / Test Prep</th>
-                      <th>Grades &amp; Rate</th>
+                      <th>Grades &amp; Rate (INR)</th>
                       <th>CV &amp; Video</th>
+                      <th>Companies Worked With</th>
                       <th>Remarks</th>
                       <th>Applied Date</th>
-                      <th>Status</th>
+                      <th>Status 1</th>
+                      <th>Status 2</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -719,16 +766,33 @@ export function AdminLeads() {
                           </div>
                         </td>
                         <td className="admin-msg">
+                          {l.companiesWorkedWith || <span className="admin-muted">—</span>}
+                        </td>
+                        <td className="admin-msg">
                           {l.remarks || <span className="admin-muted">—</span>}
                         </td>
                         <td className="admin-contact">{formatDate(l.createdAt)}</td>
                         <td>
                           <select
-                            className={`admin-status-select ${statusClass(l.status)}`}
-                            value={l.status}
-                            onChange={(e) => handleStatusChange(l.id, e.target.value as LeadStatus)}
+                            className={`admin-status-select ${statusClass(l.recruitmentStatus || 'Shortlisted')}`}
+                            value={l.recruitmentStatus || 'Shortlisted'}
+                            onChange={(e) => handleRecruitmentStatusChange(l.id, e.target.value as TutorRecruitmentStatus)}
                           >
-                            {LEAD_STATUSES.map((s) => (
+                            {TUTOR_RECRUITMENT_STATUSES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            className={`admin-status-select ${statusClass(l.onboardingStatus || 'not-set')}`}
+                            value={l.onboardingStatus || ''}
+                            onChange={(e) => handleOnboardingStatusChange(l.id, e.target.value as TutorOnboardingStatus | '')}
+                          >
+                            <option value="">Not set</option>
+                            {TUTOR_ONBOARDING_STATUSES.map((s) => (
                               <option key={s} value={s}>
                                 {s}
                               </option>
@@ -997,18 +1061,42 @@ export function AdminLeads() {
               </div>
               <div className="admin-form-row">
                 <div className="admin-form-field">
-                  <label>Hourly Rate</label>
+                  <label>Hourly Rate (INR)</label>
                   <input
                     type="text"
-                    placeholder="e.g. $25/hr"
+                    placeholder="e.g. ₹500/hr"
                     value={addTutorForm.hourlyRate}
                     onChange={(e) => setAddTutorForm((f) => ({ ...f, hourlyRate: e.target.value }))}
                   />
                 </div>
                 <div className="admin-form-field">
-                  <label>Initial Status</label>
-                  <select value={addTutorForm.status} onChange={(e) => setAddTutorForm((f) => ({ ...f, status: e.target.value as LeadStatus }))}>
-                    {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <label>Companies Worked With</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Byju's, Vedantu"
+                    value={addTutorForm.companiesWorkedWith}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, companiesWorkedWith: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-field">
+                  <label>Status 1 (Recruitment)</label>
+                  <select
+                    value={addTutorForm.recruitmentStatus}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, recruitmentStatus: e.target.value as TutorRecruitmentStatus }))}
+                  >
+                    {TUTOR_RECRUITMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="admin-form-field">
+                  <label>Status 2 (Onboarding)</label>
+                  <select
+                    value={addTutorForm.onboardingStatus}
+                    onChange={(e) => setAddTutorForm((f) => ({ ...f, onboardingStatus: e.target.value as TutorOnboardingStatus | '' }))}
+                  >
+                    <option value="">Not set</option>
+                    {TUTOR_ONBOARDING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>

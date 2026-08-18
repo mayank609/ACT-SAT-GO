@@ -11,6 +11,14 @@
   --a-in-progress: #3b82f6;
   --a-contacted: #10b981;
   --a-resolved: #8b5cf6;
+  --a-rejected: #ef4444;
+  --a-shortlisted: #eab308;
+  --a-interviewed: #3b82f6;
+  --a-selected: #10b981;
+  --a-onboarded: #10b981;
+  --a-inactive: #94a3b8;
+  --a-eoc: #ef4444;
+  --a-not-set: #94a3b8;
 
   min-height: 100vh;
   background-color: var(--a-bg);
@@ -225,6 +233,14 @@ table.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .admin-status-select.s-in-progress { color: var(--a-in-progress); border-color: rgba(59, 130, 246, 0.4); }
 .admin-status-select.s-contacted { color: var(--a-contacted); border-color: rgba(16, 185, 129, 0.4); }
 .admin-status-select.s-resolved { color: var(--a-resolved); border-color: rgba(139, 92, 246, 0.4); }
+.admin-status-select.s-rejected { color: var(--a-rejected); border-color: rgba(239, 68, 68, 0.4); }
+.admin-status-select.s-shortlisted { color: var(--a-shortlisted); border-color: rgba(234, 179, 8, 0.4); }
+.admin-status-select.s-interviewed { color: var(--a-interviewed); border-color: rgba(59, 130, 246, 0.4); }
+.admin-status-select.s-selected { color: var(--a-selected); border-color: rgba(16, 185, 129, 0.4); }
+.admin-status-select.s-onboarded { color: var(--a-onboarded); border-color: rgba(16, 185, 129, 0.4); }
+.admin-status-select.s-inactive { color: var(--a-inactive); border-color: rgba(148, 163, 184, 0.4); }
+.admin-status-select.s-eoc { color: var(--a-eoc); border-color: rgba(239, 68, 68, 0.4); }
+.admin-status-select.s-not-set { color: var(--a-not-set); border-color: rgba(148, 163, 184, 0.4); }
 .admin-status-select option { background: #0d1b31; color: var(--a-text); }
 
 .admin-del {
