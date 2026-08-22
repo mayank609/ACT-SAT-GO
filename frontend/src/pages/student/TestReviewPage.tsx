@@ -444,7 +444,6 @@ function FsExplanationPanel({ tq, studentAnswer, attemptId }: {
   // Doubt CTAs only make sense for skipped or wrong questions (anything not correct).
   const correct = answersMatch(studentAnswer?.answerGiven ?? null, q.correctAnswer);
   const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
-  const topicLabel = q.topic?.name ?? 'General Review';
   const subTopicLabel = q.content.meta?.subTopic ?? null;
   const skillLabel = q.content.meta?.skill ?? null;
 
@@ -487,14 +486,10 @@ function FsExplanationPanel({ tq, studentAnswer, attemptId }: {
       {open && (
         <div className="space-y-4 pb-6">
           {/* Domain / Topic grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm">
             <div>
               <span className="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block">Domain</span>
               <span className="text-slate-800 font-bold">{domainLabel}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block">Topic</span>
-              <span className="text-slate-800 font-bold">{topicLabel}</span>
             </div>
             {subTopicLabel && (
               <div>
@@ -584,7 +579,6 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
   const parentPassageText = (tq as any).parentPassageText;
   
   const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
-  const topicLabel = q.topic?.name ?? 'General Review';
   const subTopicLabel = q.content.meta?.subTopic ?? null;
   const skillLabel = q.content.meta?.skill ?? null;
 
@@ -852,14 +846,10 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
 
         {showAnalysis && (
           <div className="px-6 pb-6 pt-2 space-y-4 border-t border-slate-100/60 bg-white">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
               <div>
                 <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider block">Domain</span>
                 <span className="text-slate-800 font-bold">{domainLabel}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider block">Topic</span>
-                <span className="text-slate-800 font-bold">{topicLabel}</span>
               </div>
               {subTopicLabel && (
                 <div>
