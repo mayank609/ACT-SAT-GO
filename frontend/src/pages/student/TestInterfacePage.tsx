@@ -1273,15 +1273,28 @@ export function TestInterfacePage() {
 
       {/* ── TOP BAR (Bluebook) ───────────────────────────────────────────────── */}
       <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-gray-200 px-5 h-16 flex items-center justify-between z-20">
-        {/* Left: module title + directions */}
-        <div className="flex flex-col justify-center min-w-0">
-          <p className="text-[15px] font-bold text-gray-900 leading-tight truncate">{currentSection.name}</p>
-          <button
-            onClick={() => setShowDirections(true)}
-            className="flex items-center gap-1 text-[13px] text-gray-700 hover:text-gray-900 w-fit"
-          >
-            Directions <ChevronDown size={13} />
-          </button>
+        {/* Left: module title + directions + tools */}
+        <div className="flex items-center gap-6 min-w-0">
+          <div className="flex flex-col justify-center min-w-0">
+            <p className="text-[15px] font-bold text-gray-900 leading-tight truncate">{currentSection.name}</p>
+            <button
+              onClick={() => setShowDirections(true)}
+              className="flex items-center gap-1 text-[13px] text-gray-700 hover:text-gray-900 w-fit"
+            >
+              Directions <ChevronDown size={13} />
+            </button>
+          </div>
+          
+          {hasDesmos && (
+            <button
+              onClick={() => setShowCalculator((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                showCalculator ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]' : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <Calculator size={14} /> Calculator
+            </button>
+          )}
         </div>
 
         {/* Center: timer */}
@@ -1306,11 +1319,7 @@ export function TestInterfacePage() {
               <BookOpen size={18} /> Reference
             </button>
           )}
-          {hasDesmos && (
-            <button onClick={() => setShowCalculator((v) => !v)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
-              <Calculator size={18} /> Calculator
-            </button>
-          )}
+
           {!isMath && (
             <button onClick={() => setShowHighlightsNotes(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]" title="Highlights & Notes">
               <PencilLine size={18} /> Highlights & Notes

@@ -1666,32 +1666,46 @@ export function TestReviewPage() {
         >
           {/* ── TOP HEADER BAR ───────────────────────────────────────────────── */}
           <header className="flex-shrink-0 bg-[#fcfcfd] border-b border-slate-200 px-4 h-14 flex items-center justify-between gap-3 z-20">
-            {/* Left: Section tabs with short labels */}
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="font-bold text-slate-800 text-xs whitespace-nowrap hidden md:inline">Reviewing:</span>
-              <div className="flex gap-1 flex-wrap">
-                {sections.map((sa, idx) => {
-                  const n = sa.section.name;
-                  const isMath = /math/i.test(n);
-                  const isMod2 = /2|two/i.test(n);
-                  const shortLabel = isMath
-                    ? `Math Mod ${isMod2 ? 2 : 1}`
-                    : `RW Mod ${isMod2 ? 2 : 1}`;
-                  return (
-                    <button
-                      key={sa.id}
-                      onClick={() => { setActiveSectionIdx(idx); setFilterBy('all'); setCurrentQuestionIdx(0); }}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                        activeSectionIdx === idx
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                      }`}
-                    >
-                      {shortLabel}
-                    </button>
-                  );
-                })}
+            {/* Left: Section tabs with short labels + Calculator if Math */}
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-bold text-slate-800 text-xs whitespace-nowrap hidden md:inline">Reviewing:</span>
+                <div className="flex gap-1 flex-wrap">
+                  {sections.map((sa, idx) => {
+                    const n = sa.section.name;
+                    const isMath = /math/i.test(n);
+                    const isMod2 = /2|two/i.test(n);
+                    const shortLabel = isMath
+                      ? `Math Mod ${isMod2 ? 2 : 1}`
+                      : `RW Mod ${isMod2 ? 2 : 1}`;
+                    return (
+                      <button
+                        key={sa.id}
+                        onClick={() => { setActiveSectionIdx(idx); setFilterBy('all'); setCurrentQuestionIdx(0); }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                          activeSectionIdx === idx
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        }`}
+                      >
+                        {shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/math/i.test(sections[activeSectionIdx]?.section.name ?? '') && (
+                <button
+                  onClick={() => setShowCalculator((v) => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                    showCalculator ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]' : 'bg-blue-50 text-[#1b3d6e] border-blue-200 hover:bg-blue-100'
+                  }`}
+                  title="Desmos Calculator"
+                >
+                  <Calculator size={15} /> Calculator
+                </button>
+              )}
             </div>
 
             {/* Right: Filter and close */}
@@ -2106,16 +2120,6 @@ export function TestReviewPage() {
         )}
       </div>
 
-      {/* Floating Desmos calculator toggle + panel */}
-      <button
-        onClick={() => setShowCalculator(v => !v)}
-        className={`fixed bottom-6 right-6 z-[190] flex items-center gap-2 px-4 py-3 rounded-full shadow-lg font-semibold text-sm transition-all hover:scale-105 ${
-          showCalculator ? 'bg-[#15305a] text-white' : 'bg-[#1b3d6e] text-white hover:bg-[#15305a]'
-        }`}
-        title="Desmos Calculator"
-      >
-        <Calculator size={18} /> Calculator
-      </button>
       <DesmosCalculator open={showCalculator} onClose={() => setShowCalculator(false)} />
     </div>
   );
