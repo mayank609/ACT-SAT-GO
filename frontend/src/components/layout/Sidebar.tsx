@@ -4,7 +4,7 @@ import {
   LayoutDashboard, BarChart3, Settings,
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
   Activity, UserCheck, Database, LifeBuoy, ChevronDown,
-  AlertCircle, HelpCircle, PieChart, BookMarked, CalendarCheck
+  AlertCircle, HelpCircle, PieChart, BookMarked, CalendarCheck, TrendingUp
 } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -41,6 +41,7 @@ interface NavItem {
 const studentNavItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['student'] },
   { label: 'My Assignments', path: '/my-tests', icon: <ClipboardList size={18} />, roles: ['student'] },
+  { label: 'My Progress', path: '/my-progress', icon: <TrendingUp size={18} />, roles: ['student'] },
   { label: 'My Classes', path: '/attendance', icon: <CalendarCheck size={18} />, roles: ['student'] },
   { label: 'Analytics', path: '/analytics', icon: <PieChart size={18} />, roles: ['student'] },
   { label: 'Review Mistakes', path: '/mistakes', icon: <AlertCircle size={18} />, roles: ['student'] },

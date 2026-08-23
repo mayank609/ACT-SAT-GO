@@ -684,9 +684,9 @@ export function MyStudentsPage() {
 
         {/* Analysis Table */}
         <Card padding="none">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[36rem]">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-white z-20">
                 <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
                   <th className="px-4 py-3 text-left font-semibold text-blue-900 whitespace-nowrap">Name</th>
                   <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Target Date</th>

@@ -25,8 +25,24 @@ export async function GET(
       orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
     })
 
+    // Deduplicate assignments by testId to prevent duplicate rows for the same test
+    const uniqueAssignmentsMap = new Map<string, typeof assignments[number]>()
+    for (const a of assignments) {
+      if (!uniqueAssignmentsMap.has(a.testId)) {
+        uniqueAssignmentsMap.set(a.testId, a)
+      } else {
+        const existing = uniqueAssignmentsMap.get(a.testId)!
+        if (a.dueAt && !existing.dueAt) {
+          uniqueAssignmentsMap.set(a.testId, a)
+        } else if (!existing.dueAt && a.createdAt > existing.createdAt) {
+          uniqueAssignmentsMap.set(a.testId, a)
+        }
+      }
+    }
+    const uniqueAssignments = Array.from(uniqueAssignmentsMap.values())
+
     const attempts = await prisma.testAttempt.findMany({
-      where: { studentId, testId: { in: assignments.map((a) => a.testId) } },
+      where: { studentId, testId: { in: uniqueAssignments.map((a) => a.testId) } },
       orderBy: { startedAt: 'desc' },
       include: { sectionAttempts: true, _count: { select: { answers: true } } },
     })
@@ -39,10 +55,10 @@ export async function GET(
       attemptsByTest.set(attempt.testId, list)
     }
 
-    const assignedTests = assignments.map((assignment) => {
+    const assignedTests = uniqueAssignments.map((assignment) => {
       const testAttempts = attemptsByTest.get(assignment.testId) ?? []
-      const inProgressAttempt = testAttempts.find((a) => a.status === 'IN_PROGRESS') ?? null
-      const submittedAttempt = testAttempts.find((a) => a.status === 'SUBMITTED') ?? null
+      const inProgressAttempt = testAttempts.find((a: any) => a.status === 'IN_PROGRESS') ?? null
+      const submittedAttempt = testAttempts.find((a: any) => a.status === 'SUBMITTED') ?? null
       const latestAttempt = testAttempts[0] ?? null
       const usedAttempts = testAttempts.length
       const remainingAttempts = Math.max(assignment.maxAttempts - usedAttempts, 0)
@@ -61,7 +77,7 @@ export async function GET(
       else statusLabel = 'Completed'      // submitted all assigned attempts
 
       const completionStatus = submittedAttempt ? 'Submitted' : inProgressAttempt ? 'In Progress' : 'Pending'
-      const totalQuestions = assignment.test.sections.reduce((a, s) => a + s._count.questions, 0)
+      const totalQuestions = assignment.test.sections.reduce((acc: number, s: any) => acc + s._count.questions, 0)
       const answeredCount = (inProgressAttempt ?? submittedAttempt)?._count.answers ?? 0
 
       return {

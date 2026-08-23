@@ -47,6 +47,7 @@ const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage')
 const ReviewAttemptsPage = lazy(() => import('./pages/student/ReviewAttemptsPage').then((m) => ({ default: m.ReviewAttemptsPage })));
 const MistakesPage = lazy(() => import('./pages/student/MistakesPage').then((m) => ({ default: m.MistakesPage })));
 const DoubtsPage = lazy(() => import('./pages/student/DoubtsPage').then((m) => ({ default: m.DoubtsPage })));
+const MyProgressPage = lazy(() => import('./pages/student/MyProgressPage').then((m) => ({ default: m.MyProgressPage })));
 
 function PageFallback() {
   return (
@@ -135,7 +136,7 @@ const router = createBrowserRouter(
 
         {/* Student */}
         <Route path="my-tests" element={<MyTestsPage />} />
-        <Route path="my-progress" element={<Navigate to="/my-tests" replace />} />
+        <Route path="my-progress" element={<MyProgressPage />} />
         <Route path="review-attempts" element={<ReviewAttemptsPage />} />
         <Route path="test-review/:attemptId" element={<TestReviewPage />} />
         <Route path="test-review/:attemptId/section/:sectionIdx" element={<SectionReviewPage />} />

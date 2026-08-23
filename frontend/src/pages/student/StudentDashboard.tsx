@@ -157,12 +157,16 @@ export function StudentDashboard() {
       {/* Stats row 1 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Assigned', value: tests.length, icon: <Target size={15} />, color: 'text-[#1b3d6e] bg-blue-50' },
-          { label: 'Completed', value: completed.length, icon: <CheckCircle size={15} />, color: 'text-emerald-700 bg-emerald-50' },
-          { label: 'Remaining', value: pending.length, icon: <Clock size={15} />, color: 'text-amber-700 bg-amber-50' },
-          { label: 'Completion', value: `${completionPct}%`, icon: <Percent size={15} />, color: 'text-purple-700 bg-purple-50' },
+          { label: 'Assigned', value: tests.length, icon: <Target size={15} />, color: 'text-[#1b3d6e] bg-blue-50', path: '/my-tests' },
+          { label: 'Completed', value: completed.length, icon: <CheckCircle size={15} />, color: 'text-emerald-700 bg-emerald-50', path: '/my-progress' },
+          { label: 'Remaining', value: pending.length, icon: <Clock size={15} />, color: 'text-amber-700 bg-amber-50', path: '/my-tests' },
+          { label: 'Completion', value: `${completionPct}%`, icon: <Percent size={15} />, color: 'text-purple-700 bg-purple-50', path: '/my-progress' },
         ].map((s) => (
-          <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+          <div
+            key={s.label}
+            onClick={() => navigate(s.path)}
+            className="bg-white border border-gray-100 rounded-xl p-4 text-center cursor-pointer hover:border-blue-100 hover:shadow-sm transition-all"
+          >
             <div className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md mb-2 ${s.color}`}>
               {s.icon} {s.label}
             </div>

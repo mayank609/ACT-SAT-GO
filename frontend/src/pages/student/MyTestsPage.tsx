@@ -130,7 +130,18 @@ export function MyTestsPage() {
 
   const pendingVisible = tab === 'todo' ? visiblePool.filter(t => t.status !== 'Expired') : [];
   const expiredVisible = tab === 'todo' ? visiblePool.filter(t => t.status === 'Expired') : [];
-  const completedVisible = tab === 'completed' ? visiblePool : [];
+  const completedVisible = useMemo(() => {
+    if (tab !== 'completed') return [];
+    const list = [...visiblePool];
+    list.sort((a, b) => {
+      const attA = attempts.find(att => att.title === a.title);
+      const attB = attempts.find(att => att.title === b.title);
+      const dateA = attA?.completedAt ? new Date(attA.completedAt).getTime() : 0;
+      const dateB = attB?.completedAt ? new Date(attB.completedAt).getTime() : 0;
+      return dateB - dateA;
+    });
+    return list;
+  }, [tab, visiblePool, attempts]);
 
   return (
     <div className="max-w-5xl space-y-5">

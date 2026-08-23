@@ -1112,9 +1112,9 @@ export function StudentManagementPage() {
 
         {/* Analysis Table */}
         <Card padding="none">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[36rem]">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-white z-20">
                 <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
                   <th className="px-4 py-2 text-left text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Name</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Target Date</th>
