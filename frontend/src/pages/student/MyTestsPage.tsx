@@ -120,16 +120,6 @@ export function MyTestsPage() {
     return list;
   }, [pool, search, activeFilter]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-40">
-        <Loader2 size={20} className="text-[#1b3d6e] animate-spin" />
-      </div>
-    );
-  }
-
-  const pendingVisible = tab === 'todo' ? visiblePool.filter(t => t.status !== 'Expired') : [];
-  const expiredVisible = tab === 'todo' ? visiblePool.filter(t => t.status === 'Expired') : [];
   const completedVisible = useMemo(() => {
     if (tab !== 'completed') return [];
     const list = [...visiblePool];
@@ -142,6 +132,17 @@ export function MyTestsPage() {
     });
     return list;
   }, [tab, visiblePool, attempts]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-40">
+        <Loader2 size={20} className="text-[#1b3d6e] animate-spin" />
+      </div>
+    );
+  }
+
+  const pendingVisible = tab === 'todo' ? visiblePool.filter(t => t.status !== 'Expired') : [];
+  const expiredVisible = tab === 'todo' ? visiblePool.filter(t => t.status === 'Expired') : [];
 
   return (
     <div className="max-w-5xl space-y-5">
