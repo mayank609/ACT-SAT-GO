@@ -209,15 +209,43 @@ function computeTestAnalysis(attempt: TaAttempt): {
 
   const sections: SectionAnalysis[] = sortedSections.map(sa => {
     const flatQs: TaTestQuestion[] = [];
+    const addedIds = new Set<string>();
     sa.section.questions.forEach(tq => {
       const q = tq.question;
       const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
         q.childQuestions.forEach(cq => {
-          flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq });
+          if (!addedIds.has(cq.id)) {
+            addedIds.add(cq.id);
+            flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq });
+          }
         });
       } else {
-        flatQs.push(tq);
+        const parent = (q as any).parentQuestion;
+        if (!addedIds.has(q.id)) {
+          addedIds.add(q.id);
+          if (parent) {
+            flatQs.push({
+              id: q.id,
+              questionId: q.id,
+              orderIndex: tq.orderIndex,
+              question: {
+                ...q,
+                subject: q.subject || parent.subject,
+                topic: q.topic || parent.topic,
+                content: {
+                  ...q.content,
+                  meta: {
+                    ...parent.content?.meta,
+                    ...q.content?.meta,
+                  }
+                }
+              } as any
+            });
+          } else {
+            flatQs.push(tq);
+          }
+        }
       }
     });
 
@@ -562,13 +590,7 @@ export function StudentManagementPage() {
         .map((att) => {
           try {
             const an = computeTestAnalysis(att);
-            const totalFlatQs = att.sectionAttempts.reduce((sum, sa) => {
-              return sum + sa.section.questions.reduce((s2, tq) => {
-                const q = tq.question as any;
-                const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
-                return s2 + (isPassage && q.childQuestions?.length > 0 ? q.childQuestions.length : 1);
-              }, 0);
-            }, 0);
+            const totalFlatQs = an.totalQuestions;
             const reviewedCount = att.answers.filter((a) => a.doubtStatus === 'doubt' || a.doubtStatus === 'cleared').length;
             const isAnalysed = totalFlatQs > 0 && reviewedCount >= totalFlatQs;
             return {
@@ -1659,33 +1681,63 @@ export function StudentManagementPage() {
                   ALL_DOMAIN_NAMES.forEach((n) => { domainStats[n] = { correct: 0, total: 0, diff: {} }; });
 
                   testAnalysisAttempt.sectionAttempts.forEach((sa) => {
+                    const flattenedQuestions: TaQuestion[] = [];
+                    const addedIds = new Set<string>();
+
                     sa.section.questions.forEach((tq) => {
                       const q = tq.question;
-                      const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
-                      const qs: TaQuestion[] = isPassage && q.childQuestions?.length
-                        ? q.childQuestions.map((cq) => ({
-                            ...cq,
-                            subject: cq.subject || q.subject,
-                            topic: cq.topic || q.topic,
-                            content: {
-                              ...cq.content,
-                              meta: {
-                                ...q.content?.meta,
-                                ...cq.content?.meta,
+                      const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+                      if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+                        q.childQuestions.forEach((cq) => {
+                          if (!addedIds.has(cq.id)) {
+                            addedIds.add(cq.id);
+                            flattenedQuestions.push({
+                              ...cq,
+                              subject: cq.subject || q.subject,
+                              topic: cq.topic || q.topic,
+                              content: {
+                                ...cq.content,
+                                meta: {
+                                  ...q.content?.meta,
+                                  ...cq.content?.meta,
+                                }
                               }
-                            }
-                          }))
-                        : [q];
-                      qs.forEach((cq) => {
-                        const domain = ksMatchDomain(cq);
-                        const ans = answersMap.get(cq.id);
-                        const correct = !!ans?.answerGiven && taAnswersMatch(ans.answerGiven, cq.correctAnswer);
-                        if (domain && domainStats[domain]) {
-                          domainStats[domain].total++;
-                          if (correct) domainStats[domain].correct++;
-                          domainStats[domain].diff[cq.difficultyLevel] = (domainStats[domain].diff[cq.difficultyLevel] ?? 0) + 1;
+                            });
+                          }
+                        });
+                      } else {
+                        const parent = (q as any).parentQuestion;
+                        if (!addedIds.has(q.id)) {
+                          addedIds.add(q.id);
+                          if (parent) {
+                            flattenedQuestions.push({
+                              ...q,
+                              subject: q.subject || parent.subject,
+                              topic: q.topic || parent.topic,
+                              content: {
+                                ...q.content,
+                                meta: {
+                                  ...parent.content?.meta,
+                                  ...q.content?.meta,
+                                }
+                              }
+                            });
+                          } else {
+                            flattenedQuestions.push(q);
+                          }
                         }
-                      });
+                      }
+                    });
+
+                    flattenedQuestions.forEach((cq) => {
+                      const domain = ksMatchDomain(cq);
+                      const ans = answersMap.get(cq.id);
+                      const correct = !!ans?.answerGiven && taAnswersMatch(ans.answerGiven, cq.correctAnswer);
+                      if (domain && domainStats[domain]) {
+                        domainStats[domain].total++;
+                        if (correct) domainStats[domain].correct++;
+                        domainStats[domain].diff[cq.difficultyLevel] = (domainStats[domain].diff[cq.difficultyLevel] ?? 0) + 1;
+                      }
                     });
                   });
 
@@ -1890,9 +1942,47 @@ export function StudentManagementPage() {
                       const q = tq.question;
                       const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
                       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-                        return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
+                        return q.childQuestions.map((cq) => ({
+                          ...tq,
+                          id: cq.id,
+                          questionId: cq.id,
+                          question: {
+                            ...cq,
+                            subject: cq.subject || q.subject,
+                            topic: cq.topic || q.topic,
+                            content: {
+                              ...cq.content,
+                              meta: {
+                                ...q.content?.meta,
+                                ...cq.content?.meta,
+                              }
+                            }
+                          } as any,
+                          parentPassageText: q.content?.text
+                        }));
                       }
-                      return [tq];
+                      const parent = (q as any).parentQuestion;
+                      if (parent) {
+                        return [{
+                          ...tq,
+                          id: q.id,
+                          questionId: q.id,
+                          question: {
+                            ...q,
+                            subject: q.subject || parent.subject,
+                            topic: q.topic || parent.topic,
+                            content: {
+                              ...q.content,
+                              meta: {
+                                ...parent.content?.meta,
+                                ...q.content?.meta,
+                              }
+                            }
+                          } as any,
+                          parentPassageText: parent.content?.text
+                        }];
+                      }
+                      return (q as any).parentQuestionId ? [] : [tq];
                     });
                     const answersMap = new Map(testAnalysisAttempt?.answers.map((a) => [a.questionId, a]) ?? []);
 

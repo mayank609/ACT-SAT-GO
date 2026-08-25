@@ -995,33 +995,62 @@ export function TestReviewPage() {
   const rawSections = [...attempt.sectionAttempts].sort((a, b) => a.section.orderIndex - b.section.orderIndex);
   const sections = rawSections.map((sa) => {
     const flattenedQuestions: DbTestQuestion[] = [];
+    const addedIds = new Set<string>();
+
     sa.section.questions.forEach((tq) => {
       const q = tq.question;
       const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
         q.childQuestions.forEach((cq) => {
-          flattenedQuestions.push({
-            id: cq.id,
-            questionId: cq.id,
-            orderIndex: tq.orderIndex,
-            question: {
-              ...cq,
-              subject: cq.subject || q.subject,
-              topic: cq.topic || q.topic,
-              content: {
-                ...cq.content,
-                meta: {
-                  ...q.content?.meta,
-                  ...cq.content?.meta,
+          if (!addedIds.has(cq.id)) {
+            addedIds.add(cq.id);
+            flattenedQuestions.push({
+              id: cq.id,
+              questionId: cq.id,
+              orderIndex: tq.orderIndex,
+              question: {
+                ...cq,
+                subject: cq.subject || q.subject,
+                topic: cq.topic || q.topic,
+                content: {
+                  ...cq.content,
+                  meta: {
+                    ...q.content?.meta,
+                    ...cq.content?.meta,
+                  }
                 }
-              }
-            } as any,
-            parentPassageText: q.content.text,
-          });
+              } as any,
+              parentPassageText: q.content.text,
+            });
+          }
         });
-      } else if (!(q as any).parentQuestionId) {
-        // Skip child rows: already emitted via their passage parent above.
-        flattenedQuestions.push(tq);
+      } else {
+        const parent = (q as any).parentQuestion;
+        if (!addedIds.has(q.id)) {
+          addedIds.add(q.id);
+          if (parent) {
+            flattenedQuestions.push({
+              id: q.id,
+              questionId: q.id,
+              orderIndex: tq.orderIndex,
+              question: {
+                ...q,
+                subject: q.subject || parent.subject,
+                topic: q.topic || parent.topic,
+                content: {
+                  ...q.content,
+                  meta: {
+                    ...parent.content?.meta,
+                    ...q.content?.meta,
+                  }
+                }
+              } as any,
+              parentPassageText: parent.content?.text,
+            });
+          } else {
+            flattenedQuestions.push(tq);
+          }
+        }
       }
     });
 

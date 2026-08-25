@@ -39,11 +39,12 @@ interface TaAnswer {
 interface TaQuestion {
   id: string;
   type: string;
-  content: { text: string; explanation?: string | null };
+  content: { text: string; explanation?: string | null; meta?: { domain?: string | null; subTopic?: string | null; isPassage?: boolean } | null };
   options: Record<string, string> | null;
   correctAnswer: TaAnswer;
   difficultyLevel: string;
   subject?: string | null;
+  topic?: { name: string; parent?: { name: string } | null } | null;
   childQuestions?: TaQuestion[];
 }
 
@@ -168,16 +169,43 @@ function computeTestAnalysis(attempt: TaAttempt): {
   const sections: SectionAnalysis[] = sortedSections.map(sa => {
     // Flatten passage questions
     const flatQs: TaTestQuestion[] = [];
+    const addedIds = new Set<string>();
     sa.section.questions.forEach(tq => {
       const q = tq.question;
       const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
         q.childQuestions.forEach(cq => {
-          flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq });
+          if (!addedIds.has(cq.id)) {
+            addedIds.add(cq.id);
+            flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq });
+          }
         });
-      } else if (!(q as any).parentQuestionId) {
-        // Skip child rows: already emitted via their passage parent above.
-        flatQs.push(tq);
+      } else {
+        const parent = (q as any).parentQuestion;
+        if (!addedIds.has(q.id)) {
+          addedIds.add(q.id);
+          if (parent) {
+            flatQs.push({
+              id: q.id,
+              questionId: q.id,
+              orderIndex: tq.orderIndex,
+              question: {
+                ...q,
+                subject: q.subject || parent.subject,
+                topic: q.topic || parent.topic,
+                content: {
+                  ...q.content,
+                  meta: {
+                    ...parent.content?.meta,
+                    ...q.content?.meta,
+                  }
+                }
+              } as any
+            });
+          } else {
+            flatQs.push(tq);
+          }
+        }
       }
     });
 
@@ -1068,9 +1096,46 @@ export function AdminStudentProfilePage() {
                                       const q = tq.question;
                                       const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
                                       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-                                        return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
+                                        return q.childQuestions.map((cq) => ({
+                                          ...tq,
+                                          id: cq.id,
+                                          questionId: cq.id,
+                                          question: {
+                                            ...cq,
+                                            subject: cq.subject || q.subject,
+                                            topic: cq.topic || q.topic,
+                                            content: {
+                                              ...cq.content,
+                                              meta: {
+                                                ...q.content?.meta,
+                                                ...cq.content?.meta,
+                                              }
+                                            }
+                                          } as any,
+                                          parentPassageText: q.content?.text
+                                        }));
                                       }
-                                      // Skip child rows: already emitted via their passage parent above.
+                                      const parent = (q as any).parentQuestion;
+                                      if (parent) {
+                                        return [{
+                                          ...tq,
+                                          id: q.id,
+                                          questionId: q.id,
+                                          question: {
+                                            ...q,
+                                            subject: q.subject || parent.subject,
+                                            topic: q.topic || parent.topic,
+                                            content: {
+                                              ...q.content,
+                                              meta: {
+                                                ...parent.content?.meta,
+                                                ...q.content?.meta,
+                                              }
+                                            }
+                                          } as any,
+                                          parentPassageText: parent.content?.text
+                                        }];
+                                      }
                                       return (q as any).parentQuestionId ? [] : [tq];
                                     });
                                     const answersMap = new Map(expandedAttempt?.answers.map((a) => [a.questionId, a]) ?? []);
@@ -1501,9 +1566,46 @@ export function AdminStudentProfilePage() {
           const q = tq.question;
           const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
           if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
+            return q.childQuestions.map((cq) => ({
+              ...tq,
+              id: cq.id,
+              questionId: cq.id,
+              question: {
+                ...cq,
+                subject: cq.subject || q.subject,
+                topic: cq.topic || q.topic,
+                content: {
+                  ...cq.content,
+                  meta: {
+                    ...q.content?.meta,
+                    ...cq.content?.meta,
+                  }
+                }
+              } as any,
+              parentPassageText: q.content?.text
+            }));
           }
-          // Skip child rows: already emitted via their passage parent above.
+          const parent = (q as any).parentQuestion;
+          if (parent) {
+            return [{
+              ...tq,
+              id: q.id,
+              questionId: q.id,
+              question: {
+                ...q,
+                subject: q.subject || parent.subject,
+                topic: q.topic || parent.topic,
+                content: {
+                  ...q.content,
+                  meta: {
+                    ...parent.content?.meta,
+                    ...q.content?.meta,
+                  }
+                }
+              } as any,
+              parentPassageText: parent.content?.text
+            }];
+          }
           return (q as any).parentQuestionId ? [] : [tq];
         });
         const answersMap = new Map(expandedAttempt.answers.map((a) => [a.questionId, a]));
@@ -1593,9 +1695,46 @@ export function AdminStudentProfilePage() {
           const q = tq.question;
           const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
           if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-            return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
+            return q.childQuestions.map((cq) => ({
+              ...tq,
+              id: cq.id,
+              questionId: cq.id,
+              question: {
+                ...cq,
+                subject: cq.subject || q.subject,
+                topic: cq.topic || q.topic,
+                content: {
+                  ...cq.content,
+                  meta: {
+                    ...q.content?.meta,
+                    ...cq.content?.meta,
+                  }
+                }
+              } as any,
+              parentPassageText: q.content?.text
+            }));
           }
-          // Skip child rows: already emitted via their passage parent above.
+          const parent = (q as any).parentQuestion;
+          if (parent) {
+            return [{
+              ...tq,
+              id: q.id,
+              questionId: q.id,
+              question: {
+                ...q,
+                subject: q.subject || parent.subject,
+                topic: q.topic || parent.topic,
+                content: {
+                  ...q.content,
+                  meta: {
+                    ...parent.content?.meta,
+                    ...q.content?.meta,
+                  }
+                }
+              } as any,
+              parentPassageText: parent.content?.text
+            }];
+          }
           return (q as any).parentQuestionId ? [] : [tq];
         });
         const answersMap = new Map(expandedAttempt.answers.map((a) => [a.questionId, a]));

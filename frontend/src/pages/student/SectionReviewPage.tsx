@@ -61,21 +61,61 @@ export function SectionReviewPage() {
   // Build answer lookup + flatten passage questions (same as the review page)
   const answersMap = new Map(attempt.answers.map((a) => [a.questionId, a]));
   const flat: DbTestQuestion[] = [];
+  const addedIds = new Set<string>();
   sa.section.questions.forEach((tq) => {
     const q = tq.question;
     const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
     if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
       q.childQuestions.forEach((cq) => {
-        flat.push({
-          id: cq.id,
-          questionId: cq.id,
-          orderIndex: tq.orderIndex,
-          question: { ...cq, parentQuestionText: q.content.text } as any,
-        });
+        if (!addedIds.has(cq.id)) {
+          addedIds.add(cq.id);
+          flat.push({
+            id: cq.id,
+            questionId: cq.id,
+            orderIndex: tq.orderIndex,
+            question: {
+              ...cq,
+              subject: cq.subject || q.subject,
+              topic: cq.topic || q.topic,
+              content: {
+                ...cq.content,
+                meta: {
+                  ...q.content?.meta,
+                  ...cq.content?.meta,
+                }
+              },
+              parentQuestionText: q.content.text
+            } as any,
+          });
+        }
       });
-    } else if (!(q as any).parentQuestionId) {
-      // Skip child rows: already emitted via their passage parent above.
-      flat.push(tq);
+    } else {
+      const parent = (q as any).parentQuestion;
+      if (!addedIds.has(q.id)) {
+        addedIds.add(q.id);
+        if (parent) {
+          flat.push({
+            id: q.id,
+            questionId: q.id,
+            orderIndex: tq.orderIndex,
+            question: {
+              ...q,
+              subject: q.subject || parent.subject,
+              topic: q.topic || parent.topic,
+              content: {
+                ...q.content,
+                meta: {
+                  ...parent.content?.meta,
+                  ...q.content?.meta,
+                }
+              },
+              parentQuestionText: parent.content?.text
+            } as any,
+          });
+        } else {
+          flat.push(tq);
+        }
+      }
     }
   });
 
