@@ -122,7 +122,7 @@ const KS_DOMAIN_SYNONYMS: Record<string, string[]> = {
   'Algebra': ['algebra', 'linear'],
   'Advanced Math': ['advanced math', 'advanced', 'nonlinear', 'quadratic', 'function', 'exponential'],
   'Problem-Solving and Data Analysis': ['problem-solving and data analysis', 'problem solving', 'data analysis', 'data interpretation', 'statistics', 'ratio', 'rates', 'percent', 'probability', 'proportion'],
-  'Geometry and Trigonometry': ['geometry and trigonometry', 'geometry', 'trigonometry', 'trig'],
+  'Geometry': ['geometry and trigonometry', 'geometry', 'trigonometry', 'trig'],
 };
 
 function ksDomainCandidates(q: TaQuestion): string[] {
@@ -1662,7 +1662,20 @@ export function StudentManagementPage() {
                     sa.section.questions.forEach((tq) => {
                       const q = tq.question;
                       const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
-                      const qs: TaQuestion[] = isPassage && q.childQuestions?.length ? q.childQuestions : [q];
+                      const qs: TaQuestion[] = isPassage && q.childQuestions?.length
+                        ? q.childQuestions.map((cq) => ({
+                            ...cq,
+                            subject: cq.subject || q.subject,
+                            topic: cq.topic || q.topic,
+                            content: {
+                              ...cq.content,
+                              meta: {
+                                ...q.content?.meta,
+                                ...cq.content?.meta,
+                              }
+                            }
+                          }))
+                        : [q];
                       qs.forEach((cq) => {
                         const domain = ksMatchDomain(cq);
                         const ans = answersMap.get(cq.id);
@@ -1675,6 +1688,11 @@ export function StudentManagementPage() {
                       });
                     });
                   });
+
+                  const activeGroups = (Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>)
+                    .filter((group) => KS_DOMAINS[group].some((d) => (domainStats[d.name]?.total ?? 0) > 0));
+
+                  if (activeGroups.length === 0) return null;
 
                   return (
                     <div className="mt-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -1692,8 +1710,8 @@ export function StudentManagementPage() {
                       </button>
 
                       {knowledgeSkillsOpen && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 px-5 pb-5 pt-4 border-t border-slate-100">
-                          {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
+                        <div className={`grid grid-cols-1 ${activeGroups.length > 1 ? 'lg:grid-cols-2' : ''} gap-10 px-5 pb-5 pt-4 border-t border-slate-100`}>
+                          {activeGroups.map((group) => (
                             <div key={group}>
                               <h5 className="text-sm font-bold text-slate-800 mb-4">{group}</h5>
                               <div className="space-y-4">

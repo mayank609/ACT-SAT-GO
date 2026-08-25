@@ -138,7 +138,7 @@ const DOMAIN_SYNONYMS: Record<string, string[]> = {
   'Algebra': ['algebra', 'linear'],
   'Advanced Math': ['advanced math', 'advanced', 'nonlinear', 'quadratic', 'function', 'exponential'],
   'Problem-Solving and Data Analysis': ['problem-solving and data analysis', 'problem solving', 'data analysis', 'data interpretation', 'statistics', 'ratio', 'rates', 'percent', 'probability', 'proportion'],
-  'Geometry and Trigonometry': ['geometry and trigonometry', 'geometry', 'trigonometry', 'trig'],
+  'Geometry': ['geometry and trigonometry', 'geometry', 'trigonometry', 'trig'],
 }
 
 // Keywords that map a topic name onto a specific subdomain. Matched only within
@@ -1006,6 +1006,15 @@ export function TestReviewPage() {
             orderIndex: tq.orderIndex,
             question: {
               ...cq,
+              subject: cq.subject || q.subject,
+              topic: cq.topic || q.topic,
+              content: {
+                ...cq.content,
+                meta: {
+                  ...q.content?.meta,
+                  ...cq.content?.meta,
+                }
+              }
             } as any,
             parentPassageText: q.content.text,
           });
@@ -1278,62 +1287,71 @@ export function TestReviewPage() {
       })()}
 
       {/* ── KNOWLEDGE AND SKILLS ─────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <button
-          onClick={() => setKnowledgeSkillsOpen(!knowledgeSkillsOpen)}
-          className="w-full text-left flex items-center justify-between gap-2 px-5 md:px-7 py-3.5 hover:bg-slate-50 transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-900">Knowledge and Skills</h2>
-            <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold"><Info size={15} /> New!</span>
-          </div>
-          <div className="text-slate-600">
-            {knowledgeSkillsOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-          </div>
-        </button>
+      {(() => {
+        const activeGroups = (Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>)
+          .filter((group) => KS_DOMAINS[group].some((d) => (domainStats[d.name]?.total ?? 0) > 0));
 
-        {knowledgeSkillsOpen && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 px-5 md:px-7 pb-6 pt-4 border-t border-slate-100">
-            {(Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>).map((group) => (
-              <div key={group}>
-                <h3 className="text-lg font-bold text-slate-900 mb-5">{group}</h3>
-                <div className="space-y-5">
-                  {KS_DOMAINS[group].map((d) => {
-                    const stat = domainStats[d.name];
-                    // Every domain shows the same number of blocks (R&W and Math match),
-                    // filled proportionally to accuracy and colored by performance band.
-                    const SEGMENTS = 16;
-                    const accuracy = stat.total > 0 ? stat.correct / stat.total : 0;
-                    const filled = stat.total > 0 ? Math.round(accuracy * SEGMENTS) : 0;
-                    const barColor = stat.total === 0 ? 'bg-slate-300'
-                      : accuracy >= 0.8 ? 'bg-emerald-500'
-                      : accuracy >= 0.5 ? 'bg-amber-400'
-                      : 'bg-red-400';
-                    return (
-                      <div key={d.name}>
-                        <div className="flex items-center justify-between">
-                          <p className="font-bold text-slate-900">{d.name}</p>
-                          {stat.total > 0 && (
-                            <span className={`text-xs font-bold ${
-                              accuracy >= 0.8 ? 'text-emerald-600' : accuracy >= 0.5 ? 'text-amber-600' : 'text-red-500'
-                            }`}>{Math.round(accuracy * 100)}%</span>
-                          )}
-                        </div>
-                        <p className="text-sm text-slate-500 mb-2.5">({d.pct}% of test section, {d.range} questions)</p>
-                        <div className="flex gap-1">
-                          {Array.from({ length: SEGMENTS }).map((_, i) => (
-                            <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < filled ? barColor : 'bg-slate-200'}`} />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+        if (activeGroups.length === 0) return null;
+
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => setKnowledgeSkillsOpen(!knowledgeSkillsOpen)}
+              className="w-full text-left flex items-center justify-between gap-2 px-5 md:px-7 py-3.5 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900">Knowledge and Skills</h2>
+                <span className="flex items-center gap-1 text-blue-600 text-sm font-semibold"><Info size={15} /> New!</span>
               </div>
-            ))}
+              <div className="text-slate-600">
+                {knowledgeSkillsOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </div>
+            </button>
+
+            {knowledgeSkillsOpen && (
+              <div className={`grid grid-cols-1 ${activeGroups.length > 1 ? 'lg:grid-cols-2' : ''} gap-10 px-5 md:px-7 pb-6 pt-4 border-t border-slate-100`}>
+                {activeGroups.map((group) => (
+                  <div key={group}>
+                    <h3 className="text-lg font-bold text-slate-900 mb-5">{group}</h3>
+                    <div className="space-y-5">
+                      {KS_DOMAINS[group].map((d) => {
+                        const stat = domainStats[d.name];
+                        // Every domain shows the same number of blocks (R&W and Math match),
+                        // filled proportionally to accuracy and colored by performance band.
+                        const SEGMENTS = 16;
+                        const accuracy = stat.total > 0 ? stat.correct / stat.total : 0;
+                        const filled = stat.total > 0 ? Math.round(accuracy * SEGMENTS) : 0;
+                        const barColor = stat.total === 0 ? 'bg-slate-300'
+                          : accuracy >= 0.8 ? 'bg-emerald-500'
+                          : accuracy >= 0.5 ? 'bg-amber-400'
+                          : 'bg-red-400';
+                        return (
+                          <div key={d.name}>
+                            <div className="flex items-center justify-between">
+                              <p className="font-bold text-slate-900">{d.name}</p>
+                              {stat.total > 0 && (
+                                <span className={`text-xs font-bold ${
+                                  accuracy >= 0.8 ? 'text-emerald-600' : accuracy >= 0.5 ? 'text-amber-600' : 'text-red-500'
+                                }`}>{Math.round(accuracy * 100)}%</span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-500 mb-2.5">({d.pct}% of test section, {d.range} questions)</p>
+                            <div className="flex gap-1">
+                              {Array.from({ length: SEGMENTS }).map((_, i) => (
+                                <div key={i} className={`h-2.5 flex-1 rounded-[2px] ${i < filled ? barColor : 'bg-slate-200'}`} />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* ── QUESTION WISE REPORT ───────────────────────────────────────────────── */}
       <div id="question-report-anchor" className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
