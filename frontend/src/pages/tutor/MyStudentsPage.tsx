@@ -275,10 +275,15 @@ export function MyStudentsPage() {
     diagnosticsEnglish: number | null;
     diagnosticsMath: number | null;
     mockTests: number;
+    diagnosticCount: number;
     sectionalTests: number;
     hwCount: number;
+    hwRW: number;
+    hwMath: number;
     cwCount: number;
     practiceSheets: number;
+    practiceRW: number;
+    practiceMath: number;
     totalAssessments: number;
     lastTestName: string | null;
     lastSubmittedAt: string | null;
@@ -288,6 +293,7 @@ export function MyStudentsPage() {
     rawScoreTotal: number | null;
     rawScoreEnglish: number | null;
     rawScoreMath: number | null;
+    diagnosticDecision: 'keep' | 'leave' | null;
     attempts: Array<{ id: string; testTitle: string; status: string; totalScore: number | null; startedAt: string; completedAt: string | null }>;
   }>>([]);
   const [analysisSearchTerm, setAnalysisSearchTerm] = useState('');
@@ -427,6 +433,13 @@ export function MyStudentsPage() {
   const loadComprehensiveAnalysis = async () => {
     setAnalysisLoading(true);
     try {
+      const subjectOf = (a: any): 'rw' | 'math' | 'other' => {
+        const t = (a.test?.title ?? '').toLowerCase();
+        if (/math|algebra|geometry|calc/.test(t)) return 'math';
+        if (/reading|writing|english|verbal|grammar|\brw\b|r&w/.test(t)) return 'rw';
+        return 'other';
+      };
+
       const allStudentData = await Promise.all(
         students.map(async (student) => {
           try {
@@ -472,11 +485,6 @@ export function MyStudentsPage() {
               }
             }
 
-            // No per-subject fallback here: analytics.latestScore may be a composite Mock
-            // score or a raw Practice/HW count, and halving either one to fill in "English"/
-            // "Math" produces a number with no real meaning. Leave them null (rendered as
-            // "—") until real per-subject data is available below.
-
             // Find the latest diagnostic or mock attempt and compute SAT scaled scores
             const scoringAttempt = studentAttempts
               .filter((a: any) => {
@@ -518,10 +526,15 @@ export function MyStudentsPage() {
               diagnosticsEnglish,
               diagnosticsMath,
               mockTests: studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('mock')).length,
+              diagnosticCount: studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('diagnostic')).length,
               sectionalTests: studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('sectional')).length,
               hwCount: hwAttempts.length,
+              hwRW: hwAttempts.filter((a: any) => subjectOf(a) === 'rw').length,
+              hwMath: hwAttempts.filter((a: any) => subjectOf(a) === 'math').length,
               cwCount: studentAttempts.filter((a: any) => { const t = (a.test?.title ?? '').toLowerCase(); return t.includes('classwork') || t.includes('cw'); }).length,
               practiceSheets: practiceAttempts.length,
+              practiceRW: practiceAttempts.filter((a: any) => subjectOf(a) === 'rw').length,
+              practiceMath: practiceAttempts.filter((a: any) => subjectOf(a) === 'math').length,
               totalAssessments: studentAttempts.length,
               lastTestName,
               lastSubmittedAt,
@@ -531,6 +544,7 @@ export function MyStudentsPage() {
               rawScoreTotal,
               rawScoreEnglish,
               rawScoreMath,
+              diagnosticDecision: student.diagnosticDecision || null,
               attempts: studentAttempts.slice(0, 10),
             };
           } catch (err) {
@@ -543,10 +557,15 @@ export function MyStudentsPage() {
               diagnosticsEnglish: null,
               diagnosticsMath: null,
               mockTests: 0,
+              diagnosticCount: 0,
               sectionalTests: 0,
               hwCount: 0,
+              hwRW: 0,
+              hwMath: 0,
               cwCount: 0,
               practiceSheets: 0,
+              practiceRW: 0,
+              practiceMath: 0,
               totalAssessments: 0,
               lastTestName: null,
               lastSubmittedAt: null,
@@ -556,6 +575,7 @@ export function MyStudentsPage() {
               rawScoreTotal: null,
               rawScoreEnglish: null,
               rawScoreMath: null,
+              diagnosticDecision: student.diagnosticDecision || null,
               attempts: [],
             };
           }
@@ -687,22 +707,31 @@ export function MyStudentsPage() {
           <div className="overflow-auto max-h-[36rem]">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white z-20">
+                <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
+                  <th className="px-4 py-2 text-left text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Name</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Target Date</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" rowSpan={2}>Test Report</th>
+                  <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Performance</th>
+                </tr>
                 <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
-                  <th className="px-4 py-3 text-left font-semibold text-blue-900 whitespace-nowrap">Name</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Target Date</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200">Diagnostic Score</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">English</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Math</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap border-l border-blue-200">Total Assessment</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Test Report</th>
-                  <th className="px-4 py-3 text-center font-semibold text-blue-900 whitespace-nowrap">Performance</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap border-l border-blue-200">Total SS</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">RW SS</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">Math SS</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap border-l border-blue-200">Mock</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">Sectional</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap border-l border-blue-100">HW R&amp;W</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">HW Math</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap border-l border-blue-100">Practice R&amp;W</th>
+                  <th className="px-3 py-1.5 text-center text-[13px] font-semibold text-blue-800 whitespace-nowrap">Practice Math</th>
                 </tr>
               </thead>
               <tbody>
                 {analysisLoading ? (
-                  <tr><td colSpan={8} className="py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={13} className="py-8 text-center text-slate-400">Loading...</td></tr>
                 ) : studentAnalysisData.length === 0 ? (
-                  <tr><td colSpan={8} className="py-8 text-center text-slate-400">No students found</td></tr>
+                  <tr><td colSpan={13} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) => {
                       if (statusFilter !== 'all') {
@@ -723,38 +752,77 @@ export function MyStudentsPage() {
                     .map((row, idx) => (
                       <tr key={row.studentId} className={`border-b border-slate-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/student/${row.studentId}`)}
+                            className="flex items-center gap-2 text-left group"
+                            title="View student details"
+                          >
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                               {row.studentName.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <p className="font-semibold text-slate-900 text-sm">{row.studentName}</p>
+                                <p className="font-semibold text-slate-900 text-sm group-hover:text-blue-700 group-hover:underline">{row.studentName}</p>
                               </div>
                               <p className="text-xs text-slate-400 truncate">{row.studentEmail}</p>
                             </div>
-                          </div>
+                          </button>
                         </td>
                         <td className="px-4 py-3 text-center text-sm text-slate-600 whitespace-nowrap">
                           {formatTargetDate(row.targetDate)}
                         </td>
-                        <td className="px-4 py-3 text-center font-semibold text-blue-900 border-l border-blue-100">
-                          {row.scaledScoreTotal ?? '—'}
+                        <td className="px-3 py-3 text-center font-semibold text-blue-900 border-l border-blue-100">
+                          {(() => {
+                            const computed = row.scaledScoreTotal;
+                            const manual = students.find(s => s.id === row.studentId)?.manualDiagTotal;
+                            if (computed != null) return computed;
+                            if (manual != null) return <span title="Manually entered score" className="text-violet-700">{manual}<sup className="text-[9px] ml-0.5">M</sup></span>;
+                            return '—';
+                          })()}
                         </td>
-                        <td className="px-4 py-3 text-center text-sm font-semibold text-blue-700">
-                          {row.diagnosticsEnglish ?? '—'}
+                        <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
+                          {(() => {
+                            const computed = row.scaledScoreEnglish;
+                            const manual = students.find(s => s.id === row.studentId)?.manualDiagRW;
+                            if (computed != null) return computed;
+                            if (manual != null) return <span title="Manually entered score" className="text-violet-700">{manual}<sup className="text-[9px] ml-0.5">M</sup></span>;
+                            return '—';
+                          })()}
                         </td>
-                        <td className="px-4 py-3 text-center text-sm font-semibold text-blue-700">
-                          {row.diagnosticsMath ?? '—'}
+                        <td className="px-3 py-3 text-center text-sm font-semibold text-blue-700">
+                          {(() => {
+                            const computed = row.scaledScoreMath;
+                            const manual = students.find(s => s.id === row.studentId)?.manualDiagMath;
+                            if (computed != null) return computed;
+                            if (manual != null) return <span title="Manually entered score" className="text-violet-700">{manual}<sup className="text-[9px] ml-0.5">M</sup></span>;
+                            return '—';
+                          })()}
                         </td>
-                        <td className="px-4 py-3 text-center text-sm font-bold text-emerald-700 border-l border-blue-100">
-                          {row.totalAssessments ?? 0}
+                        <td className="px-3 py-3 text-center text-sm text-slate-600 border-l border-blue-100">
+                          {row.mockTests || '—'}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.sectionalTests || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600 border-l border-blue-100">
+                          {row.hwRW || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.hwMath || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600 border-l border-blue-100">
+                          {row.practiceRW || '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-sm text-slate-600">
+                          {row.practiceMath || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center border-l border-blue-100">
                           <button
                             onClick={() => {
                               setSelectedStudentId(row.studentId);
                               setSelectedAttemptId('');
+                              setReportFilter('all');
                               setMainView('test_analysis');
                             }}
                             className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
@@ -763,7 +831,7 @@ export function MyStudentsPage() {
                           </button>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button onClick={() => navigate(`/students/${row.studentId}`)} className="px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
+                          <button onClick={() => navigate(`/analytics?studentId=${row.studentId}`)} className="px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
                             View
                           </button>
                         </td>
