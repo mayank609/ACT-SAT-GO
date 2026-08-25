@@ -9,19 +9,51 @@ interface ReportRow {
   id: string; title: string; startedAt: string; completedAt: string | null;
   rwM1: number; rwM2: number; mathM1: number; mathM2: number;
   rwM1T: number; rwM2T: number; mathM1T: number; mathM2T: number;
-  totalRaw: number; rwSS: number; mathSS: number; totalSS: number;
+  totalRaw: number; totalRawT: number; rwSS: number; mathSS: number; totalSS: number;
   isSAT: boolean; isMockTest: boolean;
+  category?: string;
+  subCategory?: string;
 }
 
+const isHW = (r: ReportRow): boolean => {
+  const t = r.title.toLowerCase();
+  const sub = (r.subCategory ?? '').toLowerCase();
+  return sub.includes('homework') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\b(hw|m-hw|r-hw|w-hw|rw-hw|mhw|rhw|whw|rwhw)\b/.test(t);
+};
+
+const isMath = (r: ReportRow): boolean => {
+  const t = r.title.toLowerCase();
+  const sub = (r.subCategory ?? '').toLowerCase();
+  return sub.includes('math') || sub.includes('quant') || /math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t);
+};
+
+const isReading = (r: ReportRow): boolean => {
+  const t = r.title.toLowerCase();
+  const sub = (r.subCategory ?? '').toLowerCase();
+  return sub.includes('reading') || /reading|comprehension/.test(t) || /\b(r-hw|rhw|rw-hw|rwhw)\b/.test(t);
+};
+
+const isWriting = (r: ReportRow): boolean => {
+  const t = r.title.toLowerCase();
+  const sub = (r.subCategory ?? '').toLowerCase();
+  return sub.includes('writing') || /writing|grammar/.test(t) || /\b(w-hw|whw|rw-hw|rwhw)\b/.test(t);
+};
+
+const isPractice = (r: ReportRow): boolean => {
+  const t = r.title.toLowerCase();
+  const sub = (r.subCategory ?? '').toLowerCase();
+  return !isHW(r) && (sub.includes('practice') || t.includes('practice'));
+};
+
 const FILTERS = [
-  { key: 'mock',             label: 'Mock',             match: (t: string) => /\bmock\b/i.test(t) && !/diagnostic/i.test(t) },
-  { key: 'diagnostic',       label: 'Diag',             match: (t: string) => /\bdiagnostic\b/i.test(t) },
-  { key: 'math_hw',          label: 'Math HW',          match: (t: string) => /\bmhw\b/i.test(t) || (/math/i.test(t) && /\bhw\b|homework/i.test(t)) },
-  { key: 'reading_hw',       label: 'Reading HW',       match: (t: string) => /reading/i.test(t) && /\bhw\b|homework/i.test(t) },
-  { key: 'writing_hw',       label: 'Writing HW',       match: (t: string) => /writing/i.test(t) && /\bhw\b|homework/i.test(t) },
-  { key: 'math_practice',    label: 'Math Practice',    match: (t: string) => /math/i.test(t) && /practice/i.test(t) },
-  { key: 'reading_practice', label: 'Reading Prac',     match: (t: string) => /reading/i.test(t) && /practice/i.test(t) },
-  { key: 'writing_practice', label: 'Writing Practice', match: (t: string) => /writing/i.test(t) && /practice/i.test(t) },
+  { key: 'mock',             label: 'Mock',             match: (r: ReportRow) => /\bmock\b/i.test(r.title) && !/diagnostic/i.test(r.title) },
+  { key: 'diagnostic',       label: 'Diag',             match: (r: ReportRow) => /\bdiagnostic\b/i.test(r.title) },
+  { key: 'math_hw',          label: 'Math HW',          match: (r: ReportRow) => isHW(r) && isMath(r) },
+  { key: 'reading_hw',       label: 'Reading HW',       match: (r: ReportRow) => isHW(r) && isReading(r) },
+  { key: 'writing_hw',       label: 'Writing HW',       match: (r: ReportRow) => isHW(r) && isWriting(r) },
+  { key: 'math_practice',    label: 'Math Practice',    match: (r: ReportRow) => isPractice(r) && isMath(r) },
+  { key: 'reading_practice', label: 'Reading Prac',     match: (r: ReportRow) => isPractice(r) && isReading(r) },
+  { key: 'writing_practice', label: 'Writing Practice', match: (r: ReportRow) => isPractice(r) && isWriting(r) },
 ] as const;
 type FilterKey = typeof FILTERS[number]['key'] | 'all';
 
@@ -52,16 +84,20 @@ export function MyProgressPage() {
               id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
               rwM1: an.rw1Correct, rwM2: an.rw2Correct, mathM1: an.math1Correct, mathM2: an.math2Correct,
               rwM1T: an.rw1Total, rwM2T: an.rw2Total, mathM1T: an.math1Total, mathM2T: an.math2Total,
-              totalRaw: an.totalCorrect, rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore,
+              totalRaw: an.totalCorrect, totalRawT: an.totalQuestions, rwSS: an.rwScaled, mathSS: an.mathScaled, totalSS: an.finalScaledScore,
               isSAT: an.isSAT,
               // Scaled score applies to Diagnostic/Mock/Sectional — only Practice Sheet shows a raw count.
               isMockTest: !(['Practice Sheet'].includes(att.test.category ?? '') || /practice\s*sheet/i.test(att.test.title ?? '')),
+              category: att.test.category ?? undefined,
+              subCategory: att.test.subCategory ?? undefined,
             };
           } catch {
             return {
               id: att.id, title: att.test.title, startedAt: att.startedAt, completedAt: att.completedAt,
               rwM1: 0, rwM2: 0, mathM1: 0, mathM2: 0, rwM1T: 0, rwM2T: 0, mathM1T: 0, mathM2T: 0,
-              totalRaw: att.totalScore ?? 0, rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false, isMockTest: false,
+              totalRaw: att.totalScore ?? 0, totalRawT: 0, rwSS: 0, mathSS: 0, totalSS: att.totalScore ?? 0, isSAT: false, isMockTest: false,
+              category: att.test.category ?? undefined,
+              subCategory: att.test.subCategory ?? undefined,
             };
           }
         });
@@ -75,7 +111,7 @@ export function MyProgressPage() {
 
   const filterCounts = useMemo(() => {
     const counts: Record<string, number> = { all: rows.length };
-    for (const f of FILTERS) counts[f.key] = rows.filter(r => f.match(r.title)).length;
+    for (const f of FILTERS) counts[f.key] = rows.filter(r => f.match(r)).length;
     return counts;
   }, [rows]);
 
@@ -84,7 +120,7 @@ export function MyProgressPage() {
     if (search.trim()) list = list.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
     if (activeFilter !== 'all') {
       const f = FILTERS.find(f => f.key === activeFilter);
-      if (f) list = list.filter(r => f.match(r.title));
+      if (f) list = list.filter(r => f.match(r));
     }
     return list;
   }, [rows, search, activeFilter]);
@@ -100,9 +136,16 @@ export function MyProgressPage() {
     };
   }, [rows]);
 
-  const fmt = (iso: string | null) => iso
-    ? new Date(iso).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' })
-    : '—';
+  const fmt = (iso: string | null) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    const day = d.getDate();
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    const year = d.toLocaleString('en-US', { year: '2-digit' });
+    const time = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${day} ${month}, ${year}, ${time}`;
+  };
 
   if (loading) {
     return (
@@ -229,7 +272,7 @@ export function MyProgressPage() {
                     <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.rwM2}</td>
                     <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.mathM1}</td>
                     <td className="px-4 py-4 text-center text-[#1b3d6e] font-medium whitespace-nowrap border-r border-slate-100">{r.mathM2}</td>
-                    <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRaw}</td>
+                    <td className="px-4 py-4 text-center font-bold text-slate-900 whitespace-nowrap border-r border-slate-100">{r.totalRawT > 0 ? `${r.totalRaw}/${r.totalRawT}` : r.totalRaw}</td>
                     <td className="px-4 py-4 text-center text-slate-600 whitespace-nowrap border-r border-slate-100">
                       {r.isMockTest && (r.rwM1T + r.rwM2T) > 0 ? r.rwSS : '—'}
                     </td>

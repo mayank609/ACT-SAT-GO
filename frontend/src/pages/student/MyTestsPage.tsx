@@ -29,12 +29,13 @@ interface LoadedAttempt { id: string; title: string; completedAt: string | null;
 const isHW = (t: ApiTest): boolean => {
   const title = t.title.toLowerCase();
   const sub = (t.subCategory ?? '').toLowerCase();
-  return sub.includes('homework') || /\bhw\b|homework/.test(title);
+  return sub.includes('homework') || /\b(hw|m-hw|r-hw|w-hw|rw-hw|mhw|rhw|whw|rwhw)\b|homework/.test(title);
 };
 const isMathSubject = (t: ApiTest): boolean => {
   const title = t.title.toLowerCase();
   const sub = (t.subCategory ?? '').toLowerCase();
   return sub.includes('math') || sub.includes('quant') || /math|algebra|geometry|calc/.test(title)
+    || /\b(m-hw|mhw)\b/.test(title)
     || (t.sections ?? []).some(s => /math/i.test(s.name));
 };
 const isReadingSubject = (t: ApiTest): boolean => {
@@ -42,6 +43,7 @@ const isReadingSubject = (t: ApiTest): boolean => {
   const sub = (t.subCategory ?? '').toLowerCase();
   return sub.includes('rw') || sub.includes('english') || sub.includes('reading') || sub.includes('writing')
     || /reading|writing|english|verbal|grammar|\brw\b/.test(title)
+    || /\b(r-hw|w-hw|rw-hw|rhw|whw|rwhw)\b/.test(title)
     || (t.sections ?? []).some(s => /read|writ|english|verbal/i.test(s.name));
 };
 const isMock = (t: ApiTest): boolean =>

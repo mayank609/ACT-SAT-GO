@@ -3,21 +3,21 @@
 export const isHW = (test: any): boolean => {
   const t = (test.title ?? '').toLowerCase();
   const sub = (test.subCategory ?? '').toLowerCase();
-  return sub.includes('homework') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
+  return sub.includes('homework') || t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\b(hw|m-hw|r-hw|w-hw|rw-hw|mhw|rhw|whw|rwhw)\b/.test(t);
 };
 
 export const isEnglish = (test: any): boolean => {
   const t = (test.title ?? '').toLowerCase();
   const sub = (test.subCategory ?? '').toLowerCase();
   return sub.includes('rw') || sub.includes('english') || sub.includes('reading') || sub.includes('writing') ||
-         /reading|writing|english|verbal|grammar|\brw\b/.test(t);
+         /reading|writing|english|verbal|grammar|\brw\b/.test(t) || /\b(r-hw|w-hw|rw-hw|rhw|whw|rwhw)\b/.test(t);
 };
 
 export const isMath = (test: any): boolean => {
   const t = (test.title ?? '').toLowerCase();
   const sub = (test.subCategory ?? '').toLowerCase();
   return sub.includes('math') || sub.includes('quant') ||
-         /math|algebra|geometry|calc/.test(t);
+         /math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t);
 };
 
 export type PracticeSubject = 'math' | 'reading' | 'writing' | 'other';
@@ -32,9 +32,9 @@ export const practiceSubjectOf = (test: { subCategory?: string; title?: string }
   if (sub.includes('reading')) return 'reading';
   if (sub.includes('writing')) return 'writing';
   const t = (test.title ?? '').toLowerCase();
-  if (/math|algebra|geometry|calc/.test(t)) return 'math';
-  if (/reading|comprehension/.test(t)) return 'reading';
-  if (/writing|grammar/.test(t)) return 'writing';
+  if (/math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t)) return 'math';
+  if (/reading|comprehension/.test(t) || /\b(r-hw|rhw)\b/.test(t)) return 'reading';
+  if (/writing|grammar/.test(t) || /\b(w-hw|whw)\b/.test(t)) return 'writing';
   return 'other';
 };
 

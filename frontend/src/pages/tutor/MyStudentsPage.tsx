@@ -956,6 +956,17 @@ export function MyStudentsPage() {
               ];
               const filteredRows = reportRows.filter(r => filterMatches(r, reportFilter));
 
+              const formatProgressDate = (iso: string | null) => {
+                if (!iso) return '—';
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return '—';
+                const day = d.getDate();
+                const month = d.toLocaleString('en-US', { month: 'short' });
+                const year = d.toLocaleString('en-US', { year: '2-digit' });
+                const time = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                return `${day} ${month}, ${year}, ${time}`;
+              };
+
               return (
                 <Card padding="none">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
@@ -1031,8 +1042,8 @@ export function MyStudentsPage() {
                                 className={`border-b border-slate-200 hover:bg-blue-50/60 cursor-pointer transition-colors ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
                                 <td className="px-4 py-3 text-slate-500 border-r border-slate-100">{i + 1}</td>
                                 <td className="px-4 py-3 font-semibold text-blue-700 hover:underline border-r border-slate-100">{r.title}</td>
-                                <td className="px-4 py-3 text-center text-xs text-slate-500 border-r border-slate-100">{r.startedAt ? new Date(r.startedAt).toLocaleString() : '—'}</td>
-                                <td className="px-4 py-3 text-center text-xs text-slate-500 border-r border-slate-100">{r.completedAt ? new Date(r.completedAt).toLocaleString() : '—'}</td>
+                                <td className="px-4 py-3 text-center text-xs text-slate-500 border-r border-slate-100">{formatProgressDate(r.startedAt)}</td>
+                                <td className="px-4 py-3 text-center text-xs text-slate-500 border-r border-slate-100">{formatProgressDate(r.completedAt)}</td>
                                 {/* A module not covered by this test (e.g. Math1/Math2 on an
                                     RW-only Sectional) has total=0 — show "—", not a fake 0/0. */}
                                 <td className="px-4 py-3 text-center text-blue-700 font-medium border-r border-slate-100">{r.rwM1T > 0 ? `${r.rwM1}/${r.rwM1T}` : '—'}</td>
