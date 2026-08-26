@@ -2762,6 +2762,7 @@ h1 span,
   display: flex;
   align-items: stretch;
   background: transparent;
+  gap: 20px;
 }
 
 .compare-col {
@@ -2782,8 +2783,6 @@ h1 span,
 .compare-col-asg {
   border-radius: 18px;
   overflow: hidden;
-  margin-left: -22px;
-  padding-left: 22px;
   box-shadow: 0 28px 60px rgba(15, 23, 42, 0.16), 0 12px 28px rgba(245, 155, 0, 0.18);
   z-index: 2;
 }
@@ -2873,7 +2872,6 @@ h1 span,
   .compare-col-asg {
     margin-left: 0;
     padding-left: 0;
-    margin-top: -14px;
   }
   .compare-col-others,
   .compare-col-asg {
