@@ -80,9 +80,11 @@ export function SectionReviewPage() {
               content: {
                 ...cq.content,
                 meta: {
-                  ...q.content?.meta,
-                  ...cq.content?.meta,
-                }
+                  domain: cq.content?.meta?.domain || q.content?.meta?.domain,
+                  subTopic: cq.content?.meta?.subTopic || q.content?.meta?.subTopic,
+                  skill: cq.content?.meta?.skill || q.content?.meta?.skill,
+                  isPassage: (cq.content?.meta as any)?.isPassage || (q.content?.meta as any)?.isPassage,
+                } as any
               },
               parentQuestionText: q.content.text
             } as any,
@@ -105,9 +107,11 @@ export function SectionReviewPage() {
               content: {
                 ...q.content,
                 meta: {
-                  ...parent.content?.meta,
-                  ...q.content?.meta,
-                }
+                  domain: q.content?.meta?.domain || parent.content?.meta?.domain,
+                  subTopic: q.content?.meta?.subTopic || parent.content?.meta?.subTopic,
+                  skill: q.content?.meta?.skill || parent.content?.meta?.skill,
+                  isPassage: (q.content?.meta as any)?.isPassage || (parent.content?.meta as any)?.isPassage,
+                } as any
               },
               parentQuestionText: parent.content?.text
             } as any,

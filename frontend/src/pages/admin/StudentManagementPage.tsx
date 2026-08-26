@@ -142,6 +142,15 @@ function ksMatchDomain(q: TaQuestion): string | null {
   return null;
 }
 
+function mergeQuestionMeta(cqMeta: any, qMeta: any) {
+  return {
+    domain: cqMeta?.domain || qMeta?.domain || null,
+    subTopic: cqMeta?.subTopic || qMeta?.subTopic || null,
+    skill: cqMeta?.skill || qMeta?.skill || null,
+    isPassage: cqMeta?.isPassage || qMeta?.isPassage || null,
+  };
+}
+
 function taOptionsToDisplay(options: Record<string, string> | null): Array<{ id: string; text: string }> {
   if (!options) return [];
   return Object.entries(options).map(([k, v]) => ({ id: k.toLowerCase(), text: v }));
@@ -235,10 +244,7 @@ function computeTestAnalysis(attempt: TaAttempt): {
                 topic: q.topic || parent.topic,
                 content: {
                   ...q.content,
-                  meta: {
-                    ...parent.content?.meta,
-                    ...q.content?.meta,
-                  }
+                  meta: mergeQuestionMeta(q.content?.meta, parent.content?.meta) as any
                 }
               } as any
             });
@@ -1697,10 +1703,7 @@ export function StudentManagementPage() {
                               topic: cq.topic || q.topic,
                               content: {
                                 ...cq.content,
-                                meta: {
-                                  ...q.content?.meta,
-                                  ...cq.content?.meta,
-                                }
+                                meta: mergeQuestionMeta(cq.content?.meta, q.content?.meta) as any
                               }
                             });
                           }
@@ -1716,10 +1719,7 @@ export function StudentManagementPage() {
                               topic: q.topic || parent.topic,
                               content: {
                                 ...q.content,
-                                meta: {
-                                  ...parent.content?.meta,
-                                  ...q.content?.meta,
-                                }
+                                meta: mergeQuestionMeta(q.content?.meta, parent.content?.meta) as any
                               }
                             });
                           } else {
@@ -1949,10 +1949,7 @@ export function StudentManagementPage() {
                             topic: cq.topic || q.topic,
                             content: {
                               ...cq.content,
-                              meta: {
-                                ...q.content?.meta,
-                                ...cq.content?.meta,
-                              }
+                              meta: mergeQuestionMeta(cq.content?.meta, q.content?.meta) as any
                             }
                           } as any,
                           parentPassageText: q.content?.text
@@ -1970,10 +1967,7 @@ export function StudentManagementPage() {
                             topic: q.topic || parent.topic,
                             content: {
                               ...q.content,
-                              meta: {
-                                ...parent.content?.meta,
-                                ...q.content?.meta,
-                              }
+                              meta: mergeQuestionMeta(q.content?.meta, parent.content?.meta) as any
                             }
                           } as any,
                           parentPassageText: parent.content?.text
