@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Brand } from './components/Brand';
@@ -20,6 +20,47 @@ import { IconGlobe, IconUser, IconUsers, IconHeartCheck, IconGraduationCap, Icon
 
 export default function App() {
   useScrollReveal();
+
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    function adjustHeights() {
+      if (!tableRef.current) return;
+      const othersCol = tableRef.current.querySelector('.compare-col-others');
+      const asgCol = tableRef.current.querySelector('.compare-col-asg');
+      if (!othersCol || !asgCol) return;
+
+      const othersCells = othersCol.querySelectorAll('.compare-cell') as NodeListOf<HTMLElement>;
+      const asgCells = asgCol.querySelectorAll('.compare-cell') as NodeListOf<HTMLElement>;
+
+      // Reset heights first
+      othersCells.forEach(cell => cell.style.height = 'auto');
+      asgCells.forEach(cell => cell.style.height = 'auto');
+
+      // Only adjust heights if screen is desktop/tablet (not stacked vertically on mobile)
+      if (window.innerWidth > 640) {
+        const count = Math.min(othersCells.length, asgCells.length);
+        for (let i = 0; i < count; i++) {
+          const othersHeight = othersCells[i].getBoundingClientRect().height;
+          const asgHeight = asgCells[i].getBoundingClientRect().height;
+          const maxHeight = Math.max(othersHeight, asgHeight);
+          othersCells[i].style.height = `${maxHeight}px`;
+          asgCells[i].style.height = `${maxHeight}px`;
+        }
+      }
+    }
+
+    adjustHeights();
+
+    // Re-run after images/layouts settle
+    const timer = setTimeout(adjustHeights, 200);
+
+    window.addEventListener('resize', adjustHeights);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', adjustHeights);
+    };
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', exam: 'General', message: '' });
@@ -372,7 +413,7 @@ export default function App() {
               { others: 'Disconnected tools & platforms', asg: 'All-in-one learning ecosystem' },
             ];
             return (
-              <div className="compare-table-new" role="table" aria-label="ACT SAT GO comparison">
+              <div ref={tableRef} className="compare-table-new" role="table" aria-label="ACT SAT GO comparison">
                 <div className="compare-col compare-col-others" role="rowgroup">
                   <div className="compare-cell compare-head col-others" role="columnheader">OTHERS</div>
                   {COMPARE_ROWS.map((r) => (
