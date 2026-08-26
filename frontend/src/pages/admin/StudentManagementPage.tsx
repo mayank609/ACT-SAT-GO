@@ -1741,10 +1741,7 @@ export function StudentManagementPage() {
                     });
                   });
 
-                  const activeGroups = (Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>)
-                    .filter((group) => KS_DOMAINS[group].some((d) => (domainStats[d.name]?.total ?? 0) > 0));
-
-                  if (activeGroups.length === 0) return null;
+                  const activeGroups = Object.keys(KS_DOMAINS) as Array<keyof typeof KS_DOMAINS>;
 
                   return (
                     <div className="mt-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
