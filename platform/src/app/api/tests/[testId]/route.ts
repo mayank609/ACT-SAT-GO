@@ -24,12 +24,14 @@ export async function GET(
               include: {
                 question: {
                   include: {
-                    topic: true,
+                    topic: { include: { parent: true } },
                     childQuestions: {
                       orderBy: { createdAt: 'asc' },
-                      include: { topic: true },
+                      include: { topic: { include: { parent: true } } },
                     },
-                    parentQuestion: true,
+                    parentQuestion: {
+                      include: { topic: { include: { parent: true } } }
+                    },
                   },
                 },
               },
