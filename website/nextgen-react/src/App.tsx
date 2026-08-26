@@ -288,60 +288,52 @@ export default function App() {
                     <stop offset="45%" stopColor="#f2a92e" />
                     <stop offset="100%" stopColor="#b9781a" />
                   </linearGradient>
+                  <radialGradient id="ctaRingGold" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#ffe9ae" />
+                    <stop offset="55%" stopColor="#efa62e" />
+                    <stop offset="100%" stopColor="#a8690f" />
+                  </radialGradient>
+                  <radialGradient id="ctaRingCream" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#fff6e2" />
+                    <stop offset="100%" stopColor="#f2ddb2" />
+                  </radialGradient>
+                  <linearGradient id="ctaArrow" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#ffe29a" />
+                    <stop offset="100%" stopColor="#b9781a" />
+                  </linearGradient>
                   <radialGradient id="ctaGlow" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#ffb400" stopOpacity="0.35" />
+                    <stop offset="0%" stopColor="#ffb400" stopOpacity="0.55" />
                     <stop offset="100%" stopColor="#ffb400" stopOpacity="0" />
                   </radialGradient>
-                  <filter id="svgGlow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3.5" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
                 </defs>
 
                 {/* ambient rings */}
-                <circle cx="205" cy="70" r="88" fill="none" stroke="#ffffff" strokeOpacity="0.04" />
-                <circle cx="205" cy="70" r="68" fill="none" stroke="#ffffff" strokeOpacity="0.06" />
+                <circle cx="205" cy="70" r="88" fill="none" stroke="#ffffff" strokeOpacity="0.06" />
+                <circle cx="205" cy="70" r="68" fill="none" stroke="#ffffff" strokeOpacity="0.08" />
 
                 {/* ground glow */}
                 <ellipse cx="150" cy="146" rx="105" ry="14" fill="url(#ctaGlow)" />
 
-                {/* Glassmorphic bars with glowing caps */}
-                <rect x="12" y="108" width="16" height="26" rx="3" fill="url(#ctaGoldBar)" fillOpacity="0.12" stroke="url(#ctaGoldBar)" strokeWidth="1" />
-                <rect x="12" y="108" width="16" height="3" rx="1.5" fill="#ffe29a" filter="url(#svgGlow)" />
+                {/* bars */}
+                <rect x="6" y="108" width="18" height="26" rx="4" fill="url(#ctaGoldBar)" opacity="0.7" />
+                <rect x="30" y="94" width="18" height="40" rx="4" fill="url(#ctaGoldBar)" opacity="0.8" />
+                <rect x="54" y="78" width="18" height="56" rx="4" fill="url(#ctaGoldBar)" opacity="0.88" />
+                <rect x="78" y="60" width="18" height="74" rx="4" fill="url(#ctaGoldBar)" opacity="0.94" />
+                <rect x="102" y="40" width="18" height="94" rx="4" fill="url(#ctaGoldBar)" />
+                <rect x="126" y="18" width="18" height="116" rx="4" fill="url(#ctaGoldBar)" />
 
-                <rect x="34" y="94" width="16" height="40" rx="3" fill="url(#ctaGoldBar)" fillOpacity="0.12" stroke="url(#ctaGoldBar)" strokeWidth="1" />
-                <rect x="34" y="94" width="16" height="3" rx="1.5" fill="#ffe29a" filter="url(#svgGlow)" />
+                {/* target */}
+                <circle cx="205" cy="70" r="54" fill="none" stroke="#06172a" strokeOpacity="0.5" strokeWidth="2" />
+                <circle cx="205" cy="70" r="51" fill="url(#ctaRingGold)" />
+                <circle cx="205" cy="70" r="40" fill="url(#ctaRingCream)" />
+                <circle cx="205" cy="70" r="29" fill="url(#ctaRingGold)" />
+                <circle cx="205" cy="70" r="18" fill="url(#ctaRingCream)" />
+                <circle cx="205" cy="70" r="7" fill="#c9860f" />
 
-                <rect x="56" y="78" width="16" height="56" rx="3" fill="url(#ctaGoldBar)" fillOpacity="0.12" stroke="url(#ctaGoldBar)" strokeWidth="1" />
-                <rect x="56" y="78" width="16" height="3" rx="1.5" fill="#ffe29a" filter="url(#svgGlow)" />
-
-                <rect x="78" y="60" width="16" height="74" rx="3" fill="url(#ctaGoldBar)" fillOpacity="0.12" stroke="url(#ctaGoldBar)" strokeWidth="1" />
-                <rect x="78" y="60" width="16" height="3" rx="1.5" fill="#ffe29a" filter="url(#svgGlow)" />
-
-                <rect x="100" y="40" width="16" height="94" rx="3" fill="url(#ctaGoldBar)" fillOpacity="0.12" stroke="url(#ctaGoldBar)" strokeWidth="1" />
-                <rect x="100" y="40" width="16" height="3" rx="1.5" fill="#ffe29a" filter="url(#svgGlow)" />
-
-                <rect x="122" y="18" width="16" height="116" rx="3" fill="url(#ctaGoldBar)" fillOpacity="0.12" stroke="url(#ctaGoldBar)" strokeWidth="1" />
-                <rect x="122" y="18" width="16" height="3" rx="1.5" fill="#ffe29a" filter="url(#svgGlow)" />
-
-                {/* target grid / crosshairs */}
-                <line x1="145" y1="70" x2="265" y2="70" stroke="#ffb92e" strokeWidth="0.75" strokeDasharray="2 4" opacity="0.3" />
-                <line x1="205" y1="10" x2="205" y2="130" stroke="#ffb92e" strokeWidth="0.75" strokeDasharray="2 4" opacity="0.3" />
-
-                {/* target concentric rings */}
-                <circle cx="205" cy="70" r="54" fill="none" stroke="#ffb92e" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
-                <circle cx="205" cy="70" r="44" fill="none" stroke="#ffffff" strokeWidth="1.5" opacity="0.25" />
-                <circle cx="205" cy="70" r="32" fill="none" stroke="#ffb92e" strokeWidth="2" filter="url(#svgGlow)" />
-                <circle cx="205" cy="70" r="20" fill="none" stroke="#ffffff" strokeWidth="1.5" opacity="0.5" />
-                <circle cx="205" cy="70" r="8" fill="#ffb92e" filter="url(#svgGlow)" />
-
-                {/* rising arrow bursting through target center */}
-                <path d="M148 117 L136 122 M148 117 L143 105" stroke="#ffb92e" strokeWidth="2.5" strokeLinecap="round" />
-                <line x1="148" y1="117" x2="232" y2="33" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" filter="url(#svgGlow)" />
-                <path d="M230 35 L244 21 L230 21 Z" fill="#ffb92e" filter="url(#svgGlow)" />
+                {/* arrow — rises from the bars and bursts through the target */}
+                <path d="M162 113 150 117M162 113 158 101" stroke="url(#ctaArrow)" strokeWidth="4.5" strokeLinecap="round" />
+                <line x1="162" y1="113" x2="238" y2="33" stroke="url(#ctaArrow)" strokeWidth="5.5" strokeLinecap="round" />
+                <path d="M252 23 236 29 246 39Z" fill="url(#ctaArrow)" />
               </svg>
             </div>
           </div>
