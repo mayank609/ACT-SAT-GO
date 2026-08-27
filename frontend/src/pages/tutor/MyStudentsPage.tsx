@@ -1147,7 +1147,7 @@ export function MyStudentsPage() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white z-20">
                 <tr className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
-                  <th className="px-4 py-2 text-left text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Name</th>
+                  <th className="px-4 py-2 text-left text-[15px] font-bold text-blue-950 whitespace-nowrap sticky left-0 bg-blue-50 z-30" rowSpan={2}>Name</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap" rowSpan={2}>Target Date</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={3}>Diagnostic Score</th>
                   <th className="px-4 py-2 text-center text-[15px] font-bold text-blue-950 whitespace-nowrap border-l border-blue-200" colSpan={6}>Total Assessment</th>
@@ -1174,24 +1174,24 @@ export function MyStudentsPage() {
                   <tr><td colSpan={14} className="py-8 text-center text-slate-400">No students found</td></tr>
                 ) : studentAnalysisData
                     .filter((s) => {
-                      if (activityFilter !== 'all') {
-                        const status = studentStatusFromDecision(s.diagnosticDecision);
-                        if (status !== activityFilter) return false;
-                      }
-                      return analysisSearchTerm
-                        ? s.studentName.toLowerCase().includes(analysisSearchTerm.toLowerCase()) ||
-                          s.studentEmail.toLowerCase().includes(analysisSearchTerm.toLowerCase())
-                        : true;
-                    })
+                       if (activityFilter !== 'all') {
+                         const status = studentStatusFromDecision(s.diagnosticDecision);
+                         if (status !== activityFilter) return false;
+                       }
+                       return analysisSearchTerm
+                         ? s.studentName.toLowerCase().includes(analysisSearchTerm.toLowerCase()) ||
+                           s.studentEmail.toLowerCase().includes(analysisSearchTerm.toLowerCase())
+                         : true;
+                     })
                     .sort((a, b) => {
-                      if (analysisSortBy === 'name') return a.studentName.localeCompare(b.studentName);
-                      if (analysisSortBy === 'diagnostics') return (b.diagnosticsEnglish || 0) - (a.diagnosticsEnglish || 0);
-                      if (analysisSortBy === 'attempts') return b.attempts.length - a.attempts.length;
-                      return 0;
-                    })
+                       if (analysisSortBy === 'name') return a.studentName.localeCompare(b.studentName);
+                       if (analysisSortBy === 'diagnostics') return (b.diagnosticsEnglish || 0) - (a.diagnosticsEnglish || 0);
+                       if (analysisSortBy === 'attempts') return b.attempts.length - a.attempts.length;
+                       return 0;
+                     })
                     .map((row, idx) => (
-                      <tr key={row.studentId} className={`border-b border-slate-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                        <td className="px-4 py-3">
+                      <tr key={row.studentId} className={`group/row border-b border-slate-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                        <td className={`px-4 py-3 sticky left-0 transition-colors z-10 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} group-hover/row:bg-blue-50/40`}>
                           <button
                             type="button"
                             onClick={() => navigate(`/student/${row.studentId}`)}
