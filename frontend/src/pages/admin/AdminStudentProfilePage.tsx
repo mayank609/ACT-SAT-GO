@@ -355,7 +355,7 @@ export function AdminStudentProfilePage() {
   const [loading, setLoading] = useState(true);
 
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', parentPhone: '', dob: '', schoolName: '', grade: '', targetScore: '', tutorIds: [] as string[] });
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', parentPhone: '', dob: '', schoolName: '', grade: '', targetScore: '', targetDate: '', tutorIds: [] as string[] });
   const [editSaving, setEditSaving] = useState(false);
 
   const [assignOpen, setAssignOpen] = useState(false);
@@ -431,6 +431,7 @@ export function AdminStudentProfilePage() {
         schoolName: s.schoolName || '',
         grade: s.grade || '',
         targetScore: s.targetScore ? String(s.targetScore) : '',
+        targetDate: s.targetDate || '',
         tutorIds: s.tutors?.length ? s.tutors.map((t) => t.id) : (s.tutorId ? [s.tutorId] : []),
       });
     }).catch(() => toast.error('Failed to load student')).finally(() => setLoading(false));
@@ -447,6 +448,7 @@ export function AdminStudentProfilePage() {
         name: `${editForm.firstName} ${editForm.lastName}`.trim(),
         grade: editForm.grade || undefined,
         targetScore: editForm.targetScore ? Number(editForm.targetScore) : undefined,
+        targetDate: editForm.targetDate || undefined,
         tutorIds: editForm.tutorIds,
         phone: editForm.phone || undefined,
         parentPhone: editForm.parentPhone || undefined,
@@ -640,9 +642,15 @@ export function AdminStudentProfilePage() {
                   <label className={labelCls}>Parent / Guardian Phone</label>
                   <input type="tel" className={inputCls} value={editForm.parentPhone} onChange={(e) => setEditForm(f => ({ ...f, parentPhone: e.target.value }))} placeholder="555-0101" />
                 </div>
-                <div>
-                  <label className={labelCls}>Date of Birth</label>
-                  <input type="date" className={inputCls} value={editForm.dob} onChange={(e) => setEditForm(f => ({ ...f, dob: e.target.value }))} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={labelCls}>Date of Birth</label>
+                    <input type="date" className={inputCls} value={editForm.dob} onChange={(e) => setEditForm(f => ({ ...f, dob: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Target Date</label>
+                    <input type="date" className={inputCls} value={editForm.targetDate} onChange={(e) => setEditForm(f => ({ ...f, targetDate: e.target.value }))} />
+                  </div>
                 </div>
                 <div>
                   <label className={labelCls}>School Name</label>
