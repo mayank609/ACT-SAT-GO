@@ -35,6 +35,7 @@ interface TutorStat {
   tutorName: string;
   daysTaught: number;
   sessions: number;
+  skipped: number;
   studentsCovered: number;
   totalMinutesTaught: number;
   amount: number | null;
@@ -219,14 +220,16 @@ export function AdminAttendancePage() {
       // only entries missing a status (legacy data) default to counting, same as
       // the "Completed" fallback used elsewhere for pre-status entries.
       const taught = list.filter(e => (e.status ?? 'Completed') === 'Completed');
+      const skipped = list.filter(e => (e.status ?? 'Completed') !== 'Completed');
       const totalMinutesTaught = taught.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0);
       const rate = tutorRates.get(tutorId);
       return {
         tutorId,
         tutorName: list[0].tutorName,
-        daysTaught: new Set(list.map(e => e.classDate)).size,
-        sessions: list.length,
-        studentsCovered: new Set(list.map(e => e.studentId)).size,
+        daysTaught: new Set(taught.map(e => e.classDate)).size,
+        sessions: taught.length,
+        skipped: skipped.length,
+        studentsCovered: new Set(taught.map(e => e.studentId)).size,
         totalMinutesTaught,
         amount: rate != null ? (totalMinutesTaught / 60) * rate : null,
       };
@@ -268,6 +271,7 @@ export function AdminAttendancePage() {
                   <th className="px-4 py-2 font-semibold">Tutor</th>
                   <th className="px-4 py-2 font-semibold text-center">Days Taught</th>
                   <th className="px-4 py-2 font-semibold text-center">Sessions</th>
+                  <th className="px-4 py-2 font-semibold text-center">Skipped</th>
                   <th className="px-4 py-2 font-semibold text-center">Students Covered</th>
                   <th className="px-4 py-2 font-semibold text-center">Time Taught</th>
                   <th className="px-4 py-2 font-semibold text-center">Amount</th>
@@ -283,6 +287,7 @@ export function AdminAttendancePage() {
                     <td className="px-4 py-2 font-medium text-slate-800">{t.tutorName}</td>
                     <td className="px-4 py-2 text-center font-semibold text-blue-700">{t.daysTaught}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.sessions}</td>
+                    <td className="px-4 py-2 text-center text-slate-600">{t.skipped}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.studentsCovered}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.totalMinutesTaught > 0 ? fmtHours(t.totalMinutesTaught) : '—'}</td>
                     <td className="px-4 py-2 text-center font-semibold text-emerald-700">
