@@ -108,6 +108,7 @@ interface DbQuestion {
   subject?: string | null;
   parentQuestionId?: string | null;
   topic?: DbTopic | null;
+  parentQuestion?: DbQuestion | null;
   childQuestions?: DbQuestion[];
 }
 interface DbTestQuestion { question: DbQuestion }
@@ -178,32 +179,82 @@ export function recordsFromAttempt(attempt: DbAttempt): QRecord[] {
 
   for (const sa of attempt.sectionAttempts ?? []) {
     const sectionName = sa.section.name;
+    const addedIds = new Set<string>();
 
     for (const tq of sa.section.questions ?? []) {
       const q = tq.question;
       const isPassage = q.type === 'PASSAGE' || q.content?.meta?.isPassage === true;
-      const leaves: DbQuestion[] =
-        isPassage && q.childQuestions?.length
-          ? q.childQuestions.map(cq => ({ ...cq, topic: cq.topic ?? q.topic }))
-          : [q];
 
-      for (const leaf of leaves) {
-        const ans = answers.get(leaf.id);
-        let status: Status = 'skipped';
-        if (ans && ans.answerGiven != null) {
-          status = answersMatch(ans.answerGiven, leaf.correctAnswer) ? 'correct' : 'incorrect';
+      if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
+        for (const cq of q.childQuestions) {
+          if (!addedIds.has(cq.id)) {
+            addedIds.add(cq.id);
+            const leaf: DbQuestion = {
+              ...cq,
+              subject: cq.subject || q.subject,
+              topic: cq.topic || q.topic,
+              content: {
+                ...cq.content,
+                meta: {
+                  domain: cq.content?.meta?.domain || q.content?.meta?.domain,
+                  subTopic: cq.content?.meta?.subTopic || q.content?.meta?.subTopic,
+                  isPassage: cq.content?.meta?.isPassage || q.content?.meta?.isPassage,
+                }
+              }
+            };
+            const ans = answers.get(leaf.id);
+            let status: Status = 'skipped';
+            if (ans && ans.answerGiven != null) {
+              status = answersMatch(ans.answerGiven, leaf.correctAnswer) ? 'correct' : 'incorrect';
+            }
+            const { domain, subdomain } = resolveTaxonomy(leaf);
+            out.push({
+              subject: resolveSubject(domain, leaf, sectionName, attempt.test.title),
+              sectionName,
+              domain,
+              subdomain,
+              status,
+              doubt: ans?.doubtStatus === 'doubt',
+              cleared: ans?.doubtStatus === 'cleared',
+              time: ans?.timeSpentSeconds ?? 0,
+            });
+          }
         }
-        const { domain, subdomain } = resolveTaxonomy(leaf);
-        out.push({
-          subject: resolveSubject(domain, leaf, sectionName, attempt.test.title),
-          sectionName,
-          domain,
-          subdomain,
-          status,
-          doubt: ans?.doubtStatus === 'doubt',
-          cleared: ans?.doubtStatus === 'cleared',
-          time: ans?.timeSpentSeconds ?? 0,
-        });
+      } else {
+        const parent = q.parentQuestion;
+        if (!addedIds.has(q.id)) {
+          addedIds.add(q.id);
+          const leaf: DbQuestion = parent ? {
+            ...q,
+            subject: q.subject || parent.subject,
+            topic: q.topic || parent.topic,
+            content: {
+              ...q.content,
+              meta: {
+                domain: q.content?.meta?.domain || parent.content?.meta?.domain,
+                subTopic: q.content?.meta?.subTopic || parent.content?.meta?.subTopic,
+                isPassage: q.content?.meta?.isPassage || parent.content?.meta?.isPassage,
+              }
+            }
+          } : q;
+
+          const ans = answers.get(leaf.id);
+          let status: Status = 'skipped';
+          if (ans && ans.answerGiven != null) {
+            status = answersMatch(ans.answerGiven, leaf.correctAnswer) ? 'correct' : 'incorrect';
+          }
+          const { domain, subdomain } = resolveTaxonomy(leaf);
+          out.push({
+            subject: resolveSubject(domain, leaf, sectionName, attempt.test.title),
+            sectionName,
+            domain,
+            subdomain,
+            status,
+            doubt: ans?.doubtStatus === 'doubt',
+            cleared: ans?.doubtStatus === 'cleared',
+            time: ans?.timeSpentSeconds ?? 0,
+          });
+        }
       }
     }
   }
