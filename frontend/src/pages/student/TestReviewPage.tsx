@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Modal } from '../../components/common/Modal';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
+import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
 
@@ -936,6 +937,8 @@ export function TestReviewPage() {
   const [knowledgeSkillsOpen, setKnowledgeSkillsOpen] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [timeChartOpen, setTimeChartOpen] = useState(false);
+  const [timeChartSectionIdx, setTimeChartSectionIdx] = useState(0);
   const [attempt, setAttempt] = useState<DbAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1545,6 +1548,65 @@ export function TestReviewPage() {
         </div>
       </div>
 
+      {/* ── Time Spent Per Question collapsible card ── */}
+      {(() => {
+        const chartSectionStats = sections
+          .slice()
+          .sort((a: any, b: any) => a.section.orderIndex - b.section.orderIndex)
+          .map((sa: any) => {
+            const stats: QuestionTimeStat[] = sa.section.questions.map((tq: any, idx: number) => {
+              const ans = answersMap.get(tq.questionId) as any;
+              const correct = !!ans?.answerGiven && answersMatch(ans.answerGiven, tq.question.correctAnswer);
+              const skipped = !ans?.answerGiven;
+              return {
+                questionIndex: idx + 1,
+                sectionName: sa.section.name,
+                timeSpentSeconds: ans?.timeSpentSeconds ?? 0,
+                status: (skipped ? 'skipped' : correct ? 'correct' : 'incorrect') as 'correct' | 'incorrect' | 'skipped',
+                difficulty: tq.question.difficultyLevel ?? 'MEDIUM',
+                topicName: tq.question.topic?.name ?? tq.question.subject ?? '',
+              };
+            });
+            return { name: sa.section.name, stats };
+          });
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <button
+              onClick={() => setTimeChartOpen(!timeChartOpen)}
+              className="w-full text-left flex items-center justify-between hover:opacity-80 transition-opacity"
+            >
+              <div className="flex items-center gap-2">
+                <h4 className="text-base font-bold text-slate-900">Time Analysis</h4>
+                <span className="text-xs text-slate-400 font-medium">section-wise breakdown</span>
+              </div>
+              <div className="text-slate-500">
+                {timeChartOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </div>
+            </button>
+            {timeChartOpen && (
+              <>
+                <div className="flex flex-wrap gap-2 mt-4 mb-5 border-b border-slate-100 pb-4">
+                  {chartSectionStats.map((sec: any, idx: number) => (
+                    <button
+                      key={idx}
+                      onClick={() => setTimeChartSectionIdx(idx)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        timeChartSectionIdx === idx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {getSectionModuleLabel(sec.name)}
+                    </button>
+                  ))}
+                </div>
+                {chartSectionStats[timeChartSectionIdx] && (
+                  <QuestionTimeChart stats={chartSectionStats[timeChartSectionIdx].stats} />
+                )}
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Pacing Modal */}
       <Modal
         isOpen={timeAnalyticsOpen}
@@ -1584,6 +1646,51 @@ export function TestReviewPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Detailed Question wise pacing chart inside Modal */}
+          {(() => {
+            const chartSectionStats = sections
+              .slice()
+              .sort((a: any, b: any) => a.section.orderIndex - b.section.orderIndex)
+              .map((sa: any) => {
+                const stats: QuestionTimeStat[] = sa.section.questions.map((tq: any, idx: number) => {
+                  const ans = answersMap.get(tq.questionId) as any;
+                  const correct = !!ans?.answerGiven && answersMatch(ans.answerGiven, tq.question.correctAnswer);
+                  const skipped = !ans?.answerGiven;
+                  return {
+                    questionIndex: idx + 1,
+                    sectionName: sa.section.name,
+                    timeSpentSeconds: ans?.timeSpentSeconds ?? 0,
+                    status: (skipped ? 'skipped' : correct ? 'correct' : 'incorrect') as 'correct' | 'incorrect' | 'skipped',
+                    difficulty: tq.question.difficultyLevel ?? 'MEDIUM',
+                    topicName: tq.question.topic?.name ?? tq.question.subject ?? '',
+                  };
+                });
+                return { name: sa.section.name, stats };
+              });
+            return (
+              <div className="border-t border-slate-150 pt-5 mt-4 space-y-4">
+                <h4 className="font-bold text-slate-900 text-sm">Pacing Chart (section-wise breakdown)</h4>
+                <div className="flex flex-wrap gap-2 pb-2">
+                  {chartSectionStats.map((sec: any, idx: number) => (
+                    <button
+                      key={idx}
+                      onClick={() => setTimeChartSectionIdx(idx)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        timeChartSectionIdx === idx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {getSectionModuleLabel(sec.name)}
+                    </button>
+                  ))}
+                </div>
+                {chartSectionStats[timeChartSectionIdx] && (
+                  <QuestionTimeChart stats={chartSectionStats[timeChartSectionIdx].stats} />
+                )}
+              </div>
+            );
+          })()}
+
           <div className="flex justify-end pt-2">
             <Button variant="secondary" onClick={() => setTimeAnalyticsOpen(false)}>Close</Button>
           </div>
