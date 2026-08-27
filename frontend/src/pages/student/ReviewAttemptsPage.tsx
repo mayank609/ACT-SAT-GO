@@ -4,6 +4,7 @@ import { Eye, Calendar, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { resolveScoreMode, type ScoreMode } from '../../lib/testCategorize';
+import { formatDateTime } from '../../lib/utils';
 
 interface TestAttempt {
   id: string;
@@ -69,7 +70,7 @@ export function ReviewAttemptsPage() {
   }, [dbId]);
 
   const fmtDate = (d: string) => {
-    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    try { return formatDateTime(d); }
     catch { return d; }
   };
   const fmtTime = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;

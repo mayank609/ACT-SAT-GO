@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fmtSec } from '../../lib/utils';
+import { fmtSec, formatDate, formatDateTime } from '../../lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Target, TrendingUp, Clock, Phone, School, Calendar,
@@ -604,15 +604,15 @@ export function AdminStudentProfilePage() {
                 <InfoRow icon={<Phone size={13} />} label="Student Phone" value={student.phone} />
                 <InfoRow icon={<Phone size={13} />} label="Parent / Guardian" value={student.parentPhone} />
                 <InfoRow icon={<Calendar size={13} />} label="Date of Birth"
-                  value={student.dob ? new Date(student.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null} />
+                  value={student.dob ? formatDate(student.dob) : null} />
                 <InfoRow icon={<School size={13} />} label="School" value={student.schoolName} />
                 <InfoRow icon={<BookOpen size={13} />} label="Board" value={student.board} />
                 <InfoRow icon={<Clock size={13} />} label="Timezone" value={student.timezone} />
                 <div className="border-t-2 border-slate-200 my-2" />
                 <InfoRow icon={<Target size={13} />} label="Target Test Date"
-                  value={student.targetDate ? new Date(student.targetDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null} />
+                  value={student.targetDate ? formatDate(student.targetDate) : null} />
                 <InfoRow icon={<Calendar size={13} />} label="First Class Started On"
-                  value={student.firstClassDate ? new Date(student.firstClassDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null} />
+                  value={student.firstClassDate ? formatDate(student.firstClassDate) : null} />
                 <InfoRow icon={<BookOpen size={13} />} label="Program Variant" value={student.programVariant} />
                 <InfoRow icon={<BookOpen size={13} />} label="Mock Variant" value={student.mockVariant} />
                 <InfoRow icon={<CheckCircle size={13} />} label="Accommodation"
@@ -718,7 +718,7 @@ export function AdminStudentProfilePage() {
                   <div key={note.id} className="px-4 py-3">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-medium text-slate-600">{note.author}</p>
-                      <p className="text-xs text-slate-400">{note.createdAt ? new Date(note.createdAt).toLocaleDateString() : ''}</p>
+                      <p className="text-xs text-slate-400">{note.createdAt ? formatDate(note.createdAt) : ''}</p>
                     </div>
                     <p className="text-sm text-slate-700 leading-relaxed">{note.text}</p>
                   </div>
@@ -866,11 +866,7 @@ export function AdminStudentProfilePage() {
                             // Scaled score applies to Diagnostic/Mock/Sectional — only Practice Sheet shows a raw count.
                             const isMockTest = !(['Practice Sheet'].includes(expandedAttempt.test.category ?? '') || /practice\s*sheet/i.test(expandedAttempt.test.title ?? ''));
                             const completedDate = expandedAttempt.completedAt
-                              ? new Date(expandedAttempt.completedAt).toLocaleDateString('en-US', {
-                                  day: '2-digit', month: '2-digit', year: 'numeric'
-                                }) + ', ' + new Date(expandedAttempt.completedAt).toLocaleTimeString('en-US', {
-                                  hour: '2-digit', minute: '2-digit'
-                                })
+                              ? formatDateTime(expandedAttempt.completedAt)
                               : '—';
                             const status = analysisStatus[entry.attemptId] ?? 'not_submitted';
 

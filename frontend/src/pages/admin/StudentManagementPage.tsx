@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { fmtSec, localDateTimeToISO, isoToLocalDateTimeInput } from '../../lib/utils';
+import { fmtSec, localDateTimeToISO, isoToLocalDateTimeInput, formatDate, formatDateTime } from '../../lib/utils';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Trash, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark, TrendingUp, CalendarClock, UserMinus } from 'lucide-react';
@@ -327,7 +327,7 @@ const formatTargetDate = (dateStr: string | null) => {
   const date = new Date(cleanStr);
   return isNaN(date.getTime())
     ? '—'
-    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    : formatDate(cleanStr);
 };
 
 // Build a student-portal-style label, e.g. "Section 1, Module 1: Reading and Writing".
@@ -1323,13 +1323,13 @@ export function StudentManagementPage() {
                 // — and "—" (not 0) for a module this particular test doesn't cover.
                 const lines = reportRows.map((r, i) => r.isPending ? [
                   i + 1, r.title,
-                  '', r.dueDate ? `Due ${new Date(r.dueDate).toLocaleDateString()}` : '',
+                  '', r.dueDate ? `Due ${formatDate(r.dueDate)}` : '',
                   '—', '—', '—', '—', '—', '-', '-', '-',
                   r.pendingStatus ?? 'Not Started',
                 ] : [
                   i + 1, r.title,
-                  r.startedAt ? new Date(r.startedAt).toLocaleString() : '',
-                  r.completedAt ? new Date(r.completedAt).toLocaleString() : '',
+                  r.startedAt ? formatDateTime(r.startedAt) : '',
+                  r.completedAt ? formatDateTime(r.completedAt) : '',
                   r.rwM1T > 0 ? `${r.rwM1}/${r.rwM1T}` : '—',
                   r.rwM2T > 0 ? `${r.rwM2}/${r.rwM2T}` : '—',
                   r.mathM1T > 0 ? `${r.mathM1}/${r.mathM1T}` : '—',
@@ -1433,7 +1433,7 @@ export function StudentManagementPage() {
                         <option value="">Search attempt…</option>
                         {studentAttempts.map(a => (
                           <option key={a.id} value={a.id}>
-                            {a.test.title} — {a.completedAt ? new Date(a.completedAt).toLocaleDateString() : new Date(a.startedAt).toLocaleDateString()}
+                            {a.test.title} — {a.completedAt ? formatDate(a.completedAt) : formatDate(a.startedAt)}
                           </option>
                         ))}
                       </select>
@@ -1496,7 +1496,7 @@ export function StudentManagementPage() {
                                 <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
                                 <td className="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap border-r border-slate-100">{r.title}</td>
                                 <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">
-                                  {r.dueDate ? new Date(r.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'}
+                                  {r.dueDate ? formatDate(r.dueDate) : 'No due date'}
                                 </td>
                                 <td className="px-4 py-4 text-center whitespace-nowrap border-r border-slate-100">
                                   <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${statusStyle}`}>

@@ -1,4 +1,4 @@
-import { fmtSec } from '../../lib/utils';
+import { fmtSec, formatDate } from '../../lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
@@ -236,7 +236,7 @@ export function ReportsPage() {
             <SearchableSelect
               options={attempts.map(a => ({
                 id: a.id,
-                label: `${a.test.title} — ${a.completedAt ? new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}`,
+                label: `${a.test.title} — ${a.completedAt ? formatDate(a.completedAt) : '—'}`,
                 searchText: a.test.title,
               }))}
               value={selectedAttemptId}
@@ -304,7 +304,7 @@ export function ReportsPage() {
                 <h2 className="text-xl font-bold mt-0.5">{attempt?.test.title ?? 'Test'}</h2>
                 {attempt?.completedAt && (
                   <p className="text-blue-300 text-xs mt-0.5">
-                    Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+                    Completed {formatDate(attempt.completedAt)}
                   </p>
                 )}
               </div>

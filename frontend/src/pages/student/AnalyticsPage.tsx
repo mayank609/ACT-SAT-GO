@@ -16,6 +16,7 @@ import {
   attemptsInRange, summarizeRange, previousPeriodOf,
   type LoadedAttempt, type QRecord, type SubjectKey,
 } from '../../lib/analyticsData';
+import { formatDate } from '../../lib/utils';
 import { BreakdownTable } from '../../components/analytics/BreakdownTable';
 import {
   AnalyticsOverviewHeader, resolveDateRange, DEFAULT_DATE_RANGE, type DateRangeState,
@@ -146,7 +147,7 @@ export function AnalyticsPage() {
       const s = computeSatScore(records.get(activeAttemptId) ?? []);
       const meta = attempts.find(a => a.id === activeAttemptId);
       const sub = meta
-        ? `${meta.title}${meta.completedAt ? ` · ${new Date(meta.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
+        ? `${meta.title}${meta.completedAt ? ` · ${formatDate(meta.completedAt)}` : ''}`
         : '';
       return { label: 'Total Score', total: meta?.totalScore ?? s.total, rw: s.rw, math: s.math, sub };
     }
@@ -204,7 +205,7 @@ export function AnalyticsPage() {
       const rowAgg = aggregate(recs);
       return [
         a.title,
-        a.completedAt ? new Date(a.completedAt).toLocaleDateString() : '',
+        a.completedAt ? formatDate(a.completedAt) : '',
         a.totalScore ?? computeSatScore(recs).total,
         rowAgg.correct, rowAgg.incorrect, rowAgg.skipped, rowAgg.doubts, fmtTime(rowAgg.time),
       ];
@@ -261,7 +262,7 @@ export function AnalyticsPage() {
             <optgroup label="Specific test">
               {attempts.map(a => (
                 <option key={a.id} value={a.id}>
-                  {a.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                  {a.title}{a.completedAt ? ` — ${formatDate(a.completedAt)}` : ''}
                 </option>
               ))}
             </optgroup>

@@ -35,3 +35,28 @@ export function fmtSec(s: number): string {
   const mm = Math.floor((s % 3600) / 60);
   return mm === 0 ? `${h}h` : `${h}h ${mm}m`;
 }
+
+/** Formats any Date or date string to "day short_month, yy" e.g., "28 Aug, 26" */
+export function formatDate(dateInput: string | Date | null | undefined): string {
+  if (!dateInput) return '—';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '—';
+  const day = d.getDate();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[d.getMonth()];
+  const year = String(d.getFullYear()).slice(-2);
+  return `${day} ${month}, ${year}`;
+}
+
+/** Formats Date to "day short_month, yy, hh:mm AM/PM" or Naive representation */
+export function formatDateTime(dateInput: string | Date | null | undefined): string {
+  if (!dateInput) return '—';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '—';
+  const day = d.getDate();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[d.getMonth()];
+  const year = String(d.getFullYear()).slice(-2);
+  const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  return `${day} ${month}, ${year} ${timeStr}`;
+}

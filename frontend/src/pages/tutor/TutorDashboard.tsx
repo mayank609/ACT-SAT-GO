@@ -16,6 +16,8 @@ import {
   LineChart, Line
 } from 'recharts';
 
+import { formatDate } from '../../lib/utils';
+
 interface DbTest {
   id: string;
   title: string;
@@ -318,7 +320,7 @@ export function TutorDashboard() {
             {greetingForHour(today.getHours())}, {user?.name?.split(' ')[0]}!
           </h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            {today.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {formatDate(today)}
           </p>
         </div>
       </div>
@@ -332,7 +334,7 @@ export function TutorDashboard() {
           <div className="min-w-0">
             <p className="text-xs text-slate-400">Next Target Exam</p>
             <p className="text-sm font-semibold text-slate-900 truncate">
-              {nextTarget ? nextTarget.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+              {nextTarget ? formatDate(nextTarget.date) : '—'}
             </p>
             <p className="text-xs text-slate-400">{daysUntilNextTarget != null ? `${daysUntilNextTarget} days left` : 'No target set'}</p>
           </div>
@@ -461,7 +463,7 @@ export function TutorDashboard() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-slate-800 truncate font-semibold">{student.name}</p>
-                          <p className="text-xs text-slate-400">{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          <p className="text-xs text-slate-400">{formatDate(date)}</p>
                         </div>
                         <Badge variant="info" size="sm">{days}d</Badge>
                       </div>
@@ -919,7 +921,7 @@ export function TutorDashboard() {
                                 </div>
                                 <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold pt-0.5">
                                   <span className="flex items-center gap-1"><Clock size={9} /> {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                                  <span>{new Date(log.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                                  <span>{formatDate(log.createdAt)}</span>
                                 </div>
                               </div>
                             );

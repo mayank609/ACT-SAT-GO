@@ -16,6 +16,8 @@ import {
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts';
 
+import { formatDate } from '../../lib/utils';
+
 interface DbTest {
   id: string;
   title: string;
@@ -238,7 +240,7 @@ export function AdminDashboard() {
             {greetingForHour(today.getHours())}, {firstName}!
           </h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            {today.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {formatDate(today)}
           </p>
         </div>
         <div className="flex gap-2">
@@ -257,7 +259,7 @@ export function AdminDashboard() {
           <div className="min-w-0">
             <p className="text-xs text-slate-400">Next Target Exam</p>
             <p className="text-sm font-semibold text-slate-900 truncate">
-              {nextTarget ? nextTarget.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+              {nextTarget ? formatDate(nextTarget.date) : '—'}
             </p>
             <p className="text-xs text-slate-400">{daysUntilNextTarget != null ? `${daysUntilNextTarget} days left` : 'No target set'}</p>
           </div>
@@ -354,7 +356,7 @@ export function AdminDashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-slate-800 truncate">{student.name}</p>
-                      <p className="text-xs text-slate-400">{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="text-xs text-slate-400">{formatDate(date)}</p>
                     </div>
                     <Badge variant="info" size="sm">{days}d</Badge>
                   </div>

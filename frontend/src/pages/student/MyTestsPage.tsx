@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { loadStudentAnalytics, computeSatScore, type QRecord } from '../../lib/analyticsData';
 import { resolveScoreMode } from '../../lib/testCategorize';
+import { formatDate } from '../../lib/utils';
 
 interface ApiTest {
   assignmentId: string;
@@ -273,7 +274,7 @@ export function MyTestsPage() {
                   )}
                   {test.dueDate && (
                     <p className="text-[10px] text-red-500 flex items-center gap-1">
-                      <Clock size={9} /> Due {new Date(test.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      <Clock size={9} /> Due {formatDate(test.dueDate)}
                     </p>
                   )}
                   {isRetake && test.submittedAttemptId && (
@@ -347,7 +348,7 @@ export function MyTestsPage() {
                       <div className="flex flex-wrap gap-1"><TestCategoryBadges category={test.category} subCategory={test.subCategory} /></div>
                     </td>
                     <td className="px-4 py-3.5 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">
-                      {attempt?.completedAt ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                      {attempt?.completedAt ? formatDate(attempt.completedAt) : '—'}
                     </td>
                     <td className="px-4 py-3.5 text-center font-semibold text-slate-800 whitespace-nowrap border-r border-slate-100">
                       {(() => {

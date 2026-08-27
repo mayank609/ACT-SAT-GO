@@ -12,6 +12,7 @@ import { Modal } from '../../components/common/Modal';
 import { api } from '../../lib/api';
 import type { DbUser } from '../../lib/api';
 import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { formatDate } from '../../lib/utils';
 
 type TabKey = 'overview' | 'users' | 'permissions' | 'sat_dates' | 'system';
 
@@ -375,7 +376,7 @@ export function SuperAdminDashboard() {
               <div className="min-w-0">
                 <p className="text-xs text-slate-400">Next Target Exam</p>
                 <p className="text-sm font-semibold text-slate-900 truncate">
-                  {nextTarget ? nextTarget.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                  {nextTarget ? formatDate(nextTarget.date) : '—'}
                 </p>
                 <p className="text-xs text-slate-400">{daysUntilNextTarget != null ? `${daysUntilNextTarget} days left` : 'No target set'}</p>
               </div>
@@ -452,7 +453,7 @@ export function SuperAdminDashboard() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-slate-800 truncate">{student.name}</p>
-                            <p className="text-xs text-slate-400">{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                            <p className="text-xs text-slate-400">{formatDate(date)}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
                             <Badge variant="info" size="sm">{days}d left</Badge>
@@ -730,7 +731,7 @@ export function SuperAdminDashboard() {
                       <td className="px-4 py-3 text-slate-500">{u.testsAttempted ?? '—'}</td>
                       <td className="px-4 py-3 text-slate-500">{u.avgScore != null ? u.avgScore : '—'}</td>
                       <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
-                        {new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                        {formatDate(u.createdAt)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -890,9 +891,9 @@ export function SuperAdminDashboard() {
                           <CalendarDays size={16} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900">
-                            {d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                          </p>
+                           <p className="text-sm font-medium text-slate-900">
+                             {formatDate(d)}
+                           </p>
                         </div>
                         {isPast ? (
                           <Badge size="sm">Passed</Badge>

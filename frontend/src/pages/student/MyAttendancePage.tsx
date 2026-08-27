@@ -19,7 +19,9 @@ interface AttendanceEntry {
   status?: string;
 }
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+import { formatDate } from '../../lib/utils';
+
+const fmtDate = (d: string) => formatDate(d);
 
 function toLines(text: string): string[] {
   return text.split('\n').map(l => l.trim()).filter(Boolean);

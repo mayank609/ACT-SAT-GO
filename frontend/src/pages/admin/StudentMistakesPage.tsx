@@ -1,4 +1,4 @@
-import { fmtSec } from '../../lib/utils';
+import { fmtSec, formatDate } from '../../lib/utils';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -565,10 +565,7 @@ export function StudentMistakesPage() {
 
   const formatTargetDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '—';
-    const date = new Date(dateStr.replace(/-/g, '/'));
-    return isNaN(date.getTime())
-      ? '—'
-      : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return formatDate(dateStr.replace(/-/g, '/'));
   };
 
   return (
@@ -853,8 +850,8 @@ export function StudentMistakesPage() {
                       {submittedAttempts.map((attempt) => {
                         const isChecked = selectedAttemptIds.includes(attempt.id);
                         const formattedDate = attempt.completedAt
-                          ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                          : new Date(attempt.startedAt).toLocaleDateString();
+                          ? formatDate(attempt.completedAt)
+                          : formatDate(attempt.startedAt);
                         return (
                           <label
                             key={attempt.id}

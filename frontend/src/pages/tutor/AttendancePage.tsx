@@ -20,8 +20,10 @@ interface Session extends ClassProgressEntry {
 
 const PAGE_SIZE = 10;
 
-const fmtDate = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const fmtDateLong = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+import { formatDate } from '../../lib/utils';
+
+const fmtDate = (d: string) => formatDate(`${d}T00:00:00`);
+const fmtDateLong = (d: string) => formatDate(`${d}T00:00:00`);
 
 function to12h(time: string): { label: string; minutesFromMidnight: number } {
   const [h, m] = time.split(':').map(Number);

@@ -7,6 +7,7 @@ import { OptionRenderer } from '../../components/admin/OptionRenderer';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
+import { formatDate } from '../../lib/utils';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -488,8 +489,8 @@ export function DoubtsView({ studentId, title, subtitle, onBack }: {
                   {submittedAttempts.map((attempt) => {
                     const isChecked = selectedAttemptIds.includes(attempt.id);
                     const formattedDate = attempt.completedAt
-                      ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                      : new Date(attempt.startedAt).toLocaleDateString();
+                      ? formatDate(attempt.completedAt)
+                      : formatDate(attempt.startedAt);
                     return (
                       <label
                         key={attempt.id}

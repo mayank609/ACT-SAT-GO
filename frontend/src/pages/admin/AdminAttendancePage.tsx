@@ -9,6 +9,7 @@ import { LogSessionModal, type SavedSessionEntry } from '../../components/common
 import { api } from '../../lib/api';
 import { SUBJECTS, SESSION_TYPES, STATUSES, statusVariant, toLines, sortSessionEntries, type DbTest } from '../../lib/sessionLog';
 import { useAuthStore } from '../../store/useAuthStore';
+import { formatDate } from '../../lib/utils';
 
 interface AttendanceEntry {
   id: string;
@@ -39,7 +40,7 @@ interface TutorStat {
   amount: number | null;
 }
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const fmtDate = (d: string) => formatDate(d);
 const fmtHours = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
 const fmtAmount = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 

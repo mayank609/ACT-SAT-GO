@@ -16,6 +16,7 @@ import {
   attemptsInRange, summarizeRange, previousPeriodOf,
   type LoadedAttempt, type QRecord, type SubjectKey,
 } from '../../lib/analyticsData';
+import { formatDate } from '../../lib/utils';
 import { BreakdownTable } from '../../components/analytics/BreakdownTable';
 import {
   AnalyticsOverviewHeader, resolveDateRange, DEFAULT_DATE_RANGE, type DateRangeState,
@@ -140,7 +141,7 @@ function StudentCumulative({ student, onBack }: { student: DbUser; onBack: () =>
       const rowAgg = aggregate(recs);
       return [
         a.title,
-        a.completedAt ? new Date(a.completedAt).toLocaleDateString() : '',
+        a.completedAt ? formatDate(a.completedAt) : '',
         a.totalScore ?? computeSatScore(recs).total,
         rowAgg.correct, rowAgg.incorrect, rowAgg.skipped, rowAgg.doubts, fmtTime(rowAgg.time),
       ];

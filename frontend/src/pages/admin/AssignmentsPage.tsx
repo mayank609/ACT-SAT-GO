@@ -3,6 +3,7 @@ import { BookCheck, Clock, CheckCircle, AlertTriangle, Users, Search, RefreshCw 
 import { Badge } from '../../components/common/Badge';
 import { Card, StatCard } from '../../components/common/Card';
 import { api } from '../../lib/api';
+import { formatDateTime } from '../../lib/utils';
 
 type Attempt = Awaited<ReturnType<typeof api.getAttempts>>['attempts'][0];
 
@@ -14,8 +15,7 @@ function formatTime(s: number) {
 
 function formatDate(iso: string | null) {
   if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return formatDateTime(iso);
 }
 
 function timeAgo(iso: string) {

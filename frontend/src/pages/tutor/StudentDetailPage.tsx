@@ -9,6 +9,7 @@ import { api, type DbUser } from '../../lib/api';
 import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
+import { formatDate } from '../../lib/utils';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend
@@ -323,7 +324,7 @@ export function StudentDetailPage() {
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <p className="text-sm font-semibold text-slate-900">{entry.topic}</p>
                   <p className="text-xs text-slate-400 flex-shrink-0">
-                    {new Date(entry.classDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {formatDate(entry.classDate)}
                   </p>
                 </div>
                 {entry.homework && (

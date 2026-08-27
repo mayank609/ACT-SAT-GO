@@ -1,4 +1,4 @@
-import { fmtSec } from '../../lib/utils';
+import { fmtSec, formatDate } from '../../lib/utils';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Loader2, AlertCircle, HelpCircle } from 'lucide-react';
@@ -703,8 +703,8 @@ export function MistakesPage() {
                   {submittedAttempts.map((attempt) => {
                     const isChecked = selectedAttemptIds.includes(attempt.id);
                     const formattedDate = attempt.completedAt
-                      ? new Date(attempt.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                      : new Date(attempt.startedAt).toLocaleDateString();
+                      ? formatDate(attempt.completedAt)
+                      : formatDate(attempt.startedAt);
                     return (
                       <label
                         key={attempt.id}

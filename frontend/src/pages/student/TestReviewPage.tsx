@@ -1,4 +1,4 @@
-import { fmtSec } from '../../lib/utils';
+import { fmtSec, formatDate } from '../../lib/utils';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2, Info, Bookmark, AlertCircle, Maximize2, X, HelpCircle, Calculator } from 'lucide-react';
@@ -1222,7 +1222,7 @@ export function TestReviewPage() {
             >
               {allAttempts.map(a => (
                 <option key={a.id} value={a.id}>
-                  {a.test.title}{a.completedAt ? ` — ${new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                  {a.test.title}{a.completedAt ? ` — ${formatDate(a.completedAt)}` : ''}
                 </option>
               ))}
             </select>
@@ -1231,7 +1231,7 @@ export function TestReviewPage() {
           )}
           {attempt.completedAt && (
             <p className="text-slate-400 text-xs mt-1">
-              Completed {new Date(attempt.completedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+              Completed {formatDate(attempt.completedAt)}
             </p>
           )}
         </div>

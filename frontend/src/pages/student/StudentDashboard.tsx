@@ -7,6 +7,7 @@ import {
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
 import { loadStudentAnalytics, aggregate, accuracy, avgTime, fmtTime, type QRecord } from '../../lib/analyticsData';
+import { formatDate } from '../../lib/utils';
 
 interface RecentClass {
   id: string;
@@ -216,7 +217,7 @@ export function StudentDashboard() {
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <p className="text-sm font-medium text-gray-900">{c.topic}</p>
                   <p className="text-xs text-gray-400 flex-shrink-0">
-                    {new Date(c.classDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {formatDate(c.classDate)}
                   </p>
                 </div>
                 {c.homework && (
