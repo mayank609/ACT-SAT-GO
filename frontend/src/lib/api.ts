@@ -180,6 +180,8 @@ export const api = {
   }) => request<{ user: DbUser; tempPassword?: string; warning?: string }>('/api/users', { method: 'POST', body: JSON.stringify(body) }),
   updateUser: (userId: string, body: {
     name?: string
+    email?: string
+    role?: string
     grade?: string
     targetScore?: number
     targetDate?: string

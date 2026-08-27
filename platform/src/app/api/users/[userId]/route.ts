@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireRole, getCurrentUser } from '@/lib/auth'
 import { isHomeworkTest, isRawScoredTest } from '@/lib/testCategorize'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -147,13 +148,15 @@ export async function PATCH(
     }
 
     const {
-      name, grade, targetScore, targetDate, specialization, tutorId, tutorIds, notifications,
+      name, email, role, grade, targetScore, targetDate, specialization, tutorId, tutorIds, notifications,
       phone, parentPhone, dob, schoolName, diagnosticDecision,
       board, timezone, firstClassDate, programVariant, mockVariant,
       accommodation, stage, onboarded,
       manualDiagTotal, manualDiagRW, manualDiagMath, hourlyRate,
     } = body as {
       name?: string
+      email?: string
+      role?: string
       grade?: string
       targetScore?: number
       targetDate?: string
@@ -182,6 +185,52 @@ export async function PATCH(
 
     const existing = await prisma.user.findUnique({ where: { id: userId } })
     if (!existing) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+    // 1. Validation for superadmin / admin fields
+    if (email !== undefined) {
+      if (!isAdmin) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+      if (!email) return NextResponse.json({ error: 'Email cannot be empty' }, { status: 400 })
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 })
+      }
+      const existingEmail = await prisma.user.findUnique({ where: { email } })
+      if (existingEmail && existingEmail.id !== userId) {
+        return NextResponse.json({ error: 'A user with this email address already exists' }, { status: 400 })
+      }
+    }
+
+    if (role !== undefined) {
+      if (!isAdmin) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+      if (!role) return NextResponse.json({ error: 'Role cannot be empty' }, { status: 400 })
+      const upperRole = role.toUpperCase()
+      if (!['SUPER_ADMIN', 'ADMIN', 'TUTOR', 'STUDENT'].includes(upperRole)) {
+        return NextResponse.json({ error: 'Invalid role specified' }, { status: 400 })
+      }
+    }
+
+    // 2. Sync with Supabase Auth
+    const supabaseAdmin = createAdminClient()
+    if (supabaseAdmin) {
+      const authUpdate: any = {}
+      if (email !== undefined) {
+        authUpdate.email = email
+        authUpdate.email_confirm = true
+      }
+      
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
+      const existingMetadata = userData?.user?.user_metadata || {}
+      const nextMetadata = { ...existingMetadata }
+      if (name !== undefined) nextMetadata.name = name
+      if (role !== undefined) nextMetadata.role = role.toLowerCase()
+      authUpdate.user_metadata = nextMetadata
+
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, authUpdate)
+      if (updateError) {
+        console.error('Supabase Auth update error:', updateError)
+        return NextResponse.json({ error: `Supabase Auth Update: ${updateError.message}` }, { status: 400 })
+      }
+    }
 
     const existingPerms = (existing.permissions ?? {}) as Record<string, unknown>
     const permissions: Record<string, unknown> = { ...existingPerms }
@@ -213,6 +262,8 @@ export async function PATCH(
 
     const updateData: any = { permissions: permissions as any }
     if (name !== undefined) updateData.name = name
+    if (isAdmin && email !== undefined) updateData.email = email
+    if (isAdmin && role !== undefined) updateData.role = role.toUpperCase()
 
     const user = await prisma.user.update({
       where: { id: userId },

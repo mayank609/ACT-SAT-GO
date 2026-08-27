@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Users, Shield, Settings, Activity, Plus, Trash2, Server, Database, Zap, Check, X, KeyRound, Copy, CheckCircle,
-  CalendarDays, Target, ArrowRight, Clock,
+  CalendarDays, Target, ArrowRight, Clock, Pencil,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
@@ -63,6 +63,8 @@ export function SuperAdminDashboard() {
   const [addForm, setAddForm] = useState({ name: '', email: '', role: 'student' as string });
   const [createdPassword, setCreatedPassword] = useState<{ name: string; email: string; password: string } | null>(null);
   const [copiedPassword, setCopiedPassword] = useState(false);
+  const [editingUser, setEditingUser] = useState<DbUser | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'student', hourlyRate: '' });
 
   const [activityData, setActivityData] = useState<{ date: string; attempts: number; completions: number }[]>([]);
   const [scoreDistData, setScoreDistData] = useState<{ range: string; count: number }[]>([]);
@@ -241,6 +243,38 @@ export function SuperAdminDashboard() {
       await api.deleteUser(deleteUser.id);
       setUsers((prev) => prev.filter((u) => u.id !== deleteUser.id));
       setDeleteUser(null);
+    } catch {
+      // keep modal open on error
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStartEdit = (user: DbUser) => {
+    setEditingUser(user);
+    setEditForm({
+      name: user.name || '',
+      email: user.email || '',
+      role: user.role || 'student',
+      hourlyRate: user.hourlyRate != null ? String(user.hourlyRate) : '',
+    });
+  };
+
+  const handleEditUser = async () => {
+    if (!editingUser) return;
+    setSaving(true);
+    try {
+      const rateVal = editForm.hourlyRate.trim() === '' ? null : Number(editForm.hourlyRate);
+      const res = await api.updateUser(editingUser.id, {
+        name: editForm.name,
+        email: editForm.email,
+        role: editForm.role,
+        hourlyRate: rateVal,
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editingUser.id ? { ...u, ...res.user } : u))
+      );
+      setEditingUser(null);
     } catch {
       // keep modal open on error
     } finally {
@@ -699,9 +733,12 @@ export function SuperAdminDashboard() {
                         {new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
                       </td>
                       <td className="px-4 py-3">
-                        {u.role !== 'super_admin' && (
-                          <button onClick={() => setDeleteUser(u)} className="p-1 text-slate-400 hover:text-red-600 rounded"><Trash2 size={13} /></button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleStartEdit(u)} className="p-1 text-slate-400 hover:text-blue-600 rounded" title="Edit User"><Pencil size={13} /></button>
+                          {u.role !== 'super_admin' && (
+                            <button onClick={() => setDeleteUser(u)} className="p-1 text-slate-400 hover:text-red-600 rounded" title="Remove User"><Trash2 size={13} /></button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -960,6 +997,51 @@ export function SuperAdminDashboard() {
               <option value="super_admin">Super Admin</option>
             </select>
           </div>
+        </div>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title="Edit User Details"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setEditingUser(null)}>Cancel</Button>
+            <Button size="sm" onClick={handleEditUser} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </div>
+        }>
+        <div className="space-y-3">
+          {[
+            { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Full name' },
+            { label: 'Email Address', key: 'email', type: 'email', placeholder: 'user@example.com' },
+          ].map((f) => (
+            <div key={f.key}>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{f.label}</label>
+              <input type={f.type} value={editForm[f.key as 'name' | 'email']}
+                onChange={(e) => setEditForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={f.placeholder} />
+            </div>
+          ))}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+            <select value={editForm.role} onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="student">Student</option>
+              <option value="tutor">Tutor</option>
+              <option value="admin">Admin</option>
+              <option value="super_admin">Super Admin</option>
+            </select>
+          </div>
+          {editForm.role === 'tutor' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Hourly Compensation Rate ($/hr)</label>
+              <input type="number" value={editForm.hourlyRate}
+                onChange={(e) => setEditForm((p) => ({ ...p, hourlyRate: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Compensation rate" />
+            </div>
+          )}
         </div>
       </Modal>
 
