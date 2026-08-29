@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2, Search, Copy, Boxes, Package, ChevronDown } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Users, Clock, FileText, MoreVertical, BookOpen, Archive, UserPlus, X, Loader2, CheckCircle2, Search, Copy, Boxes, Package, ChevronDown, Download } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -9,6 +9,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { api, type DbUser, type DbTestPackage } from '../../lib/api';
 import { localDateTimeToISO } from '../../lib/utils';
 import { toast, Toaster } from 'react-hot-toast';
+import { transformDbTest } from '../student/TestInstructionsPage';
+import type { Question } from '../../types';
 
 // Shared scheduling options (attempts + date windows) used by both the
 // single-test and package assign modals.
@@ -498,6 +500,7 @@ export function TestsPage() {
   const [assignModal, setAssignModal] = useState<ApiTest | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [cloningId, setCloningId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<string | null>(null);
@@ -580,6 +583,370 @@ export function TestsPage() {
       toast.error('Failed to clone test');
     } finally {
       setCloningId(null);
+    }
+  };
+
+  const handleDownloadPDF = async (testId: string) => {
+    setDownloadingId(testId);
+    const toastId = toast.loading('Generating printable test PDF...');
+    try {
+      const res = await api.getTest(testId);
+      const rawTest = res.test;
+      if (!rawTest) {
+        throw new Error('Test data is empty');
+      }
+      
+      const test = transformDbTest(rawTest as any);
+      
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error('Could not open print window. Please allow popups.');
+      }
+      
+      const renderQuestionHTML = (num: number, q: Question) => {
+        let qHtml = `
+          <div class="question-block">
+            <div class="question-header">
+              <div class="question-number">${num}.</div>
+              <div class="question-text">${q.text}</div>
+            </div>
+        `;
+        
+        if (q.type === 'mcq_single' || q.type === 'mcq_multi') {
+          qHtml += `<div class="options-list">`;
+          (q.options ?? []).forEach((opt) => {
+            qHtml += `
+              <div class="option-item">
+                <span class="option-bubble">${opt.id.toUpperCase()}</span>
+                <div class="option-content">${opt.text}</div>
+              </div>
+            `;
+          });
+          qHtml += `</div>`;
+        } else if (q.type === 'numeric') {
+          qHtml += `
+            <div class="grid-in-container">
+              <div>Write your answer in the box below:</div>
+              <div class="grid-in-line"></div>
+            </div>
+          `;
+        }
+        
+        qHtml += `</div>`;
+        return qHtml;
+      };
+
+      const formatCorrectAnswer = (ans: any) => {
+        if (Array.isArray(ans)) return ans.map(a => String(a).toUpperCase()).join(', ');
+        if (typeof ans === 'string' && ans.length === 1 && /^[a-zA-Z]$/.test(ans)) return ans.toUpperCase();
+        return String(ans);
+      };
+
+      let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${test.title || 'Test'}</title>
+          <meta charset="utf-8">
+          <base href="${window.location.origin}/">
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+          <style>
+            @page {
+              size: letter;
+              margin: 20mm 15mm 20mm 15mm;
+            }
+            body {
+              font-family: 'Inter', -apple-system, sans-serif;
+              color: #1e293b;
+              line-height: 1.5;
+              font-size: 14px;
+              margin: 0;
+              padding: 0;
+            }
+            h1, h2, h3, h4 {
+              color: #0f172a;
+              margin: 0;
+            }
+            .cover-page {
+              padding: 40px 0;
+              margin-bottom: 40px;
+              border-bottom: 2px solid #e2e8f0;
+            }
+            .cover-title {
+              font-size: 28px;
+              font-weight: 700;
+              margin-bottom: 10px;
+            }
+            .cover-meta {
+              display: flex;
+              gap: 20px;
+              color: #64748b;
+              font-size: 13px;
+              margin-bottom: 20px;
+            }
+            .cover-instructions {
+              background-color: #f8fafc;
+              border: 1px solid #e2e8f0;
+              padding: 20px;
+              border-radius: 8px;
+              font-size: 13px;
+            }
+            .section-header {
+              page-break-before: always;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 8px;
+              margin-bottom: 24px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+            }
+            .section-title {
+              font-size: 20px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .section-meta {
+              font-size: 13px;
+              color: #475569;
+              font-weight: 500;
+            }
+            .passage-container {
+              background-color: #f8fafc;
+              border-left: 4px solid #3b82f6;
+              border-radius: 0 8px 8px 0;
+              padding: 20px;
+              margin-bottom: 24px;
+              page-break-inside: avoid;
+            }
+            .passage-title {
+              font-size: 12px;
+              font-weight: 600;
+              color: #3b82f6;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 10px;
+              border-bottom: 1px dashed #cbd5e1;
+              padding-bottom: 4px;
+            }
+            .passage-text {
+              font-family: 'Georgia', 'Times New Roman', serif;
+              font-size: 15px;
+              line-height: 1.6;
+              color: #334155;
+            }
+            .question-block {
+              margin-bottom: 30px;
+              page-break-inside: avoid;
+            }
+            .question-header {
+              display: flex;
+              gap: 8px;
+              margin-bottom: 8px;
+            }
+            .question-number {
+              font-weight: 700;
+              color: #0f172a;
+              min-width: 24px;
+            }
+            .question-text {
+              flex: 1;
+              color: #1e293b;
+            }
+            .options-list {
+              margin-left: 24px;
+              margin-top: 10px;
+              display: grid;
+              grid-template-columns: 1fr;
+              gap: 8px;
+            }
+            .option-item {
+              display: flex;
+              align-items: flex-start;
+              gap: 10px;
+            }
+            .option-bubble {
+              width: 18px;
+              height: 18px;
+              border: 1px solid #94a3b8;
+              border-radius: 50%;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 11px;
+              font-weight: 600;
+              color: #64748b;
+              flex-shrink: 0;
+              margin-top: 2px;
+            }
+            .option-content {
+              flex: 1;
+              color: #334155;
+            }
+            .grid-in-container {
+              margin-left: 24px;
+              margin-top: 12px;
+              border: 1px dashed #cbd5e1;
+              border-radius: 6px;
+              padding: 12px;
+              max-width: 250px;
+              color: #64748b;
+              font-size: 12px;
+              display: flex;
+              flex-direction: column;
+              gap: 6px;
+            }
+            .grid-in-line {
+              border-bottom: 1px solid #cbd5e1;
+              height: 20px;
+              width: 100%;
+            }
+            img {
+              max-width: 100%;
+              height: auto;
+              border-radius: 6px;
+              margin-top: 8px;
+              display: block;
+            }
+            .katex-display {
+              margin: 10px 0 !important;
+            }
+            .katex {
+              font-size: 1.05em;
+            }
+            .section-header:first-of-type {
+              page-break-before: avoid !important;
+            }
+            @media print {
+              body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              header, footer {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="cover-page">
+            <div class="cover-title">${test.title}</div>
+            <div class="cover-meta">
+              <span><strong>Category:</strong> ${test.category || 'N/A'}</span>
+              <span><strong>Sections:</strong> ${test.sections.length}</span>
+              <span><strong>Duration:</strong> ${test.sections.reduce((a, s) => a + s.timeLimit, 0)} minutes</span>
+            </div>
+            ${test.description ? `<div class="cover-instructions">${test.description}</div>` : ''}
+          </div>
+      `;
+
+      const answerKeyRows: { sectionName: string; qNumber: number; answer: string }[] = [];
+
+      test.sections.forEach((sec, sIdx) => {
+        const secQuestionsCount = sec.questions.length;
+        html += `
+          <div class="section-header">
+            <div class="section-title">Section ${sIdx + 1}: ${sec.name}</div>
+            <div class="section-meta">${sec.timeLimit} Minutes | ${secQuestionsCount} Questions</div>
+          </div>
+        `;
+        
+        let qNumber = 1;
+        sec.questions.forEach((q) => {
+          if (q.type === 'passage' && q.linkedQuestions) {
+            html += `
+              <div class="passage-container">
+                <div class="passage-title">Passage</div>
+                <div class="passage-text">${q.text}</div>
+              </div>
+            `;
+            
+            q.linkedQuestions.forEach((subQ) => {
+              const num = qNumber++;
+              html += renderQuestionHTML(num, subQ);
+              answerKeyRows.push({
+                sectionName: sec.name,
+                qNumber: num,
+                answer: formatCorrectAnswer(subQ.correctAnswer)
+              });
+            });
+          } else {
+            const num = qNumber++;
+            html += renderQuestionHTML(num, q);
+            answerKeyRows.push({
+              sectionName: sec.name,
+              qNumber: num,
+              answer: formatCorrectAnswer(q.correctAnswer)
+            });
+          }
+        });
+      });
+
+      if (answerKeyRows.length > 0) {
+        html += `
+          <div class="answer-key-page" style="page-break-before: always;">
+            <h2 style="border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 20px; text-transform: uppercase; font-size: 20px; font-weight: 700; margin-top: 40px;">Answer Key</h2>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;">
+              <thead>
+                <tr style="background-color: #f8fafc; border-bottom: 2px solid #cbd5e1; text-align: left;">
+                  <th style="padding: 10px 12px; border: 1px solid #cbd5e1; font-weight: 600; color: #334155;">Section</th>
+                  <th style="padding: 10px 12px; border: 1px solid #cbd5e1; font-weight: 600; color: #334155; text-align: center; width: 100px;">Question #</th>
+                  <th style="padding: 10px 12px; border: 1px solid #cbd5e1; font-weight: 600; color: #334155;">Correct Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        answerKeyRows.forEach((row) => {
+          html += `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; border: 1px solid #cbd5e1; color: #475569;">${row.sectionName}</td>
+              <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: center; font-weight: 600; color: #0f172a;">${row.qNumber}</td>
+              <td style="padding: 8px 12px; border: 1px solid #cbd5e1; font-weight: 600; color: #16a34a;">${row.answer}</td>
+            </tr>
+          `;
+        });
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      html += `
+          <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+          <script>
+            window.addEventListener('load', () => {
+              if (typeof renderMathInElement === 'function') {
+                renderMathInElement(document.body, {
+                  delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false },
+                    { left: '\\\\[', right: '\\\\]', display: true },
+                    { left: '\\\\(', right: '\\\\)', display: false }
+                  ]
+                });
+              }
+              setTimeout(() => {
+                window.print();
+              }, 850);
+            });
+          </script>
+        </body>
+        </html>
+      `;
+      
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      toast.success('Test print window ready!', { id: toastId });
+    } catch (e) {
+      toast.error('Failed to export test: ' + (e as Error).message, { id: toastId });
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -810,6 +1177,15 @@ export function TestsPage() {
                         >
                           {cloningId === test.id ? <Loader2 size={13} className="animate-spin" /> : <Copy size={13} />}
                           {cloningId === test.id ? 'Cloning…' : 'Clone'}
+                        </button>
+                        <div className="border-t border-slate-100 my-1" />
+                        <button
+                          onClick={() => { handleDownloadPDF(test.id); setMenuOpen(null); }}
+                          disabled={downloadingId === test.id}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {downloadingId === test.id ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                          {downloadingId === test.id ? 'Exporting…' : 'Download PDF'}
                         </button>
                         <div className="border-t border-slate-100 my-1" />
                         <button onClick={() => { setDeleteModal(test); setMenuOpen(null); }}
