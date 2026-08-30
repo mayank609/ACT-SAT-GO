@@ -51,6 +51,7 @@ export function AdminAttendancePage() {
   const [entries, setEntries] = useState<AttendanceEntry[]>([]);
   const [tutorRates, setTutorRates] = useState<Map<string, number>>(new Map());
   const [tutorList, setTutorList] = useState<{ id: string; name: string }[]>([]);
+  const [allTutors, setAllTutors] = useState<{ id: string; name: string }[]>([]);
   const [tutorStudentsMap, setTutorStudentsMap] = useState<Map<string, { id: string; name: string }[]>>(new Map());
   const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
   const [logOpen, setLogOpen] = useState(false);
@@ -125,7 +126,10 @@ export function AdminAttendancePage() {
 
   useEffect(() => {
     api.getUsersByRole('TUTOR')
-      .then(({ users }) => setTutorRates(new Map(users.filter(u => u.hourlyRate != null).map(u => [u.id, u.hourlyRate as number]))))
+      .then(({ users }) => {
+        setTutorRates(new Map(users.filter(u => u.hourlyRate != null).map(u => [u.id, u.hourlyRate as number])));
+        setAllTutors(users.map(u => ({ id: u.id, name: u.name })).sort((a, b) => a.name.localeCompare(b.name)));
+      })
       .catch(() => {});
   }, []);
 
@@ -181,6 +185,14 @@ export function AdminAttendancePage() {
     for (const e of entries) byId.set(e.studentId, e.studentName);
     return Array.from(byId.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [entries]);
+
+  const tutorFilterOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const t of allTutors) byId.set(t.id, t.name);
+    for (const t of tutorList) byId.set(t.id, t.name);
+    for (const e of entries) byId.set(e.tutorId, e.tutorName);
+    return Array.from(byId.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allTutors, tutorList, entries]);
 
   const visible = useMemo(() => {
     let list = entries;
@@ -327,7 +339,7 @@ export function AdminAttendancePage() {
               className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 text-slate-700 bg-white"
             >
               <option value="all">All Tutors</option>
-              {tutorStats.map(t => <option key={t.tutorId} value={t.tutorId}>{t.tutorName}</option>)}
+              {tutorFilterOptions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             <div className="flex items-center gap-1 text-xs text-slate-500">
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
