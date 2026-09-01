@@ -26,6 +26,7 @@ const StudentDoubtsAdminPage = lazy(() => import('./pages/admin/StudentDoubtsAdm
 const StudentMistakesPage = lazy(() => import('./pages/admin/StudentMistakesPage').then((m) => ({ default: m.StudentMistakesPage })));
 const SkillsManagementPage = lazy(() => import('./pages/admin/SkillsManagementPage').then((m) => ({ default: m.SkillsManagementPage })));
 const AdminAttendancePage = lazy(() => import('./pages/admin/AdminAttendancePage').then((m) => ({ default: m.AdminAttendancePage })));
+const AdminTeacherSalaryPage = lazy(() => import('./pages/admin/AdminTeacherSalaryPage').then((m) => ({ default: m.AdminTeacherSalaryPage })));
 
 // Tutor pages
 const TutorDashboard = lazy(() => import('./pages/tutor/TutorDashboard').then((m) => ({ default: m.TutorDashboard })));
@@ -116,6 +117,8 @@ const router = createBrowserRouter(
         <Route path="students" element={<StudentManagementPage />} />
         <Route path="students/:id" element={<AdminStudentProfilePage />} />
         <Route path="tutors" element={<TutorManagementPage />} />
+        <Route path="teacher-salaries" element={<AdminTeacherSalaryPage />} />
+        <Route path="salaries" element={<Navigate to="/teacher-salaries" replace />} />
         <Route path="monitoring" element={<MonitoringPage />} />
 
         {/* Admin new pages */}

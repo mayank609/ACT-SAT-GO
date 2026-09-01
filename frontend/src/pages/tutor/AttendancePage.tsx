@@ -70,12 +70,54 @@ export function AttendancePage() {
   const [loading, setLoading] = useState(true);
   const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
 
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const getCurrentMonthRange = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+    return {
+      from: `${y}-${m}-01`,
+      to: `${y}-${m}-${String(lastDay).padStart(2, '0')}`,
+      label: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    };
+  };
+
+  const getLastMonthRange = () => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const lastDay = new Date(y, d.getMonth() + 1, 0).getDate();
+    return {
+      from: `${y}-${m}-01`,
+      to: `${y}-${m}-${String(lastDay).padStart(2, '0')}`,
+      label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    };
+  };
+
+  const [period, setPeriod] = useState<'this_month' | 'last_month' | 'all' | 'custom'>('this_month');
+  const [dateFrom, setDateFrom] = useState(getCurrentMonthRange().from);
+  const [dateTo, setDateTo] = useState(getCurrentMonthRange().to);
   const [studentFilter, setStudentFilter] = useState('all');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
+
+  const handlePeriodChange = (newPeriod: 'this_month' | 'last_month' | 'all' | 'custom') => {
+    setPeriod(newPeriod);
+    if (newPeriod === 'this_month') {
+      const r = getCurrentMonthRange();
+      setDateFrom(r.from);
+      setDateTo(r.to);
+    } else if (newPeriod === 'last_month') {
+      const r = getLastMonthRange();
+      setDateFrom(r.from);
+      setDateTo(r.to);
+    } else if (newPeriod === 'all') {
+      setDateFrom('');
+      setDateTo('');
+    }
+  };
 
   const [selected, setSelected] = useState<Session | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -148,7 +190,10 @@ export function AttendancePage() {
   }, [filtered]);
 
   const resetFilters = () => {
-    setDateFrom(''); setDateTo(''); setStudentFilter('all'); setSubjectFilter('all'); setStatusFilter('all');
+    handlePeriodChange('this_month');
+    setStudentFilter('all');
+    setSubjectFilter('all');
+    setStatusFilter('all');
   };
 
   const openLog = () => setLogOpen(true);
@@ -192,14 +237,26 @@ export function AttendancePage() {
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-slate-100 p-3 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-          <Calendar size={13} />
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100" />
-          <span>–</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100" />
-        </div>
+        <select
+          value={period}
+          onChange={(e) => handlePeriodChange(e.target.value as typeof period)}
+          className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
+        >
+          <option value="this_month">This Month ({getCurrentMonthRange().label})</option>
+          <option value="last_month">Last Month ({getLastMonthRange().label})</option>
+          <option value="all">All Time</option>
+          <option value="custom">Custom Date Range</option>
+        </select>
+        {period === 'custom' && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <Calendar size={13} />
+            <input type="date" value={dateFrom} onChange={(e) => { setPeriod('custom'); setDateFrom(e.target.value); }}
+              className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100" />
+            <span>–</span>
+            <input type="date" value={dateTo} onChange={(e) => { setPeriod('custom'); setDateTo(e.target.value); }}
+              className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100" />
+          </div>
+        )}
         <select value={studentFilter} onChange={(e) => setStudentFilter(e.target.value)}
           className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
           <option value="all">All Students</option>
@@ -216,7 +273,7 @@ export function AttendancePage() {
           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <button onClick={resetFilters} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 ml-auto">
-          <RotateCcw size={12} /> Reset
+          <RotateCcw size={12} /> Reset to This Month
         </button>
       </div>
 

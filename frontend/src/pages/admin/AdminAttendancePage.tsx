@@ -56,11 +56,53 @@ export function AdminAttendancePage() {
   const [publishedTests, setPublishedTests] = useState<DbTest[]>([]);
   const [logOpen, setLogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const getCurrentMonthRange = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+    return {
+      from: `${y}-${m}-01`,
+      to: `${y}-${m}-${String(lastDay).padStart(2, '0')}`,
+      label: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    };
+  };
+
+  const getLastMonthRange = () => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const lastDay = new Date(y, d.getMonth() + 1, 0).getDate();
+    return {
+      from: `${y}-${m}-01`,
+      to: `${y}-${m}-${String(lastDay).padStart(2, '0')}`,
+      label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    };
+  };
+
   const [tutorFilter, setTutorFilter] = useState('all');
   const [studentFilter, setStudentFilter] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [period, setPeriod] = useState<'this_month' | 'last_month' | 'all' | 'custom'>('this_month');
+  const [dateFrom, setDateFrom] = useState(getCurrentMonthRange().from);
+  const [dateTo, setDateTo] = useState(getCurrentMonthRange().to);
   const [search, setSearch] = useState('');
+
+  const handlePeriodChange = (newPeriod: 'this_month' | 'last_month' | 'all' | 'custom') => {
+    setPeriod(newPeriod);
+    if (newPeriod === 'this_month') {
+      const r = getCurrentMonthRange();
+      setDateFrom(r.from);
+      setDateTo(r.to);
+    } else if (newPeriod === 'last_month') {
+      const r = getLastMonthRange();
+      setDateFrom(r.from);
+      setDateTo(r.to);
+    } else if (newPeriod === 'all') {
+      setDateFrom('');
+      setDateTo('');
+    }
+  };
 
   const [editEntry, setEditEntry] = useState<AttendanceEntry | null>(null);
   const [editForm, setEditForm] = useState({
@@ -248,8 +290,13 @@ export function AdminAttendancePage() {
     }).sort((a, b) => b.daysTaught - a.daysTaught);
   }, [visible, tutorRates]);
 
-  const hasActiveFilters = tutorFilter !== 'all' || studentFilter !== 'all' || !!dateFrom || !!dateTo || !!search;
-  const clearFilters = () => { setTutorFilter('all'); setStudentFilter('all'); setDateFrom(''); setDateTo(''); setSearch(''); };
+  const hasActiveFilters = tutorFilter !== 'all' || studentFilter !== 'all' || period !== 'this_month' || !!search;
+  const clearFilters = () => {
+    setTutorFilter('all');
+    setStudentFilter('all');
+    handlePeriodChange('this_month');
+    setSearch('');
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 size={20} className="animate-spin text-slate-400" /></div>;
@@ -259,22 +306,41 @@ export function AdminAttendancePage() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Attendance</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Session Logs</h1>
           <p className="text-slate-400 text-sm">Track how much every tutor is teaching and what's being covered.</p>
         </div>
-        <Button size="sm" icon={<PlusCircle size={14} />} onClick={() => setLogOpen(true)} disabled={tutorList.length === 0}>
-          Log a Session
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => navigate('/teacher-salaries')}>
+            Teacher Salaries
+          </Button>
+          <Button size="sm" icon={<PlusCircle size={14} />} onClick={() => setLogOpen(true)} disabled={tutorList.length === 0}>
+            Log a Session
+          </Button>
+        </div>
       </div>
 
       {/* Tutor teaching activity */}
       <div className="bg-white rounded-xl border border-slate-100">
-        <div className="px-4 py-2.5 border-b border-slate-100">
-          <p className="font-medium text-slate-900 text-sm">Tutor Teaching Activity</p>
-          <p className="text-xs text-slate-400">Distinct days each tutor has logged a class</p>
+        <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <p className="font-medium text-slate-900 text-sm">Tutor Teaching Activity</p>
+            <p className="text-xs text-slate-400">
+              {period === 'this_month' ? `Active for ${getCurrentMonthRange().label} (Resets on 1st of every month)` :
+               period === 'last_month' ? `Activity for ${getLastMonthRange().label}` :
+               period === 'all' ? 'All-time total activity' : 'Activity for custom date range'}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/teacher-salaries')}
+            className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-semibold flex items-center gap-1"
+          >
+            View Month-Wise Salaries →
+          </button>
         </div>
         {tutorStats.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-400 text-center">No attendance logged yet.</p>
+          <p className="px-4 py-6 text-sm text-slate-400 text-center">
+            {period === 'this_month' ? `No sessions logged yet in ${getCurrentMonthRange().label}.` : 'No attendance logged yet.'}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -321,10 +387,20 @@ export function AdminAttendancePage() {
               Session History <span className="text-slate-400 font-normal">({visible.length})</span>
             </p>
             {hasActiveFilters && (
-              <button onClick={clearFilters} className="text-xs text-blue-600 hover:underline">Clear all filters</button>
+              <button onClick={clearFilters} className="text-xs text-blue-600 hover:underline">Reset to This Month</button>
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={period}
+              onChange={(e) => handlePeriodChange(e.target.value as typeof period)}
+              className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 text-slate-700 bg-white font-medium"
+            >
+              <option value="this_month">This Month ({getCurrentMonthRange().label})</option>
+              <option value="last_month">Last Month ({getLastMonthRange().label})</option>
+              <option value="all">All Time</option>
+              <option value="custom">Custom Date Range</option>
+            </select>
             <select
               value={studentFilter}
               onChange={(e) => setStudentFilter(e.target.value)}
@@ -341,13 +417,15 @@ export function AdminAttendancePage() {
               <option value="all">All Tutors</option>
               {tutorFilterOptions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
-            <div className="flex items-center gap-1 text-xs text-slate-500">
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-              <span>–</span>
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
+            {period === 'custom' && (
+              <div className="flex items-center gap-1 text-xs text-slate-500">
+                <input type="date" value={dateFrom} onChange={(e) => { setPeriod('custom'); setDateFrom(e.target.value); }}
+                  className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <span>–</span>
+                <input type="date" value={dateTo} onChange={(e) => { setPeriod('custom'); setDateTo(e.target.value); }}
+                  className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100" />
+              </div>
+            )}
             <div className="relative flex-1 min-w-[180px]">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
