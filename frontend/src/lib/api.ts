@@ -586,5 +586,209 @@ export const api = {
     }
     return res.json() as Promise<{ success: boolean; wasDeleted: boolean }>
   },
+
+  // Free Test Configuration & Lead Generation
+  getFreeTestConfig: () =>
+    request<{
+      config: FreeTestConfig
+      activeTestDetails: Record<string, any>
+      availableTests: Array<{
+        id: string
+        title: string
+        category?: string
+        subCategory?: string
+        description?: string
+        sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }>
+      }>
+    }>('/api/free-tests'),
+
+  updateFreeTestConfig: (body: Partial<FreeTestConfig>) =>
+    request<{ success: boolean; config: FreeTestConfig }>('/api/free-tests', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  getFreeTestLeads: () =>
+    request<{ leads: FreeTestLead[] }>('/api/free-tests/leads'),
+
+  updateFreeTestLead: (leadId: string, body: { leadStatus?: string; notes?: string }) =>
+    request<{ success: boolean; lead: FreeTestLead }>('/api/free-tests/leads', {
+      method: 'PATCH',
+      body: JSON.stringify({ leadId, ...body }),
+    }),
+
+  deleteFreeTestLead: (leadId: string) =>
+    request<{ success: boolean; message: string }>(`/api/free-tests/leads?leadId=${leadId}`, {
+      method: 'DELETE',
+    }),
+
+  registerFreeTestLead: (body: {
+    name: string
+    email: string
+    phone: string
+    exam?: string
+    grade?: string
+    school?: string
+    targetScore?: string
+    requestedTestId?: string
+  }) =>
+    request<{
+      success: boolean
+      lead: FreeTestLead
+      test: {
+        id: string
+        title: string
+        category?: string
+        description?: string
+        sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }>
+      }
+    }>('/api/free-tests/register', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  getFreeTestContent: (testId: string) =>
+    request<{
+      test: {
+        id: string
+        title: string
+        description?: string
+        category?: string
+        subCategory?: string
+        sections: Array<{
+          id: string
+          name: string
+          durationMinutes: number
+          orderIndex: number
+          config?: any
+          questions: Array<{
+            id: string
+            testQuestionId: string
+            orderIndex: number
+            marksPositive: number
+            marksNegative: number
+            type: 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE'
+            content: any
+            options?: any
+            difficultyLevel: string
+            subject?: string
+            childQuestions?: Array<{
+              id: string
+              type: 'MCQ' | 'MSQ' | 'NUMERIC'
+              content: any
+              options?: any
+              difficultyLevel: string
+              subject?: string
+            }>
+          }>
+        }>
+      }
+    }>(`/api/free-tests/test/${testId}`),
+
+  submitFreeTest: (body: {
+    leadId: string
+    testId: string
+    answers: Record<string, { answerGiven: any; timeSpentSeconds?: number }>
+    timeSpentSeconds: number
+  }) =>
+    request<{
+      success: boolean
+      report: FreeTestReport
+    }>('/api/free-tests/submit', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+}
+
+export interface FreeTestConfig {
+  activeTestId: string | null
+  examTests: {
+    SAT?: string | null
+    ACT?: string | null
+    AP?: string | null
+    GENERAL?: string | null
+  }
+  bannerTitle: string
+  bannerSubtitle: string
+  instructions: string
+  activeOnWebsite: boolean
+}
+
+export interface FreeTestLead {
+  id: string
+  name: string
+  email: string
+  phone: string
+  exam: string
+  grade?: string
+  school?: string
+  targetScore?: string
+  testId: string
+  testTitle: string
+  status: 'Registered' | 'In-Progress' | 'Completed' | 'Abandoned'
+  leadStatus: 'New' | 'Contacted' | 'Follow-Up' | 'Enrolled' | 'Archived'
+  registeredAt: string
+  startedAt?: string | null
+  completedAt?: string | null
+  totalScore?: number | null
+  maxScore?: number | null
+  percentage?: number | null
+  timeSpentSeconds?: number | null
+  sectionScores?: Array<{
+    sectionId: string
+    sectionName: string
+    score: number
+    maxScore: number
+    correct: number
+    incorrect?: number
+    unattempted?: number
+    total: number
+    accuracy?: number
+  }>
+  answers?: Record<string, {
+    questionId: string
+    questionText?: string
+    type?: string
+    options?: any
+    correctAnswer?: any
+    answerGiven: any
+    isCorrect: boolean
+    explanation?: string
+    timeSpentSeconds?: number
+    topic?: string
+  }>
+  notes?: string
+}
+
+export interface FreeTestReport {
+  leadId: string
+  studentName: string
+  exam: string
+  testTitle: string
+  scaledScore: number
+  maxScaledScore: number
+  rawScore: number
+  maxRawScore: number
+  percentage: number
+  accuracy: number
+  correctCount: number
+  incorrectCount: number
+  unattemptedCount: number
+  totalQuestionsCount: number
+  timeSpentSeconds: number
+  sectionScores: Array<{
+    sectionId: string
+    sectionName: string
+    score: number
+    maxScore: number
+    correct: number
+    incorrect: number
+    unattempted: number
+    total: number
+    accuracy: number
+  }>
+  topicPerformance?: Record<string, { correct: number; total: number }>
+  completedAt: string
+  answers: Record<string, any>
 }
 

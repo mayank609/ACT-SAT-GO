@@ -11,6 +11,7 @@ import { AdminLogin } from './pages/AdminLogin';
 import { AdminLeads } from './pages/AdminLeads';
 import { CareersPage } from './pages/CareersPage';
 import { EnquiryPage } from './pages/EnquiryPage';
+import { FreeTestPage } from './pages/FreeTestPage';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { ACT_PAGE, SAT_PAGE, AP_PAGE } from './data/programs';
 import { initMetaPixel } from './lib/metaPixel';
@@ -39,6 +40,9 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/resources" element={<ResourcesPage />} />
         <Route path="/consultation" element={<EnquiryPage />} />
         <Route path="/enquiry" element={<EnquiryPage />} />
+        <Route path="/free-test" element={<FreeTestPage />} />
+        <Route path="/free-test/:testId" element={<FreeTestPage />} />
+        <Route path="/take-free-test" element={<Navigate to="/free-test" replace />} />
         <Route path="/about" element={<Navigate to="/about-us" replace />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/leads" element={<AdminLeads />} />

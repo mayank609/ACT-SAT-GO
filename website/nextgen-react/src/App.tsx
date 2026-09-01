@@ -125,6 +125,9 @@ export default function App() {
               <p className="hero-text">Personalized online tutoring for SAT, ACT, AP and K-12 students designed to unlock potential and achieve real results.</p>
 
               <div className="hero-actions-new">
+                <Link className="btn btn-secondary" to="/free-test" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  ✨ Take Free Diagnostic Test
+                </Link>
                 <a className="btn btn-primary" href="#consultation" onClick={(e) => { e.preventDefault(); openConsultationModal('General'); }}>
                   Book Free Consultation <span aria-hidden="true">→</span>
                 </a>
@@ -265,6 +268,57 @@ export default function App() {
         </section>
 
         <ProgramsHub />
+
+        {/* Free Diagnostic Test Callout Banner */}
+        <section className="shell" style={{ margin: '48px auto' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #06172a 0%, #0d2c54 50%, #06172a 100%)',
+            borderRadius: '24px',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            padding: '36px 32px',
+            boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '24px',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ maxWidth: '600px', zIndex: 1 }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 12px',
+                borderRadius: '9999px',
+                background: 'rgba(56, 189, 248, 0.15)',
+                color: '#38bdf8',
+                fontSize: '12px',
+                fontWeight: 700,
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                marginBottom: '12px'
+              }}>
+                ✨ FREE OFFICIAL DIAGNOSTIC
+              </div>
+              <h3 style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', lineHeight: 1.2, margin: '0 0 10px 0' }}>
+                Unsure where you stand? Take our free full-length test.
+              </h3>
+              <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
+                Simulate official test conditions in 30 minutes. Get your estimated scaled score, accuracy %, and step-by-step solutions instantly.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '220px', zIndex: 1 }}>
+              <Link to="/free-test?exam=SAT" className="btn btn-secondary" style={{ textAlign: 'center', fontWeight: 700 }}>
+                Take Free SAT Test →
+              </Link>
+              <Link to="/free-test?exam=ACT" className="btn btn-outline" style={{ textAlign: 'center', borderColor: 'rgba(255,255,255,0.2)', color: '#ffffff' }}>
+                Take Free ACT Test →
+              </Link>
+            </div>
+          </div>
+        </section>
 
         <section className="cta-section shell">
           <div className="process-cta">
