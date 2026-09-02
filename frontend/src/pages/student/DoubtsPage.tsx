@@ -193,20 +193,26 @@ function DoubtItemComponent({ item, index, onCleared }: {
           <ExternalLink size={11} /> Open in review
         </button>
       </div>
-      {q.content.explanation && (
-        <div className="text-left">
-          <button onClick={() => setShowExplanation(!showExplanation)}
-            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
-            {showExplanation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-            {showExplanation ? 'Hide' : 'Show'} Explanation
-          </button>
-        </div>
-      )}
-      {showExplanation && q.content.explanation && (
-        <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-left">
-          <RichContentRenderer content={q.content.explanation} variant="explanation" />
-        </div>
-      )}
+      {(() => {
+        const explanationText = q.content?.explanation || (item as any)?.parentPassageExplanation || (q as any)?.parentQuestion?.content?.explanation;
+        if (!explanationText) return null;
+        return (
+          <>
+            <div className="text-left">
+              <button onClick={() => setShowExplanation(!showExplanation)}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                {showExplanation ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                {showExplanation ? 'Hide' : 'Show'} Explanation
+              </button>
+            </div>
+            {showExplanation && (
+              <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-left">
+                <RichContentRenderer content={explanationText} variant="explanation" />
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Mark cleared — removes from doubts */}
       <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
@@ -317,8 +323,16 @@ export function DoubtsView({ studentId, title, subtitle, onBack }: {
                         id: cq.id,
                         questionId: cq.id,
                         orderIndex: tq.orderIndex,
-                        question: { ...cq, parentQuestionText: q.content.text } as any,
-                      });
+                        question: {
+                          ...cq,
+                          content: {
+                            ...cq.content,
+                            explanation: cq.content?.explanation || q.content?.explanation || (q as any)?.explanation || undefined,
+                          },
+                          parentQuestionText: q.content.text,
+                        } as any,
+                        parentPassageExplanation: q.content?.explanation,
+                      } as any);
                     });
                   } else if (!(q as any).parentQuestionId) {
                     flattened.push(tq);
@@ -336,7 +350,8 @@ export function DoubtsView({ studentId, title, subtitle, onBack }: {
                       attemptId: attempt.id,
                       answerGiven: ans.answerGiven ?? null,
                       parentQuestionText: (tq.question as any).parentQuestionText,
-                    });
+                      parentPassageExplanation: (tq as any).parentPassageExplanation || (tq.question as any)?.parentQuestion?.content?.explanation,
+                    } as any);
                   }
                 });
               });

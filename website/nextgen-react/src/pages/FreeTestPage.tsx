@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Sparkles, CheckCircle2, Clock, AlertCircle, ArrowRight, ArrowLeft,
-  Bookmark, Calculator, Send, Phone, MessageSquare, X
+  Bookmark, Calculator, Send, Phone, MessageSquare, X, ChevronRight,
+  Layers, Check, AlertTriangle
 } from 'lucide-react';
 import { PLATFORM_API_BASE, QUERY_API_BASE } from '../config';
 import { FALLBACK_SAT_TEST, FALLBACK_ACT_TEST } from '../data/mockDiagnosticTest';
@@ -69,19 +70,33 @@ export function FreeTestPage() {
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, { answerGiven: any; timeSpentSeconds: number }>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(30 * 60);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(32 * 60);
   const [timerRunning, setTimerRunning] = useState(false);
   const [totalTimeSpentSeconds, setTotalTimeSpentSeconds] = useState(0);
+
+  // Section completion & submit modals
+  const [showNextSectionModal, setShowNextSectionModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Tools in test engine
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcInput, setCalcInput] = useState('');
   const [calcResult, setCalcResult] = useState<string | null>(null);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   // Final Report State
   const [report, setReport] = useState<any | null>(null);
+
+  // Sort and sanitize test data to strictly respect section orderIndex
+  const normalizeTestData = (rawTest: any): TestData => {
+    const sortedSections = [...(rawTest.sections || [])].sort(
+      (a: TestSection, b: TestSection) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
+    );
+    return {
+      ...rawTest,
+      sections: sortedSections,
+    };
+  };
 
   // Flattened questions for the active section
   const currentSection = testData?.sections[currentSectionIdx];
@@ -110,17 +125,17 @@ export function FreeTestPage() {
       if (activeTestId) {
         const testRes = await fetch(`${PLATFORM_API_BASE}/api/free-tests/test/${activeTestId}`).then((r) => r.json());
         if (testRes?.test?.sections?.length) {
-          return testRes.test as TestData;
+          return normalizeTestData(testRes.test);
         }
       }
     } catch {
-      // Offline / API unavailable -> use built-in official fallback test
+      // Offline / API unavailable -> use built-in fallback test
     }
 
     if (examType === 'ACT') {
-      return FALLBACK_ACT_TEST as TestData;
+      return normalizeTestData(FALLBACK_ACT_TEST);
     }
-    return FALLBACK_SAT_TEST as TestData;
+    return normalizeTestData(FALLBACK_SAT_TEST);
   };
 
   // Handle Lead Registration
@@ -177,7 +192,8 @@ export function FreeTestPage() {
       setLeadId(generatedLeadId);
       setCurrentSectionIdx(0);
       setCurrentQuestionIdx(0);
-      setSecondsRemaining((loadedTest.sections[0]?.durationMinutes || 30) * 60);
+      const firstSectionDuration = loadedTest.sections[0]?.durationMinutes || 32;
+      setSecondsRemaining(firstSectionDuration * 60);
       setTimerRunning(true);
       setStage('test');
     } catch (err: any) {
@@ -194,8 +210,18 @@ export function FreeTestPage() {
     const interval = setInterval(() => {
       setSecondsRemaining((prev) => {
         if (prev <= 1) {
-          // Auto submit or advance section
-          return 0;
+          // Section timer expired!
+          if (testData && currentSectionIdx < testData.sections.length - 1) {
+            // Auto advance to next section
+            const nextSecIdx = currentSectionIdx + 1;
+            setCurrentSectionIdx(nextSecIdx);
+            setCurrentQuestionIdx(0);
+            return (testData.sections[nextSecIdx]?.durationMinutes || 32) * 60;
+          } else {
+            // Last section timer finished -> auto submit
+            handleSubmitTest();
+            return 0;
+          }
         }
         return prev - 1;
       });
@@ -203,7 +229,7 @@ export function FreeTestPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [stage, timerRunning]);
+  }, [stage, timerRunning, testData, currentSectionIdx]);
 
   // Answer handler
   const handleSelectAnswer = (qId: string, answerValue: any) => {
@@ -223,10 +249,22 @@ export function FreeTestPage() {
     }));
   };
 
+  // Proceed from one section to the next in flow
+  const handleProceedToNextSection = () => {
+    if (!testData) return;
+    const nextSecIdx = currentSectionIdx + 1;
+    if (nextSecIdx < testData.sections.length) {
+      setCurrentSectionIdx(nextSecIdx);
+      setCurrentQuestionIdx(0);
+      setSecondsRemaining((testData.sections[nextSecIdx]?.durationMinutes || 32) * 60);
+      setShowNextSectionModal(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   // Calculator helper
   const handleCalculate = () => {
     try {
-      // Safe arithmetic evaluation
       const sanitized = calcInput.replace(/[^0-9+\-*/().^ ]/g, '');
       const evalValue = Function(`'use strict'; return (${sanitized})`)();
       setCalcResult(String(evalValue));
@@ -265,18 +303,28 @@ export function FreeTestPage() {
       }
 
       if (!finalReport) {
-        // Local evaluation fallback
+        // Local evaluation fallback across all sections in order
         let totalQ = 0;
         let correctQ = 0;
         const answersBreakdown: Record<string, any> = {};
+        const sectionScores = [];
 
         for (const sec of testData.sections) {
+          let secTotal = 0;
+          let secCorrect = 0;
+
           for (const q of sec.questions) {
             totalQ++;
+            secTotal++;
             const userAns = answers[q.id]?.answerGiven;
             const correctKey = q.correctAnswer?.key || q.correctAnswer?.value;
-            const isCorrect = String(userAns || '').toUpperCase() === String(correctKey || '').toUpperCase();
-            if (isCorrect) correctQ++;
+            const isCorrect = userAns !== undefined && userAns !== null && userAns !== '' &&
+              String(userAns).toUpperCase().trim() === String(correctKey || '').toUpperCase().trim();
+            
+            if (isCorrect) {
+              correctQ++;
+              secCorrect++;
+            }
 
             answersBreakdown[q.id] = {
               questionId: q.id,
@@ -288,6 +336,16 @@ export function FreeTestPage() {
               topic: q.content?.meta?.domain || 'General',
             };
           }
+
+          sectionScores.push({
+            sectionId: sec.id,
+            sectionName: sec.name,
+            score: secCorrect,
+            maxScore: secTotal,
+            correct: secCorrect,
+            incorrect: secTotal - secCorrect,
+            accuracy: secTotal > 0 ? Math.round((secCorrect / secTotal) * 100) : 0,
+          });
         }
 
         const pct = totalQ > 0 ? Math.round((correctQ / totalQ) * 100) : 0;
@@ -308,12 +366,7 @@ export function FreeTestPage() {
           incorrectCount: totalQ - correctQ,
           totalQuestionsCount: totalQ,
           timeSpentSeconds: totalTimeSpentSeconds,
-          sectionScores: testData.sections.map((s) => ({
-            sectionName: s.name,
-            score: correctQ,
-            maxScore: totalQ,
-            accuracy: pct,
-          })),
+          sectionScores,
           answers: answersBreakdown,
         };
       }
@@ -321,6 +374,7 @@ export function FreeTestPage() {
       setReport(finalReport);
       setTimerRunning(false);
       setShowSubmitModal(false);
+      setShowNextSectionModal(false);
       setStage('report');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
@@ -354,10 +408,10 @@ export function FreeTestPage() {
               <Sparkles size={13} className="text-blue-400" /> Free Official Diagnostic Test
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-              Test Your Real Exam Readiness in 30 Minutes
+              Official Diagnostic Test Engine
             </h1>
             <p className="mt-2 text-sm sm:text-base text-slate-300 max-w-2xl mx-auto">
-              Get an instant official scaled score prediction, discover your accuracy per topic, and see step-by-step answer explanations.
+              Follows the authentic Digital SAT & ACT sequential module structure with official section timers and accurate scaled score predictions.
             </p>
           </div>
 
@@ -366,23 +420,23 @@ export function FreeTestPage() {
             {/* Left Column: Benefits */}
             <div className="md:col-span-5 p-6 sm:p-8 bg-gradient-to-br from-blue-950/60 to-indigo-950/40 border-b md:border-b-0 md:border-r border-blue-500/20 flex flex-col justify-between">
               <div>
-                <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">What You Get:</span>
+                <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">Test Structure:</span>
                 <ul className="mt-4 space-y-4 text-xs sm:text-sm text-slate-200">
                   <li className="flex items-start gap-2.5">
                     <CheckCircle2 size={17} className="text-emerald-400 shrink-0 mt-0.5" />
-                    <span><b>Instant Scaled Score (400–1600 / 1–36)</b> immediately upon submission</span>
+                    <span><b>Official 4-Module Flow:</b> Reading & Writing (Modules 1 & 2) + Math (Modules 1 & 2)</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <CheckCircle2 size={17} className="text-emerald-400 shrink-0 mt-0.5" />
-                    <span><b>Authentic Digital Interface</b> with section timer, calculator & question flag palette</span>
+                    <span><b>Instant Scaled Score (400–1600 / 1–36)</b> immediately upon completion</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <CheckCircle2 size={17} className="text-emerald-400 shrink-0 mt-0.5" />
-                    <span><b>Strengths & Weaknesses Breakdown</b> by Reading, Writing & Math topics</span>
+                    <span><b>Module Timers & Grid-in Tools</b> with scratchpad calculator & flag review</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <CheckCircle2 size={17} className="text-emerald-400 shrink-0 mt-0.5" />
-                    <span><b>Detailed Explanations</b> for every single question answered</span>
+                    <span><b>Topic-by-Topic Analysis</b> with step-by-step answer explanations</span>
                   </li>
                 </ul>
               </div>
@@ -395,7 +449,7 @@ export function FreeTestPage() {
                     <img className="inline-block h-8 w-8 rounded-full ring-2 ring-blue-500" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80" alt="Student" />
                   </div>
                   <div className="text-xs text-slate-300">
-                    <span className="font-bold text-white">1,200+ Students</span> evaluated
+                    <span className="font-bold text-white">1,200+ Students</span> tested
                   </div>
                 </div>
               </div>
@@ -405,7 +459,7 @@ export function FreeTestPage() {
             <div className="md:col-span-7 p-6 sm:p-8">
               <h2 className="text-lg font-bold text-white mb-1">Enter Your Details to Start</h2>
               <p className="text-xs text-slate-400 mb-5">
-                We'll save your score report and generate your personal diagnostic assessment.
+                We'll save your diagnostic session and generate your personalized score breakdown.
               </p>
 
               {registerError && (
@@ -464,8 +518,8 @@ export function FreeTestPage() {
                       onChange={(e) => setLeadForm({ ...leadForm, exam: e.target.value as ExamType })}
                       className="w-full px-3.5 py-2.5 text-sm bg-[#06172a] border border-blue-500/30 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="SAT">Digital SAT (1600 Scale)</option>
-                      <option value="ACT">ACT (36 Scale)</option>
+                      <option value="SAT">Digital SAT (4 Modules, 1600 Scale)</option>
+                      <option value="ACT">ACT (4 Sections, 36 Scale)</option>
                       <option value="AP">AP Exam Prep</option>
                       <option value="GENERAL">General Assessment</option>
                     </select>
@@ -487,7 +541,7 @@ export function FreeTestPage() {
                   </div>
                 </div>
 
-                {/* Target Score & School (Optional) */}
+                {/* Target Score & School */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1">Target Score (Optional)</label>
@@ -543,9 +597,19 @@ export function FreeTestPage() {
   // ═══════════════════════════════════════════════════════════════════════════
   if (stage === 'test' && testData && activeQuestion) {
     const totalQCount = allFlatQuestions.length;
-    const answeredCount = Object.keys(answers).length;
     const isFlagged = !!flaggedQuestions[activeQuestion.id];
     const currentAnswer = answers[activeQuestion.id]?.answerGiven;
+    const isLastSection = currentSectionIdx === testData.sections.length - 1;
+    const isLastQuestionInSection = currentQuestionIdx === totalQCount - 1;
+
+    // Section answered stats
+    const currentSectionAnsweredCount = allFlatQuestions.filter(
+      (item) => answers[item.q.id]?.answerGiven !== undefined && answers[item.q.id]?.answerGiven !== null && answers[item.q.id]?.answerGiven !== ''
+    ).length;
+
+    // Overall answered stats across all sections
+    const totalAllQuestions = testData.sections.reduce((acc, s) => acc + s.questions.length, 0);
+    const totalAllAnswered = Object.values(answers).filter((a) => a.answerGiven !== undefined && a.answerGiven !== null && a.answerGiven !== '').length;
 
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans select-none">
@@ -557,12 +621,13 @@ export function FreeTestPage() {
             </span>
             <span className="text-slate-600">|</span>
             <div className="text-xs sm:text-sm font-semibold text-slate-200 truncate max-w-[200px] sm:max-w-md">
+              <span className="text-sky-400 font-bold mr-1.5">Module {currentSectionIdx + 1}/{testData.sections.length}:</span>
               {currentSection?.name || testData.title}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Timer */}
+            {/* Section Timer */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-700 text-xs font-mono font-bold text-amber-300">
               <Clock size={14} className="text-amber-400 animate-pulse" />
               <span>{formatTimer(secondsRemaining)}</span>
@@ -582,16 +647,66 @@ export function FreeTestPage() {
               <span className="hidden sm:inline">Calc</span>
             </button>
 
-            {/* Finish / Submit Test */}
-            <button
-              onClick={() => setShowSubmitModal(true)}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5"
-            >
-              <Send size={13} />
-              <span>Submit Test</span>
-            </button>
+            {/* Section Advance / Submit Button in Header */}
+            {isLastSection ? (
+              <button
+                onClick={() => setShowSubmitModal(true)}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5"
+              >
+                <Send size={13} />
+                <span>Submit Test</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowNextSectionModal(true)}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5"
+              >
+                <span>Next Module</span>
+                <ChevronRight size={13} />
+              </button>
+            )}
           </div>
         </header>
+
+        {/* Section Flow Stepper Breadcrumbs (following Test Builder sequence) */}
+        <div className="bg-slate-950/90 border-b border-slate-800/80 px-4 sm:px-6 py-2 overflow-x-auto">
+          <div className="flex items-center gap-2 min-w-max">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
+              <Layers size={13} className="text-sky-400" /> Test Flow:
+            </span>
+            {testData.sections.map((sec, idx) => {
+              const isCurrent = idx === currentSectionIdx;
+              const isCompleted = idx < currentSectionIdx;
+
+              return (
+                <div key={sec.id || idx} className="flex items-center">
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-all ${
+                      isCurrent
+                        ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20 ring-1 ring-blue-400'
+                        : isCompleted
+                        ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 font-medium'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 font-medium'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <Check size={12} className="text-emerald-400" />
+                    ) : (
+                      <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] font-bold ${isCurrent ? 'bg-white text-blue-700' : 'bg-slate-800 text-slate-400'}`}>
+                        {idx + 1}
+                      </span>
+                    )}
+                    <span>{sec.name}</span>
+                    <span className="text-[10px] opacity-75">({sec.durationMinutes}m)</span>
+                  </div>
+                  {idx < testData.sections.length - 1 && (
+                    <ChevronRight size={14} className="text-slate-600 mx-1 shrink-0" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Subheader: Question Counter & Actions */}
         <div className="bg-slate-900 border-b border-slate-800/80 px-4 sm:px-6 py-2 flex items-center justify-between text-xs">
@@ -599,8 +714,12 @@ export function FreeTestPage() {
             <span className="font-bold text-slate-300">
               Question {currentQuestionIdx + 1} of {totalQCount}
             </span>
+            <span className="text-slate-500">•</span>
+            <span className="text-slate-400">
+              Module: <b className="text-slate-200">{currentSection?.name}</b>
+            </span>
             {activeQuestion.content?.meta?.domain && (
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-[11px]">
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] font-medium">
                 {activeQuestion.content.meta.domain}
               </span>
             )}
@@ -725,7 +844,7 @@ export function FreeTestPage() {
             <ArrowLeft size={14} /> Previous
           </button>
 
-          {/* Question Palette Dots */}
+          {/* Question Palette Dots for Current Section */}
           <div className="flex items-center gap-1.5 overflow-x-auto max-w-[200px] sm:max-w-md py-1 px-2">
             {allFlatQuestions.map((item, idx) => {
               const qAns = answers[item.q.id]?.answerGiven;
@@ -753,50 +872,130 @@ export function FreeTestPage() {
             })}
           </div>
 
-          <button
-            onClick={() => {
-              if (currentQuestionIdx < totalQCount - 1) {
-                setCurrentQuestionIdx((i) => i + 1);
-              } else {
-                setShowSubmitModal(true);
-              }
-            }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5"
-          >
-            {currentQuestionIdx < totalQCount - 1 ? (
-              <>
-                Next <ArrowRight size={14} />
-              </>
-            ) : (
-              <>
+          {/* Next Question / Next Section / Submit Button */}
+          {isLastQuestionInSection ? (
+            isLastSection ? (
+              <button
+                onClick={() => setShowSubmitModal(true)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5"
+              >
                 Review & Submit <Send size={14} />
-              </>
-            )}
-          </button>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowNextSectionModal(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5"
+              >
+                Complete Module <ChevronRight size={14} />
+              </button>
+            )
+          ) : (
+            <button
+              onClick={() => setCurrentQuestionIdx((i) => i + 1)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5"
+            >
+              Next <ArrowRight size={14} />
+            </button>
+          )}
         </footer>
+
+        {/* Next Section Confirmation Modal */}
+        {showNextSectionModal && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl text-slate-100 animate-fadeIn">
+              <div className="flex items-center gap-2.5 text-sky-400 mb-2">
+                <CheckCircle2 size={20} />
+                <h3 className="text-lg font-bold text-white">Complete {currentSection?.name}?</h3>
+              </div>
+              <p className="text-xs text-slate-300 mb-4">
+                You are about to finish <b>{currentSection?.name}</b> and proceed to{' '}
+                <b className="text-sky-300">{testData.sections[currentSectionIdx + 1]?.name}</b>.
+              </p>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-3 gap-2 text-center text-xs mb-4">
+                <div>
+                  <div className="text-xl font-bold text-white">{totalQCount}</div>
+                  <span className="text-slate-400 text-[10px]">Module Questions</span>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-emerald-400">{currentSectionAnsweredCount}</div>
+                  <span className="text-slate-400 text-[10px]">Answered</span>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-amber-400">{totalQCount - currentSectionAnsweredCount}</div>
+                  <span className="text-slate-400 text-[10px]">Unanswered</span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs flex items-start gap-2 mb-6">
+                <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+                <span>
+                  <b>Note:</b> Once you begin the next module, you will not be able to return to edit answers in this module.
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNextSectionModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-300 bg-slate-800 rounded-lg hover:bg-slate-700"
+                >
+                  Review Questions
+                </button>
+                <button
+                  type="button"
+                  onClick={handleProceedToNextSection}
+                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-500 shadow-md flex items-center gap-1.5"
+                >
+                  <span>Proceed to Next Module</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Submit Confirmation Modal */}
         {showSubmitModal && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl text-slate-100">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl text-slate-100 animate-fadeIn">
               <h3 className="text-lg font-bold text-white mb-2">Submit Your Free Diagnostic Test?</h3>
               <p className="text-xs text-slate-300 mb-4">
-                You will receive your score prediction and complete question-by-question analytics instantly.
+                You will receive your official scaled score prediction and complete module-by-module analytics instantly.
               </p>
 
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-3 gap-2 text-center text-xs mb-6">
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-3 gap-2 text-center text-xs mb-4">
                 <div>
-                  <div className="text-xl font-bold text-white">{totalQCount}</div>
-                  <span className="text-slate-400 text-[10px]">Total</span>
+                  <div className="text-xl font-bold text-white">{totalAllQuestions}</div>
+                  <span className="text-slate-400 text-[10px]">Total Questions</span>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-emerald-400">{answeredCount}</div>
+                  <div className="text-xl font-bold text-emerald-400">{totalAllAnswered}</div>
                   <span className="text-slate-400 text-[10px]">Answered</span>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-amber-400">{totalQCount - answeredCount}</div>
+                  <div className="text-xl font-bold text-amber-400">{totalAllQuestions - totalAllAnswered}</div>
                   <span className="text-slate-400 text-[10px]">Unanswered</span>
                 </div>
+              </div>
+
+              {/* Section Breakdown Summary in Modal */}
+              <div className="space-y-1.5 mb-6 max-h-40 overflow-y-auto pr-1">
+                {testData.sections.map((sec, idx) => {
+                  const secAnsCount = sec.questions.filter((q) => {
+                    const val = answers[q.id]?.answerGiven;
+                    return val !== undefined && val !== null && val !== '';
+                  }).length;
+
+                  return (
+                    <div key={sec.id || idx} className="flex items-center justify-between text-xs px-3 py-1.5 bg-slate-950/60 rounded-lg border border-slate-800">
+                      <span className="text-slate-300 truncate max-w-[200px]">{sec.name}</span>
+                      <span className={`font-bold ${secAnsCount === sec.questions.length ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {secAnsCount}/{sec.questions.length} answered
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="flex justify-end gap-3">
@@ -878,6 +1077,48 @@ export function FreeTestPage() {
               </div>
             </div>
           </div>
+
+          {/* Section by Section Performance Breakdown */}
+          {report.sectionScores && report.sectionScores.length > 0 && (
+            <div className="bg-[#0b1f3a]/90 rounded-3xl border border-blue-500/20 p-6 sm:p-8 space-y-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Layers size={18} className="text-sky-400" /> Module Performance Breakdown
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {report.sectionScores.map((sec: any, idx: number) => (
+                  <div
+                    key={sec.sectionId || idx}
+                    className="p-5 rounded-2xl bg-slate-950/70 border border-blue-500/20 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-semibold text-slate-400 uppercase tracking-wider">
+                          Module {idx + 1}
+                        </span>
+                        <span className="font-bold text-sky-300">
+                          {sec.accuracy}% Accuracy
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold text-white mb-3">{sec.sectionName}</h4>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${sec.accuracy}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-slate-300 pt-1">
+                        <span>Score: <b>{sec.score} / {sec.maxScore}</b></span>
+                        <span className="text-emerald-400 font-medium">{sec.correct ?? sec.score} Correct</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* High-Converting CTA Banner */}
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 rounded-3xl p-6 sm:p-8 shadow-2xl text-white flex flex-col sm:flex-row items-center justify-between gap-6">

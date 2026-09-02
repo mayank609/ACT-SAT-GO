@@ -171,7 +171,18 @@ export function computeTestAnalysis(attempt: TaAttempt): {
       const q = tq.question;
       const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-        q.childQuestions.forEach(cq => flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq }));
+        q.childQuestions.forEach(cq => flatQs.push({
+          id: cq.id,
+          questionId: cq.id,
+          orderIndex: tq.orderIndex,
+          question: {
+            ...cq,
+            content: {
+              ...cq.content,
+              explanation: cq.content?.explanation || q.content?.explanation || (q as any)?.explanation || undefined,
+            }
+          }
+        }));
       } else {
         flatQs.push(tq);
       }
@@ -229,7 +240,20 @@ function flattenSection(sa: TaSectionAttempt): FlatQuestion[] {
     const q = tq.question;
     const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
     if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
-      return q.childQuestions.map((cq) => ({ ...tq, id: cq.id, questionId: cq.id, question: cq, parentPassageText: q.content?.text }));
+      return q.childQuestions.map((cq) => ({
+        ...tq,
+        id: cq.id,
+        questionId: cq.id,
+        question: {
+          ...cq,
+          content: {
+            ...cq.content,
+            explanation: cq.content?.explanation || q.content?.explanation || (q as any)?.explanation || undefined,
+          }
+        },
+        parentPassageText: q.content?.text,
+        parentPassageExplanation: q.content?.explanation,
+      }));
     }
     return [tq as FlatQuestion];
   });
@@ -323,11 +347,12 @@ function QuestionDisplay({
     </div>
   ) : null;
 
-  const explanation = currentTq.question.content.explanation ? (
+  const explText = currentTq.question.content?.explanation || (currentTq as any)?.parentPassageExplanation || (currentTq.question as any)?.parentQuestion?.content?.explanation;
+  const explanation = explText ? (
     <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100/80">
       <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Explanation</h5>
       <div className="text-sm text-slate-700 leading-relaxed">
-        <RichContentRenderer content={currentTq.question.content.explanation} variant="question" className="prose-sm" />
+        <RichContentRenderer content={explText} variant="question" className="prose-sm" />
       </div>
     </div>
   ) : null;

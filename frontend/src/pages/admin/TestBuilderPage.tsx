@@ -2041,7 +2041,7 @@ export function TestBuilderPage() {
               topic: cqContent?.meta?.domain ?? cq.topic?.name ?? '',
               subTopic: cqContent?.meta?.subTopic ?? '',
               skill: cqContent?.meta?.skill ?? '',
-              explanation: cqContent?.explanation ?? undefined,
+              explanation: cqContent?.explanation ?? content?.explanation ?? undefined,
               parentQuestionId: q.id,
             };
           });
@@ -2056,7 +2056,7 @@ export function TestBuilderPage() {
             topic: content?.meta?.domain ?? q.topic?.name ?? '',
             subTopic: content?.meta?.subTopic ?? '',
             skill: content?.meta?.skill ?? '',
-            explanation: content?.explanation ?? undefined,
+            explanation: content?.explanation ?? (q.childQuestions?.[0]?.content as any)?.explanation ?? undefined,
             marks: tq.marksPositive ?? 1,
             marksNegative: tq.marksNegative ?? 0,
             linkedQuestions,

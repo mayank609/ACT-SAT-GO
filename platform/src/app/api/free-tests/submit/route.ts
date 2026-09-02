@@ -32,11 +32,11 @@ function gradeAnswer(correctAnswer: any, answerGiven: any, type: string): boolea
   }
 
   if (type === 'MSQ') {
-    const givenArr = Array.isArray(answerGiven) ? answerGiven.map(String).map((s) => s.toUpperCase()).sort() : [String(answerGiven).toUpperCase()]
+    const givenArr = Array.isArray(answerGiven) ? answerGiven.map(String).map((s: string) => s.toUpperCase()).sort() : [String(answerGiven).toUpperCase()]
     let correctArr: string[] = []
     if (correctAnswer && typeof correctAnswer === 'object') {
       if (Array.isArray(correctAnswer.keys)) {
-        correctArr = correctAnswer.keys.map(String).map((s) => s.toUpperCase()).sort()
+        correctArr = (correctAnswer.keys as unknown[]).map(String).map((s: string) => s.toUpperCase()).sort()
       } else if (correctAnswer.key) {
         correctArr = [String(correctAnswer.key).toUpperCase()]
       }

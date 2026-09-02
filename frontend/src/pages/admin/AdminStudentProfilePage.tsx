@@ -186,7 +186,18 @@ function computeTestAnalysis(attempt: TaAttempt): {
         q.childQuestions.forEach(cq => {
           if (!addedIds.has(cq.id)) {
             addedIds.add(cq.id);
-            flatQs.push({ id: cq.id, questionId: cq.id, orderIndex: tq.orderIndex, question: cq });
+            flatQs.push({
+              id: cq.id,
+              questionId: cq.id,
+              orderIndex: tq.orderIndex,
+              question: {
+                ...cq,
+                content: {
+                  ...cq.content,
+                  explanation: cq.content?.explanation || q.content?.explanation || (q as any)?.explanation || undefined,
+                }
+              }
+            });
           }
         });
       } else {
@@ -204,6 +215,7 @@ function computeTestAnalysis(attempt: TaAttempt): {
                 topic: q.topic || parent.topic,
                 content: {
                   ...q.content,
+                  explanation: q.content?.explanation || parent.content?.explanation || (parent as any)?.explanation || undefined,
                   meta: mergeQuestionMeta(q.content?.meta, parent.content?.meta)
                 }
               } as any
@@ -1116,10 +1128,12 @@ export function AdminStudentProfilePage() {
                                             topic: cq.topic || q.topic,
                                             content: {
                                               ...cq.content,
+                                              explanation: cq.content?.explanation || q.content?.explanation || (q as any)?.explanation || undefined,
                                               meta: mergeQuestionMeta(cq.content?.meta, q.content?.meta)
                                             }
                                           } as any,
-                                          parentPassageText: q.content?.text
+                                          parentPassageText: q.content?.text,
+                                          parentPassageExplanation: q.content?.explanation,
                                         }));
                                       }
                                       const parent = (q as any).parentQuestion;
@@ -1134,10 +1148,12 @@ export function AdminStudentProfilePage() {
                                             topic: q.topic || parent.topic,
                                             content: {
                                               ...q.content,
+                                              explanation: q.content?.explanation || parent.content?.explanation || (parent as any)?.explanation || undefined,
                                               meta: mergeQuestionMeta(q.content?.meta, parent.content?.meta)
                                             }
                                           } as any,
-                                          parentPassageText: parent.content?.text
+                                          parentPassageText: parent.content?.text,
+                                          parentPassageExplanation: parent.content?.explanation,
                                         }];
                                       }
                                       return (q as any).parentQuestionId ? [] : [tq];
@@ -1580,10 +1596,12 @@ export function AdminStudentProfilePage() {
                 topic: cq.topic || q.topic,
                 content: {
                   ...cq.content,
+                  explanation: cq.content?.explanation || q.content?.explanation || (q as any)?.explanation || undefined,
                   meta: mergeQuestionMeta(cq.content?.meta, q.content?.meta)
                 }
               } as any,
-              parentPassageText: q.content?.text
+              parentPassageText: q.content?.text,
+              parentPassageExplanation: q.content?.explanation,
             }));
           }
           const parent = (q as any).parentQuestion;
@@ -1598,10 +1616,12 @@ export function AdminStudentProfilePage() {
                 topic: q.topic || parent.topic,
                 content: {
                   ...q.content,
+                  explanation: q.content?.explanation || parent.content?.explanation || (parent as any)?.explanation || undefined,
                   meta: mergeQuestionMeta(q.content?.meta, parent.content?.meta)
                 }
               } as any,
-              parentPassageText: parent.content?.text
+              parentPassageText: parent.content?.text,
+              parentPassageExplanation: parent.content?.explanation,
             }];
           }
           return (q as any).parentQuestionId ? [] : [tq];
@@ -1703,10 +1723,12 @@ export function AdminStudentProfilePage() {
                 topic: cq.topic || q.topic,
                 content: {
                   ...cq.content,
+                  explanation: cq.content?.explanation || q.content?.explanation || (q as any)?.explanation || undefined,
                   meta: mergeQuestionMeta(cq.content?.meta, q.content?.meta)
                 }
               } as any,
-              parentPassageText: q.content?.text
+              parentPassageText: q.content?.text,
+              parentPassageExplanation: q.content?.explanation,
             }));
           }
           const parent = (q as any).parentQuestion;
@@ -1721,10 +1743,12 @@ export function AdminStudentProfilePage() {
                 topic: q.topic || parent.topic,
                 content: {
                   ...q.content,
+                  explanation: q.content?.explanation || parent.content?.explanation || (parent as any)?.explanation || undefined,
                   meta: mergeQuestionMeta(q.content?.meta, parent.content?.meta)
                 }
               } as any,
-              parentPassageText: parent.content?.text
+              parentPassageText: parent.content?.text,
+              parentPassageExplanation: parent.content?.explanation,
             }];
           }
           return (q as any).parentQuestionId ? [] : [tq];
@@ -1752,6 +1776,7 @@ export function AdminStudentProfilePage() {
         const options = currentTq ? taOptionsToDisplay(currentTq.question.options) : [];
         const userAnswerDisplay = studentAnswer ? taAnswerToDisplay(studentAnswer.answerGiven) : null;
         const correctAnswerDisplay = currentTq ? taAnswerToDisplay(currentTq.question.correctAnswer) : null;
+        const explText = currentTq ? (currentTq.question.content?.explanation || (currentTq as any)?.parentPassageExplanation || (currentTq.question as any)?.parentQuestion?.content?.explanation) : null;
 
         return (
           <div className="fixed inset-0 bg-white z-[150] overflow-hidden flex flex-col font-sans select-none">
@@ -1853,11 +1878,11 @@ export function AdminStudentProfilePage() {
                         </div>
                       )
                     )}
-                    {currentTq.question.content.explanation && (
+                    {explText && (
                       <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100/80">
                         <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Explanation</h5>
                         <div className="text-sm text-slate-700 leading-relaxed">
-                          <RichContentRenderer content={currentTq.question.content.explanation} variant="question" className="prose-sm" />
+                          <RichContentRenderer content={explText} variant="question" className="prose-sm" />
                         </div>
                       </div>
                     )}
@@ -1900,11 +1925,11 @@ export function AdminStudentProfilePage() {
                         </div>
                       )
                     )}
-                    {currentTq.question.content.explanation && (
+                    {explText && (
                       <div className="mt-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100/80">
                         <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Explanation</h5>
                         <div className="text-sm text-slate-700 leading-relaxed">
-                          <RichContentRenderer content={currentTq.question.content.explanation} variant="question" className="prose-sm" />
+                          <RichContentRenderer content={explText} variant="question" className="prose-sm" />
                         </div>
                       </div>
                     )}

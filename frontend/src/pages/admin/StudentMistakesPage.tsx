@@ -225,9 +225,9 @@ function MistakeItemComponent({ item, index, onDoubtStatusChange }: MistakeItemC
 
       {showExplanation && (
         <div className="mt-3 space-y-3 border-t border-slate-50 pt-3">
-          {q.content.explanation ? (
+          {q.content.explanation || (item as any).parentPassageExplanation ? (
             <div className="p-3 bg-blue-50/50 rounded-lg border-l-4 border-blue-500 text-left text-xs leading-relaxed text-slate-800">
-              <RichContentRenderer content={q.content.explanation} variant="explanation" className="prose-xs" />
+              <RichContentRenderer content={q.content.explanation || (item as any).parentPassageExplanation} variant="explanation" className="prose-xs" />
             </div>
           ) : (
             <div className="text-xs text-slate-400 italic text-left">No explanation available for this question.</div>
@@ -459,9 +459,14 @@ export function StudentMistakesPage() {
                         orderIndex: tq.orderIndex,
                         question: {
                           ...cq,
+                          content: {
+                            ...cq.content,
+                            explanation: cq.content?.explanation || q.content?.explanation || (q as any)?.explanation || undefined,
+                          },
                           parentQuestionText: q.content.text,
                         } as any,
-                      });
+                        parentPassageExplanation: q.content?.explanation,
+                      } as any);
                     });
                   } else if (!(q as any).parentQuestionId) {
                     flattenedQuestions.push(tq);
@@ -486,8 +491,9 @@ export function StudentMistakesPage() {
                       status: isUnattempted ? 'unattempted' : 'wrong',
                       orderIndex: tq.orderIndex,
                       parentQuestionText: (tq.question as any).parentQuestionText,
+                      parentPassageExplanation: (tq as any).parentPassageExplanation || (tq.question as any)?.parentQuestion?.content?.explanation,
                       doubtStatus: ans?.doubtStatus ?? null,
-                    });
+                    } as any);
                   }
                 });
               });

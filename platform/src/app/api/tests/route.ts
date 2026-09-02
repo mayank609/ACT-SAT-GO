@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
               type: (TYPE_MAP[child.type] || 'MCQ') as any,
               content: {
                 text: child.text,
-                explanation: child.explanation ?? null,
+                explanation: child.explanation ?? q.explanation ?? null,
                 meta: {
                   domain: child.topic ?? null,
                   subTopic: child.subTopic ?? null,

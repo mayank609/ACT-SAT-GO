@@ -289,7 +289,12 @@ export async function PATCH(
             const childReuse = !!(child.id && UUID_RE.test(child.id) && existingIds.has(child.id))
             const childId = childReuse ? child.id! : randomUUID()
             const childData = buildQuestionData(
-              { ...child, type: TYPE_MAP[child.type] ? child.type : 'mcq_single', difficulty: DIFF_MAP[child.difficulty] ? child.difficulty : 'medium' },
+              {
+                ...child,
+                explanation: child.explanation || q.explanation,
+                type: TYPE_MAP[child.type] ? child.type : 'mcq_single',
+                difficulty: DIFF_MAP[child.difficulty] ? child.difficulty : 'medium'
+              },
               parentId
             )
             // No TestQuestion row for child questions — they belong to the test via

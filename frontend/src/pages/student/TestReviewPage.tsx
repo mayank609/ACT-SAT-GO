@@ -245,9 +245,11 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
   const userAnswerDisplay = dbAnswerToDisplay(studentAnswer?.answerGiven ?? null)
   const correctAnswerDisplay = dbAnswerToDisplay(q.correctAnswer)
 
-  const parentQuestionText = (q as any).parentQuestionText;
+  const parentPassageText = (q as any).parentQuestionText || (tq as any).parentPassageText;
+  const parentPassageExplanation = (tq as any).parentPassageExplanation || (q as any)?.parentQuestion?.content?.explanation;
+  const explanationText = q.content?.explanation || parentPassageExplanation || (q as any)?.explanation || null;
 
-  if (parentQuestionText) {
+  if (parentPassageText) {
     return (
       <div className={`border-2 rounded-xl overflow-hidden ${correct ? 'border-blue-300' : skipped ? 'border-slate-200' : 'border-blue-100'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white">
@@ -255,7 +257,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
           <div className="p-4 bg-slate-50 text-left">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2 border-b border-slate-200/60 pb-1 flex-shrink-0">Reading Passage</h4>
             <div className="prose prose-slate max-w-none text-slate-800 text-sm leading-relaxed">
-              <RichContentRenderer content={parentQuestionText} variant="question" className="prose-sm" />
+              <RichContentRenderer content={parentPassageText} variant="question" className="prose-sm" />
             </div>
           </div>
 
@@ -315,7 +317,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
                 )}
               </div>
               <div>
-                {q.content.explanation && (
+                {explanationText && (
                   <div className="text-left mt-2">
                     <button onClick={() => setShowExplanation(!showExplanation)}
                       className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
@@ -324,9 +326,9 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
                     </button>
                   </div>
                 )}
-                {showExplanation && q.content.explanation && (
+                {showExplanation && explanationText && (
                   <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-left">
-                    <RichContentRenderer content={q.content.explanation} variant="explanation" />
+                    <RichContentRenderer content={explanationText} variant="explanation" />
                   </div>
                 )}
               </div>
@@ -390,7 +392,7 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
             <span className="text-slate-500">Correct: <strong className="text-blue-600">{(q.correctAnswer.displayValues && q.correctAnswer.displayValues.length > 0 ? q.correctAnswer.displayValues.join(' or ') : (q.correctAnswer.value !== undefined ? formatNumericDisplay(q.correctAnswer.value) : ''))}</strong></span>
           </div>
         )}
-        {q.content.explanation && (
+        {explanationText && (
           <div className="text-left">
             <button onClick={() => setShowExplanation(!showExplanation)}
               className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
@@ -399,9 +401,9 @@ export function QuestionReviewItem({ tq, index, studentAnswer }: ReviewItemProps
             </button>
           </div>
         )}
-        {showExplanation && q.content.explanation && (
+        {showExplanation && explanationText && (
           <div className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-left">
-            <RichContentRenderer content={q.content.explanation} variant="explanation" />
+            <RichContentRenderer content={explanationText} variant="explanation" />
           </div>
         )}
       </div>
@@ -442,6 +444,8 @@ function FsExplanationPanel({ tq, studentAnswer, attemptId }: {
   const [saving, setSaving] = useState(false);
 
   const q = tq.question;
+  const parentPassageExplanation = (tq as any).parentPassageExplanation || (q as any)?.parentQuestion?.content?.explanation;
+  const explanationText = q.content?.explanation || parentPassageExplanation || (q as any)?.explanation || null;
   // Doubt CTAs only make sense for skipped or wrong questions (anything not correct).
   const correct = answersMatch(studentAnswer?.answerGiven ?? null, q.correctAnswer);
   const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
@@ -507,9 +511,9 @@ function FsExplanationPanel({ tq, studentAnswer, attemptId }: {
           </div>
 
           {/* Explanation text */}
-          {q.content.explanation ? (
+          {explanationText ? (
             <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 text-slate-800 text-sm leading-relaxed">
-              <RichContentRenderer content={q.content.explanation} variant="explanation" />
+              <RichContentRenderer content={explanationText} variant="explanation" />
             </div>
           ) : (
             <p className="text-sm text-slate-500 italic">No explanation available for this question.</p>
@@ -578,6 +582,8 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
   const userAnswerDisplay = dbAnswerToDisplay(studentAnswer?.answerGiven ?? null);
   const correctAnswerDisplay = dbAnswerToDisplay(q.correctAnswer);
   const parentPassageText = (tq as any).parentPassageText;
+  const parentPassageExplanation = (tq as any).parentPassageExplanation || (q as any)?.parentQuestion?.content?.explanation;
+  const explanationText = q.content?.explanation || parentPassageExplanation || (q as any)?.explanation || null;
   
   const domainLabel = rawDomainLabel(q) ?? matchCanonicalDomain(q) ?? 'General';
   const subTopicLabel = q.content.meta?.subTopic ?? null;
@@ -867,11 +873,11 @@ export function QuestionDetailedReviewCard({ tq, localIndex, studentAnswer, atte
             </div>
 
 
-            {q.content.explanation ? (
+            {explanationText ? (
               <div className="space-y-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Explanation</span>
                 <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 text-slate-800 text-sm leading-relaxed">
-                  <RichContentRenderer content={q.content.explanation} variant="explanation" />
+                  <RichContentRenderer content={explanationText} variant="explanation" />
                 </div>
               </div>
             ) : (
@@ -1003,10 +1009,12 @@ export function TestReviewPage() {
     sa.section.questions.forEach((tq) => {
       const q = tq.question;
       const isPassage = q.type === 'PASSAGE' || (q.content && (q.content as any).meta?.isPassage === true);
+      const parentExpl = q.content?.explanation || (q as any)?.explanation || (q.content as any)?.meta?.explanation || null;
       if (isPassage && q.childQuestions && q.childQuestions.length > 0) {
         q.childQuestions.forEach((cq) => {
           if (!addedIds.has(cq.id)) {
             addedIds.add(cq.id);
+            const cqExpl = cq.content?.explanation || (cq as any)?.explanation || parentExpl || undefined;
             flattenedQuestions.push({
               id: cq.id,
               questionId: cq.id,
@@ -1017,6 +1025,7 @@ export function TestReviewPage() {
                 topic: cq.topic || q.topic,
                 content: {
                   ...cq.content,
+                  explanation: cqExpl,
                   meta: {
                     domain: cq.content?.meta?.domain || q.content?.meta?.domain,
                     subTopic: cq.content?.meta?.subTopic || q.content?.meta?.subTopic,
@@ -1026,7 +1035,8 @@ export function TestReviewPage() {
                 }
               } as any,
               parentPassageText: q.content.text,
-            });
+              parentPassageExplanation: parentExpl,
+            } as any);
           }
         });
       } else {
@@ -1034,6 +1044,7 @@ export function TestReviewPage() {
         if (!addedIds.has(q.id)) {
           addedIds.add(q.id);
           if (parent) {
+            const fallbackExpl = q.content?.explanation || parent.content?.explanation || (parent as any)?.explanation || undefined;
             flattenedQuestions.push({
               id: q.id,
               questionId: q.id,
@@ -1044,6 +1055,7 @@ export function TestReviewPage() {
                 topic: q.topic || parent.topic,
                 content: {
                   ...q.content,
+                  explanation: fallbackExpl,
                   meta: {
                     domain: q.content?.meta?.domain || parent.content?.meta?.domain,
                     subTopic: q.content?.meta?.subTopic || parent.content?.meta?.subTopic,
@@ -1053,7 +1065,8 @@ export function TestReviewPage() {
                 }
               } as any,
               parentPassageText: parent.content?.text,
-            });
+              parentPassageExplanation: parent.content?.explanation,
+            } as any);
           } else {
             flattenedQuestions.push(tq);
           }
