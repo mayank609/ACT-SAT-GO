@@ -50,12 +50,29 @@ function relativeTime(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+const DEFAULT_PERMISSIONS_FALLBACK = [
+  { permission: 'view_tests', label: 'View Tests', category: 'view', super_admin: true, admin: true, tutor: true, student: true },
+  { permission: 'preview_tests', label: 'Preview Tests Anytime', category: 'view', super_admin: true, admin: true, tutor: true, student: false },
+  { permission: 'edit_tests', label: 'Create & Edit Tests', category: 'edit', super_admin: true, admin: true, tutor: false, student: false },
+  { permission: 'delete_tests', label: 'Delete Tests', category: 'edit', super_admin: true, admin: false, tutor: false, student: false },
+  { permission: 'assign_tests', label: 'Assign Tests to Students', category: 'assignment', super_admin: true, admin: true, tutor: true, student: false },
+  { permission: 'view_analytics', label: 'View Deep Performance Analytics', category: 'analytics', super_admin: true, admin: true, tutor: true, student: false },
+  { permission: 'view_monitoring', label: 'Access Live Cheating Monitoring', category: 'monitoring', super_admin: true, admin: true, tutor: false, student: false },
+  { permission: 'manage_assignments', label: 'Manage Tutor Assignments', category: 'assignment', super_admin: true, admin: true, tutor: false, student: false },
+  { permission: 'manage_session_logs', label: 'Manage Session Logs & Attendance', category: 'admin', super_admin: true, admin: false, tutor: true, student: false },
+  { permission: 'teacher_salaries', label: 'Teacher Salaries & Payroll', category: 'admin', super_admin: true, admin: false, tutor: false, student: false },
+  { permission: 'take_tests', label: 'Take Active Tests', category: 'view', super_admin: false, admin: false, tutor: false, student: true },
+  { permission: 'view_results', label: 'View Own Results', category: 'view', super_admin: false, admin: false, tutor: false, student: true },
+  { permission: 'manage_users', label: 'Manage All User Profiles', category: 'admin', super_admin: true, admin: false, tutor: false, student: false },
+  { permission: 'platform_settings', label: 'Configure Platform Settings', category: 'admin', super_admin: true, admin: false, tutor: false, student: false },
+];
+
 export function SuperAdminDashboard() {
   const [tab, setTab] = useState<TabKey>('overview');
   const [users, setUsers] = useState<DbUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [userFilter, setUserFilter] = useState<string>('all');
-  const [permissions, setPermissions] = useState<any[]>([]);
+  const [permissions, setPermissions] = useState<any[]>(DEFAULT_PERMISSIONS_FALLBACK);
   const [permissionsSaving, setPermissionsSaving] = useState(false);
   const [permissionsSaved, setPermissionsSaved] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -89,7 +106,14 @@ export function SuperAdminDashboard() {
   useEffect(() => {
     Promise.all([
       api.getUsersByRole().then((r) => setUsers(r.users)),
-      api.getPermissions().then((r) => setPermissions(r.permissions)),
+      api.getPermissions().then((r) => {
+        const fetched = r.permissions || [];
+        const existingKeys = new Set(fetched.map((p: any) => p.permission));
+        const missing = DEFAULT_PERMISSIONS_FALLBACK.filter((d) => !existingKeys.has(d.permission));
+        setPermissions([...fetched, ...missing]);
+      }).catch(() => {
+        setPermissions(DEFAULT_PERMISSIONS_FALLBACK);
+      }),
       api.getPlatformAnalytics().then((r) => {
         setActivityData(r.activityData || []);
         // Always SAT — this console reports on SAT performance specifically.
