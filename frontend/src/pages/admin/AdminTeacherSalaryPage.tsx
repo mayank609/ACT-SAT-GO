@@ -99,7 +99,51 @@ export function AdminTeacherSalaryPage() {
   const [search, setSearch] = useState('');
   const [specializationFilter, setSpecializationFilter] = useState('all');
   const [rateFilter, setRateFilter] = useState<'all' | 'set' | 'missing' | 'active'>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [viewMode, setViewMode] = useState<'month' | 'matrix'>('month');
+
+  // Payment Status persistence
+  const [paidRecords, setPaidRecords] = useState<Record<string, { isPaid: boolean; paidAt?: string; note?: string }>>(() => {
+    try {
+      const saved = localStorage.getItem('act_sat_go_teacher_salary_paid');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const isTutorPaid = (tutorId: string, month: string): boolean => {
+    return !!paidRecords[`${tutorId}_${month}`]?.isPaid;
+  };
+
+  const getPaidInfo = (tutorId: string, month: string) => {
+    return paidRecords[`${tutorId}_${month}`];
+  };
+
+  const togglePaymentStatus = (tutorId: string, month: string, tutorName?: string) => {
+    const key = `${tutorId}_${month}`;
+    const current = paidRecords[key]?.isPaid ?? false;
+    const next = !current;
+    const nextRecords = {
+      ...paidRecords,
+      [key]: {
+        isPaid: next,
+        paidAt: next ? new Date().toISOString() : undefined,
+      },
+    };
+    setPaidRecords(nextRecords);
+    try {
+      localStorage.setItem('act_sat_go_teacher_salary_paid', JSON.stringify(nextRecords));
+    } catch (err) {
+      console.error('Failed to save to localStorage:', err);
+    }
+    toast.success(
+      next
+        ? `Marked ${tutorName || 'Teacher'} as Paid for ${formatMonthLabel(month)}`
+        : `Marked ${tutorName || 'Teacher'} as Unpaid for ${formatMonthLabel(month)}`,
+      { icon: next ? '✅' : '⏳' }
+    );
+  };
 
   // Quick Hourly Rate Edit Modal
   const [editRateTutor, setEditRateTutor] = useState<DbUser | null>(null);
@@ -277,9 +321,13 @@ export function AdminTeacherSalaryPage() {
       if (rateFilter === 'missing' && item.hourlyRate != null) return false;
       if (rateFilter === 'active' && item.completedSessions === 0) return false;
 
+      // Payment status filter
+      if (paymentFilter === 'paid' && !isTutorPaid(item.tutorId, selectedMonth)) return false;
+      if (paymentFilter === 'unpaid' && isTutorPaid(item.tutorId, selectedMonth)) return false;
+
       return true;
     });
-  }, [monthTutorSalaries, search, specializationFilter, rateFilter]);
+  }, [monthTutorSalaries, search, specializationFilter, rateFilter, paymentFilter, paidRecords, selectedMonth]);
 
   // High-level KPI metrics for the selected month
   const kpiStats = useMemo(() => {
@@ -289,8 +337,20 @@ export function AdminTeacherSalaryPage() {
     const totalPayout = monthTutorSalaries.reduce((sum, s) => sum + (s.totalSalary || 0), 0);
     const missingRatesCount = activeTutors.filter((s) => s.hourlyRate == null).length;
 
+    const paidTutors = monthTutorSalaries.filter((s) => s.totalSalary != null && isTutorPaid(s.tutorId, selectedMonth));
+    const unpaidTutors = monthTutorSalaries.filter((s) => s.totalSalary != null && !isTutorPaid(s.tutorId, selectedMonth));
+    const paidPayout = paidTutors.reduce((sum, s) => sum + (s.totalSalary || 0), 0);
+    const unpaidPayout = unpaidTutors.reduce((sum, s) => sum + (s.totalSalary || 0), 0);
+
+    const totalPaidTutorsCount = monthTutorSalaries.filter((s) => isTutorPaid(s.tutorId, selectedMonth)).length;
+    const totalUnpaidTutorsCount = monthTutorSalaries.filter((s) => !isTutorPaid(s.tutorId, selectedMonth)).length;
+
     return {
       totalPayout,
+      paidPayout,
+      unpaidPayout,
+      paidTutorsCount: totalPaidTutorsCount,
+      unpaidTutorsCount: totalUnpaidTutorsCount,
       totalHours: totalMinutes / 60,
       totalMinutes,
       totalSessions,
@@ -298,7 +358,7 @@ export function AdminTeacherSalaryPage() {
       totalTutorsCount: monthTutorSalaries.length,
       missingRatesCount,
     };
-  }, [monthTutorSalaries]);
+  }, [monthTutorSalaries, paidRecords, selectedMonth]);
 
   // Multi-month comparison matrix data
   const matrixData = useMemo<{
@@ -422,22 +482,30 @@ export function AdminTeacherSalaryPage() {
       'Total Hours Taught',
       'Total Minutes Taught',
       'Calculated Salary (INR)',
+      'Payment Status',
+      'Paid Timestamp',
     ];
 
-    const rows = filteredSalaries.map((s) => [
-      `"${s.tutorName.replace(/"/g, '""')}"`,
-      `"${s.tutorEmail}"`,
-      `"${s.specializations.join(', ')}"`,
-      s.hourlyRate != null ? s.hourlyRate : 'Not Set',
-      `"${monthLabel}"`,
-      s.daysTaught,
-      s.completedSessions,
-      s.skippedSessions,
-      s.studentsCovered,
-      (s.totalMinutesTaught / 60).toFixed(2),
-      s.totalMinutesTaught,
-      s.totalSalary != null ? Math.round(s.totalSalary) : 'N/A',
-    ]);
+    const rows = filteredSalaries.map((s) => {
+      const isPaid = isTutorPaid(s.tutorId, selectedMonth);
+      const paidInfo = getPaidInfo(s.tutorId, selectedMonth);
+      return [
+        `"${s.tutorName.replace(/"/g, '""')}"`,
+        `"${s.tutorEmail}"`,
+        `"${s.specializations.join(', ')}"`,
+        s.hourlyRate != null ? s.hourlyRate : 'Not Set',
+        `"${monthLabel}"`,
+        s.daysTaught,
+        s.completedSessions,
+        s.skippedSessions,
+        s.studentsCovered,
+        (s.totalMinutesTaught / 60).toFixed(2),
+        s.totalMinutesTaught,
+        s.totalSalary != null ? Math.round(s.totalSalary) : 'N/A',
+        isPaid ? 'Paid' : 'Unpaid',
+        paidInfo?.paidAt ? `"${paidInfo.paidAt}"` : '—',
+      ];
+    });
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -578,9 +646,19 @@ export function AdminTeacherSalaryPage() {
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0">
               <Banknote size={20} />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs text-slate-500 font-medium truncate">Total Payout ({formatMonthLabel(selectedMonth).split(' ')[0]})</p>
               <p className="text-lg md:text-xl font-bold text-slate-900">{fmtAmount(kpiStats.totalPayout)}</p>
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap text-[10px]">
+                <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Paid: {fmtAmount(kpiStats.paidPayout)} ({kpiStats.paidTutorsCount})
+                </span>
+                <span className="inline-flex items-center gap-1 font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  Unpaid: {fmtAmount(kpiStats.unpaidPayout)} ({kpiStats.unpaidTutorsCount})
+                </span>
+              </div>
             </div>
           </div>
         </Card>
@@ -678,12 +756,23 @@ export function AdminTeacherSalaryPage() {
                 <option value="missing">Missing Rate</option>
               </select>
 
-              {(search || specializationFilter !== 'all' || rateFilter !== 'all') && (
+              <select
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value as typeof paymentFilter)}
+                className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 font-medium"
+              >
+                <option value="all">All Statuses ({monthTutorSalaries.length})</option>
+                <option value="paid">Paid ({kpiStats.paidTutorsCount})</option>
+                <option value="unpaid">Unpaid ({kpiStats.unpaidTutorsCount})</option>
+              </select>
+
+              {(search || specializationFilter !== 'all' || rateFilter !== 'all' || paymentFilter !== 'all') && (
                 <button
                   onClick={() => {
                     setSearch('');
                     setSpecializationFilter('all');
                     setRateFilter('all');
+                    setPaymentFilter('all');
                   }}
                   className="text-xs text-blue-600 hover:underline px-2 py-1"
                 >
@@ -715,129 +804,162 @@ export function AdminTeacherSalaryPage() {
                     <th className="px-4 py-3 text-center">Students</th>
                     <th className="px-4 py-3 text-center">Time Taught</th>
                     <th className="px-4 py-3 text-right">Calculated Salary</th>
+                    <th className="px-4 py-3 text-center">Status</th>
                     <th className="px-4 py-3 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredSalaries.map((item) => (
-                    <tr
-                      key={item.tutorId}
-                      className={`hover:bg-blue-50/30 transition-colors ${
-                        item.completedSessions > 0 ? 'bg-white' : 'bg-slate-50/30 opacity-75'
-                      }`}
-                    >
-                      {/* Tutor name & avatar */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold flex-shrink-0 border border-emerald-200">
-                            {item.tutorName.charAt(0).toUpperCase()}
+                  {filteredSalaries.map((item) => {
+                    const isPaid = isTutorPaid(item.tutorId, selectedMonth);
+                    const paidInfo = getPaidInfo(item.tutorId, selectedMonth);
+                    return (
+                      <tr
+                        key={item.tutorId}
+                        className={`hover:bg-blue-50/30 transition-colors ${
+                          item.completedSessions > 0 ? 'bg-white' : 'bg-slate-50/30 opacity-75'
+                        }`}
+                      >
+                        {/* Tutor name & avatar */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold flex-shrink-0 border border-emerald-200">
+                              {item.tutorName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900 text-sm truncate">{item.tutorName}</p>
+                              <p className="text-xs text-slate-400 truncate">{item.tutorEmail || '—'}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-900 text-sm truncate">{item.tutorName}</p>
-                            <p className="text-xs text-slate-400 truncate">{item.tutorEmail || '—'}</p>
-                          </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Specializations */}
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1 max-w-[160px]">
-                          {item.specializations.slice(0, 2).map((s) => (
-                            <Badge key={s} variant="default" className="bg-slate-100 text-slate-700 text-[11px] font-normal">
-                              {s}
-                            </Badge>
-                          ))}
-                          {item.specializations.length > 2 && (
-                            <Badge variant="default" className="bg-slate-100 text-slate-500 text-[10px]">
-                              +{item.specializations.length - 2}
-                            </Badge>
+                        {/* Specializations */}
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1 max-w-[160px]">
+                            {item.specializations.slice(0, 2).map((s) => (
+                              <Badge key={s} variant="default" className="bg-slate-100 text-slate-700 text-[11px] font-normal">
+                                {s}
+                              </Badge>
+                            ))}
+                            {item.specializations.length > 2 && (
+                              <Badge variant="default" className="bg-slate-100 text-slate-500 text-[10px]">
+                                +{item.specializations.length - 2}
+                              </Badge>
+                            )}
+                            {item.specializations.length === 0 && <span className="text-slate-300 text-xs">—</span>}
+                          </div>
+                        </td>
+
+                        {/* Hourly Rate */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center justify-center gap-1.5">
+                            {item.hourlyRate != null ? (
+                              <span className="font-semibold text-slate-800 text-sm">
+                                ₹{item.hourlyRate.toLocaleString('en-IN')}<span className="text-slate-400 font-normal text-xs">/hr</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-medium">
+                                Not Set
+                              </span>
+                            )}
+                            <button
+                              onClick={() => openRateEditor(item)}
+                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Edit Hourly Rate"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Days Taught */}
+                        <td className="px-4 py-3 text-center">
+                          <span className={`font-semibold text-sm ${item.daysTaught > 0 ? 'text-blue-700' : 'text-slate-400'}`}>
+                            {item.daysTaught}
+                          </span>
+                        </td>
+
+                        {/* Completed / Skipped Sessions */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <span className="font-medium text-slate-800">{item.completedSessions}</span>
+                          {item.skippedSessions > 0 && (
+                            <span className="text-xs text-slate-400 ml-1" title={`${item.skippedSessions} skipped/cancelled`}>
+                              ({item.skippedSessions} skip)
+                            </span>
                           )}
-                          {item.specializations.length === 0 && <span className="text-slate-300 text-xs">—</span>}
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Hourly Rate */}
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <div className="inline-flex items-center justify-center gap-1.5">
-                          {item.hourlyRate != null ? (
-                            <span className="font-semibold text-slate-800 text-sm">
-                              ₹{item.hourlyRate.toLocaleString('en-IN')}<span className="text-slate-400 font-normal text-xs">/hr</span>
+                        {/* Students covered */}
+                        <td className="px-4 py-3 text-center text-slate-600">
+                          {item.studentsCovered}
+                        </td>
+
+                        {/* Time Taught */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
+                            <Clock size={12} className="text-slate-400" />
+                            {fmtHours(item.totalMinutesTaught)}
+                          </span>
+                        </td>
+
+                        {/* Calculated Salary */}
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          {item.totalSalary != null ? (
+                            <span className="font-bold text-emerald-700 text-base">
+                              {fmtAmount(item.totalSalary)}
                             </span>
                           ) : (
-                            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-medium">
-                              Not Set
+                            <span className="text-xs text-slate-400 font-normal italic">
+                              Rate required
                             </span>
                           )}
+                        </td>
+
+                        {/* Payment Status Toggle */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           <button
-                            onClick={() => openRateEditor(item)}
-                            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                            title="Edit Hourly Rate"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              togglePaymentStatus(item.tutorId, selectedMonth, item.tutorName);
+                            }}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shadow-xs cursor-pointer select-none ${
+                              isPaid
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 hover:border-emerald-400'
+                                : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 hover:border-amber-400'
+                            }`}
+                            title={`Click to toggle Paid / Unpaid for ${formatMonthLabel(selectedMonth)}${
+                              paidInfo?.paidAt ? ` (Marked paid on ${fmtDate(paidInfo.paidAt)})` : ''
+                            }`}
                           >
-                            <Edit3 size={13} />
+                            <span
+                              className={`w-7 h-4 flex items-center rounded-full p-0.5 transition-colors duration-200 ${
+                                isPaid ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'
+                              }`}
+                            >
+                              <span className="bg-white w-3 h-3 rounded-full shadow-sm transform transition-transform" />
+                            </span>
+                            <span>{isPaid ? 'Paid' : 'Unpaid'}</span>
                           </button>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Days Taught */}
-                      <td className="px-4 py-3 text-center">
-                        <span className={`font-semibold text-sm ${item.daysTaught > 0 ? 'text-blue-700' : 'text-slate-400'}`}>
-                          {item.daysTaught}
-                        </span>
-                      </td>
-
-                      {/* Completed / Skipped Sessions */}
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <span className="font-medium text-slate-800">{item.completedSessions}</span>
-                        {item.skippedSessions > 0 && (
-                          <span className="text-xs text-slate-400 ml-1" title={`${item.skippedSessions} skipped/cancelled`}>
-                            ({item.skippedSessions} skip)
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Students covered */}
-                      <td className="px-4 py-3 text-center text-slate-600">
-                        {item.studentsCovered}
-                      </td>
-
-                      {/* Time Taught */}
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
-                          <Clock size={12} className="text-slate-400" />
-                          {fmtHours(item.totalMinutesTaught)}
-                        </span>
-                      </td>
-
-                      {/* Calculated Salary */}
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        {item.totalSalary != null ? (
-                          <span className="font-bold text-emerald-700 text-base">
-                            {fmtAmount(item.totalSalary)}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-400 font-normal italic">
-                            Rate required
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => setSelectedBreakdown(item)}
-                          disabled={item.sessions.length === 0}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                            item.sessions.length > 0
-                              ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                              : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-50'
-                          }`}
-                          title={item.sessions.length > 0 ? 'View all session logs for this month' : 'No sessions logged in this month'}
-                        >
-                          <Eye size={12} /> Log Details ({item.sessions.length})
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        {/* Actions */}
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => setSelectedBreakdown(item)}
+                            disabled={item.sessions.length === 0}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                              item.sessions.length > 0
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-50'
+                            }`}
+                            title={item.sessions.length > 0 ? 'View all session logs for this month' : 'No sessions logged in this month'}
+                          >
+                            <Eye size={12} /> Log Details ({item.sessions.length})
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -954,6 +1076,59 @@ export function AdminTeacherSalaryPage() {
                 <X size={18} />
               </button>
             </div>
+
+            {/* Payment Status Bar in Drawer */}
+            {(() => {
+              const isPaid = isTutorPaid(selectedBreakdown.tutorId, selectedMonth);
+              const paidInfo = getPaidInfo(selectedBreakdown.tutorId, selectedMonth);
+              return (
+                <div
+                  className={`mx-5 mt-4 p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                    isPaid ? 'bg-emerald-50/80 border-emerald-200' : 'bg-amber-50/80 border-amber-200'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                        Payment Status:
+                      </span>
+                      <span
+                        className={`text-xs font-extrabold px-2 py-0.5 rounded-full border ${
+                          isPaid
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            : 'bg-amber-100 text-amber-800 border-amber-300'
+                        }`}
+                      >
+                        {isPaid ? 'PAID' : 'UNPAID'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {isPaid
+                        ? `Marked as paid${paidInfo?.paidAt ? ` on ${fmtDate(paidInfo.paidAt)}` : ''}`
+                        : 'Salary settlement is currently pending for this active period.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      togglePaymentStatus(
+                        selectedBreakdown.tutorId,
+                        selectedMonth,
+                        selectedBreakdown.tutorName
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-xs cursor-pointer select-none ${
+                      isPaid
+                        ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
+                        : 'bg-white text-amber-800 border-amber-300 hover:bg-amber-100'
+                    }`}
+                  >
+                    {isPaid ? <CheckCircle2 size={13} /> : <Clock size={13} />}
+                    {isPaid ? 'Mark as Unpaid' : 'Mark as Paid'}
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Drawer Body - Session List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
