@@ -8,6 +8,7 @@ import { DataTable } from '../../components/common/DataTable';
 import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { TrashModal } from '../../components/common/TrashModal';
 import { api, type DbUser } from '../../lib/api';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const SPECIALIZATIONS = ['Math', 'English', 'Reading', 'Science', 'Writing', 'ACT Prep', 'SAT Prep'];
 
@@ -21,6 +22,7 @@ interface TutorStats {
 }
 
 export function TutorManagementPage() {
+  const { user } = useAuthStore();
   const [tutors, setTutors] = useState<DbUser[]>([]);
   const [students, setStudents] = useState<DbUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -610,12 +612,14 @@ export function TutorManagementPage() {
             <input type="email" value={addForm.email} onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="tutor@example.com" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Hourly Rate</label>
-            <input type="number" min={0} step="0.01" value={addForm.hourlyRate} onChange={(e) => setAddForm((f) => ({ ...f, hourlyRate: e.target.value }))}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 500" />
-            <p className="text-xs text-slate-400 mt-1">Used to calculate payable amounts in Session Logs. Only visible to admins.</p>
-          </div>
+          {user?.role === 'super_admin' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Hourly Rate</label>
+              <input type="number" min={0} step="0.01" value={addForm.hourlyRate} onChange={(e) => setAddForm((f) => ({ ...f, hourlyRate: e.target.value }))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 500" />
+              <p className="text-xs text-slate-400 mt-1">Used to calculate payable amounts in Session Logs. Only visible to Super Admins.</p>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Specializations</label>
             <div className="flex flex-wrap gap-2">
@@ -665,12 +669,14 @@ export function TutorManagementPage() {
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed" />
               <p className="text-xs text-slate-400 mt-1">Email can't be changed — it's tied to the tutor's login.</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Hourly Rate</label>
-              <input type="number" min={0} step="0.01" value={editForm.hourlyRate} onChange={(e) => setEditForm((f) => ({ ...f, hourlyRate: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 500" />
-              <p className="text-xs text-slate-400 mt-1">Used to calculate payable amounts in Session Logs. Only visible to admins.</p>
-            </div>
+            {user?.role === 'super_admin' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Hourly Rate</label>
+                <input type="number" min={0} step="0.01" value={editForm.hourlyRate} onChange={(e) => setEditForm((f) => ({ ...f, hourlyRate: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 500" />
+                <p className="text-xs text-slate-400 mt-1">Used to calculate payable amounts in Session Logs. Only visible to Super Admins.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Specializations</label>
               <div className="flex flex-wrap gap-2">

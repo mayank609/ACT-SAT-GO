@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   Banknote, Calendar, Clock, Download, ChevronLeft, ChevronRight,
   Search, Users, AlertCircle, Edit3, Eye, CheckCircle2, RotateCcw,
@@ -11,6 +12,7 @@ import { Card } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { api, type DbUser } from '../../lib/api';
 import { statusVariant, toLines, sortSessionEntries } from '../../lib/sessionLog';
+import { useAuthStore } from '../../store/useAuthStore';
 import { formatDate } from '../../lib/utils';
 
 interface AttendanceEntry {
@@ -77,6 +79,12 @@ function offsetMonth(yyyyMm: string, offset: number): string {
 }
 
 export function AdminTeacherSalaryPage() {
+  const { user } = useAuthStore();
+
+  if (user && user.role !== 'super_admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const currentMonthStr = useMemo(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;

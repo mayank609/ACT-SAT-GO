@@ -310,9 +310,11 @@ export function AdminAttendancePage() {
           <p className="text-slate-400 text-sm">Track how much every tutor is teaching and what's being covered.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => navigate('/teacher-salaries')}>
-            Teacher Salaries
-          </Button>
+          {user?.role === 'super_admin' && (
+            <Button variant="secondary" size="sm" onClick={() => navigate('/teacher-salaries')}>
+              Teacher Salaries
+            </Button>
+          )}
           <Button size="sm" icon={<PlusCircle size={14} />} onClick={() => setLogOpen(true)} disabled={tutorList.length === 0}>
             Log a Session
           </Button>
@@ -330,12 +332,14 @@ export function AdminAttendancePage() {
                period === 'all' ? 'All-time total activity' : 'Activity for custom date range'}
             </p>
           </div>
-          <button
-            onClick={() => navigate('/teacher-salaries')}
-            className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-semibold flex items-center gap-1"
-          >
-            View Month-Wise Salaries →
-          </button>
+          {user?.role === 'super_admin' && (
+            <button
+              onClick={() => navigate('/teacher-salaries')}
+              className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-semibold flex items-center gap-1"
+            >
+              View Month-Wise Salaries →
+            </button>
+          )}
         </div>
         {tutorStats.length === 0 ? (
           <p className="px-4 py-6 text-sm text-slate-400 text-center">
@@ -352,7 +356,7 @@ export function AdminAttendancePage() {
                   <th className="px-4 py-2 font-semibold text-center">Skipped</th>
                   <th className="px-4 py-2 font-semibold text-center">Students Covered</th>
                   <th className="px-4 py-2 font-semibold text-center">Time Taught</th>
-                  <th className="px-4 py-2 font-semibold text-center">Amount</th>
+                  {user?.role === 'super_admin' && <th className="px-4 py-2 font-semibold text-center">Amount</th>}
                 </tr>
               </thead>
               <tbody>
@@ -368,9 +372,11 @@ export function AdminAttendancePage() {
                     <td className="px-4 py-2 text-center text-slate-600">{t.skipped}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.studentsCovered}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.totalMinutesTaught > 0 ? fmtHours(t.totalMinutesTaught) : '—'}</td>
-                    <td className="px-4 py-2 text-center font-semibold text-emerald-700">
-                      {t.amount != null ? fmtAmount(t.amount) : <span title="No hourly rate set for this tutor" className="text-slate-300 font-normal">—</span>}
-                    </td>
+                    {user?.role === 'super_admin' && (
+                      <td className="px-4 py-2 text-center font-semibold text-emerald-700">
+                        {t.amount != null ? fmtAmount(t.amount) : <span title="No hourly rate set for this tutor" className="text-slate-300 font-normal">—</span>}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
