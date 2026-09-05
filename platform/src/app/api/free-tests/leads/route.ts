@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ leads: [] })
     }
 
-    const keys = leadIds.map((id) => leadKey(id))
+    const uniqueIds = Array.from(new Set(leadIds.filter(Boolean)))
+    const keys = uniqueIds.map((id) => leadKey(id))
     const rawLeads = await Promise.all(keys.map((k) => redis.get<string>(k)))
 
     const leads: FreeTestLead[] = []

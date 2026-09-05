@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Header } from '../components/Header';
 import { Brand } from '../components/Brand';
-import { PLATFORM_API_BASE } from '../config';
+import { PLATFORM_API_BASE, QUERY_API_BASE } from '../config';
 import { FALLBACK_SAT_TEST, FALLBACK_ACT_TEST } from '../data/mockDiagnosticTest';
 import { WHATSAPP_HREF, CALL_HREF } from '../components/WhatsAppButton';
 import { trackLead } from '../lib/metaPixel';
@@ -187,6 +187,28 @@ export function FreeTestPage() {
 
       setLeadId(generatedLeadId);
       trackLead();
+
+      // Dual-save lead to website query-server / MongoDB
+      try {
+        fetch(`${QUERY_API_BASE}/api/queries`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: leadForm.name.trim(),
+            email: leadForm.email.trim(),
+            phone: fullPhone,
+            exam: leadForm.exam,
+            grade: leadForm.grade,
+            message: `Free Diagnostic Test Registered (${leadForm.exam}) | School: ${leadForm.school.trim() || 'N/A'} | Target: ${leadForm.targetScore.trim() || 'N/A'}`,
+            type: 'Free Diagnostic Test',
+            status: 'Active',
+            stage: 'New Lead',
+            source: 'Website Free Test',
+          }),
+        }).catch(() => {});
+      } catch {
+        // ignore
+      }
 
       // Load diagnostic test for the selected exam
       const loadedTest = await initializeTest(leadForm.exam);
@@ -385,6 +407,29 @@ export function FreeTestPage() {
       setShowNextSectionModal(false);
       setStage('report');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Dual-save test completion to query-server / MongoDB
+      try {
+        fetch(`${QUERY_API_BASE}/api/queries`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: leadForm.name.trim(),
+            email: leadForm.email.trim(),
+            phone: `${leadForm.phoneCountryCode} ${leadForm.phoneLocalNumber}`.trim(),
+            exam: leadForm.exam,
+            grade: leadForm.grade,
+            message: `Completed Free Diagnostic Test (${leadForm.exam}) | Score: ${finalReport.scaledScore}/${finalReport.maxScaledScore} (${finalReport.percentage}%) | Accuracy: ${finalReport.accuracy}% | Time: ${Math.round(totalTimeSpentSeconds / 60)} mins`,
+            type: 'Free Diagnostic Test',
+            status: 'Active',
+            stage: 'New Lead',
+            leadScore: Math.max(50, finalReport.percentage || 50),
+            source: 'Website Free Test Attempt',
+          }),
+        }).catch(() => {});
+      } catch {
+        // ignore
+      }
     } catch (err: any) {
       alert(err.message || 'Error submitting test. Please try again.');
     } finally {

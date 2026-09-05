@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * ACT-SAT-GO System Status Dashboard
  * A premium landing page to verify all backend integrations are working.

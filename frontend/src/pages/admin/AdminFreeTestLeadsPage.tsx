@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Search, RefreshCw, Download, MessageSquare,
   Phone, Mail, ExternalLink, CheckCircle2, Clock, XCircle,
-  Settings, X, Sparkles,
+  Settings, X, Sparkles, AlertCircle,
   Award, TrendingUp, Users, Eye, Trash2, Edit3, Check, Save
 } from 'lucide-react';
 import { api, type FreeTestLead, type FreeTestConfig } from '../../lib/api';
@@ -41,11 +41,17 @@ export function AdminFreeTestLeadsPage() {
   const [savingConfig, setSavingConfig] = useState(false);
   const [configSuccess, setConfigSuccess] = useState(false);
 
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const loadData = async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const [leadsRes, configRes] = await Promise.all([
-        api.getFreeTestLeads().catch(() => ({ leads: [] })),
+        api.getFreeTestLeads().catch((err) => {
+          console.error('Failed to get free test leads:', err);
+          return { leads: [], error: err?.message || 'Failed to fetch' };
+        }),
         api.getFreeTestConfig().catch(() => ({
           config: {
             activeTestId: null,
@@ -60,10 +66,13 @@ export function AdminFreeTestLeadsPage() {
         })),
       ]);
       setLeads(leadsRes.leads || []);
+      if ((leadsRes as any).error && (!leadsRes.leads || leadsRes.leads.length === 0)) {
+        setFetchError((leadsRes as any).error);
+      }
       setConfig(configRes.config);
       setAvailableTests(configRes.availableTests || []);
-    } catch {
-      // ignore
+    } catch (err: any) {
+      setFetchError(err.message || 'Failed to load free test leads.');
     } finally {
       setLoading(false);
     }
@@ -433,6 +442,21 @@ export function AdminFreeTestLeadsPage() {
               </h2>
               <span className="text-xs text-slate-400">Click student name or report icon to inspect detailed answers</span>
             </div>
+
+            {fetchError && (
+              <div className="mx-5 my-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between text-xs text-amber-800">
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={16} className="text-amber-600 flex-shrink-0" />
+                  <span>Unable to fetch live leads: {fetchError}</span>
+                </div>
+                <button
+                  onClick={loadData}
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded font-medium transition flex items-center gap-1"
+                >
+                  <RefreshCw size={12} /> Retry
+                </button>
+              </div>
+            )}
 
             {loading ? (
               <div className="p-12 text-center text-slate-500">

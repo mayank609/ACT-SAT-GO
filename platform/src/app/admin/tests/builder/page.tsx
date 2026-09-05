@@ -2,6 +2,8 @@ import { getAllTopics } from '@/actions/test-actions'
 import QuestionEditor from '@/components/admin/QuestionEditor'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 export default async function TestBuilderPage() {
   // Fetch topics for the dropdown
   const { topics } = await getAllTopics()

@@ -25,7 +25,13 @@ export function getUserId(request: NextRequest): string | null {
 export async function getCurrentUser(request: NextRequest): Promise<User | null> {
   const userId = getUserId(request)
   if (!userId) return null
-  const user = await prisma.user.findUnique({ where: { id: userId } })
+  let user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) {
+    const userEmail = request.headers.get('x-user-email')
+    if (userEmail) {
+      user = await prisma.user.findUnique({ where: { email: userEmail } })
+    }
+  }
   if (user?.deletedAt) return null
   return user
 }
