@@ -12,8 +12,14 @@ function corsHeaders(): Record<string, string> {
   }
 }
 
-// Endpoints under /api that are intentionally public (no bearer token required).
-const PUBLIC_API_PREFIXES = ['/api/health']
+function isPublicApiRoute(pathname: string, method: string): boolean {
+  if (pathname === '/api/health' || pathname.startsWith('/api/health/')) return true
+  if (pathname.startsWith('/api/free-tests/register')) return true
+  if (pathname.startsWith('/api/free-tests/submit')) return true
+  if (pathname.startsWith('/api/free-tests/test')) return true
+  if (pathname === '/api/free-tests' && method === 'GET') return true
+  return false
+}
 
 export async function proxy(request: NextRequest) {
   const url = new URL(request.url)
@@ -28,50 +34,53 @@ export async function proxy(request: NextRequest) {
   // Verify the Supabase JWT here once for every /api/ route, then forward a
   // trusted `x-user-id` header that route handlers can rely on for authorization.
   if (url.pathname.startsWith('/api/')) {
-    const isPublic = PUBLIC_API_PREFIXES.some((p) => url.pathname.startsWith(p))
+    const isPublic = isPublicApiRoute(url.pathname, request.method)
+    const authHeader = request.headers.get('authorization') ?? ''
+    const token = authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7).trim()
+      : ''
 
-    if (!isPublic) {
-      const authHeader = request.headers.get('authorization') ?? ''
-      const token = authHeader.toLowerCase().startsWith('bearer ')
-        ? authHeader.slice(7).trim()
-        : ''
-
-      if (!token) {
+    if (!token) {
+      if (!isPublic) {
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401, headers: corsHeaders() }
         )
       }
+      // Public API route without token — CORS only.
+      const res = NextResponse.next()
+      for (const [k, v] of Object.entries(corsHeaders())) res.headers.set(k, v)
+      return res
+    }
 
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      )
-      const { data, error } = await supabase.auth.getUser(token)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+    const { data, error } = await supabase.auth.getUser(token)
 
-      if (error || !data.user) {
+    if (error || !data.user) {
+      if (!isPublic) {
         return NextResponse.json(
           { error: 'Invalid or expired session' },
           { status: 401, headers: corsHeaders() }
         )
       }
-
-      // Forward a trusted identity to route handlers. Strip any client-supplied
-      // values first so they cannot be spoofed.
-      const fwdHeaders = new Headers(request.headers)
-      fwdHeaders.delete('x-user-id')
-      fwdHeaders.delete('x-user-email')
-      fwdHeaders.set('x-user-id', data.user.id)
-      if (data.user.email) fwdHeaders.set('x-user-email', data.user.email)
-
-      const res = NextResponse.next({ request: { headers: fwdHeaders } })
+      const res = NextResponse.next()
       for (const [k, v] of Object.entries(corsHeaders())) res.headers.set(k, v)
       return res
     }
 
-    // Public API route — CORS only.
-    const res = NextResponse.next()
+    // Forward a trusted identity to route handlers. Strip any client-supplied
+    // values first so they cannot be spoofed.
+    const fwdHeaders = new Headers(request.headers)
+    fwdHeaders.delete('x-user-id')
+    fwdHeaders.delete('x-user-email')
+    fwdHeaders.set('x-user-id', data.user.id)
+    if (data.user.email) fwdHeaders.set('x-user-email', data.user.email)
+
+    const res = NextResponse.next({ request: { headers: fwdHeaders } })
     for (const [k, v] of Object.entries(corsHeaders())) res.headers.set(k, v)
     return res
   }

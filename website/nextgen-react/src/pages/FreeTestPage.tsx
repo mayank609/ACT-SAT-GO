@@ -177,8 +177,9 @@ export function FreeTestPage() {
           }),
         }).then((r) => r.json());
 
-        if (res?.leadId) {
-          generatedLeadId = res.leadId;
+        const serverLeadId = res?.leadId || res?.lead?.id || res?.id;
+        if (serverLeadId) {
+          generatedLeadId = serverLeadId;
         }
       } catch {
         // Continue with local ID if API call fails
@@ -286,6 +287,11 @@ export function FreeTestPage() {
         testId: testData.id,
         answers,
         timeSpentSeconds: totalTimeSpentSeconds,
+        studentName: leadForm.name.trim(),
+        name: leadForm.name.trim(),
+        email: leadForm.email.trim(),
+        phone: `${leadForm.phoneCountryCode} ${leadForm.phoneLocalNumber}`.trim(),
+        exam: leadForm.exam,
       };
 
       let finalReport = null;

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { randomUUID } from 'crypto'
 import type { FreeTestConfig } from '../route'
+import { FALLBACK_SAT_TEST, FALLBACK_ACT_TEST } from '@/data/mockDiagnosticTest'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,61 +60,102 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const normalizedExam = String(exam || 'SAT').toUpperCase()
+    const fallbackTest = normalizedExam === 'ACT' ? FALLBACK_ACT_TEST : FALLBACK_SAT_TEST
+
     // Resolve test configuration
-    const raw = await redis.get<string>(FREE_TEST_CONFIG_KEY)
-    const config: FreeTestConfig | null = raw
-      ? (typeof raw === 'string' ? JSON.parse(raw) : (raw as unknown as FreeTestConfig))
-      : null
-
     let selectedTestId = requestedTestId
+    try {
+      const raw = await redis.get<string>(FREE_TEST_CONFIG_KEY)
+      const config: FreeTestConfig | null = raw
+        ? (typeof raw === 'string' ? JSON.parse(raw) : (raw as unknown as FreeTestConfig))
+        : null
 
-    if (!selectedTestId && config) {
-      const normalizedExam = String(exam || 'SAT').toUpperCase()
-      if (config.examTests && config.examTests[normalizedExam as keyof typeof config.examTests]) {
-        selectedTestId = config.examTests[normalizedExam as keyof typeof config.examTests]
+      if (!selectedTestId && config) {
+        if (config.examTests && config.examTests[normalizedExam as keyof typeof config.examTests]) {
+          selectedTestId = config.examTests[normalizedExam as keyof typeof config.examTests]
+        }
+        if (!selectedTestId) {
+          selectedTestId = config.activeTestId
+        }
       }
-      if (!selectedTestId) {
-        selectedTestId = config.activeTestId
-      }
+    } catch {
+      // Redis config lookup fallback
     }
 
-    // If still no testId, find the first published test
-    if (!selectedTestId) {
-      const firstTest = await prisma.test.findFirst({
-        where: { status: 'PUBLISHED' },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, title: true },
-      })
-      if (!firstTest) {
-        return NextResponse.json(
-          { error: 'No free test is currently available. Please contact support.' },
-          { status: 404 }
-        )
-      }
-      selectedTestId = firstTest.id
+    let resolvedTestInfo = {
+      id: fallbackTest.id,
+      title: fallbackTest.title,
+      category: fallbackTest.category,
+      description: fallbackTest.description,
+      sections: fallbackTest.sections.map((s) => ({
+        id: s.id,
+        name: s.name,
+        durationMinutes: s.durationMinutes,
+        _count: { questions: s.questions.length },
+      })),
     }
 
-    // Verify test exists
-    const test = await prisma.test.findUnique({
-      where: { id: selectedTestId },
-      select: {
-        id: true,
-        title: true,
-        category: true,
-        description: true,
-        sections: {
+    // Try finding test in database if ID is specified or published test exists
+    try {
+      if (selectedTestId && selectedTestId !== 'sat_diagnostic_default' && selectedTestId !== 'act_diagnostic_default') {
+        const test = await prisma.test.findUnique({
+          where: { id: selectedTestId },
           select: {
             id: true,
-            name: true,
-            durationMinutes: true,
-            _count: { select: { questions: true } },
+            title: true,
+            category: true,
+            description: true,
+            sections: {
+              select: {
+                id: true,
+                name: true,
+                durationMinutes: true,
+                _count: { select: { questions: true } },
+              },
+            },
           },
-        },
-      },
-    })
-
-    if (!test) {
-      return NextResponse.json({ error: 'Selected test not found' }, { status: 404 })
+        })
+        if (test) {
+          resolvedTestInfo = {
+            id: test.id,
+            title: test.title,
+            category: test.category || normalizedExam,
+            description: test.description || '',
+            sections: test.sections,
+          }
+        }
+      } else if (!selectedTestId) {
+        const firstTest = await prisma.test.findFirst({
+          where: { status: 'PUBLISHED' },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            title: true,
+            category: true,
+            description: true,
+            sections: {
+              select: {
+                id: true,
+                name: true,
+                durationMinutes: true,
+                _count: { select: { questions: true } },
+              },
+            },
+          },
+        })
+        if (firstTest) {
+          resolvedTestInfo = {
+            id: firstTest.id,
+            title: firstTest.title,
+            category: firstTest.category || normalizedExam,
+            description: firstTest.description || '',
+            sections: firstTest.sections,
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn('Prisma lookup failed, falling back to mock test:', dbErr)
     }
 
     const leadId = `lead_${randomUUID().replace(/-/g, '').slice(0, 12)}_${Date.now()}`
@@ -124,12 +166,12 @@ export async function POST(request: NextRequest) {
       name: String(name).trim(),
       email: String(email).trim().toLowerCase(),
       phone: String(phone).trim(),
-      exam: String(exam || test.category || 'SAT').toUpperCase(),
+      exam: String(exam || resolvedTestInfo.category || 'SAT').toUpperCase(),
       grade: grade ? String(grade).trim() : '',
       school: school ? String(school).trim() : '',
       targetScore: targetScore ? String(targetScore).trim() : '',
-      testId: test.id,
-      testTitle: test.title,
+      testId: resolvedTestInfo.id,
+      testTitle: resolvedTestInfo.title,
       status: 'Registered',
       leadStatus: 'New',
       registeredAt: now,
@@ -145,21 +187,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Save in Redis
-    await Promise.all([
-      redis.set(leadKey(leadId), JSON.stringify(newLead)),
-      redis.lpush(LEADS_LIST_KEY, leadId),
-    ])
+    try {
+      await Promise.all([
+        redis.set(leadKey(leadId), JSON.stringify(newLead)),
+        redis.lpush(LEADS_LIST_KEY, leadId),
+      ])
+    } catch (redisErr) {
+      console.error('Redis save failed in /api/free-tests/register:', redisErr)
+    }
 
     return NextResponse.json({
       success: true,
+      leadId,
       lead: newLead,
-      test: {
-        id: test.id,
-        title: test.title,
-        category: test.category,
-        description: test.description,
-        sections: test.sections,
-      },
+      test: resolvedTestInfo,
     })
   } catch (error) {
     console.error('POST /api/free-tests/register:', error)
