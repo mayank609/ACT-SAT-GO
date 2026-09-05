@@ -41,6 +41,8 @@ export interface DbUser {
   name: string
   email: string
   role: string
+  /** True for free-demo-test accounts created from the website (permissions.accountType = 'DEMO'). */
+  isDemo?: boolean
   createdAt: string
   /** Set when an admin has soft-deleted this user; null/undefined means active. */
   deletedAt?: string | null
@@ -587,7 +589,7 @@ export const api = {
     return res.json() as Promise<{ success: boolean; wasDeleted: boolean }>
   },
 
-  // Free Test Configuration & Lead Generation
+  // Free Demo Test — configuration & leads (admin) 
   getFreeTestConfig: () =>
     request<{
       config: FreeTestConfig
@@ -609,7 +611,7 @@ export const api = {
     }),
 
   getFreeTestLeads: () =>
-    request<{ leads: FreeTestLead[] }>('/api/free-tests/leads'),
+    request<{ leads: FreeTestLead[]; summary?: FreeTestLeadSummary }>('/api/free-tests/leads'),
 
   updateFreeTestLead: (leadId: string, body: { leadStatus?: string; notes?: string }) =>
     request<{ success: boolean; lead: FreeTestLead }>('/api/free-tests/leads', {
@@ -618,86 +620,27 @@ export const api = {
     }),
 
   deleteFreeTestLead: (leadId: string) =>
-    request<{ success: boolean; message: string }>(`/api/free-tests/leads?leadId=${leadId}`, {
+    request<{ success: boolean; message: string; accountRevoked?: boolean }>(`/api/free-tests/leads?leadId=${encodeURIComponent(leadId)}`, {
       method: 'DELETE',
     }),
 
-  registerFreeTestLead: (body: {
-    name: string
-    email: string
-    phone: string
-    exam?: string
-    grade?: string
-    school?: string
-    targetScore?: string
-    requestedTestId?: string
-  }) =>
-    request<{
-      success: boolean
-      lead: FreeTestLead
-      test: {
-        id: string
-        title: string
-        category?: string
-        description?: string
-        sections: Array<{ id: string; name: string; durationMinutes: number; _count?: { questions: number } }>
-      }
-    }>('/api/free-tests/register', {
+  /** (Re)assign the demo test to a lead's portal account. Omit testId to use the configured default. */
+  assignDemoTestToLead: (leadId: string, testId?: string) =>
+    request<{ success: boolean; assignmentId: string; test: { id: string; title: string } }>('/api/free-tests/leads/assign', {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify({ leadId, ...(testId ? { testId } : {}) }),
     }),
+}
 
-  getFreeTestContent: (testId: string) =>
-    request<{
-      test: {
-        id: string
-        title: string
-        description?: string
-        category?: string
-        subCategory?: string
-        sections: Array<{
-          id: string
-          name: string
-          durationMinutes: number
-          orderIndex: number
-          config?: any
-          questions: Array<{
-            id: string
-            testQuestionId: string
-            orderIndex: number
-            marksPositive: number
-            marksNegative: number
-            type: 'MCQ' | 'MSQ' | 'NUMERIC' | 'PASSAGE'
-            content: any
-            options?: any
-            difficultyLevel: string
-            subject?: string
-            childQuestions?: Array<{
-              id: string
-              type: 'MCQ' | 'MSQ' | 'NUMERIC'
-              content: any
-              options?: any
-              difficultyLevel: string
-              subject?: string
-            }>
-          }>
-        }>
-      }
-    }>(`/api/free-tests/test/${testId}`),
-
-  submitFreeTest: (body: {
-    leadId: string
-    testId: string
-    answers: Record<string, { answerGiven: any; timeSpentSeconds?: number }>
-    timeSpentSeconds: number
-  }) =>
-    request<{
-      success: boolean
-      report: FreeTestReport
-    }>('/api/free-tests/submit', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
+export interface FreeTestLeadSummary {
+  total: number
+  registered: number
+  inProgress: number
+  completed: number
+  enrolled: number
+  completionRate: number
+  conversionRate: number
+  avgPercentage: number | null
 }
 
 export interface FreeTestConfig {
@@ -723,8 +666,10 @@ export interface FreeTestLead {
   grade?: string
   school?: string
   targetScore?: string
+  /** Demo test assigned to this lead's portal account ('' if none yet). */
   testId: string
   testTitle: string
+  /** Derived live from the account's TestAttempt. */
   status: 'Registered' | 'In-Progress' | 'Completed' | 'Abandoned'
   leadStatus: 'New' | 'Contacted' | 'Follow-Up' | 'Enrolled' | 'Archived'
   registeredAt: string
@@ -733,62 +678,13 @@ export interface FreeTestLead {
   totalScore?: number | null
   maxScore?: number | null
   percentage?: number | null
-  timeSpentSeconds?: number | null
-  sectionScores?: Array<{
-    sectionId: string
-    sectionName: string
-    score: number
-    maxScore: number
-    correct: number
-    incorrect?: number
-    unattempted?: number
-    total: number
-    accuracy?: number
-  }>
-  answers?: Record<string, {
-    questionId: string
-    questionText?: string
-    type?: string
-    options?: any
-    correctAnswer?: any
-    answerGiven: any
-    isCorrect: boolean
-    explanation?: string
-    timeSpentSeconds?: number
-    topic?: string
-  }>
   notes?: string
-}
-
-export interface FreeTestReport {
-  leadId: string
-  studentName: string
-  exam: string
-  testTitle: string
-  scaledScore: number
-  maxScaledScore: number
-  rawScore: number
-  maxRawScore: number
-  percentage: number
-  accuracy: number
-  correctCount: number
-  incorrectCount: number
-  unattemptedCount: number
-  totalQuestionsCount: number
-  timeSpentSeconds: number
-  sectionScores: Array<{
-    sectionId: string
-    sectionName: string
-    score: number
-    maxScore: number
-    correct: number
-    incorrect: number
-    unattempted: number
-    total: number
-    accuracy: number
-  }>
-  topicPerformance?: Record<string, { correct: number; total: number }>
-  completedAt: string
-  answers: Record<string, any>
+  /** Portal account id (Supabase auth id === DB user id). */
+  userId?: string | null
+  accountCreated?: boolean
+  assignmentId?: string | null
+  /** Latest attempt — link to /test-review/:attemptId for the full report. */
+  attemptId?: string | null
+  source?: string
 }
 

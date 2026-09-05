@@ -5,7 +5,7 @@ import {
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
   Activity, UserCheck, Database, LifeBuoy, ChevronDown,
   AlertCircle, HelpCircle, PieChart, BookMarked, CalendarCheck, TrendingUp,
-  Banknote, FileCheck2
+  Banknote, FileCheck2, Sparkles
 } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -75,6 +75,14 @@ const adminNavItems: NavItem[] = [
   { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
 ];
 
+// Free Demo Test accounts (website signups) get a deliberately tiny portal:
+// their one demo test, its result/analytics, and account settings.
+const demoNavItems: NavItem[] = [
+  { label: 'My Demo Test', path: '/dashboard', icon: <Sparkles size={18} />, roles: ['student'] },
+  { label: 'Score Analytics', path: '/analytics', icon: <PieChart size={18} />, roles: ['student'] },
+  { label: 'Settings', path: '/settings', icon: <Settings size={18} />, roles: ['student'] },
+];
+
 const navItems: NavItem[] = [...studentNavItems, ...adminNavItems];
 
 const roleLabels: Record<Role, string> = {
@@ -108,7 +116,9 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
     setExpandedItems(prev => ({ ...prev, [path]: !prev[path] }));
   };
 
-  const filteredNav = navItems.filter((item) => user && item.roles.includes(user.role));
+  const filteredNav = user?.isDemo
+    ? demoNavItems
+    : navItems.filter((item) => user && item.roles.includes(user.role));
 
   const handleLogout = () => {
     logout();
@@ -234,7 +244,14 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
       {/* Bottom */}
       <div className="border-t border-white/5 p-3 space-y-1">
 
-        {user?.role === 'student' && !collapsed && (
+        {user?.isDemo && !collapsed && (
+          <div className="mb-2 rounded-xl bg-amber-400/10 border border-amber-400/20 px-3 py-2.5">
+            <p className="text-[10px] text-amber-300 uppercase tracking-wider font-semibold">Free Demo Account</p>
+            <p className="text-xs text-slate-300 mt-0.5">You have access to one demo test. Enroll to unlock the full program.</p>
+          </div>
+        )}
+
+        {user?.role === 'student' && !user.isDemo && !collapsed && (
           <div className="mb-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
             <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Exam Date</p>
             {user.targetDate ? (() => {
@@ -282,7 +299,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">{roleLabels[user.role]}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">{user.isDemo ? 'Demo Student' : roleLabels[user.role]}</p>
               </div>
             )}
           </div>

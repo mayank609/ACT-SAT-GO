@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Target, BarChart3, Trophy } from 'lucide-react';
 import { useAuthStore, dbUserToAuthUser } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
@@ -37,15 +37,22 @@ function AppleIcon() {
 export function LoginPage() {
   const navigate = useNavigate();
   const { setSession } = useAuthStore();
+  // The website's Free Demo Test signup links here with ?email=…&demo=1 so the
+  // student lands with their email prefilled and a hint about what to do.
+  const [searchParams] = useSearchParams();
+  const prefillEmail = searchParams.get('email') ?? '';
+  const fromDemoSignup = searchParams.get('demo') === '1';
 
-  const [email, setEmail] = useState(() => localStorage.getItem(REMEMBER_KEY) ?? '');
+  const [email, setEmail] = useState(() => prefillEmail || (localStorage.getItem(REMEMBER_KEY) ?? ''));
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [remember, setRemember] = useState(() => Boolean(localStorage.getItem(REMEMBER_KEY)));
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(() =>
+    fromDemoSignup ? 'Your free demo account is ready. Log in with the email and password you just created to start your demo test.' : ''
+  );
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

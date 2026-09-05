@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from './store/useAuthStore';
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -38,6 +38,7 @@ const AttendancePage = lazy(() => import('./pages/tutor/AttendancePage').then((m
 
 // Student pages
 const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
+const DemoDashboard = lazy(() => import('./pages/student/DemoDashboard').then((m) => ({ default: m.DemoDashboard })));
 const MyAttendancePage = lazy(() => import('./pages/student/MyAttendancePage').then((m) => ({ default: m.MyAttendancePage })));
 const TestInstructionsPage = lazy(() => import('./pages/student/TestInstructionsPage').then((m) => ({ default: m.TestInstructionsPage })));
 const TestInterfacePage = lazy(() => import('./pages/student/TestInterfacePage').then((m) => ({ default: m.TestInterfacePage })));
@@ -65,9 +66,31 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Free Demo Test accounts (website signups) may only use these pages: their one
+// demo test, its report, and the analytics for that attempt. Anything else
+// (tests catalogue, homework, doubts, admin pages…) bounces to their dashboard.
+const DEMO_ALLOWED = [
+  /^\/dashboard$/,
+  /^\/analytics$/,
+  /^\/settings$/,
+  /^\/test-instructions\/[^/]+$/,
+  /^\/test\/[^/]+$/,
+  /^\/test-review\/[^/]+(\/section\/[^/]+)?$/,
+];
+
+function DemoGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthStore();
+  const { pathname } = useLocation();
+  if (user?.isDemo && !DEMO_ALLOWED.some((re) => re.test(pathname))) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 function DashboardRouter() {
   const { user } = useAuthStore();
   if (!user) return null;
+  if (user.isDemo) return <DemoDashboard />;
   if (user.role === 'student') return <StudentDashboard />;
   if (user.role === 'tutor') return <TutorDashboard />;
   if (user.role === 'super_admin') return <SuperAdminDashboard />;
@@ -106,7 +129,9 @@ const router = createBrowserRouter(
       {/* Dashboard layout — its <Outlet/> is wrapped in Suspense for lazy children */}
       <Route path="/" element={
         <ProtectedRoute>
-          <DashboardLayout />
+          <DemoGuard>
+            <DashboardLayout />
+          </DemoGuard>
         </ProtectedRoute>
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />

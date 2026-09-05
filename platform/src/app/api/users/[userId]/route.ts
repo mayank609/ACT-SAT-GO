@@ -50,6 +50,7 @@ export async function GET(
         name: (user as unknown as { name?: string | null }).name ?? perms.displayName as string ?? user.email.split('@')[0],
         email: user.email,
         role: user.role.toLowerCase(),
+        isDemo: perms.accountType === 'DEMO',
         createdAt: user.createdAt,
         deletedAt: user.deletedAt,
         // Kept for back-compat with callers that only render one tutor.

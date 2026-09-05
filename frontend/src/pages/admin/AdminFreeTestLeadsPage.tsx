@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search, RefreshCw, Download, MessageSquare,
-  Phone, Mail, ExternalLink, CheckCircle2, Clock, XCircle,
+  Phone, Mail, ExternalLink, CheckCircle2, Clock,
   Settings, X, Sparkles, AlertCircle,
-  Award, TrendingUp, Users, Eye, Trash2, Edit3, Check, Save
+  Award, TrendingUp, Users, Eye, Trash2, Edit3, Check, Save,
+  FileSearch, KeyRound, ClipboardPlus, UserCheck, UserX
 } from 'lucide-react';
 import { api, type FreeTestLead, type FreeTestConfig } from '../../lib/api';
 import { Modal } from '../../components/common/Modal';
@@ -43,6 +45,14 @@ export function AdminFreeTestLeadsPage() {
 
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Demo-account actions (drawer)
+  const navigate = useNavigate();
+  const [assigningTest, setAssigningTest] = useState(false);
+  const [assignTestChoice, setAssignTestChoice] = useState('');
+  const [resettingPwd, setResettingPwd] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const loadData = async () => {
     setLoading(true);
     setFetchError(null);
@@ -56,9 +66,9 @@ export function AdminFreeTestLeadsPage() {
           config: {
             activeTestId: null,
             examTests: { SAT: null, ACT: null, AP: null },
-            bannerTitle: 'Free Full-Length Diagnostic Test',
+            bannerTitle: 'Free Demo Test',
             bannerSubtitle: 'Experience the real exam interface, get instant detailed analytics, and identify your exact strengths and weak areas.',
-            instructions: 'This is a timed diagnostic test designed to simulate official exam conditions. Work carefully and manage your time wisely.',
+            instructions: 'This is a timed demo test that simulates official exam conditions. You get one attempt — work carefully and manage your time wisely.',
             activeOnWebsite: true,
           },
           activeTestDetails: {},
@@ -115,6 +125,46 @@ export function AdminFreeTestLeadsPage() {
 
     return { total, completed, registered, enrolled, avgScore, conversionRate };
   }, [leads]);
+
+  // Assign (or change) the demo test on a lead's portal account
+  const handleAssignTest = async (lead: FreeTestLead) => {
+    setAssigningTest(true);
+    setActionError(null);
+    try {
+      const res = await api.assignDemoTestToLead(lead.id, assignTestChoice || undefined);
+      const patch = { testId: res.test.id, testTitle: res.test.title, assignmentId: res.assignmentId };
+      setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, ...patch } : l)));
+      setSelectedLead((prev) => (prev && prev.id === lead.id ? { ...prev, ...patch } : prev));
+      setAssignTestChoice('');
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to assign demo test');
+    } finally {
+      setAssigningTest(false);
+    }
+  };
+
+  // Issue a new temporary password for the lead's portal login
+  const handleResetPassword = async (lead: FreeTestLead) => {
+    if (!lead.userId) return;
+    setResettingPwd(true);
+    setActionError(null);
+    setTempPassword(null);
+    try {
+      const res = await api.resetUserPassword(lead.userId);
+      setTempPassword(res.tempPassword);
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to reset password');
+    } finally {
+      setResettingPwd(false);
+    }
+  };
+
+  const openLead = (lead: FreeTestLead) => {
+    setSelectedLead(lead);
+    setTempPassword(null);
+    setActionError(null);
+    setAssignTestChoice('');
+  };
 
   // Update Lead Status
   const handleUpdateStatus = async (leadId: string, newStatus: string) => {
@@ -191,7 +241,7 @@ export function AdminFreeTestLeadsPage() {
     if (!leads.length) return;
     const headers = [
       'Lead ID', 'Student Name', 'Email', 'Phone', 'Exam', 'Grade', 'School', 'Target Score',
-      'Test Title', 'Test Status', 'Score', 'Max Score', 'Accuracy %', 'Time (Minutes)',
+      'Test Title', 'Test Status', 'Score', 'Max Score', 'Score %', 'Portal Account',
       'Lead Status', 'Registered At', 'Completed At', 'Notes'
     ];
     const rows = leads.map((l) => [
@@ -208,7 +258,7 @@ export function AdminFreeTestLeadsPage() {
       l.totalScore != null ? l.totalScore : '',
       l.maxScore != null ? l.maxScore : '',
       l.percentage != null ? `${l.percentage}%` : '',
-      l.timeSpentSeconds ? Math.round(l.timeSpentSeconds / 60) : 0,
+      l.accountCreated ? 'Yes' : 'No',
       l.leadStatus,
       l.registeredAt ? new Date(l.registeredAt).toLocaleString() : '',
       l.completedAt ? new Date(l.completedAt).toLocaleString() : '',
@@ -259,13 +309,13 @@ export function AdminFreeTestLeadsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Free Test Leads & Management</h1>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Free Demo Test Leads</h1>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
               <Sparkles size={12} className="mr-1 text-blue-600" /> Website Leads
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Track prospective students taking the free diagnostic test on the website, view their performance scores, and configure active tests.
+            Every "Free Demo Test" signup from the website lands here with a portal login. Track who has taken their demo test, open their full report, and choose which published test is served as the demo.
           </p>
         </div>
 
@@ -476,10 +526,10 @@ export function AdminFreeTestLeadsPage() {
                     <tr className="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                       <th className="py-3 px-4">Student & Contact</th>
                       <th className="py-3 px-3">Exam / Grade</th>
-                      <th className="py-3 px-3">Test Taken</th>
+                      <th className="py-3 px-3">Demo Test</th>
                       <th className="py-3 px-3 text-center">Test Status</th>
-                      <th className="py-3 px-3 text-center">Score & Accuracy</th>
-                      <th className="py-3 px-3">Time Spent</th>
+                      <th className="py-3 px-3 text-center">Score</th>
+                      <th className="py-3 px-3">Portal Account</th>
                       <th className="py-3 px-3">Lead Stage</th>
                       <th className="py-3 px-3">Date</th>
                       <th className="py-3 px-4 text-right">Actions</th>
@@ -523,9 +573,13 @@ export function AdminFreeTestLeadsPage() {
 
                           {/* Test Title */}
                           <td className="py-3 px-3 max-w-[180px]">
-                            <div className="font-medium text-slate-800 truncate" title={lead.testTitle}>
-                              {lead.testTitle || 'Diagnostic Test'}
-                            </div>
+                            {lead.testTitle ? (
+                              <div className="font-medium text-slate-800 truncate" title={lead.testTitle}>{lead.testTitle}</div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                                <AlertCircle size={11} /> No test assigned
+                              </span>
+                            )}
                             {lead.targetScore && (
                               <div className="text-[10px] text-slate-400">Target: {lead.targetScore}</div>
                             )}
@@ -545,23 +599,25 @@ export function AdminFreeTestLeadsPage() {
                                 </span>
                                 {lead.percentage != null && (
                                   <div className="text-[10px] text-slate-500 font-medium">
-                                    {lead.percentage}% accuracy
+                                    {lead.percentage}% of max
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-slate-400 italic text-[11px]">Pending</span>
+                              <span className="text-slate-400 italic text-[11px]">{lead.status === 'In-Progress' ? 'Taking test…' : 'Not taken yet'}</span>
                             )}
                           </td>
 
-                          {/* Time Spent */}
+                          {/* Portal Account */}
                           <td className="py-3 px-3">
-                            {lead.timeSpentSeconds ? (
-                              <span className="font-mono text-slate-600 text-[11px]">
-                                {Math.floor(lead.timeSpentSeconds / 60)}m {lead.timeSpentSeconds % 60}s
+                            {lead.accountCreated ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                                <UserCheck size={12} /> Demo login
                               </span>
                             ) : (
-                              <span className="text-slate-400">—</span>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400" title="No portal account was created for this lead">
+                                <UserX size={12} /> No account
+                              </span>
                             )}
                           </td>
 
@@ -604,10 +660,21 @@ export function AdminFreeTestLeadsPage() {
                                 <MessageSquare size={14} />
                               </a>
 
-                              {/* View Detailed Test Report */}
+                              {/* Full attempt report (real TestAttempt review page) */}
+                              {lead.attemptId && lead.status === 'Completed' && (
+                                <button
+                                  onClick={() => navigate(`/test-review/${lead.attemptId}`)}
+                                  title="Open full score report"
+                                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                                >
+                                  <FileSearch size={14} />
+                                </button>
+                              )}
+
+                              {/* Lead details drawer */}
                               <button
-                                onClick={() => setSelectedLead(lead)}
-                                title="View Full Test Attempt & Answers"
+                                onClick={() => openLead(lead)}
+                                title="View lead details & account"
                                 className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                               >
                                 <Eye size={14} />
@@ -649,9 +716,9 @@ export function AdminFreeTestLeadsPage() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-3xl">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-6">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Website Free Diagnostic Test Settings</h2>
+              <h2 className="text-base font-bold text-slate-900">Website Free Demo Test Settings</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Select which published test(s) in your system will be served to prospective students on the public website.
+                Build the demo test in the Test Builder and publish it, then pick it here. New website signups get it assigned automatically with a single attempt.
               </p>
             </div>
             <a
@@ -670,7 +737,7 @@ export function AdminFreeTestLeadsPage() {
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div>
                   <div className="font-semibold text-xs text-slate-900">Enable Free Test on Website</div>
-                  <div className="text-[11px] text-slate-500">When enabled, students can take the diagnostic test directly from the website</div>
+                  <div className="text-[11px] text-slate-500">When enabled, the "Free Demo Test" signup form is shown on the website</div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -690,7 +757,7 @@ export function AdminFreeTestLeadsPage() {
                 {/* Default / SAT Test */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    SAT Free Diagnostic Test:
+                    SAT Demo Test:
                   </label>
                   <select
                     value={config.examTests?.SAT || config.activeTestId || ''}
@@ -715,7 +782,7 @@ export function AdminFreeTestLeadsPage() {
                 {/* ACT Test */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    ACT Free Diagnostic Test:
+                    ACT Demo Test:
                   </label>
                   <select
                     value={config.examTests?.ACT || ''}
@@ -739,7 +806,7 @@ export function AdminFreeTestLeadsPage() {
                 {/* AP Test */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    AP Free Diagnostic Test:
+                    AP Demo Test:
                   </label>
                   <select
                     value={config.examTests?.AP || ''}
@@ -773,7 +840,7 @@ export function AdminFreeTestLeadsPage() {
                     type="text"
                     value={config.bannerTitle || ''}
                     onChange={(e) => setConfig({ ...config, bannerTitle: e.target.value })}
-                    placeholder="e.g. Free Full-Length Diagnostic Test"
+                    placeholder="e.g. Free Demo Test"
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -799,7 +866,7 @@ export function AdminFreeTestLeadsPage() {
                     rows={3}
                     value={config.instructions || ''}
                     onChange={(e) => setConfig({ ...config, instructions: e.target.value })}
-                    placeholder="e.g. This is a timed diagnostic test. Work carefully..."
+                    placeholder="e.g. This is a timed demo test. Work carefully..."
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -875,24 +942,20 @@ export function AdminFreeTestLeadsPage() {
                     </div>
                   </div>
 
-                  {/* Section Breakdown if available */}
-                  {selectedLead.sectionScores && selectedLead.sectionScores.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-emerald-200/60 grid grid-cols-2 gap-3">
-                      {selectedLead.sectionScores.map((sec) => (
-                        <div key={sec.sectionId} className="bg-white/80 p-2.5 rounded-lg border border-emerald-100">
-                          <div className="text-xs font-bold text-slate-800">{sec.sectionName}</div>
-                          <div className="flex items-center justify-between mt-1 text-xs text-slate-600">
-                            <span>Score: <b>{sec.score} / {sec.maxScore}</b></span>
-                            <span className="text-emerald-700 font-semibold">{sec.accuracy}%</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  {selectedLead.attemptId && (
+                    <button
+                      onClick={() => { setSelectedLead(null); navigate(`/test-review/${selectedLead.attemptId}`); }}
+                      className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-2.5 transition"
+                    >
+                      <FileSearch size={14} /> Open Full Score Report (section, topic & question analytics)
+                    </button>
                   )}
                 </div>
               ) : (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center text-slate-500 text-xs">
-                  Student registered on {new Date(selectedLead.registeredAt).toLocaleDateString()} but has not submitted the test yet.
+                  {selectedLead.status === 'In-Progress'
+                    ? `Demo test in progress (started ${selectedLead.startedAt ? new Date(selectedLead.startedAt).toLocaleString() : 'recently'}).`
+                    : `Registered on ${new Date(selectedLead.registeredAt).toLocaleDateString()} — has not started the demo test yet.`}
                 </div>
               )}
 
@@ -926,71 +989,85 @@ export function AdminFreeTestLeadsPage() {
                 </div>
               </div>
 
-              {/* Question-by-Question Attempt Breakdown */}
-              {selectedLead.answers && Object.keys(selectedLead.answers).length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Question-by-Question Breakdown ({Object.keys(selectedLead.answers).length} questions)
-                  </h4>
+              {/* Portal account & demo test management */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Portal Account & Demo Test</h4>
 
-                  <div className="space-y-3">
-                    {Object.values(selectedLead.answers).map((ans, idx) => (
-                      <div
-                        key={ans.questionId || idx}
-                        className={`p-4 rounded-xl border ${
-                          ans.isCorrect
-                            ? 'bg-emerald-50/40 border-emerald-200'
-                            : ans.answerGiven
-                            ? 'bg-red-50/40 border-red-200'
-                            : 'bg-slate-50 border-slate-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs mb-2">
-                          <span className="font-bold text-slate-800">
-                            Question {idx + 1} {ans.topic ? `• ${ans.topic}` : ''}
-                          </span>
-                          <span className="flex items-center gap-1 font-semibold text-xs">
-                            {ans.isCorrect ? (
-                              <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 size={13} /> Correct</span>
-                            ) : ans.answerGiven ? (
-                              <span className="text-red-600 flex items-center gap-1"><XCircle size={13} /> Incorrect</span>
-                            ) : (
-                              <span className="text-slate-400">Skipped</span>
-                            )}
-                          </span>
-                        </div>
-
-                        {ans.questionText && (
-                          <p className="text-xs text-slate-700 mb-2 font-medium">{ans.questionText}</p>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200/50">
-                          <div>
-                            <span className="text-slate-400">Student Answer:</span>
-                            <div className="font-semibold text-slate-800 mt-0.5">
-                              {ans.answerGiven !== null && ans.answerGiven !== undefined ? String(ans.answerGiven) : '—'}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-slate-400">Correct Answer:</span>
-                            <div className="font-semibold text-emerald-700 mt-0.5">
-                              {typeof ans.correctAnswer === 'object'
-                                ? ans.correctAnswer?.key || ans.correctAnswer?.value || JSON.stringify(ans.correctAnswer)
-                                : String(ans.correctAnswer || '—')}
-                            </div>
-                          </div>
-                        </div>
-
-                        {ans.explanation && (
-                          <div className="mt-2.5 text-[11px] text-slate-600 bg-white p-2 rounded border border-slate-200">
-                            <b>Explanation:</b> {ans.explanation}
-                          </div>
-                        )}
+                {selectedLead.accountCreated && selectedLead.userId ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-slate-400">Login email:</span>
+                        <div className="font-semibold text-slate-800 mt-1 break-all">{selectedLead.email}</div>
                       </div>
-                    ))}
+                      <div>
+                        <span className="text-slate-400">Assigned demo test:</span>
+                        <div className="font-semibold text-slate-800 mt-1">{selectedLead.testTitle || <span className="text-amber-700">None yet</span>}</div>
+                      </div>
+                    </div>
+
+                    {selectedLead.status !== 'Completed' && (
+                      <div className="pt-3 border-t border-slate-100">
+                        <label className="text-xs font-semibold text-slate-600">
+                          {selectedLead.testId ? 'Change demo test' : 'Assign demo test'}
+                        </label>
+                        <div className="flex gap-2 mt-1.5">
+                          <select
+                            value={assignTestChoice}
+                            onChange={(e) => setAssignTestChoice(e.target.value)}
+                            className="flex-1 text-xs rounded-lg px-2 py-2 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                          >
+                            <option value="">Use configured default for {selectedLead.exam || 'SAT'}</option>
+                            {availableTests.map((t) => (
+                              <option key={t.id} value={t.id}>{t.title}{t.category ? ` (${t.category})` : ''}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleAssignTest(selectedLead)}
+                            disabled={assigningTest}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-semibold px-3 py-2 transition"
+                          >
+                            <ClipboardPlus size={13} /> {assigningTest ? 'Assigning…' : 'Assign'}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">Only one active assignment is kept — the student still sees a single test with one attempt.</p>
+                      </div>
+                    )}
+
+                    <div className="pt-3 border-t border-slate-100">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-semibold text-slate-600">Password help</span>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Issues a new temporary password for the student's portal login. Share it with them directly.</p>
+                        </div>
+                        <button
+                          onClick={() => handleResetPassword(selectedLead)}
+                          disabled={resettingPwd}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-xs font-semibold px-3 py-2 transition whitespace-nowrap"
+                        >
+                          <KeyRound size={13} /> {resettingPwd ? 'Resetting…' : 'Reset password'}
+                        </button>
+                      </div>
+                      {tempPassword && (
+                        <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900">
+                          New temporary password: <code className="font-mono font-bold select-all">{tempPassword}</code>
+                          <span className="block text-[10px] text-amber-700 mt-0.5">Shown once — copy it now.</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    No portal account exists for this lead (registered before account creation was enabled, or the backend was missing the Supabase service key). Create them as a student from the Students page if they want to take the demo.
                   </div>
-                </div>
-              )}
+                )}
+
+                {actionError && (
+                  <div className="flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <AlertCircle size={13} /> {actionError}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Drawer Footer */}

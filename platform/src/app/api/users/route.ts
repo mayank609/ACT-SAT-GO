@@ -12,6 +12,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const role = searchParams.get('role')
   const wantsDeleted = searchParams.get('deleted') === 'true'
+  // Free-demo-test signups are STUDENT rows flagged permissions.accountType = 'DEMO'.
+  // They live on the "Free Test Leads" page, so keep them out of the regular student
+  // lists unless explicitly requested.
+  const includeDemo = searchParams.get('includeDemo') === 'true'
 
   if (role !== null && !VALID_ROLES.includes(role as ValidRole)) {
     return NextResponse.json({ error: 'Invalid role value' }, { status: 400 })
@@ -45,8 +49,12 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'asc' },
     })
 
+    const visibleUsers = includeDemo
+      ? users
+      : users.filter((u) => ((u.permissions ?? {}) as Record<string, unknown>).accountType !== 'DEMO')
+
     return NextResponse.json({
-      users: users.map((u) => {
+      users: visibleUsers.map((u) => {
         const perms = (u.permissions ?? {}) as Record<string, unknown>
         const submittedAttempts = u.attempts
         const testsAttempted = submittedAttempts.filter((at) => !isHomeworkTest(at.test)).length
@@ -68,6 +76,7 @@ export async function GET(request: NextRequest) {
           name: (u as unknown as { name?: string | null }).name ?? perms.displayName as string ?? u.email.split('@')[0],
           email: u.email,
           role: u.role.toLowerCase(),
+          isDemo: perms.accountType === 'DEMO',
           createdAt: u.createdAt,
           deletedAt: u.deletedAt,
           // Kept for back-compat with callers that only render one tutor.

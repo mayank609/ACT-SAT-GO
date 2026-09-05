@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,10 @@ export async function GET(request: NextRequest) {
 // POST /api/test-assignments
 // Body: { testId, studentIds: string[], dueAt?, availableFrom?, availableUntil?, maxAttempts? }
 export async function POST(request: NextRequest) {
+  // Students (including free-demo accounts) must never be able to self-assign tests.
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN', 'TUTOR'])
+  if (auth instanceof NextResponse) return auth
+
   let body: {
     testId: string
     studentIds: string[]

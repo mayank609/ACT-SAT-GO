@@ -1,177 +1,171 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { redis } from '@/lib/redis'
 import { randomUUID } from 'crypto'
-import type { FreeTestConfig } from '../route'
-import { FALLBACK_SAT_TEST, FALLBACK_ACT_TEST } from '@/data/mockDiagnosticTest'
+import { prisma } from '@/lib/prisma'
+import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  assignDemoTest,
+  loadConfig,
+  resolveDemoTestId,
+  saveLead,
+  DEMO_ACCOUNT_TYPE,
+  type FreeTestLead,
+} from '@/lib/demoLeads'
 
 export const dynamic = 'force-dynamic'
 
-const FREE_TEST_CONFIG_KEY = 'settings:freeTests'
-const LEADS_LIST_KEY = 'leads:freeTest:list'
-const leadKey = (id: string) => `lead:freeTest:${id}`
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const MIN_PASSWORD = 8
 
-export interface FreeTestLead {
-  id: string
-  name: string
-  email: string
-  phone: string
-  exam: string
-  grade?: string
-  school?: string
-  targetScore?: string
-  testId: string
-  testTitle: string
-  status: 'Registered' | 'In-Progress' | 'Completed' | 'Abandoned'
-  leadStatus: 'New' | 'Contacted' | 'Follow-Up' | 'Enrolled' | 'Archived'
-  registeredAt: string
-  startedAt?: string | null
-  completedAt?: string | null
-  totalScore?: number | null
-  maxScore?: number | null
-  percentage?: number | null
-  timeSpentSeconds?: number | null
-  sectionScores?: Array<{
-    sectionId: string
-    sectionName: string
-    score: number
-    maxScore: number
-    correct: number
-    total: number
-  }>
-  answers?: Record<string, {
-    questionId: string
-    answerGiven: any
-    isCorrect: boolean
-    timeSpentSeconds?: number
-  }>
-  notes?: string
-}
-
+/**
+ * POST /api/free-tests/register  (public — called from the website)
+ *
+ * Body: { name, email, phone, password, exam?, grade?, school?, targetScore? }
+ *
+ * Creates the demo student's portal account (Supabase auth + Prisma User with
+ * permissions.accountType = 'DEMO'), assigns the configured demo test with a
+ * single attempt, and stores the lead for the admin panel.
+ */
 export async function POST(request: NextRequest) {
+  let body: Record<string, unknown>
   try {
-    const body = await request.json()
-    const { name, email, phone, exam, grade, school, targetScore, requestedTestId } = body
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
 
-    if (!name || !email || !phone) {
+  const name = String(body.name ?? '').trim()
+  const email = String(body.email ?? '').trim().toLowerCase()
+  const phone = String(body.phone ?? '').trim()
+  const password = String(body.password ?? '')
+  const exam = String(body.exam ?? 'SAT').trim().toUpperCase() || 'SAT'
+  const grade = body.grade ? String(body.grade).trim() : ''
+  const school = body.school ? String(body.school).trim() : ''
+  const targetScore = body.targetScore ? String(body.targetScore).trim() : ''
+
+  if (!name || !email || !phone) {
+    return NextResponse.json(
+      { error: 'Name, email and phone number are required.' },
+      { status: 400 }
+    )
+  }
+  if (!EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 })
+  }
+  if (password.length < MIN_PASSWORD) {
+    return NextResponse.json(
+      { error: `Please choose a password with at least ${MIN_PASSWORD} characters. You will use it to log in to the test portal.` },
+      { status: 400 }
+    )
+  }
+
+  try {
+    // 1. Duplicate check — one demo account per email.
+    const existing = await prisma.user.findUnique({ where: { email }, select: { id: true, permissions: true, deletedAt: true } })
+    if (existing) {
+      const perms = (existing.permissions ?? {}) as Record<string, unknown>
+      const isDemo = perms.accountType === DEMO_ACCOUNT_TYPE
       return NextResponse.json(
-        { error: 'Name, email, and phone number are required to register for the free test.' },
-        { status: 400 }
+        {
+          error: isDemo
+            ? 'You have already registered for the free demo test. Log in to the test portal with your email and password.'
+            : 'An account with this email already exists. Please log in to the test portal instead.',
+          code: 'ALREADY_REGISTERED',
+        },
+        { status: 409 }
       )
     }
 
-    const normalizedExam = String(exam || 'SAT').toUpperCase()
-    const fallbackTest = normalizedExam === 'ACT' ? FALLBACK_ACT_TEST : FALLBACK_SAT_TEST
+    // 2. Resolve which test is the demo test for this exam.
+    const config = await loadConfig()
+    const demoTestId = await resolveDemoTestId(exam, config)
+    const demoTest = demoTestId
+      ? await prisma.test.findUnique({ where: { id: demoTestId }, select: { id: true, title: true, category: true } })
+      : null
 
-    // Resolve test configuration
-    let selectedTestId = requestedTestId
-    try {
-      const raw = await redis.get<string>(FREE_TEST_CONFIG_KEY)
-      const config: FreeTestConfig | null = raw
-        ? (typeof raw === 'string' ? JSON.parse(raw) : (raw as unknown as FreeTestConfig))
-        : null
+    // 3. Supabase auth account with the student's chosen password.
+    const supabaseAdmin = createAdminClient()
+    let userId: string = randomUUID()
+    let accountWarning: string | null = null
 
-      if (!selectedTestId && config) {
-        if (config.examTests && config.examTests[normalizedExam as keyof typeof config.examTests]) {
-          selectedTestId = config.examTests[normalizedExam as keyof typeof config.examTests]
-        }
-        if (!selectedTestId) {
-          selectedTestId = config.activeTestId
-        }
-      }
-    } catch {
-      // Redis config lookup fallback
-    }
-
-    let resolvedTestInfo = {
-      id: fallbackTest.id,
-      title: fallbackTest.title,
-      category: fallbackTest.category,
-      description: fallbackTest.description,
-      sections: fallbackTest.sections.map((s) => ({
-        id: s.id,
-        name: s.name,
-        durationMinutes: s.durationMinutes,
-        _count: { questions: s.questions.length },
-      })),
-    }
-
-    // Try finding test in database if ID is specified or published test exists
-    try {
-      if (selectedTestId && selectedTestId !== 'sat_diagnostic_default' && selectedTestId !== 'act_diagnostic_default') {
-        const test = await prisma.test.findUnique({
-          where: { id: selectedTestId },
-          select: {
-            id: true,
-            title: true,
-            category: true,
-            description: true,
-            sections: {
-              select: {
-                id: true,
-                name: true,
-                durationMinutes: true,
-                _count: { select: { questions: true } },
-              },
-            },
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { name, role: 'student', accountType: DEMO_ACCOUNT_TYPE.toLowerCase() },
+      })
+      if (error) {
+        const msg = error.message || ''
+        const duplicate = /already|exists|registered/i.test(msg)
+        return NextResponse.json(
+          {
+            error: duplicate
+              ? 'An account with this email already exists. Please log in to the test portal instead.'
+              : `Could not create your account: ${msg}`,
+            code: duplicate ? 'ALREADY_REGISTERED' : 'AUTH_ERROR',
           },
-        })
-        if (test) {
-          resolvedTestInfo = {
-            id: test.id,
-            title: test.title,
-            category: test.category || normalizedExam,
-            description: test.description || '',
-            sections: test.sections,
-          }
-        }
-      } else if (!selectedTestId) {
-        const firstTest = await prisma.test.findFirst({
-          where: { status: 'PUBLISHED' },
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            title: true,
-            category: true,
-            description: true,
-            sections: {
-              select: {
-                id: true,
-                name: true,
-                durationMinutes: true,
-                _count: { select: { questions: true } },
-              },
-            },
-          },
-        })
-        if (firstTest) {
-          resolvedTestInfo = {
-            id: firstTest.id,
-            title: firstTest.title,
-            category: firstTest.category || normalizedExam,
-            description: firstTest.description || '',
-            sections: firstTest.sections,
-          }
-        }
+          { status: duplicate ? 409 : 400 }
+        )
       }
-    } catch (dbErr) {
-      console.warn('Prisma lookup failed, falling back to mock test:', dbErr)
+      if (data?.user?.id) userId = data.user.id
+    } else {
+      accountWarning = 'SUPABASE_SERVICE_ROLE_KEY is not configured — lead saved but no login account was created.'
+      console.warn(`/api/free-tests/register: ${accountWarning}`)
     }
 
     const leadId = `lead_${randomUUID().replace(/-/g, '').slice(0, 12)}_${Date.now()}`
     const now = new Date().toISOString()
 
-    const newLead: FreeTestLead = {
+    // 4. Prisma profile mirroring the auth user. Roll back the auth user if this fails
+    //    so we never leave an orphaned login that could hit the admin auto-provisioning path.
+    try {
+      await prisma.user.create({
+        data: {
+          id: userId,
+          name,
+          email,
+          role: 'STUDENT',
+          permissions: {
+            displayName: name,
+            accountType: DEMO_ACCOUNT_TYPE,
+            phone,
+            ...(grade ? { grade } : {}),
+            ...(school ? { schoolName: school } : {}),
+            demoLead: { leadId, exam, grade, school, targetScore, phone, registeredAt: now, source: 'website' },
+          },
+        },
+      })
+    } catch (dbErr) {
+      console.error('/api/free-tests/register: prisma.user.create failed, rolling back auth user', dbErr)
+      if (supabaseAdmin) {
+        await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => {})
+      }
+      return NextResponse.json({ error: 'Could not create your account. Please try again.' }, { status: 500 })
+    }
+
+    // 5. One-attempt assignment of the demo test.
+    let assignmentId: string | null = null
+    if (demoTest) {
+      try {
+        const a = await assignDemoTest(userId, demoTest.id)
+        assignmentId = a.id
+      } catch (assignErr) {
+        console.error('/api/free-tests/register: assignDemoTest failed', assignErr)
+      }
+    }
+
+    // 6. Lead snapshot for the admin panel.
+    const lead: FreeTestLead = {
       id: leadId,
-      name: String(name).trim(),
-      email: String(email).trim().toLowerCase(),
-      phone: String(phone).trim(),
-      exam: String(exam || resolvedTestInfo.category || 'SAT').toUpperCase(),
-      grade: grade ? String(grade).trim() : '',
-      school: school ? String(school).trim() : '',
-      targetScore: targetScore ? String(targetScore).trim() : '',
-      testId: resolvedTestInfo.id,
-      testTitle: resolvedTestInfo.title,
+      name,
+      email,
+      phone,
+      exam,
+      grade,
+      school,
+      targetScore,
+      testId: demoTest?.id ?? '',
+      testTitle: demoTest?.title ?? '',
       status: 'Registered',
       leadStatus: 'New',
       registeredAt: now,
@@ -180,30 +174,30 @@ export async function POST(request: NextRequest) {
       totalScore: null,
       maxScore: null,
       percentage: null,
-      timeSpentSeconds: 0,
-      sectionScores: [],
-      answers: {},
       notes: '',
+      userId,
+      accountCreated: Boolean(supabaseAdmin),
+      assignmentId,
+      attemptId: null,
+      source: 'website',
     }
+    await saveLead(lead)
 
-    // Save in Redis
-    try {
-      await Promise.all([
-        redis.set(leadKey(leadId), JSON.stringify(newLead)),
-        redis.lpush(LEADS_LIST_KEY, leadId),
-      ])
-    } catch (redisErr) {
-      console.error('Redis save failed in /api/free-tests/register:', redisErr)
-    }
-
-    return NextResponse.json({
-      success: true,
-      leadId,
-      lead: newLead,
-      test: resolvedTestInfo,
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        leadId,
+        userId,
+        email,
+        accountCreated: Boolean(supabaseAdmin),
+        test: demoTest ? { id: demoTest.id, title: demoTest.title, category: demoTest.category } : null,
+        testAssigned: Boolean(assignmentId),
+        ...(accountWarning ? { warning: accountWarning } : {}),
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('POST /api/free-tests/register:', error)
-    return NextResponse.json({ error: 'Failed to register lead for free test' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to register for the free demo test.' }, { status: 500 })
   }
 }

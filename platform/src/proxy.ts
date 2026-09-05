@@ -16,9 +16,9 @@ function corsHeaders(request?: NextRequest): Record<string, string> {
 
 function isPublicApiRoute(pathname: string, method: string): boolean {
   if (pathname === '/api/health' || pathname.startsWith('/api/health/')) return true
-  if (pathname.startsWith('/api/free-tests/register')) return true
-  if (pathname.startsWith('/api/free-tests/submit')) return true
-  if (pathname.startsWith('/api/free-tests/test')) return true
+  // Free Demo Test: the website registers leads (creates their portal account)
+  // and reads the banner config. Everything else under /api/free-tests is admin.
+  if (pathname === '/api/free-tests/register' && method === 'POST') return true
   if (pathname === '/api/free-tests' && method === 'GET') return true
   return false
 }

@@ -15,11 +15,15 @@ export async function GET(request: NextRequest) {
       select: { testId: true },
     })
     const assignedTestIds = assignments.map((a) => a.testId)
+    // A student with no assignments sees nothing — never the whole catalogue.
+    if (assignedTestIds.length === 0) {
+      return NextResponse.json({ tests: [] })
+    }
 
     const tests = await prisma.test.findMany({
       where: {
         status: 'PUBLISHED',
-        ...(assignedTestIds.length > 0 ? { id: { in: assignedTestIds } } : {}),
+        id: { in: assignedTestIds },
       },
       include: {
         sections: {

@@ -5,6 +5,8 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  /** Free-demo-test signup from the website: may only take their single assigned demo test. */
+  isDemo?: boolean;
   avatar?: string;
   assignedTutorId?: string;
   assignedStudentIds?: string[];

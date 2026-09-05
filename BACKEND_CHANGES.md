@@ -8,6 +8,40 @@ gracefully until the backend pieces below are in place.
 
 ---
 
+## 🟡 2026-09-05 — Free Demo Test pipeline: website signup → portal account → one demo test (PENDING: env check only, no schema change)
+
+**What it does now (code is in the repo, both apps + website):**
+
+1. Website `/free-test` is now a **"Free Demo Test" signup** (name, email, phone, **password**, exam, grade, school, target). It calls `POST /api/free-tests/register` (public).
+2. That route creates a **real portal account**: Supabase auth user (student's own password, `email_confirm: true`) + Prisma `User` with `role = STUDENT` and `permissions.accountType = 'DEMO'` (plus `demoLead` snapshot: leadId, exam, grade, school, phone…). If the Prisma insert fails the Supabase user is deleted again, so there is never an orphaned login.
+3. It then creates **one `TestAssignment` (maxAttempts 1)** for the configured demo test — resolved from Redis `settings:freeTests` (`examTests[exam]` → `activeTestId`) → newest PUBLISHED test with `category = 'Diagnostic'` → newest PUBLISHED test. If nothing is published, the lead/account is still created and the admin can assign later from the leads page.
+4. Lead snapshot goes to Redis (`lead:freeTest:<id>` + `leads:freeTest:list`) as before, now with `userId`, `assignmentId`, `accountCreated`.
+5. The student logs into the **frontend portal** with that email/password. `GET /api/users/:id` now returns `isDemo: true`; the SPA gives demo accounts a 3-item sidebar (My Demo Test / Score Analytics / Settings), a dedicated dashboard, and a route guard that bounces them off every other page. The test itself runs through the normal test engine, so their `TestAttempt`, review page and analytics are real.
+6. `GET /api/free-tests/leads` now **merges Redis leads with Postgres** (demo users + latest attempt): `status` (Registered / In-Progress / Completed), `totalScore`, `attemptId`, `testTitle` are derived live from the attempt, so a lost Redis key never hides a signup. Also returns a `summary` block (totals, completion %, conversion %).
+7. New admin route `POST /api/free-tests/leads/assign` `{ leadId, testId? }` — (re)assigns the demo test to a lead's account (deactivates any older active assignment). `DELETE /api/free-tests/leads` now also **soft-deletes the demo account** (`deletedAt`) so the login stops working.
+8. `GET /api/users` **hides DEMO accounts by default** (pass `?includeDemo=true` to see them) so the Students page / analytics pickers stay clean; both user GETs return `isDemo`.
+
+**Removed (superseded — the test is no longer taken on the marketing site):**
+`POST /api/free-tests/submit`, `GET /api/free-tests/test/[testId]`, `platform/src/data/mockDiagnosticTest.ts`, and the website's inline test engine + `website/nextgen-react/src/data/mockDiagnosticTest.ts`. `proxy.ts` public list is now only `POST /api/free-tests/register` and `GET /api/free-tests` (which returns only banner copy + `activeOnWebsite` to anonymous callers; the published-test list is admin-only).
+
+**Security hardening done at the same time (needed so a demo login really is limited to one test):**
+- `POST /api/attempts` — a `STUDENT` caller may only start attempts as themselves (`x-user-id`); staff unchanged.
+- `POST /api/test-assignments` — now `requireRole(['ADMIN','SUPER_ADMIN','TUTOR'])` (was open to any logged-in user, i.e. a student could self-assign any test).
+- `GET /api/tests/available` — a student with zero assignments now gets `[]` instead of **every published test**.
+- `GET /api/students/[studentId]/assigned-tests` — students can only read their own list.
+
+### ⚠️ Actions for you (Sunanda) — env / deployment only, **no Prisma migration**
+- [ ] Confirm `SUPABASE_SERVICE_ROLE_KEY` is set on the **production platform deployment** (Vercel). Without it, registration still saves the lead but cannot create the login (response carries `accountCreated: false` + `warning`, and the leads page shows "No account").
+- [ ] In Supabase Auth settings, make sure **email confirmations are not required** for password sign-in (we create users with `email_confirm: true`, so this should already be fine) and that the password policy allows ≥ 8 chars.
+- [ ] Optional: in the admin portal → **Free Demo Test Leads → Settings tab**, pick the published test to serve per exam (SAT / ACT / AP). Until then the newest published "Diagnostic" test is used.
+- [ ] Website env: `VITE_APP_LOGIN_URL` must point at the portal login (the success screen links to `…/login?email=<email>&demo=1`). Portal env (optional): `VITE_ENROLL_URL` / `VITE_WHATSAPP_NUMBER` for the "Talk to an Advisor" CTA on the demo dashboard (defaults to the WhatsApp number used on the website).
+
+### Recommended follow-up (not done — your call)
+- `platform/src/lib/auth.ts` `getCurrentUser` still auto-provisions an **ADMIN** for any Supabase login whose email contains `admin` / `sunanda` / `staff` when no DB row exists. With public self-registration now live this is a real escalation path if a DB insert ever fails silently. The register route rolls back the auth user on failure, so it is mitigated, but that bootstrap should be removed (or gated behind an env allow-list) now that the admin account exists.
+- If you'd prefer a hard `Role` for demo accounts instead of the `permissions.accountType` flag, that needs an enum migration (`DEMO_STUDENT`) plus updates to `VALID_ROLES`, frontend `Role` union, `Sidebar.roleLabels`, `permissionsStore.PermissionRow`, and the `DashboardRouter` fallthrough (unknown roles currently land on the admin dashboard). The flag approach was chosen to avoid all of that.
+
+---
+
 ## ✅ 2026-08-16 — Fixed RW1/section scores showing 0 or "—" for completed attempts (DONE, no DB action needed)
 
 **Why:** Admin table (Student Profile → attempts list) was showing `RW1: —` or `RW1: 0/12` for attempts the student had genuinely taken. Two root causes found in code, both fixed — no schema/env change needed, just flagging so you're aware in case you spot stale rows on your own DB copy:

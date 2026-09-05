@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isRawScoredTest } from '@/lib/testCategorize'
+import { getCurrentUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,6 +94,13 @@ export async function POST(request: NextRequest) {
 
     if (!testId || !studentId) {
       return NextResponse.json({ error: 'testId and studentId are required' }, { status: 400 })
+    }
+
+    // A student (including free-demo accounts) can only start attempts as themselves.
+    // Staff may start on behalf of a student (e.g. proctored sessions).
+    const caller = await getCurrentUser(request)
+    if (caller?.role === 'STUDENT' && caller.id !== studentId) {
+      return NextResponse.json({ error: 'You can only start your own tests' }, { status: 403 })
     }
 
     const assignment = await prisma.testAssignment.findFirst({

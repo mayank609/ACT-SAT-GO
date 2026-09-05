@@ -104,7 +104,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             </div>
             <div className="hidden sm:block">
               <p className="text-xs font-medium text-slate-800 leading-tight">{user.name.split(' ')[0]}</p>
-              <p className="text-xs text-slate-400">{roleLabels[user.role]}</p>
+              <p className="text-xs text-slate-400">{user.isDemo ? 'Demo Student' : roleLabels[user.role]}</p>
             </div>
           </div>
         )}

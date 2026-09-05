@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ studentId: string }> }
 ) {
   const { studentId } = await params
+
+  const caller = await getCurrentUser(request)
+  if (caller?.role === 'STUDENT' && caller.id !== studentId) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  }
 
   try {
     const assignments = await prisma.testAssignment.findMany({

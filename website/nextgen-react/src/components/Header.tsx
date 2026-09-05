@@ -118,7 +118,7 @@ export function Header() {
           <Link to="/resources" onClick={close}>Resources</Link>
 
           <Link to="/free-test" onClick={close} className="nav-highlight-link">
-            Free Test
+            Free Demo Test
           </Link>
 
           <Link to="/careers" onClick={close}>Career</Link>
@@ -128,7 +128,7 @@ export function Header() {
           {/* Mobile-only actions inside the drawer */}
           <div className="nav-links-mobile-actions">
             <Link to="/free-test" onClick={close} className="btn btn-secondary" style={{ marginBottom: '8px', textAlign: 'center' }}>
-              ✨ Take a Free Test
+              ✨ Take the Free Demo Test
             </Link>
             <ContactDropdown onNavigate={close} />
             {/* Social icons strip in mobile drawer */}
@@ -158,7 +158,7 @@ export function Header() {
         </div>
         <div className="nav-actions">
           <Link to="/free-test" className="btn btn-secondary nav-btn-free-test" style={{ marginRight: '8px' }}>
-            ✨ Free Diagnostic Test
+            ✨ Free Demo Test
           </Link>
           <ContactDropdown onNavigate={close} />
         </div>
