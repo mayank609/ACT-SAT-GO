@@ -23,6 +23,7 @@ import './about-us.css';
 import './resources.css';
 import './admin.css';
 import './careers.css';
+import './free-test.css';
 
 initMetaPixel();
 
