@@ -1,6 +1,6 @@
 import { getAccessToken, supabase } from './supabase'
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+const BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:3000')
 
 // Authorization header from the current Supabase session (for non-JSON
 // requests like FormData uploads that bypass request()).

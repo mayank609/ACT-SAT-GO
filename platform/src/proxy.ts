@@ -4,11 +4,13 @@ import { updateSession } from '@/lib/supabase/middleware'
 
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? '*'
 
-function corsHeaders(): Record<string, string> {
+function corsHeaders(request?: NextRequest): Record<string, string> {
+  const reqOrigin = request?.headers.get('origin')
+  const origin = reqOrigin || (process.env.CORS_ORIGIN ?? '*')
   return {
-    'Access-Control-Allow-Origin': CORS_ORIGIN,
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-id, x-user-email',
   }
 }
 
@@ -26,7 +28,7 @@ export async function proxy(request: NextRequest) {
 
   // CORS preflight — let all OPTIONS requests through immediately
   if (request.method === 'OPTIONS' && url.pathname.startsWith('/api/')) {
-    return new NextResponse(null, { status: 204, headers: corsHeaders() })
+    return new NextResponse(null, { status: 204, headers: corsHeaders(request) })
   }
 
   // ── API authentication gate ────────────────────────────────────────────────
@@ -44,12 +46,12 @@ export async function proxy(request: NextRequest) {
       if (!isPublic) {
         return NextResponse.json(
           { error: 'Authentication required' },
-          { status: 401, headers: corsHeaders() }
+          { status: 401, headers: corsHeaders(request) }
         )
       }
       // Public API route without token — CORS only.
       const res = NextResponse.next()
-      for (const [k, v] of Object.entries(corsHeaders())) res.headers.set(k, v)
+      for (const [k, v] of Object.entries(corsHeaders(request))) res.headers.set(k, v)
       return res
     }
 
@@ -64,11 +66,11 @@ export async function proxy(request: NextRequest) {
       if (!isPublic) {
         return NextResponse.json(
           { error: 'Invalid or expired session' },
-          { status: 401, headers: corsHeaders() }
+          { status: 401, headers: corsHeaders(request) }
         )
       }
       const res = NextResponse.next()
-      for (const [k, v] of Object.entries(corsHeaders())) res.headers.set(k, v)
+      for (const [k, v] of Object.entries(corsHeaders(request))) res.headers.set(k, v)
       return res
     }
 
@@ -81,7 +83,7 @@ export async function proxy(request: NextRequest) {
     if (data.user.email) fwdHeaders.set('x-user-email', data.user.email)
 
     const res = NextResponse.next({ request: { headers: fwdHeaders } })
-    for (const [k, v] of Object.entries(corsHeaders())) res.headers.set(k, v)
+    for (const [k, v] of Object.entries(corsHeaders(request))) res.headers.set(k, v)
     return res
   }
 

@@ -152,7 +152,7 @@ export function ImageUploader({
         formData.append('file', file);
         formData.append('context', context);
 
-        const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+        const apiBase = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:3000');
         xhr.open('POST', `${apiBase}/api/images/upload`);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
