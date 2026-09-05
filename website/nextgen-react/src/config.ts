@@ -12,9 +12,14 @@ export const APP_LOGIN_URL =
 export const QUERY_API_BASE =
   import.meta.env.VITE_QUERY_API_BASE ?? (import.meta.env.PROD ? '' : 'http://localhost:5005');
 
-// Base URL of the platform app for tests & platform APIs
+// Base URL of the platform (Next.js) API — used by the Free Demo Test signup.
+// NOTE: this must be the *platform* deployment (Render), NOT the frontend SPA on
+// Vercel: the SPA rewrites every path to index.html, so /api/* calls there fail
+// CORS preflight and surface in the browser as "Failed to fetch".
+// Set VITE_PLATFORM_API_BASE=http://localhost:3000 in .env when running the
+// platform locally.
 export const PLATFORM_API_BASE =
-  import.meta.env.VITE_PLATFORM_API_BASE ?? (import.meta.env.PROD ? 'https://act-sat-go-w3kf.vercel.app' : 'http://localhost:3000');
+  import.meta.env.VITE_PLATFORM_API_BASE ?? 'https://act-sat-go.onrender.com';
 
 // Meta (Facebook) Pixel ID from Meta Events Manager, used for lead tracking on
 // the consultation forms. Override with VITE_META_PIXEL_ID in a .env file.
