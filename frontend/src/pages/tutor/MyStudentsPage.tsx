@@ -21,6 +21,7 @@ import { practiceSubjectOf } from '../../lib/testCategorize';
 import { parseCSV, exportToCsv } from '../../utils/exportCsv';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES } from '../../data/satDomains';
 import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
+import { toLines } from '../../lib/sessionLog';
 
 type MainViewTab = 'analysis' | 'test_analysis';
 
@@ -380,7 +381,7 @@ const isMath = (test: any): boolean => {
 
 export function MyStudentsPage() {
   const navigate = useNavigate();
-  const { dbId } = useAuthStore();
+  const { user, dbId } = useAuthStore();
 
   // ── Main view state ───────────────────────────────────────────────────────
   const [mainView, setMainView] = useState<MainViewTab>('analysis');
@@ -3441,7 +3442,32 @@ export function MyStudentsPage() {
                         );
                         const titles = assignSelectedTestIds
                           .map((id) => publishedTests.find((t) => t.id === id)?.title)
-                          .filter(Boolean);
+                          .filter((t): t is string => Boolean(t));
+
+                        if (dbId && titles.length > 0) {
+                          try {
+                            const today = new Date().toISOString().split('T')[0];
+                            const { entries: existing } = await api.getClassProgress(dbId, assignStudentId);
+                            const todayEntry = existing.find((e) => e.classDate === today);
+                            if (todayEntry) {
+                              const existingLines = toLines(todayEntry.homework);
+                              const combined = Array.from(new Set([...existingLines, ...titles])).join('\n');
+                              await api.updateClassProgress(dbId, assignStudentId, todayEntry.id, { homework: combined });
+                            } else {
+                              await api.addClassProgress(dbId, assignStudentId, {
+                                topic: 'Homework Assigned',
+                                homework: titles.join('\n'),
+                                classDate: today,
+                                author: user?.name ?? 'Tutor',
+                                status: 'Completed',
+                                subject: 'Other',
+                              });
+                            }
+                          } catch (e) {
+                            console.error('Failed to log homework progress:', e);
+                          }
+                        }
+
                         toast.success(
                           titles.length > 1
                             ? `${titles.length} tests assigned successfully`

@@ -122,10 +122,10 @@ export async function DELETE(request: NextRequest) {
 }
 
 // PATCH /api/class-progress — body: { tutorId, studentId, entryId, ...fields to update }.
-// Lets admin/super-admin correct or manage a tutor's logged session entry.
+// Lets tutor or admin/super-admin correct or manage a logged session entry.
 export async function PATCH(request: NextRequest) {
-  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
-  if (auth instanceof NextResponse) return auth
+  const caller = await requireUser(request)
+  if (caller instanceof NextResponse) return caller
 
   try {
     const {
@@ -134,6 +134,11 @@ export async function PATCH(request: NextRequest) {
     } = await request.json()
     if (!tutorId || !studentId || !entryId) {
       return NextResponse.json({ error: 'tutorId, studentId, entryId required' }, { status: 400 })
+    }
+    const isSelf = caller.id === tutorId
+    const isStaff = caller.role === 'ADMIN' || caller.role === 'SUPER_ADMIN'
+    if (!isSelf && !isStaff) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
     const entries = await loadEntries(tutorId, studentId)
     const idx = entries.findIndex((e) => e.id === entryId)

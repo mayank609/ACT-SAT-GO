@@ -7,6 +7,7 @@ import { StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { api, type DbUser } from '../../lib/api';
 import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
+import { toLines } from '../../lib/sessionLog';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 import { formatDate } from '../../lib/utils';
@@ -327,10 +328,15 @@ export function StudentDetailPage() {
                     {formatDate(entry.classDate)}
                   </p>
                 </div>
-                {entry.homework && (
-                  <p className="text-sm text-amber-700 bg-amber-50 rounded-md px-2 py-1 inline-flex items-center gap-1.5 mt-1">
-                    <BookOpenCheck size={12} /> <span className="font-medium">Homework:</span> {entry.homework}
-                  </p>
+                {toLines(entry.homework).length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {toLines(entry.homework).map((hw, idx) => (
+                      <span key={idx} className="text-xs text-amber-800 bg-amber-50 border border-amber-200/60 rounded-md px-2 py-0.5 inline-flex items-center gap-1">
+                        <BookOpenCheck size={11} className="text-amber-600 flex-shrink-0" />
+                        <span className="font-semibold">HW:</span> {hw}
+                      </span>
+                    ))}
+                  </div>
                 )}
                 {entry.notes && <p className="text-sm text-slate-600 leading-relaxed mt-1">{entry.notes}</p>}
                 <p className="text-xs text-slate-400 mt-1">{entry.author}</p>
@@ -382,7 +388,37 @@ export function StudentDetailPage() {
                 );
                 const titles = selectedTestIds
                   .map((tId) => publishedTests.find((t) => t.id === tId)?.title)
-                  .filter(Boolean);
+                  .filter((t): t is string => Boolean(t));
+
+                if (dbId && titles.length > 0) {
+                  const today = new Date().toISOString().split('T')[0];
+                  const todayEntry = progressEntries.find((e) => e.classDate === today);
+                  if (todayEntry) {
+                    const existingLines = toLines(todayEntry.homework);
+                    const combined = Array.from(new Set([...existingLines, ...titles])).join('\n');
+                    try {
+                      const { entry: updated } = await api.updateClassProgress(dbId, id, todayEntry.id, { homework: combined });
+                      setProgressEntries((prev) => prev.map((e) => e.id === todayEntry.id ? { ...e, ...updated } : e));
+                    } catch {
+                      // Fallback if update fails
+                    }
+                  } else {
+                    try {
+                      const { entry } = await api.addClassProgress(dbId, id, {
+                        topic: 'Homework Assigned',
+                        homework: titles.join('\n'),
+                        classDate: today,
+                        author: user?.name ?? 'Tutor',
+                        status: 'Completed',
+                        subject: 'Other',
+                      });
+                      setProgressEntries((prev) => [entry, ...prev]);
+                    } catch (e) {
+                      console.error('Failed to log homework progress:', e);
+                    }
+                  }
+                }
+
                 toast.success(
                   titles.length > 1
                     ? `${titles.length} tests assigned successfully.`

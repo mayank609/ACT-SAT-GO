@@ -77,10 +77,9 @@ export function LogSessionModal({
 
   const homeworkOptions = useMemo(() => {
     return publishedTests
-      .filter((t) => (t.category ?? 'Other') === 'Practice Sheet')
       .filter((t) => {
         if (hwSubFilter === 'All') return true;
-        if (hwSubFilter === 'HW') return isHW(t);
+        if (hwSubFilter === 'HW') return isHW(t) || (t.category ?? '') === 'Practice Sheet';
         if (hwSubFilter === 'English') return isEnglish(t);
         if (hwSubFilter === 'Maths') return isMath(t);
         return true;
@@ -94,21 +93,28 @@ export function LogSessionModal({
     if (!canSave) return;
     setSaving(true);
     try {
-      const homeworkTitles = form.homeworkTestIds
+      const selectedTitles = form.homeworkTestIds
         .map((id) => publishedTests.find((t) => t.id === id)?.title)
         .filter((t): t is string => Boolean(t));
+      const customHw = form.customHomework?.trim();
+      const allHomeworkLines = [...selectedTitles, ...(customHw ? [customHw] : [])];
+      const homeworkPayload = allHomeworkLines.join('\n') || undefined;
 
       if (form.homeworkTestIds.length > 0) {
-        await Promise.all(
-          form.homeworkTestIds.map((testId) => api.createTestAssignments({ testId, studentIds: [form.studentId] }))
-        );
+        try {
+          await Promise.all(
+            form.homeworkTestIds.map((testId) => api.createTestAssignments({ testId, studentIds: [form.studentId] }))
+          );
+        } catch (e) {
+          console.error('Test assignment notice:', e);
+        }
       }
 
       const body: ClassProgressInput = {
         // No topics are covered on a no-show — fall back to the status itself so the
         // session log still has something meaningful to show in the "Topic" column.
         topic: form.topic.trim() || (isNoShow ? form.status : ''),
-        homework: homeworkTitles.join('\n') || undefined,
+        homework: homeworkPayload,
         notes: form.notes.trim() || undefined,
         classDate: form.classDate,
         author: authorName,
@@ -127,8 +133,8 @@ export function LogSessionModal({
       const { entry } = await api.addClassProgress(tutorId, form.studentId, body);
       const studentName = students.find((s) => s.id === form.studentId)?.name ?? 'Student';
       const tutorName = fixedTutorId ? authorName : (tutors?.find((t) => t.id === tutorId)?.name ?? 'Tutor');
-      onSaved({ ...entry, studentId: form.studentId, studentName, tutorId, tutorName });
-      toast.success(form.homeworkTestIds.length > 0 ? 'Session logged and homework assigned.' : 'Session logged.');
+      onSaved({ ...entry, homework: entry.homework ?? allHomeworkLines.join('\n'), studentId: form.studentId, studentName, tutorId, tutorName });
+      toast.success(allHomeworkLines.length > 0 ? 'Session logged and homework assigned.' : 'Session logged.');
       onClose();
     } catch {
       toast.error('Failed to log session.');
@@ -331,6 +337,18 @@ export function LogSessionModal({
                     );
                   })}
                 </div>
+              </div>
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Custom Homework / Additional Instructions (optional)
+                </label>
+                <input
+                  type="text"
+                  value={form.customHomework}
+                  onChange={(e) => setForm((f) => ({ ...f, customHomework: e.target.value }))}
+                  placeholder="e.g. Read chapter 3, review flashcards, solve pg 10-15..."
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
               </div>
             </div>
 

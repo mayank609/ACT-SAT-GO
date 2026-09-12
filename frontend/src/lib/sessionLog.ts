@@ -53,8 +53,9 @@ export function statusVariant(status?: string): 'success' | 'danger' | 'default'
   return 'default';
 }
 
-export function toLines(text: string): string[] {
-  return text.split('\n').map((l) => l.trim()).filter(Boolean);
+export function toLines(text?: string | null): string[] {
+  if (!text) return [];
+  return String(text).split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
 // Session History lists are always shown most-recent-first by the session's actual
@@ -78,6 +79,6 @@ export interface DbTest {
 
 export const emptySessionForm = {
   studentId: '', classDate: new Date().toISOString().split('T')[0], startTime: '', durationMinutes: '60', actualDurationMinutes: '',
-  subject: SUBJECTS[0], status: 'Completed' as string, sessionType: 'Core Prep' as string, topic: '', homeworkTestIds: [] as string[], notes: '',
+  subject: SUBJECTS[0], status: 'Completed' as string, sessionType: 'Core Prep' as string, topic: '', homeworkTestIds: [] as string[], customHomework: '', notes: '',
   understanding: 0, attendance: 'Present', engagement: 'High' as string, nextSessionGoal: '', nextSessionAt: '',
 };

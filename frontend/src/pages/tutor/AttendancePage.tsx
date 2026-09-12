@@ -44,12 +44,6 @@ function formatTimeRange(startTime?: string, durationMinutes?: number): string {
   return `${start.label} – ${end.label}`;
 }
 
-// Table preview only — the full text is still shown in the title tooltip and in
-// the session detail drawer when a row is clicked.
-function truncateChars(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max)}…` : text;
-}
-
 function Row({ label, children, last = false }: { label: string; children: ReactNode; last?: boolean }) {
   return (
     <tr className={last ? '' : 'border-b border-slate-100'}>
@@ -138,7 +132,7 @@ export function AttendancePage() {
         const lists = await Promise.all(
           studs.map(s =>
             api.getClassProgress(dbId, s.id)
-              .then(r => r.entries.map(e => ({ ...e, studentId: s.id, studentName: s.name })))
+              .then(r => r.entries.map(e => ({ ...e, homework: e.homework ?? '', studentId: s.id, studentName: s.name })))
               .catch(() => [] as Session[])
           )
         );
@@ -336,8 +330,8 @@ export function AttendancePage() {
                       </td>
                       <td className="px-5 py-3.5 max-w-[220px]">
                         {toLines(row.homework).length > 0 ? (
-                          <span className="text-slate-600 block" title={toLines(row.homework).join(', ')}>
-                            {truncateChars(toLines(row.homework).join(', '), 6)}
+                          <span className="text-slate-600 truncate block" title={toLines(row.homework).join(', ')}>
+                            {toLines(row.homework).join(', ')}
                           </span>
                         ) : <span className="text-slate-300">—</span>}
                       </td>
