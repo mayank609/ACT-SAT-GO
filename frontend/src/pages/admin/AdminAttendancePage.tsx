@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Search, Clock, Pencil, Trash2, X, Save, PlusCircle } from 'lucide-react';
+import { Loader2, Search, Clock, Pencil, Trash2, X, Save, PlusCircle, CheckCircle2, Banknote } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
@@ -38,7 +38,10 @@ interface TutorStat {
   skipped: number;
   studentsCovered: number;
   totalMinutesTaught: number;
-  amount: number | null;
+  unpaidSessionsCount: number;
+  totalSalaryDue: number | null;
+  totalLifetimeEarned?: number | null;
+  totalPaid?: number;
 }
 
 const fmtDate = (d: string) => formatDate(d);
@@ -166,11 +169,42 @@ export function AdminAttendancePage() {
     }
   };
 
+  const [settlementsByTutor, setSettlementsByTutor] = useState<Record<string, any[]>>(() => {
+    try {
+      const saved = localStorage.getItem('act_sat_go_teacher_salary_settlements_v2');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [paidSessionIdsByTutor, setPaidSessionIdsByTutor] = useState<Record<string, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('act_sat_go_teacher_paid_session_ids_v2');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   useEffect(() => {
     api.getUsersByRole('TUTOR')
       .then(({ users }) => {
         setTutorRates(new Map(users.filter(u => u.hourlyRate != null).map(u => [u.id, u.hourlyRate as number])));
         setAllTutors(users.map(u => ({ id: u.id, name: u.name })).sort((a, b) => a.name.localeCompare(b.name)));
+
+        const nextSettlements: Record<string, any[]> = { ...settlementsByTutor };
+        const nextPaidSessions: Record<string, string[]> = { ...paidSessionIdsByTutor };
+        for (const u of users) {
+          if (u.salarySettlements && u.salarySettlements.length > 0) {
+            nextSettlements[u.id] = u.salarySettlements;
+          }
+          if (u.paidSessionIds && u.paidSessionIds.length > 0) {
+            nextPaidSessions[u.id] = u.paidSessionIds;
+          }
+        }
+        setSettlementsByTutor(nextSettlements);
+        setPaidSessionIdsByTutor(nextPaidSessions);
       })
       .catch(() => {});
   }, []);
@@ -262,21 +296,46 @@ export function AdminAttendancePage() {
   // date range, search) so picking a tutor here narrows this summary too, instead
   // of always summarizing every tutor regardless of what's selected.
   const tutorStats: TutorStat[] = useMemo(() => {
-    const byTutor = new Map<string, AttendanceEntry[]>();
+    const byTutorVisible = new Map<string, AttendanceEntry[]>();
     for (const e of visible) {
-      if (!byTutor.has(e.tutorId)) byTutor.set(e.tutorId, []);
-      byTutor.get(e.tutorId)!.push(e);
+      if (!byTutorVisible.has(e.tutorId)) byTutorVisible.set(e.tutorId, []);
+      byTutorVisible.get(e.tutorId)!.push(e);
     }
-    return Array.from(byTutor.entries()).map(([tutorId, list]) => {
-      // Actual time taught, falling back to the scheduled duration for sessions
-      // where the tutor never logged an actual duration. No Show / Cancelled
-      // sessions were never taught, so they don't count toward hours or pay —
-      // only entries missing a status (legacy data) default to counting, same as
-      // the "Completed" fallback used elsewhere for pre-status entries.
+
+    const byTutorAllTime = new Map<string, AttendanceEntry[]>();
+    for (const e of entries) {
+      if (!byTutorAllTime.has(e.tutorId)) byTutorAllTime.set(e.tutorId, []);
+      byTutorAllTime.get(e.tutorId)!.push(e);
+    }
+
+    return Array.from(byTutorVisible.entries()).map(([tutorId, list]) => {
       const taught = list.filter(e => (e.status ?? 'Completed') === 'Completed');
       const skipped = list.filter(e => (e.status ?? 'Completed') !== 'Completed');
       const totalMinutesTaught = taught.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0);
       const rate = tutorRates.get(tutorId);
+
+      // All-time sessions for this tutor to accurately compute remaining total salary due
+      const allTimeSessions = byTutorAllTime.get(tutorId) || [];
+      const allCompleted = allTimeSessions.filter(e => (e.status ?? 'Completed') === 'Completed');
+      const paidIds = new Set(paidSessionIdsByTutor[tutorId] || []);
+      const unpaidSessions = allCompleted.filter(e => !paidIds.has(e.id));
+      const unpaidMinutes = unpaidSessions.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0);
+      const tutorSettlements = settlementsByTutor[tutorId] || [];
+      const totalPaid = tutorSettlements.reduce((sum, st) => sum + (st.amount || 0), 0);
+      const totalLifetimeMinutes = allCompleted.reduce((sum, e) => sum + (e.actualDurationMinutes ?? e.durationMinutes ?? 0), 0);
+      const totalLifetimeEarned = rate != null ? (totalLifetimeMinutes / 60) * rate : null;
+
+      let remainingDue: number | null = null;
+      if (rate != null) {
+        if (unpaidSessions.length > 0) {
+          remainingDue = (unpaidMinutes / 60) * rate;
+        } else if (totalLifetimeEarned != null) {
+          remainingDue = Math.max(0, totalLifetimeEarned - totalPaid);
+        } else {
+          remainingDue = 0;
+        }
+      }
+
       return {
         tutorId,
         tutorName: list[0].tutorName,
@@ -285,10 +344,18 @@ export function AdminAttendancePage() {
         skipped: skipped.length,
         studentsCovered: new Set(taught.map(e => e.studentId)).size,
         totalMinutesTaught,
-        amount: rate != null ? (totalMinutesTaught / 60) * rate : null,
+        unpaidSessionsCount: unpaidSessions.length,
+        totalSalaryDue: remainingDue,
+        totalLifetimeEarned,
+        totalPaid,
       };
-    }).sort((a, b) => b.daysTaught - a.daysTaught);
-  }, [visible, tutorRates]);
+    }).sort((a, b) => {
+      const dueA = a.totalSalaryDue || 0;
+      const dueB = b.totalSalaryDue || 0;
+      if (dueB !== dueA) return dueB - dueA;
+      return b.daysTaught - a.daysTaught;
+    });
+  }, [visible, entries, tutorRates, paidSessionIdsByTutor, settlementsByTutor]);
 
   const hasActiveFilters = tutorFilter !== 'all' || studentFilter !== 'all' || period !== 'this_month' || !!search;
   const clearFilters = () => {
@@ -311,7 +378,7 @@ export function AdminAttendancePage() {
         </div>
         <div className="flex items-center gap-2">
           {user?.role === 'super_admin' && (
-            <Button variant="secondary" size="sm" onClick={() => navigate('/teacher-salaries')}>
+            <Button variant="secondary" size="sm" icon={<Banknote size={14} />} onClick={() => navigate('/tutors?tab=salaries')}>
               Teacher Salaries
             </Button>
           )}
@@ -322,22 +389,20 @@ export function AdminAttendancePage() {
       </div>
 
       {/* Tutor teaching activity */}
-      <div className="bg-white rounded-xl border border-slate-100">
+      <div className="bg-white rounded-xl border border-slate-100 shadow-xs">
         <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
           <div>
-            <p className="font-medium text-slate-900 text-sm">Tutor Teaching Activity</p>
-            <p className="text-xs text-slate-400">
-              {period === 'this_month' ? `Active for ${getCurrentMonthRange().label} (Resets on 1st of every month)` :
-               period === 'last_month' ? `Activity for ${getLastMonthRange().label}` :
-               period === 'all' ? 'All-time total activity' : 'Activity for custom date range'}
+            <p className="font-semibold text-slate-900 text-sm">Tutor Teaching Activity</p>
+            <p className="text-xs text-slate-500">
+              Teaching activity summary • Total Salary Due reflects all unsettled sessions across all time
             </p>
           </div>
           {user?.role === 'super_admin' && (
             <button
-              onClick={() => navigate('/teacher-salaries')}
+              onClick={() => navigate('/tutors?tab=salaries')}
               className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-semibold flex items-center gap-1"
             >
-              View Month-Wise Salaries →
+              Manage Teacher Salaries &amp; Payouts →
             </button>
           )}
         </div>
@@ -350,13 +415,13 @@ export function AdminAttendancePage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wide bg-slate-50 border-b border-slate-200">
-                  <th className="px-4 py-2 font-semibold">Tutor</th>
-                  <th className="px-4 py-2 font-semibold text-center">Days Taught</th>
-                  <th className="px-4 py-2 font-semibold text-center">Sessions</th>
-                  <th className="px-4 py-2 font-semibold text-center">Skipped</th>
-                  <th className="px-4 py-2 font-semibold text-center">Students Covered</th>
-                  <th className="px-4 py-2 font-semibold text-center">Time Taught</th>
-                  {user?.role === 'super_admin' && <th className="px-4 py-2 font-semibold text-center">Amount</th>}
+                  <th className="px-4 py-2.5 font-semibold">Tutor</th>
+                  <th className="px-4 py-2.5 font-semibold text-center">Days Taught</th>
+                  <th className="px-4 py-2.5 font-semibold text-center">Sessions</th>
+                  <th className="px-4 py-2.5 font-semibold text-center">Skipped</th>
+                  <th className="px-4 py-2.5 font-semibold text-center">Students Covered</th>
+                  <th className="px-4 py-2.5 font-semibold text-center">Time Taught</th>
+                  {user?.role === 'super_admin' && <th className="px-4 py-2.5 font-semibold text-center">Total Salary Due</th>}
                 </tr>
               </thead>
               <tbody>
@@ -373,8 +438,25 @@ export function AdminAttendancePage() {
                     <td className="px-4 py-2 text-center text-slate-600">{t.studentsCovered}</td>
                     <td className="px-4 py-2 text-center text-slate-600">{t.totalMinutesTaught > 0 ? fmtHours(t.totalMinutesTaught) : '—'}</td>
                     {user?.role === 'super_admin' && (
-                      <td className="px-4 py-2 text-center font-semibold text-emerald-700">
-                        {t.amount != null ? fmtAmount(t.amount) : <span title="No hourly rate set for this tutor" className="text-slate-300 font-normal">—</span>}
+                      <td className="px-4 py-2 text-center font-semibold">
+                        {t.totalSalaryDue != null ? (
+                          <div className="flex flex-col items-center justify-center">
+                            <span className={`text-sm font-bold ${t.totalSalaryDue > 0 ? 'text-emerald-700' : 'text-slate-500'}`}>
+                              {fmtAmount(t.totalSalaryDue)}
+                            </span>
+                            {t.totalSalaryDue > 0 ? (
+                              <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded font-medium border border-amber-200 mt-0.5">
+                                {t.unpaidSessionsCount} unpaid {t.unpaidSessionsCount === 1 ? 'session' : 'sessions'}
+                              </span>
+                            ) : t.totalMinutesTaught > 0 ? (
+                              <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-0.5 mt-0.5">
+                                <CheckCircle2 size={10} /> Fully Settled
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span title="No hourly rate set for this tutor" className="text-slate-300 font-normal">—</span>
+                        )}
                       </td>
                     )}
                   </tr>
