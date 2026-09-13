@@ -76,6 +76,16 @@ export interface DbUser {
   manualDiagTotal?: number | null
   manualDiagRW?: number | null
   manualDiagMath?: number | null
+  salarySettlements?: Array<{
+    id: string
+    amount: number
+    paidAt: string
+    note?: string
+    settledBy?: string
+    sessionIds?: string[]
+    hours?: number
+  }>
+  paidSessionIds?: string[]
 }
 
 export interface ClassProgressEntry {
@@ -209,6 +219,16 @@ export const api = {
     manualDiagTotal?: number | null
     manualDiagRW?: number | null
     manualDiagMath?: number | null
+    salarySettlements?: Array<{
+      id: string
+      amount: number
+      paidAt: string
+      note?: string
+      settledBy?: string
+      sessionIds?: string[]
+      hours?: number
+    }>
+    paidSessionIds?: string[]
   }) => request<{ user: DbUser }>(`/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   /** Soft-deletes by default (reversible via restoreUser). Pass { permanent: true } to erase for good. */
   deleteUser: (userId: string, opts?: { permanent?: boolean }) =>

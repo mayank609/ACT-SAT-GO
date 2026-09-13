@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2, KeyRound, Copy, CheckCircle, Trash2, Pencil, Save, Trash } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Mail, Users, TrendingUp, UserPlus, Star, AlertTriangle, ArrowUpRight, UserMinus, ShieldAlert, CheckCircle2, KeyRound, Copy, CheckCircle, Trash2, Pencil, Save, Trash, Banknote } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
@@ -9,6 +10,7 @@ import { SearchableSelect } from '../../components/common/SearchableSelect';
 import { TrashModal } from '../../components/common/TrashModal';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { AdminTeacherSalaryPage } from './AdminTeacherSalaryPage';
 
 const SPECIALIZATIONS = ['Math', 'English', 'Reading', 'Science', 'Writing', 'ACT Prep', 'SAT Prep'];
 
@@ -23,6 +25,30 @@ interface TutorStats {
 
 export function TutorManagementPage() {
   const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const [mainTab, setMainTab] = useState<'directory' | 'salaries'>(
+    urlTab === 'salaries' || urlTab === 'salary' ? 'salaries' : 'directory'
+  );
+
+  useEffect(() => {
+    const currentTab = searchParams.get('tab');
+    if (currentTab === 'salaries' || currentTab === 'salary') {
+      setMainTab('salaries');
+    } else if (currentTab === 'directory') {
+      setMainTab('directory');
+    }
+  }, [searchParams]);
+
+  const switchMainTab = (newTab: 'directory' | 'salaries') => {
+    setMainTab(newTab);
+    if (newTab === 'salaries') {
+      setSearchParams({ tab: 'salaries' });
+    } else {
+      setSearchParams({});
+    }
+  };
+
   const [tutors, setTutors] = useState<DbUser[]>([]);
   const [students, setStudents] = useState<DbUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -389,17 +415,59 @@ export function TutorManagementPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Header and Add Modal button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Tutors</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Manage tutor assignments, student improvement plans, and tracking</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" icon={<Trash size={13} />} onClick={() => setShowTrashModal(true)}>Trash</Button>
-          <Button size="sm" icon={<Plus size={13} />} onClick={() => { setAddForm({ firstName: '', lastName: '', email: '', specializations: [], hourlyRate: '' }); setShowAddModal(true); }}>Add Tutor</Button>
+      {/* Top Level Main Navigation Tabs: Tutors Directory vs Teacher Salaries */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl">
+          <button
+            onClick={() => switchMainTab('directory')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+              mainTab === 'directory'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Users size={15} />
+            <span>Tutors Directory</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+              mainTab === 'directory' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {tutors.length}
+            </span>
+          </button>
+          <button
+            onClick={() => switchMainTab('salaries')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+              mainTab === 'salaries'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Banknote size={15} />
+            <span>Teacher Salaries &amp; Payouts</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+              mainTab === 'salaries' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+            }`}>
+              Ledger
+            </span>
+          </button>
         </div>
       </div>
+
+      {mainTab === 'salaries' ? (
+        <AdminTeacherSalaryPage />
+      ) : (
+        <>
+          {/* Header and Add Modal button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-slate-900">Tutors</h1>
+              <p className="text-slate-500 text-sm mt-0.5">Manage tutor assignments, student improvement plans, and tracking</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" icon={<Trash size={13} />} onClick={() => setShowTrashModal(true)}>Trash</Button>
+              <Button size="sm" icon={<Plus size={13} />} onClick={() => { setAddForm({ firstName: '', lastName: '', email: '', specializations: [], hourlyRate: '' }); setShowAddModal(true); }}>Add Tutor</Button>
+            </div>
+          </div>
 
       {/* Analytics Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -1020,6 +1088,8 @@ export function TutorManagementPage() {
             </div>
           </div>
         </Modal>
+      )}
+        </>
       )}
     </div>
   );

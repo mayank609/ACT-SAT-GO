@@ -91,8 +91,11 @@ export async function GET(request: NextRequest) {
           grade: perms.grade ?? null,
           targetScore: perms.targetScore ?? null,
           targetDate: perms.targetDate ?? null,
-          specialization: perms.specialization ?? [],
-          ...(canSeeHourlyRate ? { hourlyRate: perms.hourlyRate ?? null } : {}),
+          ...(canSeeHourlyRate ? {
+            hourlyRate: perms.hourlyRate ?? null,
+            salarySettlements: perms.salarySettlements ?? [],
+            paidSessionIds: perms.paidSessionIds ?? [],
+          } : {}),
           phone: perms.phone ?? null,
           parentPhone: perms.parentPhone ?? null,
           dob: perms.dob ?? null,

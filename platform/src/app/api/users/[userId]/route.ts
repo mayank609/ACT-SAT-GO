@@ -68,8 +68,11 @@ export async function GET(
         grade: perms.grade ?? null,
         targetScore: perms.targetScore ?? null,
         targetDate: perms.targetDate ?? null,
-        specialization: perms.specialization ?? [],
-        ...(canSeeHourlyRate ? { hourlyRate: perms.hourlyRate ?? null } : {}),
+        ...(canSeeHourlyRate ? {
+          hourlyRate: perms.hourlyRate ?? null,
+          salarySettlements: perms.salarySettlements ?? [],
+          paidSessionIds: perms.paidSessionIds ?? [],
+        } : {}),
         phone: perms.phone ?? null,
         parentPhone: perms.parentPhone ?? null,
         dob: perms.dob ?? null,
@@ -154,6 +157,7 @@ export async function PATCH(
       board, timezone, firstClassDate, programVariant, mockVariant,
       accommodation, stage, onboarded,
       manualDiagTotal, manualDiagRW, manualDiagMath, hourlyRate,
+      salarySettlements, paidSessionIds,
     } = body as {
       name?: string
       email?: string
@@ -182,6 +186,8 @@ export async function PATCH(
       manualDiagRW?: number | null
       manualDiagMath?: number | null
       hourlyRate?: number | null
+      salarySettlements?: any[]
+      paidSessionIds?: string[]
     }
 
     const existing = await prisma.user.findUnique({ where: { id: userId } })
@@ -260,6 +266,8 @@ export async function PATCH(
     // Compensation data — only an admin/super-admin may set this, never the tutor
     // editing their own profile (the self-edit path above allows requester.id === userId).
     if (isAdmin && hourlyRate !== undefined) permissions.hourlyRate = hourlyRate
+    if (isAdmin && salarySettlements !== undefined) permissions.salarySettlements = salarySettlements
+    if (isAdmin && paidSessionIds !== undefined) permissions.paidSessionIds = paidSessionIds
 
     const updateData: any = { permissions: permissions as any }
     if (name !== undefined) updateData.name = name
@@ -317,7 +325,11 @@ export async function PATCH(
         targetScore: permissions.targetScore ?? null,
         targetDate: permissions.targetDate ?? null,
         specialization: permissions.specialization ?? [],
-        ...(isAdmin ? { hourlyRate: permissions.hourlyRate ?? null } : {}),
+        ...(isAdmin ? {
+          hourlyRate: permissions.hourlyRate ?? null,
+          salarySettlements: permissions.salarySettlements ?? [],
+          paidSessionIds: permissions.paidSessionIds ?? [],
+        } : {}),
         phone: permissions.phone ?? null,
         parentPhone: permissions.parentPhone ?? null,
         dob: permissions.dob ?? null,

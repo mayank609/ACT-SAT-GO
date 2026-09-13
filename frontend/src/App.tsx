@@ -26,7 +26,6 @@ const StudentDoubtsAdminPage = lazy(() => import('./pages/admin/StudentDoubtsAdm
 const StudentMistakesPage = lazy(() => import('./pages/admin/StudentMistakesPage').then((m) => ({ default: m.StudentMistakesPage })));
 const SkillsManagementPage = lazy(() => import('./pages/admin/SkillsManagementPage').then((m) => ({ default: m.SkillsManagementPage })));
 const AdminAttendancePage = lazy(() => import('./pages/admin/AdminAttendancePage').then((m) => ({ default: m.AdminAttendancePage })));
-const AdminTeacherSalaryPage = lazy(() => import('./pages/admin/AdminTeacherSalaryPage').then((m) => ({ default: m.AdminTeacherSalaryPage })));
 const AdminFreeTestLeadsPage = lazy(() => import('./pages/admin/AdminFreeTestLeadsPage').then((m) => ({ default: m.AdminFreeTestLeadsPage })));
 
 // Tutor pages
@@ -146,8 +145,8 @@ const router = createBrowserRouter(
         <Route path="leads" element={<Navigate to="/free-test-leads" replace />} />
         <Route path="free-tests" element={<Navigate to="/free-test-leads" replace />} />
         <Route path="tutors" element={<TutorManagementPage />} />
-        <Route path="teacher-salaries" element={<AdminTeacherSalaryPage />} />
-        <Route path="salaries" element={<Navigate to="/teacher-salaries" replace />} />
+        <Route path="teacher-salaries" element={<Navigate to="/tutors?tab=salaries" replace />} />
+        <Route path="salaries" element={<Navigate to="/tutors?tab=salaries" replace />} />
         <Route path="monitoring" element={<MonitoringPage />} />
 
         {/* Admin new pages */}

@@ -5,7 +5,7 @@ import {
   LogOut, GraduationCap, ClipboardList, ChevronLeft, ChevronRight, X,
   Activity, UserCheck, Database, LifeBuoy, ChevronDown,
   AlertCircle, HelpCircle, PieChart, BookMarked, CalendarCheck, TrendingUp,
-  Banknote, FileCheck2, Sparkles
+  FileCheck2, Sparkles
 } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -57,7 +57,6 @@ const adminNavItems: NavItem[] = [
   { label: 'Free Test Leads', path: '/free-test-leads', icon: <FileCheck2 size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'My Students', path: '/my-students', icon: <GraduationCap size={18} />, roles: ['tutor'] },
   { label: 'Session Log', path: '/attendance', icon: <CalendarCheck size={18} />, roles: ['super_admin', 'admin', 'tutor'] },
-  { label: 'Teacher Salaries', path: '/teacher-salaries', icon: <Banknote size={18} />, roles: ['super_admin'] },
   { label: 'Tutors', path: '/tutors', icon: <UserCheck size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Test Builder', path: '/tests', icon: <ClipboardList size={18} />, roles: ['super_admin', 'admin'] },
   { label: 'Question Bank', path: '/question-bank', icon: <Database size={18} />, roles: ['super_admin', 'admin'] },
