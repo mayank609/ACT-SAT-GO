@@ -1343,8 +1343,28 @@ export function TestInterfacePage() {
       </header>
 
       {/* Practice-test banner */}
-      <div className="flex-shrink-0 bg-[#1e2150] text-white text-center text-[12px] font-semibold tracking-wide py-1.5 z-10">
-        THIS IS A PRACTICE TEST
+      <div className="flex-shrink-0 bg-[#1e2150] text-white text-center text-[12px] font-semibold tracking-wide py-1.5 z-10 flex items-center justify-center relative px-4">
+        <span>{isPreview ? 'PREVIEW MODE (TUTOR / ADMIN VIEW)' : 'THIS IS A PRACTICE TEST'}</span>
+        {isPreview && (
+          <button
+            onClick={() => {
+              allowNavigationAwayRef.current = true;
+              setAllowNavigationAway(true);
+              clearAttempt();
+              if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+              if (user?.role === 'tutor') {
+                navigate('/my-students');
+              } else if (user?.role === 'admin') {
+                navigate('/tests');
+              } else {
+                navigate(-1);
+              }
+            }}
+            className="absolute right-4 text-xs bg-white/20 hover:bg-white/30 text-white px-2.5 py-0.5 rounded transition-colors font-normal"
+          >
+            Exit Preview
+          </button>
+        )}
       </div>
 
       {/* ── CONTENT ──────────────────────────────────────────────────────────── */}
@@ -2382,7 +2402,15 @@ export function TestInterfacePage() {
               clearAttempt();
               if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
               if (blocker.state === 'blocked') blocker.proceed();
-              else navigate(isPreview ? '/tests' : '/dashboard');
+              else {
+                if (isPreview) {
+                  if (user?.role === 'tutor') navigate('/my-students');
+                  else if (user?.role === 'admin') navigate('/tests');
+                  else navigate(-1);
+                } else {
+                  navigate('/dashboard');
+                }
+              }
             }}>
               Exit Anyway
             </Button>

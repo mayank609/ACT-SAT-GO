@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Timer, BarChart3, LifeBuoy, Laptop, CheckCircle2, Play, Loader2 } from 'lucide-react';
+import { Timer, BarChart3, LifeBuoy, Laptop, CheckCircle2, Play, Loader2, ChevronLeft } from 'lucide-react';
 import { useTestStore } from '../../store/useTestStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../lib/api';
@@ -252,7 +252,7 @@ export function TestInstructionsPage() {
   const { startAttempt } = useTestStore();
   const { dbId } = useAuthStore();
 
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(isPreview);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [test, setTest] = useState<Test | null>(null);
@@ -335,11 +335,19 @@ export function TestInstructionsPage() {
   return (
     <div className="h-screen bg-gray-50 flex flex-col px-4 py-4 overflow-hidden">
       {/* Page header */}
-      <div className="text-center mb-3 flex-shrink-0">
-        <h1 className="text-2xl font-bold text-[#1b3d6e]">{test.title}</h1>
-        <p className="mt-1 text-gray-500 text-sm">
-          Please read the instructions carefully before starting the test.
-        </p>
+      <div className="relative text-center mb-3 flex-shrink-0 flex items-center justify-center">
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute left-4 top-1/2 -translate-y-1/2 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+        >
+          <ChevronLeft size={14} /> Back
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-[#1b3d6e]">{test.title}</h1>
+          <p className="mt-1 text-gray-500 text-sm">
+            {isPreview ? 'Previewing test questions and structure.' : 'Please read the instructions carefully before starting the test.'}
+          </p>
+        </div>
       </div>
 
       {/* 2×2 grid of instruction cards */}
@@ -375,9 +383,10 @@ export function TestInstructionsPage() {
             className="mt-0.5 rounded border-gray-300 text-[#1b3d6e] focus:ring-[#1b3d6e] cursor-pointer flex-shrink-0 accent-[#1b3d6e]"
           />
           <p className="text-xs text-gray-600 leading-relaxed">
-            I have read and understood all the instructions above. I declare that I am not in
-            possession of any prohibited materials and agree that any violation shall make me
-            liable for disciplinary action.
+            {isPreview
+              ? 'I understand I am opening this test in Preview Mode.'
+              : 'I have read and understood all the instructions above. I declare that I am not in possession of any prohibited materials and agree that any violation shall make me liable for disciplinary action.'
+            }
           </p>
         </label>
         <button
@@ -391,7 +400,7 @@ export function TestInstructionsPage() {
         >
           {starting
             ? <><Loader2 size={15} className="animate-spin" /> Starting…</>
-            : <><Play size={15} /> Start Test</>
+            : <><Play size={15} /> {isPreview ? 'Open Test Questions' : 'Start Test'}</>
           }
         </button>
       </div>

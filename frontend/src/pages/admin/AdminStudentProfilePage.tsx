@@ -1118,7 +1118,14 @@ export function AdminStudentProfilePage() {
                           <td className="px-4 py-3 text-xs text-slate-400">{idx + 1}</td>
                           <td className="px-4 py-3">
                             <div>
-                              <p className="font-semibold text-slate-900 text-sm">{item.title}</p>
+                              <button
+                                onClick={() => navigate(`/test-instructions/${item.testId}?preview=true`)}
+                                className="text-left font-semibold text-slate-900 text-sm hover:text-blue-700 hover:underline flex items-center gap-1.5 group"
+                                title="Open / Preview this test"
+                              >
+                                <span>{item.title}</span>
+                                <Eye size={13} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </button>
                               <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
                                 {totalQs > 0 && <span>{totalQs} questions</span>}
                                 {totalMins > 0 && <span>• {totalMins} mins</span>}
@@ -1147,13 +1154,20 @@ export function AdminStudentProfilePage() {
                           </td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => navigate(`/test-instructions/${item.testId}?preview=true`)}
+                                className="px-2.5 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                                title="Open and preview test questions"
+                              >
+                                <Eye size={12} /> Open
+                              </button>
                               {(item.status === 'Completed' || item.submittedAttemptId || item.latestAttemptId) && (
                                 <button
                                   onClick={() => navigate(`/test-review/${item.submittedAttemptId || item.latestAttemptId}`)}
                                   className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 flex items-center gap-1"
                                   title="Review attempt"
                                 >
-                                  <Eye size={12} /> Review
+                                  Review
                                 </button>
                               )}
                               <button

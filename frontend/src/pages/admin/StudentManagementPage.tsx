@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { fmtSec, localDateTimeToISO, isoToLocalDateTimeInput, formatDate, formatDateTime } from '../../lib/utils';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Trash, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark, TrendingUp, CalendarClock, UserMinus } from 'lucide-react';
+import { Plus, Upload, UserPlus, CheckCircle, AlertCircle, FileText, Download, Pencil, Trash2, Trash, Copy, KeyRound, Phone, School, User2, Loader2, Clock, ChevronLeft, ChevronRight, XCircle, Maximize2, X, ChevronDown, ChevronUp, Info, BookOpen, Boxes, Bookmark, TrendingUp, CalendarClock, UserMinus, Eye } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -463,6 +463,8 @@ export function StudentManagementPage() {
     dueDate?: string | null;
     assignmentId?: string;
     testId?: string;
+    submittedAttemptId?: string;
+    latestAttemptId?: string;
   }>>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportFilter, setReportFilter] = useState<'all' | 'mock' | 'diagnostic' | 'hw_math' | 'hw_reading' | 'hw_writing' | 'practice_math' | 'practice_reading' | 'practice_writing'>('all');
@@ -601,6 +603,8 @@ export function StudentManagementPage() {
           dueDate: a.dueDate ?? null,
           assignmentId: a.assignmentId as string,
           testId: a.testId as string,
+          submittedAttemptId: a.submittedAttemptId as string | undefined,
+          latestAttemptId: a.latestAttemptId as string | undefined,
         }));
       const rows = attempts
         .filter((a): a is TaAttempt => !!a)
@@ -1505,7 +1509,16 @@ export function StudentManagementPage() {
                             return (
                               <tr key={r.id} className={`border-b border-slate-200 ${i % 2 === 1 ? 'bg-slate-50/70' : ''}`}>
                                 <td className="px-4 py-4 text-slate-500 whitespace-nowrap border-r border-slate-100">{i + 1}</td>
-                                <td className="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap border-r border-slate-100">{r.title}</td>
+                                <td className="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap border-r border-slate-100">
+                                  <button
+                                    onClick={() => navigate(`/test-instructions/${r.testId}?preview=true`)}
+                                    className="text-left font-semibold text-blue-700 hover:text-blue-900 hover:underline flex items-center gap-1.5 group"
+                                    title="Open / Preview this test"
+                                  >
+                                    <span>{r.title}</span>
+                                    <Eye size={13} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </button>
+                                </td>
                                 <td className="px-4 py-4 text-center text-xs text-slate-500 whitespace-nowrap border-r border-slate-100">
                                   {r.dueDate ? formatDate(r.dueDate) : 'No due date'}
                                 </td>
@@ -1515,24 +1528,42 @@ export function StudentManagementPage() {
                                   </span>
                                 </td>
                                 <td className="px-4 py-4 text-center whitespace-nowrap">
-                                  {r.assignmentId && (
-                                    <div className="flex items-center justify-center gap-1.5">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={() => navigate(`/test-instructions/${r.testId}?preview=true`)}
+                                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+                                      title="Open and preview test questions"
+                                    >
+                                      <Eye size={12} /> Open
+                                    </button>
+                                    {r.submittedAttemptId && (
                                       <button
-                                        onClick={() => { setRescheduleTarget({ assignmentId: r.assignmentId!, title: r.title }); setRescheduleValue(isoToLocalDateTimeInput(r.dueDate)); }}
-                                        className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
-                                        title="Change deadline"
+                                        onClick={() => navigate(`/test-review/${r.submittedAttemptId}`)}
+                                        className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                                        title="Review student attempt"
                                       >
-                                        <CalendarClock size={12} /> Reschedule
+                                        Review
                                       </button>
-                                      <button
-                                        onClick={() => setUnassignTarget({ id: r.id, assignmentId: r.assignmentId!, title: r.title })}
-                                        className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
-                                        title="Unassign this test"
-                                      >
-                                        <UserMinus size={12} /> Unassign
-                                      </button>
-                                    </div>
-                                  )}
+                                    )}
+                                    {r.assignmentId && (
+                                      <>
+                                        <button
+                                          onClick={() => { setRescheduleTarget({ assignmentId: r.assignmentId!, title: r.title }); setRescheduleValue(isoToLocalDateTimeInput(r.dueDate)); }}
+                                          className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                          title="Change deadline"
+                                        >
+                                          <CalendarClock size={12} /> Reschedule
+                                        </button>
+                                        <button
+                                          onClick={() => setUnassignTarget({ id: r.id, assignmentId: r.assignmentId!, title: r.title })}
+                                          className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                          title="Unassign this test"
+                                        >
+                                          <UserMinus size={12} /> Unassign
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );

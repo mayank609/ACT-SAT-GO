@@ -842,6 +842,14 @@ export function TutorDashboard() {
                             {a.status.toUpperCase()}
                           </span>
 
+                          <button
+                            onClick={() => navigate(`/test-instructions/${a.testId}?preview=true`)}
+                            className="px-2 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                            title="Open and preview test"
+                          >
+                            <Eye size={12} /> Open
+                          </button>
+
                           <Link
                             to={`/student/${a.studentId}`}
                             className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
