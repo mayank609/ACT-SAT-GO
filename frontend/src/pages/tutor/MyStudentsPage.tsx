@@ -705,20 +705,12 @@ export function MyStudentsPage() {
               const engSections = analyticsResp.sectionStats.filter((s: any) => /reading|writing|rw|english/i.test(s.sectionName));
               const mathSections = analyticsResp.sectionStats.filter((s: any) => /math/i.test(s.sectionName));
               if (engSections.length > 0) {
-                diagnosticsEnglish = engSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
-                rawScoreEnglish = diagnosticsEnglish;
+                rawScoreEnglish = engSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
               }
               if (mathSections.length > 0) {
-                diagnosticsMath = mathSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
-                rawScoreMath = diagnosticsMath;
+                rawScoreMath = mathSections.reduce((sum: number, s: any) => sum + (s.correct || 0), 0);
               }
             }
-
-            // No per-subject fallback here: analyticsResp.latestScore may be a composite
-            // Mock score or a raw Practice/HW count, and halving either one to fill in
-            // English/Math produces a number with no real meaning. Leave them null (used
-            // only for the "Sort by Diagnostics" comparator) until real per-subject data
-            // is available above.
 
             const hwAttempts = studentAttempts.filter((a: any) => {
               const t = (a.test?.title ?? '').toLowerCase();
@@ -726,11 +718,12 @@ export function MyStudentsPage() {
             });
             const practiceAttempts = studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('practice'));
 
-            // Find the latest diagnostic or mock attempt and compute SAT scaled scores
-            const scoringAttempt = studentAttempts
+            // Find the student's genuine diagnostic attempt specifically (NOT mock or practice tests)
+            const diagAttempt = studentAttempts
               .filter((a: any) => {
+                const cat = (a.test?.category ?? '').toLowerCase();
                 const t = (a.test?.title ?? '').toLowerCase();
-                return t.includes('diagnostic') || t.includes('mock');
+                return a.isDiagnostic === true || cat === 'diagnostic' || cat.includes('diagnostic') || t.includes('diagnostic');
               })
               .sort((a: any, b: any) =>
                 new Date(b.submittedAt ?? b.completedAt ?? b.startedAt ?? 0).getTime() -
@@ -741,9 +734,9 @@ export function MyStudentsPage() {
             let scaledScoreEnglish: number | null = null;
             let scaledScoreMath: number | null = null;
 
-            if (scoringAttempt) {
+            if (diagAttempt) {
               try {
-                const fullAttempt = (await api.getAttempt(scoringAttempt.id)) as any;
+                const fullAttempt = (await api.getAttempt(diagAttempt.id)) as any;
                 if (fullAttempt?.attempt) {
                   const analysis = computeTestAnalysis(fullAttempt.attempt);
                   if (analysis.finalScaledScore > 0) {
@@ -751,9 +744,15 @@ export function MyStudentsPage() {
                     scaledScoreEnglish = analysis.rwScaled || null;
                     scaledScoreMath = analysis.mathScaled || null;
                   }
+                  diagnosticsEnglish = (analysis.rw1Correct || 0) + (analysis.rw2Correct || 0);
+                  diagnosticsMath = (analysis.math1Correct || 0) + (analysis.math2Correct || 0);
+                } else if (diagAttempt.totalScore != null) {
+                  scaledScoreTotal = diagAttempt.totalScore;
                 }
               } catch {
-                // scaled scores remain null
+                if (diagAttempt.totalScore != null) {
+                  scaledScoreTotal = diagAttempt.totalScore;
+                }
               }
             }
 
@@ -809,7 +808,7 @@ export function MyStudentsPage() {
 
       setStudentAnalysisData(allStudentData);
       try {
-        sessionStorage.setItem('tutorAnalysisCache', JSON.stringify({ data: allStudentData, ts: Date.now() }));
+        sessionStorage.setItem('tutorAnalysisCache_v3', JSON.stringify({ data: allStudentData, ts: Date.now() }));
       } catch {}
     } finally {
       setAnalysisLoading(false);
@@ -822,7 +821,7 @@ export function MyStudentsPage() {
   useEffect(() => {
     if (mainView !== 'analysis' || students.length === 0 || studentAnalysisData.length > 0) return;
     try {
-      const cached = JSON.parse(sessionStorage.getItem('tutorAnalysisCache') ?? 'null');
+      const cached = JSON.parse(sessionStorage.getItem('tutorAnalysisCache_v3') ?? 'null');
       if (cached && Date.now() - cached.ts < 5 * 60 * 1000) {
         setStudentAnalysisData(cached.data);
         return;
