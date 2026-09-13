@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { fmtSec, formatDate, formatDateTime } from '../../lib/utils';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { fmtSec, formatDate, formatDateTime, localDateTimeToISO, isoToLocalDateTimeInput } from '../../lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Target, TrendingUp, Clock, Phone, School, Calendar,
   User2, Mail, Pencil, Trash2, CheckCircle, X, Save, MessageSquare, PlusCircle,
   AlertTriangle, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, XCircle, Maximize2,
-  KeyRound, Copy,
+  KeyRound, Copy, GraduationCap, Eye, CalendarClock, UserMinus, BookOpenCheck, Search, RefreshCw, Sparkles, FileText,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -318,7 +318,36 @@ interface Analytics {
 }
 
 interface Note { id: string; text: string; createdAt: string; author: string }
-interface DbTest { id: string; title: string; status: string; category?: string; sections: unknown[] }
+interface DbTest { id: string; title: string; status: string; category?: string; subCategory?: string; sections: unknown[] }
+
+export interface AssignedTestItem {
+  assignmentId: string;
+  testId: string;
+  title: string;
+  description?: string;
+  category?: string;
+  subCategory?: string;
+  dueDate?: string;
+  availableFrom?: string;
+  availableUntil?: string;
+  availabilityState: 'upcoming' | 'open' | 'expired';
+  status: 'Not Started' | 'In Progress' | 'Completed' | 'Expired';
+  completionStatus: 'Submitted' | 'In Progress' | 'Pending';
+  usedAttempts: number;
+  remainingAttempts: number;
+  maxAttempts: number;
+  latestAttemptId?: string | null;
+  inProgressAttemptId?: string | null;
+  submittedAttemptId?: string | null;
+  sections: Array<{
+    id: string;
+    name: string;
+    durationMinutes: number;
+    _count?: { questions: number };
+  }>;
+  totalQuestions?: number;
+  answeredCount?: number;
+}
 
 // Test Builder tags homework as subCategory "{Subject}-Homework" (e.g. "Math-Homework"),
 // which does NOT contain the substring "hw" — match on "homework" instead.
@@ -366,6 +395,19 @@ export function AdminStudentProfilePage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Assigned Homework & Tests state
+  const [assignedTests, setAssignedTests] = useState<AssignedTestItem[]>([]);
+  const [assignedLoading, setAssignedLoading] = useState(true);
+  const [assignedFilter, setAssignedFilter] = useState<'all' | 'homework' | 'mock' | 'practice' | 'pending' | 'completed'>('all');
+  const [assignedSearch, setAssignedSearch] = useState('');
+
+  // Reschedule & Unassign states
+  const [rescheduleTarget, setRescheduleTarget] = useState<{ assignmentId: string; title: string } | null>(null);
+  const [rescheduleValue, setRescheduleValue] = useState('');
+  const [rescheduleSaving, setRescheduleSaving] = useState(false);
+  const [unassignTarget, setUnassignTarget] = useState<{ assignmentId: string; title: string } | null>(null);
+  const [unassignSaving, setUnassignSaving] = useState(false);
+
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', parentPhone: '', dob: '', schoolName: '', grade: '', targetScore: '', targetDate: '', tutorIds: [] as string[] });
   const [editSaving, setEditSaving] = useState(false);
@@ -403,6 +445,19 @@ export function AdminStudentProfilePage() {
   const [showFullscreenPalette, setShowFullscreenPalette] = useState(false);
   const [showQuestionNavigator, setShowQuestionNavigator] = useState(false);
 
+  const fetchAssigned = useCallback(async () => {
+    if (!id) return;
+    setAssignedLoading(true);
+    try {
+      const res = await api.getAssignedTests(id);
+      setAssignedTests((res.assignedTests ?? []) as AssignedTestItem[]);
+    } catch (err) {
+      console.error('Failed to load assigned tests:', err);
+    } finally {
+      setAssignedLoading(false);
+    }
+  }, [id]);
+
   // Lock scroll on both html and body when the fullscreen question report is
   // open — otherwise the background page scrolls along with the panel and
   // its content bleeds through once the panel hits its own scroll boundary.
@@ -427,6 +482,7 @@ export function AdminStudentProfilePage() {
       api.getStudentAnalytics(id),
       api.getAllTests(),
       api.getUsersByRole('TUTOR'),
+      fetchAssigned(),
     ]).then(([u, a, t, tu]) => {
       const s = u.user;
       setStudent(s);
@@ -450,7 +506,159 @@ export function AdminStudentProfilePage() {
 
     // Load notes without blocking page
     api.getNotes('admin', id).then((r) => setNotes(r.notes)).catch(() => {});
-  }, [id]);
+  }, [id, fetchAssigned]);
+
+  const openAssignHomework = () => {
+    setAssignFilter('Practice Sheet');
+    setAssignSubFilter('HW');
+    setAssignOpen(true);
+  };
+
+  // Filtered assigned tests
+  const filteredAssignedTests = useMemo(() => {
+    return assignedTests.filter((test) => {
+      const title = (test.title || '').toLowerCase();
+      const cat = (test.category || '').toLowerCase();
+      const sub = (test.subCategory || '').toLowerCase();
+      const testIsHw = isHW(test) || sub.includes('homework') || title.includes('homework') || /\bhw\b/.test(title);
+      const testIsMock = cat.includes('mock') || cat.includes('diagnostic') || title.includes('mock') || title.includes('diagnostic');
+      const testIsPractice = cat.includes('practice') || sub.includes('practice') || title.includes('practice') || (!testIsHw && !testIsMock);
+
+      if (assignedFilter === 'homework' && !testIsHw) return false;
+      if (assignedFilter === 'mock' && !testIsMock) return false;
+      if (assignedFilter === 'practice' && !testIsPractice) return false;
+      if (assignedFilter === 'pending' && test.status !== 'Not Started' && test.status !== 'In Progress') return false;
+      if (assignedFilter === 'completed' && test.status !== 'Completed') return false;
+
+      if (assignedSearch.trim()) {
+        const q = assignedSearch.toLowerCase().trim();
+        return title.includes(q) || cat.includes(q) || sub.includes(q);
+      }
+      return true;
+    });
+  }, [assignedTests, assignedFilter, assignedSearch]);
+
+  const assignedCounts = useMemo(() => {
+    return {
+      all: assignedTests.length,
+      homework: assignedTests.filter(t => isHW(t) || (t.subCategory ?? '').toLowerCase().includes('homework') || t.title.toLowerCase().includes('homework') || /\bhw\b/i.test(t.title)).length,
+      mock: assignedTests.filter(t => (t.category ?? '').toLowerCase().includes('mock') || (t.category ?? '').toLowerCase().includes('diagnostic') || t.title.toLowerCase().includes('mock') || t.title.toLowerCase().includes('diagnostic')).length,
+      practice: assignedTests.filter(t => (t.category ?? '').toLowerCase().includes('practice') || t.title.toLowerCase().includes('practice')).length,
+      pending: assignedTests.filter(t => t.status === 'Not Started' || t.status === 'In Progress').length,
+      inProgress: assignedTests.filter(t => t.status === 'In Progress').length,
+      completed: assignedTests.filter(t => t.status === 'Completed').length,
+      expired: assignedTests.filter(t => t.status === 'Expired').length,
+    };
+  }, [assignedTests]);
+
+  const handleReschedule = async () => {
+    if (!rescheduleTarget) return;
+    setRescheduleSaving(true);
+    try {
+      const iso = localDateTimeToISO(rescheduleValue);
+      await api.rescheduleTestAssignment(rescheduleTarget.assignmentId, iso);
+      toast.success(`Due date updated for "${rescheduleTarget.title}".`);
+      setRescheduleTarget(null);
+      fetchAssigned();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reschedule.');
+    } finally {
+      setRescheduleSaving(false);
+    }
+  };
+
+  const handleUnassign = async () => {
+    if (!unassignTarget) return;
+    setUnassignSaving(true);
+    try {
+      await api.unassignTest(unassignTarget.assignmentId);
+      toast.success(`"${unassignTarget.title}" unassigned.`);
+      setUnassignTarget(null);
+      fetchAssigned();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to unassign.');
+    } finally {
+      setUnassignSaving(false);
+    }
+  };
+
+  const formatTestDueDate = (due?: string) => {
+    if (!due) return { label: 'No due date', style: 'text-slate-400 bg-slate-50 border-slate-200' };
+    const d = new Date(due);
+    if (isNaN(d.getTime())) return { label: 'No due date', style: 'text-slate-400 bg-slate-50 border-slate-200' };
+    const now = new Date();
+    const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return { label: `Expired ${Math.abs(diffDays)}d ago`, style: 'text-rose-700 bg-rose-50 border-rose-200 font-semibold' };
+    } else if (diffDays === 0) {
+      return { label: 'Due Today', style: 'text-amber-700 bg-amber-50 border-amber-200 font-semibold' };
+    } else if (diffDays === 1) {
+      return { label: 'Due Tomorrow', style: 'text-blue-700 bg-blue-50 border-blue-200 font-semibold' };
+    } else if (diffDays <= 7) {
+      return { label: `Due in ${diffDays} days (${formatDate(d)})`, style: 'text-slate-700 bg-slate-50 border-slate-200' };
+    } else {
+      return { label: `Due ${formatDate(d)}`, style: 'text-slate-600 bg-slate-50 border-slate-200' };
+    }
+  };
+
+  const getTestBadge = (test: AssignedTestItem) => {
+    const isHomework = isHW(test) || (test.subCategory ?? '').toLowerCase().includes('homework') || test.title.toLowerCase().includes('homework') || /\bhw\b/i.test(test.title);
+    const isMathTest = isMath(test);
+    const isEngTest = isEnglish(test);
+
+    if (isHomework) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+          <BookOpenCheck size={12} className="text-amber-600" />
+          {isMathTest ? 'Math HW' : isEngTest ? 'R&W HW' : 'Homework'}
+        </span>
+      );
+    }
+    if ((test.category ?? '').toLowerCase() === 'mock' || test.title.toLowerCase().includes('mock')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <Target size={12} className="text-blue-600" />
+          Mock Test
+        </span>
+      );
+    }
+    if ((test.category ?? '').toLowerCase() === 'diagnostic' || test.title.toLowerCase().includes('diagnostic')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+          <Sparkles size={12} className="text-purple-600" />
+          Diagnostic
+        </span>
+      );
+    }
+    if ((test.category ?? '').toLowerCase() === 'sectional' || test.title.toLowerCase().includes('sectional')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <BookOpen size={12} className="text-emerald-600" />
+          Sectional
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+        <FileText size={12} className="text-slate-500" />
+        {test.category || 'Practice Sheet'}
+      </span>
+    );
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Completed':
+        return <Badge variant="success">Completed</Badge>;
+      case 'In Progress':
+        return <Badge variant="info">In Progress</Badge>;
+      case 'Expired':
+        return <Badge variant="danger">Expired</Badge>;
+      default:
+        return <Badge variant="warning">Not Started</Badge>;
+    }
+  };
 
   const handleSaveEdit = async () => {
     if (!id) return;
@@ -805,6 +1013,176 @@ export function AdminStudentProfilePage() {
               </ResponsiveContainer>
             </div>
           )}
+
+          {/* ── Assigned Homework & Tests ── */}
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
+            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900">Assigned Homework &amp; Tests</h3>
+                  <Badge variant="default">{assignedTests.length}</Badge>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Track real-time progress, completion statuses, deadlines, and review student attempts.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" icon={<GraduationCap size={13} />} onClick={openAssignHomework}>
+                  Assign HW
+                </Button>
+                <Button size="sm" icon={<BookOpen size={13} />} onClick={() => { setAssignOpen(true); setAssignFilter('All'); setAssignSearch(''); setSelectedTestIds([]); }}>
+                  Assign Test
+                </Button>
+              </div>
+            </div>
+
+            {/* Filter Pills & Search */}
+            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { key: 'all', label: 'All', count: assignedCounts.all },
+                  { key: 'homework', label: 'Homework', count: assignedCounts.homework },
+                  { key: 'mock', label: 'Mock / Diag', count: assignedCounts.mock },
+                  { key: 'practice', label: 'Practice Sheets', count: assignedCounts.practice },
+                  { key: 'pending', label: 'Pending', count: assignedCounts.pending },
+                  { key: 'completed', label: 'Completed', count: assignedCounts.completed },
+                ].map((tab) => {
+                  const active = assignedFilter === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setAssignedFilter(tab.key as any)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                        active ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/70'
+                      }`}
+                    >
+                      {tab.label}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                        active ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search assigned tests..."
+                  value={assignedSearch}
+                  onChange={(e) => setAssignedSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+            </div>
+
+            {/* Assigned list */}
+            {assignedLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
+                <RefreshCw size={20} className="animate-spin text-blue-600" />
+                <p className="text-xs">Loading assigned tests &amp; homework...</p>
+              </div>
+            ) : filteredAssignedTests.length === 0 ? (
+              <div className="py-12 px-4 text-center">
+                <BookOpenCheck size={32} className="text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-700">No assigned tests or homework found</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {assignedSearch ? 'No tests match your search filter.' : 'Assign a homework or test using the buttons above.'}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-xs font-semibold">
+                      <th className="px-4 py-3 text-left">#</th>
+                      <th className="px-4 py-3 text-left">Test / Homework Name</th>
+                      <th className="px-4 py-3 text-center">Type</th>
+                      <th className="px-4 py-3 text-center">Due Date</th>
+                      <th className="px-4 py-3 text-center">Status</th>
+                      <th className="px-4 py-3 text-center">Attempts</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredAssignedTests.map((item, idx) => {
+                      const dueInfo = formatTestDueDate(item.dueDate);
+                      const totalQs = item.sections?.reduce((acc, s) => acc + (s._count?.questions ?? 0), 0) || item.totalQuestions || 0;
+                      const totalMins = item.sections?.reduce((acc, s) => acc + s.durationMinutes, 0) || 0;
+
+                      return (
+                        <tr key={item.assignmentId} className="hover:bg-blue-50/30 transition-colors group">
+                          <td className="px-4 py-3 text-xs text-slate-400">{idx + 1}</td>
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="font-semibold text-slate-900 text-sm">{item.title}</p>
+                              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                                {totalQs > 0 && <span>{totalQs} questions</span>}
+                                {totalMins > 0 && <span>• {totalMins} mins</span>}
+                                {item.description && <span className="truncate max-w-xs">• {item.description}</span>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            {getTestBadge(item)}
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <span className={`inline-block px-2 py-0.5 rounded text-xs border ${dueInfo.style}`}>
+                              {dueInfo.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            {getStatusBadge(item.status)}
+                          </td>
+                          <td className="px-4 py-3 text-center text-xs whitespace-nowrap">
+                            <span className="font-medium text-slate-700">
+                              {item.usedAttempts} / {item.maxAttempts}
+                            </span>
+                            <span className="text-slate-400 block text-[10px]">
+                              {item.status === 'Completed' ? 'Submitted' : `${item.remainingAttempts} left`}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {(item.status === 'Completed' || item.submittedAttemptId || item.latestAttemptId) && (
+                                <button
+                                  onClick={() => navigate(`/test-review/${item.submittedAttemptId || item.latestAttemptId}`)}
+                                  className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 flex items-center gap-1"
+                                  title="Review attempt"
+                                >
+                                  <Eye size={12} /> Review
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setRescheduleTarget({ assignmentId: item.assignmentId, title: item.title });
+                                  setRescheduleValue(isoToLocalDateTimeInput(item.dueDate));
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                title="Reschedule due date"
+                              >
+                                <CalendarClock size={14} />
+                              </button>
+                              <button
+                                onClick={() => setUnassignTarget({ assignmentId: item.assignmentId, title: item.title })}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200"
+                                title="Unassign this test/homework"
+                              >
+                                <UserMinus size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
 
           {/* Test history */}
           <div className="bg-white rounded-xl border border-slate-100">
@@ -1376,6 +1754,7 @@ export function AdminStudentProfilePage() {
                 setAssignFilter('All');
                 setAssignSubFilter('All');
                 setAssignSearch('');
+                fetchAssigned();
               } catch (e) {
                 toast.error((e as Error).message || 'Failed to assign tests');
               } finally {
@@ -1491,6 +1870,66 @@ export function AdminStudentProfilePage() {
               </>
             );
           })()}
+        </div>
+      </Modal>
+
+      {/* ── Reschedule Assignment Modal ── */}
+      <Modal
+        isOpen={!!rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        title="Reschedule Test / Homework"
+        size="sm"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setRescheduleTarget(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleReschedule} disabled={rescheduleSaving}>
+              {rescheduleSaving ? 'Saving...' : 'Save New Deadline'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Set a new due date and time for <strong>"{rescheduleTarget?.title}"</strong> assigned to <strong>{student.name}</strong>.
+          </p>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Due Date &amp; Time</label>
+            <input
+              type="datetime-local"
+              value={rescheduleValue}
+              onChange={(e) => setRescheduleValue(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Unassign Confirmation Modal ── */}
+      <Modal
+        isOpen={!!unassignTarget}
+        onClose={() => setUnassignTarget(null)}
+        title="Unassign Test / Homework"
+        size="sm"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setUnassignTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleUnassign} disabled={unassignSaving}>
+              {unassignSaving ? 'Unassigning...' : 'Unassign'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          <p className="text-sm text-slate-600">
+            Are you sure you want to unassign <strong>"{unassignTarget?.title}"</strong> from <strong>{student.name}</strong>?
+          </p>
+          <p className="text-xs text-slate-400">
+            The student will no longer see this test or homework on their assigned test list.
+          </p>
         </div>
       </Modal>
 

@@ -4,13 +4,15 @@ import {
   Users, AlertTriangle, ChevronRight, Target, Shield, Eye,
   RefreshCw, AlertCircle, Clock, Activity, FileText,
   CalendarDays, Sparkles, BarChart3, ArrowRight, Loader2,
-  HelpCircle, ClipboardList
+  HelpCircle, ClipboardList, BookOpenCheck,
+  CheckCircle2, ListTodo
 } from 'lucide-react';
 import { StatCard } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { ScoreDistributionBars } from '../../components/common/ScoreDistributionBars';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line
@@ -23,6 +25,21 @@ interface DbTest {
   title: string;
   status: string;
   sections: { _count?: { questions: number } }[];
+}
+
+export interface StudentAssignmentSummary {
+  studentId: string;
+  studentName: string;
+  testId: string;
+  assignmentId: string;
+  title: string;
+  category?: string;
+  subCategory?: string;
+  dueDate?: string;
+  status: 'Not Started' | 'In Progress' | 'Completed' | 'Expired';
+  usedAttempts: number;
+  maxAttempts: number;
+  submittedAttemptId?: string | null;
 }
 
 function greetingForHour(hour: number): string {
@@ -70,6 +87,11 @@ export function TutorDashboard() {
   const [loadingAttempts, setLoadingAttempts] = useState(false);
   const [selectedRange, setSelectedRange] = useState<string | null>(null);
 
+  // Student assignments overview across cohort
+  const [assignedOverview, setAssignedOverview] = useState<StudentAssignmentSummary[]>([]);
+  const [assignedOverviewLoading, setAssignedOverviewLoading] = useState(false);
+  const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'pending' | 'homework' | 'completed'>('all');
+
   // Fetch initial dashboard data
   useEffect(() => {
     if (!dbId) {
@@ -93,6 +115,49 @@ export function TutorDashboard() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [dbId]);
+
+  // Fetch assigned tests for all enrolled students
+  useEffect(() => {
+    if (myStudents.length === 0) {
+      setAssignedOverview([]);
+      return;
+    }
+    setAssignedOverviewLoading(true);
+    Promise.all(
+      myStudents.map((s) =>
+        api.getAssignedTests(s.id)
+          .then((r) => {
+            const list = (r.assignedTests ?? []) as any[];
+            return list.map((a) => ({
+              studentId: s.id,
+              studentName: s.name,
+              testId: a.testId,
+              assignmentId: a.assignmentId,
+              title: a.title,
+              category: a.category,
+              subCategory: a.subCategory,
+              dueDate: a.dueDate,
+              status: a.status as 'Not Started' | 'In Progress' | 'Completed' | 'Expired',
+              usedAttempts: a.usedAttempts ?? 0,
+              maxAttempts: a.maxAttempts ?? 1,
+              submittedAttemptId: a.submittedAttemptId ?? null,
+            }));
+          })
+          .catch(() => [])
+      )
+    )
+      .then((results) => {
+        const flattened = results.flat();
+        flattened.sort((a, b) => {
+          if (a.status !== 'Completed' && b.status === 'Completed') return -1;
+          if (a.status === 'Completed' && b.status !== 'Completed') return 1;
+          if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          return 0;
+        });
+        setAssignedOverview(flattened);
+      })
+      .finally(() => setAssignedOverviewLoading(false));
+  }, [myStudents]);
 
   const fetchAttempts = () => {
     setLoadingAttempts(true);
@@ -638,6 +703,159 @@ export function TutorDashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          {/* Assigned Homework & Tests Overview across enrolled students */}
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50/40 via-white to-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                  <BookOpenCheck size={16} />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-900 text-sm">Assigned Homework & Tests</p>
+                  <p className="text-xs text-slate-400">Live assignment progress across your {myStudents.length} students</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {(['all', 'pending', 'homework', 'completed'] as const).map((tabKey) => {
+                  const count = tabKey === 'all'
+                    ? assignedOverview.length
+                    : tabKey === 'pending'
+                    ? assignedOverview.filter(a => a.status === 'Not Started' || a.status === 'In Progress').length
+                    : tabKey === 'homework'
+                    ? assignedOverview.filter(a => isHW(a as any) || (a.subCategory ?? '').toLowerCase().includes('homework') || a.title.toLowerCase().includes('homework') || /\bhw\b/i.test(a.title)).length
+                    : assignedOverview.filter(a => a.status === 'Completed').length;
+                  const active = assignmentFilter === tabKey;
+                  const label = tabKey === 'all' ? 'All' : tabKey === 'pending' ? 'Pending' : tabKey === 'homework' ? 'Homework' : 'Completed';
+
+                  return (
+                    <button
+                      key={tabKey}
+                      onClick={() => setAssignmentFilter(tabKey)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                        active ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {label}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                        active ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {assignedOverviewLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
+                <Loader2 size={20} className="animate-spin text-blue-600" />
+                <p className="text-xs">Loading student assignments...</p>
+              </div>
+            ) : (() => {
+              const filtered = assignedOverview.filter((a) => {
+                if (assignmentFilter === 'pending') return a.status === 'Not Started' || a.status === 'In Progress';
+                if (assignmentFilter === 'homework') return isHW(a as any) || (a.subCategory ?? '').toLowerCase().includes('homework') || a.title.toLowerCase().includes('homework') || /\bhw\b/i.test(a.title);
+                if (assignmentFilter === 'completed') return a.status === 'Completed';
+                return true;
+              });
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="py-10 text-center text-slate-400 px-4">
+                    <BookOpenCheck size={28} className="mx-auto mb-2 text-slate-300" />
+                    <p className="text-sm font-semibold text-slate-600">No {assignmentFilter !== 'all' ? assignmentFilter : ''} assignments found</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Assign tests and homework from the My Students page or Student Detail profiles.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                  {filtered.slice(0, 8).map((a) => {
+                    const isHomework = isHW(a as any) || (a.subCategory ?? '').toLowerCase().includes('homework') || a.title.toLowerCase().includes('homework') || /\bhw\b/i.test(a.title);
+                    const isMathTest = isMath(a as any);
+                    const isEngTest = isEnglish(a as any);
+
+                    let dueText = 'No deadline';
+                    let dueColor = 'text-slate-400 bg-slate-50 border-slate-200';
+                    if (a.dueDate) {
+                      const diff = Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / 86_400_000);
+                      if (diff < 0) {
+                        dueText = `Expired ${Math.abs(diff)}d ago`;
+                        dueColor = 'text-rose-700 bg-rose-50 border-rose-200 font-semibold';
+                      } else if (diff === 0) {
+                        dueText = 'Due Today';
+                        dueColor = 'text-amber-700 bg-amber-50 border-amber-200 font-semibold';
+                      } else if (diff === 1) {
+                        dueText = 'Due Tomorrow';
+                        dueColor = 'text-blue-700 bg-blue-50 border-blue-200 font-semibold';
+                      } else {
+                        dueText = `Due in ${diff}d`;
+                        dueColor = 'text-slate-700 bg-slate-50 border-slate-200';
+                      }
+                    }
+
+                    return (
+                      <div key={a.assignmentId} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-blue-50/30 transition-colors">
+                        <Link to={`/student/${a.studentId}`} className="flex items-center gap-3 min-w-0 flex-1 group">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                            {a.studentName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                                {a.studentName}
+                              </p>
+                              {isHomework ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex-shrink-0">
+                                  <BookOpenCheck size={10} className="text-amber-600" />
+                                  {isMathTest ? 'Math HW' : isEngTest ? 'R&W HW' : 'HW'}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">
+                                  {a.category || 'Test'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 truncate mt-0.5">{a.title}</p>
+                          </div>
+                        </Link>
+
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className={`hidden sm:inline-block px-2 py-0.5 rounded text-xs border ${dueColor}`}>
+                            {dueText}
+                          </span>
+
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            a.status === 'Completed'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : a.status === 'In Progress'
+                              ? 'bg-blue-100 text-blue-800'
+                              : a.status === 'Expired'
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-amber-50 text-amber-700'
+                          }`}>
+                            {a.status === 'Completed' ? <CheckCircle2 size={11} /> : a.status === 'In Progress' ? <Clock size={11} /> : <ListTodo size={11} />}
+                            {a.status.toUpperCase()}
+                          </span>
+
+                          <Link
+                            to={`/student/${a.studentId}`}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="View student profile & assignments"
+                          >
+                            <ArrowRight size={14} />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

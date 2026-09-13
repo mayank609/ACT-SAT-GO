@@ -1294,6 +1294,19 @@ export function MyStudentsPage() {
                             >
                               Assign
                             </button>
+                            <button
+                              onClick={() => {
+                                setSelectedStudentId(row.studentId);
+                                setSelectedAttemptId('');
+                                setReportFilter('all');
+                                setReportViewMode('assigned');
+                                setMainView('test_analysis');
+                              }}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200 whitespace-nowrap flex items-center gap-1"
+                              title="View assigned homework and tests"
+                            >
+                              <CalendarClock size={12} /> Assigned
+                            </button>
                           </div>
                         </td>
                       </tr>

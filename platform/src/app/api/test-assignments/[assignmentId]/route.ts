@@ -10,7 +10,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ assignmentId: string }> }
 ) {
-  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN', 'TUTOR'])
   if (auth instanceof NextResponse) return auth
 
   const { assignmentId } = await params
@@ -31,13 +31,13 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/test-assignments/[assignmentId] — admin-only. Unassigns the test —
+// DELETE /api/test-assignments/[assignmentId] — unassigns the test —
 // removes the assignment itself, not the student's completed attempts (if any).
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ assignmentId: string }> }
 ) {
-  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN'])
+  const auth = await requireRole(request, ['ADMIN', 'SUPER_ADMIN', 'TUTOR'])
   if (auth instanceof NextResponse) return auth
 
   const { assignmentId } = await params
