@@ -16,8 +16,33 @@ export const isEnglish = (test: any): boolean => {
 export const isMath = (test: any): boolean => {
   const t = (test.title ?? '').toLowerCase();
   const sub = (test.subCategory ?? '').toLowerCase();
+  const sections = Array.isArray(test.sections) ? test.sections : [];
   return sub.includes('math') || sub.includes('quant') ||
-         /math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t);
+         /math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t) ||
+         /^m[\s-_0-9]/.test(t) || /\bm-\d+/.test(t) ||
+         sections.some((s: any) => /math/i.test(s?.name ?? ''));
+};
+
+export const isWriting = (test: any): boolean => {
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  const sections = Array.isArray(test.sections) ? test.sections : [];
+  return sub.includes('writing') ||
+         /writing|grammar/.test(t) || /\b(w-hw|whw)\b/.test(t) ||
+         /^w[\s-_0-9]/.test(t) || /\bw-\d+/.test(t) ||
+         sections.some((s: any) => /writ|grammar/i.test(s?.name ?? ''));
+};
+
+export const isReading = (test: any): boolean => {
+  if (isWriting(test)) return false;
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  const sections = Array.isArray(test.sections) ? test.sections : [];
+  return sub.includes('reading') ||
+         (sub.includes('rw') && !sub.includes('writing')) ||
+         /reading|comprehension/.test(t) || /\b(r-hw|rhw)\b/.test(t) ||
+         /^r[\s-_0-9]/.test(t) || /\br-\d+/.test(t) ||
+         sections.some((s: any) => /read/i.test(s?.name ?? ''));
 };
 
 export type PracticeSubject = 'math' | 'reading' | 'writing' | 'other';
@@ -26,15 +51,20 @@ export type PracticeSubject = 'math' | 'reading' | 'writing' | 'other';
 // "{Subject}" with no assignment type — Subject is one of Math/Reading/Writing (distinct from
 // Sectional's combined "Reading & Writing"). Only call this once the test is already known to
 // be a Practice Sheet. Falls back to the title for tests created before this tagging existed.
-export const practiceSubjectOf = (test: { subCategory?: string; title?: string }): PracticeSubject => {
+export const practiceSubjectOf = (test: { subCategory?: string; title?: string; sections?: any[] }): PracticeSubject => {
   const sub = (test.subCategory ?? '').toLowerCase();
-  if (sub.includes('math')) return 'math';
-  if (sub.includes('reading')) return 'reading';
   if (sub.includes('writing')) return 'writing';
+  if (sub.includes('reading')) return 'reading';
+  if (sub.includes('math') || sub.includes('quant')) return 'math';
   const t = (test.title ?? '').toLowerCase();
-  if (/math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t)) return 'math';
-  if (/reading|comprehension/.test(t) || /\b(r-hw|rhw)\b/.test(t)) return 'reading';
-  if (/writing|grammar/.test(t) || /\b(w-hw|whw)\b/.test(t)) return 'writing';
+  if (/writing|grammar/.test(t) || /\b(w-hw|whw)\b/.test(t) || /^w[\s-_0-9]/.test(t) || /\bw-\d+/.test(t)) return 'writing';
+  if (/reading|comprehension/.test(t) || /\b(r-hw|rhw)\b/.test(t) || /^r[\s-_0-9]/.test(t) || /\br-\d+/.test(t)) return 'reading';
+  if (/math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t) || /^m[\s-_0-9]/.test(t) || /\bm-\d+/.test(t)) return 'math';
+  if (test.sections && Array.isArray(test.sections)) {
+    if (test.sections.some((s: any) => /writ|grammar/i.test(s?.name ?? ''))) return 'writing';
+    if (test.sections.some((s: any) => /read/i.test(s?.name ?? ''))) return 'reading';
+    if (test.sections.some((s: any) => /math/i.test(s?.name ?? ''))) return 'math';
+  }
   return 'other';
 };
 

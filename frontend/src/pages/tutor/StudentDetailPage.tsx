@@ -10,7 +10,7 @@ import { Badge } from '../../components/common/Badge';
 import { StatCard } from '../../components/common/Card';
 import { Modal } from '../../components/common/Modal';
 import { api, type DbUser } from '../../lib/api';
-import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
+import { isHW, isEnglish, isMath, isWriting, isReading } from '../../lib/testCategorize';
 import { toLines } from '../../lib/sessionLog';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
@@ -293,13 +293,15 @@ export function StudentDetailPage() {
   const getTestBadge = (test: AssignedTestItem) => {
     const isHomework = isHW(test) || (test.subCategory ?? '').toLowerCase().includes('homework') || test.title.toLowerCase().includes('homework') || /\bhw\b/i.test(test.title);
     const isMathTest = isMath(test);
+    const isWritingTest = isWriting(test);
+    const isReadingTest = isReading(test);
     const isEngTest = isEnglish(test);
 
     if (isHomework) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
           <BookOpenCheck size={12} className="text-amber-600" />
-          {isMathTest ? 'Math HW' : isEngTest ? 'R&W HW' : 'Homework'}
+          {isMathTest ? 'Math HW' : isWritingTest ? 'Writing HW' : isReadingTest ? 'Reading HW' : isEngTest ? 'R&W HW' : 'Homework'}
         </span>
       );
     }
