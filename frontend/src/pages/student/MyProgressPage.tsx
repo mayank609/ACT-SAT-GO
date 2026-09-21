@@ -24,19 +24,20 @@ const isHW = (r: ReportRow): boolean => {
 const isMath = (r: ReportRow): boolean => {
   const t = r.title.toLowerCase();
   const sub = (r.subCategory ?? '').toLowerCase();
-  return sub.includes('math') || sub.includes('quant') || /math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t);
-};
-
-const isReading = (r: ReportRow): boolean => {
-  const t = r.title.toLowerCase();
-  const sub = (r.subCategory ?? '').toLowerCase();
-  return sub.includes('reading') || /reading|comprehension/.test(t) || /\b(r-hw|rhw|rw-hw|rwhw)\b/.test(t);
+  return sub.includes('math') || sub.includes('quant') || /math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t) || /^m[\s-_0-9]/.test(t) || /\bm-\d+/.test(t);
 };
 
 const isWriting = (r: ReportRow): boolean => {
   const t = r.title.toLowerCase();
   const sub = (r.subCategory ?? '').toLowerCase();
-  return sub.includes('writing') || /writing|grammar/.test(t) || /\b(w-hw|whw|rw-hw|rwhw)\b/.test(t);
+  return sub.includes('writing') || /writing|grammar/.test(t) || /\b(w-hw|whw)\b/.test(t) || /^w[\s-_0-9]/.test(t) || /\bw-\d+/.test(t);
+};
+
+const isReading = (r: ReportRow): boolean => {
+  if (isWriting(r)) return false;
+  const t = r.title.toLowerCase();
+  const sub = (r.subCategory ?? '').toLowerCase();
+  return sub.includes('reading') || (sub.includes('rw') && !sub.includes('writing')) || /reading|comprehension/.test(t) || /\b(r-hw|rhw)\b/.test(t) || /^r[\s-_0-9]/.test(t) || /\br-\d+/.test(t);
 };
 
 const isPractice = (r: ReportRow): boolean => {

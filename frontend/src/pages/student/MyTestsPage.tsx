@@ -37,15 +37,30 @@ const isMathSubject = (t: ApiTest): boolean => {
   const sub = (t.subCategory ?? '').toLowerCase();
   return sub.includes('math') || sub.includes('quant') || /math|algebra|geometry|calc/.test(title)
     || /\b(m-hw|mhw)\b/.test(title)
+    || /^m[\s-_0-9]/.test(title)
+    || /\bm-\d+/.test(title)
     || (t.sections ?? []).some(s => /math/i.test(s.name));
 };
-const isReadingSubject = (t: ApiTest): boolean => {
+const isWritingSubject = (t: ApiTest): boolean => {
   const title = t.title.toLowerCase();
   const sub = (t.subCategory ?? '').toLowerCase();
-  return sub.includes('rw') || sub.includes('english') || sub.includes('reading') || sub.includes('writing')
-    || /reading|writing|english|verbal|grammar|\brw\b/.test(title)
-    || /\b(r-hw|w-hw|rw-hw|rhw|whw|rwhw)\b/.test(title)
-    || (t.sections ?? []).some(s => /read|writ|english|verbal/i.test(s.name));
+  return sub.includes('writing')
+    || /writing|grammar/.test(title)
+    || /\b(w-hw|whw)\b/.test(title)
+    || /^w[\s-_0-9]/.test(title)
+    || /\bw-\d+/.test(title)
+    || (t.sections ?? []).some(s => /writ|grammar/i.test(s.name));
+};
+const isReadingSubject = (t: ApiTest): boolean => {
+  if (isWritingSubject(t)) return false;
+  const title = t.title.toLowerCase();
+  const sub = (t.subCategory ?? '').toLowerCase();
+  return sub.includes('reading') || sub.includes('rw') || sub.includes('english')
+    || /reading|comprehension|\brw\b|english/.test(title)
+    || /\b(r-hw|rhw|rw-hw|rwhw)\b/.test(title)
+    || /^r[\s-_0-9]/.test(title)
+    || /\br-\d+/.test(title)
+    || (t.sections ?? []).some(s => /read/i.test(s.name));
 };
 const isMock = (t: ApiTest): boolean =>
   t.category?.toLowerCase() === 'mock' || t.category?.toLowerCase() === 'diagnostic' || /mock|diagnostic/i.test(t.title);
@@ -59,8 +74,10 @@ const TEST_FILTERS = [
   { key: 'Sectional',        match: isSectional },
   { key: 'Math HW',          match: (t: ApiTest) => isHW(t) && isMathSubject(t) },
   { key: 'Reading HW',       match: (t: ApiTest) => isHW(t) && isReadingSubject(t) },
+  { key: 'Writing HW',       match: (t: ApiTest) => isHW(t) && isWritingSubject(t) },
   { key: 'Math Practice',    match: (t: ApiTest) => isPractice(t) && isMathSubject(t) },
   { key: 'Reading Practice', match: (t: ApiTest) => isPractice(t) && isReadingSubject(t) },
+  { key: 'Writing Practice', match: (t: ApiTest) => isPractice(t) && isWritingSubject(t) },
 ] as const;
 type FilterKey = typeof TEST_FILTERS[number]['key'];
 
@@ -71,6 +88,9 @@ const CAT_COLORS: Record<string, string> = {
   'Practice Sheet': 'bg-purple-100 text-purple-700',
   ACT:              'bg-[#1b3d6e]/10 text-[#1b3d6e]',
   SAT:              'bg-rose-100 text-rose-700',
+  Math:             'bg-blue-100 text-blue-700',
+  Reading:          'bg-emerald-100 text-emerald-700',
+  Writing:          'bg-indigo-100 text-indigo-700',
 };
 
 function TestCategoryBadges({ category, subCategory }: { category?: string; subCategory?: string }) {

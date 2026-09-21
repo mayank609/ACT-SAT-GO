@@ -368,7 +368,20 @@ const isMath = (test: any): boolean => {
   const t = (test.title ?? '').toLowerCase();
   const sub = (test.subCategory ?? '').toLowerCase();
   return sub.includes('math') || sub.includes('quant') ||
-         /math|algebra|geometry|calc/.test(t);
+         /math|algebra|geometry|calc/.test(t) || /\b(m-hw|mhw)\b/.test(t) || /^m[\s-_0-9]/.test(t) || /\bm-\d+/.test(t);
+};
+
+const isWriting = (test: any): boolean => {
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  return sub.includes('writing') || /writing|grammar/.test(t) || /\b(w-hw|whw)\b/.test(t) || /^w[\s-_0-9]/.test(t) || /\bw-\d+/.test(t);
+};
+
+const isReading = (test: any): boolean => {
+  if (isWriting(test)) return false;
+  const t = (test.title ?? '').toLowerCase();
+  const sub = (test.subCategory ?? '').toLowerCase();
+  return sub.includes('reading') || (sub.includes('rw') && !sub.includes('writing')) || /reading|comprehension/.test(t) || /\b(r-hw|rhw)\b/.test(t) || /^r[\s-_0-9]/.test(t) || /\br-\d+/.test(t);
 };
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string | null }) {
@@ -605,13 +618,15 @@ export function AdminStudentProfilePage() {
   const getTestBadge = (test: AssignedTestItem) => {
     const isHomework = isHW(test) || (test.subCategory ?? '').toLowerCase().includes('homework') || test.title.toLowerCase().includes('homework') || /\bhw\b/i.test(test.title);
     const isMathTest = isMath(test);
+    const isWritingTest = isWriting(test);
+    const isReadingTest = isReading(test);
     const isEngTest = isEnglish(test);
 
     if (isHomework) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
           <BookOpenCheck size={12} className="text-amber-600" />
-          {isMathTest ? 'Math HW' : isEngTest ? 'R&W HW' : 'Homework'}
+          {isMathTest ? 'Math HW' : isWritingTest ? 'Writing HW' : isReadingTest ? 'Reading HW' : isEngTest ? 'R&W HW' : 'Homework'}
         </span>
       );
     }

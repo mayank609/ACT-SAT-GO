@@ -12,7 +12,7 @@ import { Badge } from '../../components/common/Badge';
 import { ScoreDistributionBars } from '../../components/common/ScoreDistributionBars';
 import { api, type DbUser } from '../../lib/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { isHW, isEnglish, isMath } from '../../lib/testCategorize';
+import { isHW, isEnglish, isMath, isWriting, isReading } from '../../lib/testCategorize';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line
@@ -777,6 +777,8 @@ export function TutorDashboard() {
                   {filtered.slice(0, 8).map((a) => {
                     const isHomework = isHW(a as any) || (a.subCategory ?? '').toLowerCase().includes('homework') || a.title.toLowerCase().includes('homework') || /\bhw\b/i.test(a.title);
                     const isMathTest = isMath(a as any);
+                    const isWritingTest = isWriting(a as any);
+                    const isReadingTest = isReading(a as any);
                     const isEngTest = isEnglish(a as any);
 
                     let dueText = 'No deadline';
@@ -812,7 +814,7 @@ export function TutorDashboard() {
                               {isHomework ? (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex-shrink-0">
                                   <BookOpenCheck size={10} className="text-amber-600" />
-                                  {isMathTest ? 'Math HW' : isEngTest ? 'R&W HW' : 'HW'}
+                                  {isMathTest ? 'Math HW' : isWritingTest ? 'Writing HW' : isReadingTest ? 'Reading HW' : isEngTest ? 'R&W HW' : 'HW'}
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">

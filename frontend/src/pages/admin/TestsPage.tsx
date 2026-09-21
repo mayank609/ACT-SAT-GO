@@ -469,11 +469,16 @@ const isTestDiagnostic = (t: ApiTest) => t.category === 'Diagnostic' || /\bdiagn
 const isTestSectional  = (t: ApiTest) => t.category === 'Sectional' || /\bsectional\b/i.test(t.title ?? '');
 // Test Builder tags homework as subCategory "{Subject}-Homework" (e.g. "Math-Homework"),
 // which does NOT contain the substring "hw" — match on "homework" instead.
-const isTestHW         = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('homework') || ti.includes(' hw') || ti.endsWith('hw') || /\bhw\b/.test(ti) || ti.includes('homework'); };
-const isTestPractice   = (t: ApiTest) => { const c = (t.category ?? '').toLowerCase(); const s = (t.subCategory ?? '').toLowerCase(); return c.includes('practice') || s.includes('practice'); };
-const isTestMath       = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('math') || /\bmath\b/.test(ti); };
-const isTestReading    = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('reading') || s.includes('rw') || /\breading\b/.test(ti); };
-const isTestWriting    = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('writing') || /\bwriting\b/.test(ti); };
+const isTestHW         = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('homework') || ti.includes(' hw') || ti.endsWith('hw') || /\bhw\b/.test(ti) || ti.includes('homework') || /\b(hw|m-hw|r-hw|w-hw|rw-hw|mhw|rhw|whw|rwhw)\b/.test(ti); };
+const isTestPractice   = (t: ApiTest) => { const c = (t.category ?? '').toLowerCase(); const s = (t.subCategory ?? '').toLowerCase(); return !isTestHW(t) && (c.includes('practice') || s.includes('practice')); };
+const isTestMath       = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('math') || s.includes('quant') || /\bmath\b/.test(ti) || /\b(m-hw|mhw)\b/.test(ti) || /^m[\s-_0-9]/i.test(ti) || /\bm-\d+/i.test(ti); };
+const isTestWriting    = (t: ApiTest) => { const s = (t.subCategory ?? '').toLowerCase(); const ti = (t.title ?? '').toLowerCase(); return s.includes('writing') || /\bwriting\b/.test(ti) || /\b(w-hw|whw)\b/.test(ti) || /^w[\s-_0-9]/i.test(ti) || /\bw-\d+/i.test(ti) || /grammar/.test(ti); };
+const isTestReading    = (t: ApiTest) => {
+  if (isTestWriting(t)) return false;
+  const s = (t.subCategory ?? '').toLowerCase();
+  const ti = (t.title ?? '').toLowerCase();
+  return s.includes('reading') || (s.includes('rw') && !s.includes('writing')) || /\breading\b/.test(ti) || /\b(r-hw|rhw)\b/.test(ti) || /^r[\s-_0-9]/i.test(ti) || /\br-\d+/i.test(ti) || /comprehension/.test(ti);
+};
 
 const TEST_CAT_FILTERS = [
   { key: 'Mock'            , match: isTestMock },
