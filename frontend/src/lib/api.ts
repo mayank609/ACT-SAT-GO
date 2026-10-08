@@ -65,11 +65,14 @@ async function cachedGet<T>(path: string, ttlMs: number): Promise<T> {
  */
 export async function postAttemptEvents(attemptId: string, events: unknown[]): Promise<boolean> {
   try {
+    const body = JSON.stringify({ events })
     const res = await fetch(`${BASE}/api/attempts/${attemptId}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-      body: JSON.stringify({ events }),
-      keepalive: true,
+      body,
+      // keepalive lets the last batch survive the tab closing, but browsers
+      // reject keepalive bodies over 64 KB — only use it for small batches.
+      keepalive: body.length < 60_000,
     })
     // 4xx other than auth/rate errors will never succeed — drop rather than retry forever.
     return res.ok || (res.status >= 400 && res.status < 500 && res.status !== 401 && res.status !== 429)

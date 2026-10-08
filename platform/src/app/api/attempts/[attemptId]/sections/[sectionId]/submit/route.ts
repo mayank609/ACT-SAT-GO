@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { isAnswerCorrect } from '@/lib/answerCheck'
+import { syncAnswerTimesFromEvents } from '@/lib/answerTimes'
 
 
 // Digital SAT raw→scaled conversion tables, reproduced exactly from the
@@ -72,6 +73,15 @@ export async function POST(
       })
       await Promise.all(upserts)
       await redis.del(`answers:${attemptId}`)
+    }
+
+    // 1b. Time per question = sum of active visit time from the event log, so
+    // the stored totals match the visit-level Time Analytics chart. Never let
+    // this block a submission.
+    try {
+      await syncAnswerTimesFromEvents(attemptId)
+    } catch (err) {
+      console.error('[Submit] syncAnswerTimesFromEvents failed:', err)
     }
 
     // 2. Mark section complete — upsert in case startSection was never called

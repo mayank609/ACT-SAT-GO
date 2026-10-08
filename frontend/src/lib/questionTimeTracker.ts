@@ -24,6 +24,9 @@ interface QueuedEvent {
   choice?: unknown;
 }
 
+/** Events per POST; keeps each body well under the 64 KB keepalive limit. */
+const MAX_BATCH = 200;
+
 const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'pointerdown', 'scroll', 'touchstart', 'wheel'] as const;
 
 export class QuestionTimeTracker {
@@ -40,7 +43,7 @@ export class QuestionTimeTracker {
   private hidden = typeof document !== 'undefined' && document.hidden;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private heartbeat: ReturnType<typeof setInterval>;
-  private flushing = false;
+  private flushing: Promise<boolean> | null = null;
   private destroyed = false;
   private lastActivity = 0;
 
@@ -75,28 +78,32 @@ export class QuestionTimeTracker {
       .finally(() => { void this.flush(); });
   }
 
-  private now() {
+  /** Tracker clock (ms since this tracker started). */
+  now() {
     return Math.round(performance.now() - this.perf0);
   }
 
-  private log(type: EventType, questionId: string | null, choice?: unknown) {
+  private log(type: EventType, questionId: string | null, choice?: unknown, at?: number) {
     if (this.destroyed) return;
     this.queue.push({
       localSeq: ++this.localSeq,
       type,
       questionId,
-      rel: this.now(),
+      rel: at ?? this.now(),
       wall: Date.now(),
       ...(choice !== undefined ? { choice } : {}),
     });
   }
 
-  /** The question now on screen. Call on every way of changing question. */
-  enter(questionId: string) {
+  /**
+   * The question now on screen. Call on every way of changing question.
+   * `at` (from now()) backdates the visit to when the question appeared.
+   */
+  enter(questionId: string, at?: number) {
     if (this.current === questionId) return;
-    if (this.current !== null) this.log('LEAVE', this.current);
+    if (this.current !== null) this.log('LEAVE', this.current, undefined, at);
     this.current = questionId;
-    this.log('ENTER', questionId);
+    this.log('ENTER', questionId, undefined, at);
     // A visit that starts while the tab is hidden / student idle starts paused.
     if (this.hidden) this.log('HIDDEN', questionId);
     else if (this.idle) this.log('IDLE', questionId);
@@ -124,14 +131,14 @@ export class QuestionTimeTracker {
     if (this.current !== null) this.log('LEAVE', this.current);
     this.current = null;
     this.log(reason, null);
-    void this.flush();
+    void this.flushAll();
   }
 
   /** Stop listening; sends whatever is queued. */
   destroy() {
     if (this.destroyed) return;
     this.leave();
-    void this.flush();
+    void this.flushAll(); // drains even if a send is already in flight
     this.destroyed = true;
     clearInterval(this.heartbeat);
     clearTimeout(this.idleTimer);
@@ -172,11 +179,35 @@ export class QuestionTimeTracker {
     }, this.idleMs);
   }
 
-  async flush(): Promise<void> {
-    if (this.flushing || this.seqBase === null || this.queue.length === 0) return;
-    this.flushing = true;
-    const batch = this.queue.splice(0, 500);
+  /**
+   * Sends everything queued so far and resolves once it is stored (or after
+   * `timeoutMs`, so a slow network never blocks a submit).
+   */
+  async flushAll(timeoutMs = 4000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    const drain = async () => {
+      while (Date.now() < deadline) {
+        if (this.flushing) { await this.flushing; continue; }
+        if (this.seqBase === null) { await new Promise((r) => setTimeout(r, 100)); continue; }
+        if (this.queue.length === 0) return;
+        if (!(await this.flush())) return; // send failed; the heartbeat will retry
+      }
+    };
+    await Promise.race([drain(), new Promise<void>((r) => setTimeout(r, timeoutMs))]);
+  }
+
+  /** Sends one batch. Resolves true when it was stored (or nothing was due). */
+  flush(): Promise<boolean> {
+    if (this.flushing) return this.flushing;
+    if (this.seqBase === null || this.queue.length === 0) return Promise.resolve(true);
+    this.flushing = this.send().finally(() => { this.flushing = null; });
+    return this.flushing;
+  }
+
+  private async send(): Promise<boolean> {
     const seqBase = this.seqBase;
+    if (seqBase === null) return false;
+    const batch = this.queue.splice(0, MAX_BATCH);
     const events = batch.map((e) => ({
       seq: seqBase + e.localSeq,
       type: e.type,
@@ -185,12 +216,8 @@ export class QuestionTimeTracker {
       wall: e.wall,
       ...(e.choice !== undefined ? { choice: e.choice } : {}),
     }));
-    try {
-      const ok = await postAttemptEvents(this.attemptId, events);
-      if (!ok) this.queue = batch.concat(this.queue); // retry on the next flush
-    } finally {
-      this.flushing = false;
-    }
-    if (this.queue.length >= 500) void this.flush();
+    const ok = await postAttemptEvents(this.attemptId, events);
+    if (!ok) this.queue = batch.concat(this.queue); // retry on the next flush
+    return ok;
   }
 }
