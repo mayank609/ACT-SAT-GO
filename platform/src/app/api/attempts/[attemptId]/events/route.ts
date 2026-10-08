@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { EVENT_TYPES } from '@/lib/timeAnalytics'
+import { syncAnswerTimesFromEvents } from '@/lib/answerTimes'
 
 // Test-player event log for visit-level time analytics.
 //
@@ -97,6 +98,12 @@ export async function POST(
     }
     if (rows.length) {
       await prisma.attemptEvent.createMany({ data: rows, skipDuplicates: true })
+      // The final batch can land just after the last module was submitted;
+      // refresh the stored per-question times so they include it.
+      if (attempt!.status !== 'IN_PROGRESS') {
+        await syncAnswerTimesFromEvents(attemptId).catch((err) =>
+          console.error('[events] syncAnswerTimesFromEvents failed:', err))
+      }
     }
     return new NextResponse(null, { status: 204 })
   } catch (err) {

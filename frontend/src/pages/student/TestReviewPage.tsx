@@ -1644,7 +1644,7 @@ export function TestReviewPage() {
         isOpen={timeAnalyticsOpen}
         onClose={() => setTimeAnalyticsOpen(false)}
         title="Time Analysis"
-        size="lg"
+        size="xl"
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-500 leading-relaxed">

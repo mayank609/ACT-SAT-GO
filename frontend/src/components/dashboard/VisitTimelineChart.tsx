@@ -20,6 +20,7 @@ const AVG = '#3B82F6';
 const FINAL_STROKE = '#0F172A';
 
 const ROW_H = 18;
+const TICK_STEPS_MS = [10, 15, 30, 60, 120, 300, 600, 900, 1800].map((s) => s * 1000);
 const BAR_H = 11;
 const LEFT = 40;
 const RIGHT = 12;
@@ -104,23 +105,21 @@ export function VisitTimelineChart({
     });
   }, [section.visits, section.offsetMs, rowOf, mode, showGlances]);
 
-  const domainMs = useMemo(() => {
-    const maxEnd = placed.reduce((m, p) => Math.max(m, p.v.end - p.shift), 0);
-    return Math.max(60_000, Math.ceil(maxEnd / 60_000) * 60_000);
-  }, [placed]);
-
   const rows = section.questionIds.length;
   const plotH = rows * ROW_H;
   const svgW = Math.max(320, (wrapW || 640) * zoom);
   const plotW = svgW - LEFT - RIGHT;
+
+  // Tick step first (≥ ~56 px apart), then a domain that ends on a tick.
+  // Short modules get 10–30 s ticks instead of a bare "0 … 1" minute axis.
+  const maxEnd = useMemo(() => placed.reduce((m, p) => Math.max(m, p.v.end - p.shift), 0), [placed]);
+  const stepMs = TICK_STEPS_MS.find((st) => (st / Math.max(maxEnd, 10_000)) * plotW >= 56) ?? TICK_STEPS_MS[TICK_STEPS_MS.length - 1];
+  const domainMs = Math.max(stepMs, Math.ceil(maxEnd / stepMs) * stepMs);
   const x = (ms: number) => LEFT + (ms / domainMs) * plotW;
   const yMid = (row: number) => TOP + row * ROW_H + ROW_H / 2;
-
-  const domainMin = domainMs / 60_000;
-  const pxPerMin = plotW / domainMin;
-  const tickStep = [1, 2, 5, 10, 15, 30].find((s) => s * pxPerMin >= 48) ?? 60;
   const ticks: number[] = [];
-  for (let m = 0; m <= domainMin + 1e-9; m += tickStep) ticks.push(m);
+  for (let t = 0; t <= domainMs + 1; t += stepMs) ticks.push(t);
+  const tickLabel = (t: number) => (stepMs < 60_000 ? fmtClock(t) : String(t / 60_000));
 
   // Navigation path: consecutive visits in time order (timeline mode only).
   const pathPoints = useMemo(() => {
@@ -297,14 +296,14 @@ export function VisitTimelineChart({
               {/* Grid + axis */}
               {ticks.map((t) => (
                 <g key={t}>
-                  <line x1={x(t * 60_000)} y1={TOP} x2={x(t * 60_000)} y2={TOP + plotH} stroke="#E2E8F0" strokeWidth={1} />
-                  <text x={x(t * 60_000)} y={TOP + plotH + 14} textAnchor="middle" fontSize={10} fill="#64748B" fontFamily="system-ui, sans-serif">
-                    {t}
+                  <line x1={x(t)} y1={TOP} x2={x(t)} y2={TOP + plotH} stroke="#E2E8F0" strokeWidth={1} />
+                  <text x={x(t)} y={TOP + plotH + 14} textAnchor="middle" fontSize={10} fill="#64748B" fontFamily="system-ui, sans-serif">
+                    {tickLabel(t)}
                   </text>
                 </g>
               ))}
               <text x={LEFT + plotW / 2} y={TOP + plotH + 30} textAnchor="middle" fontSize={10} fill="#64748B" fontFamily="system-ui, sans-serif">
-                {mode === 'timeline' ? 'Time into module (minutes)' : 'Time on question (minutes)'}
+                {mode === 'timeline' ? 'Time into module' : 'Time on question'}{stepMs < 60_000 ? ' (min:sec)' : ' (minutes)'}
               </text>
 
               {/* Navigation path */}
@@ -359,9 +358,9 @@ export function VisitTimelineChart({
                         fill="#FFFFFF" fillOpacity={0.7} pointerEvents="none"
                       />
                     ))}
-                    {(visitsPerQ.get(v.questionId) ?? 0) > 1 && w > 22 && (
+                    {(visitsPerQ.get(v.questionId) ?? 0) > 1 && w > 26 && (
                       <text
-                        x={x1 + w / 2} y={yMid(row) + 3} textAnchor="middle" fontSize={8} fontWeight={700}
+                        x={x1 + 4} y={yMid(row) + 3} textAnchor="start" fontSize={8} fontWeight={700}
                         fill={LABEL_ON[v.exitResult]} fontFamily="system-ui, sans-serif" pointerEvents="none"
                       >
                         V{v.visitNo}

@@ -204,6 +204,9 @@ export function TestInterfacePage() {
   // Which question the local answer state above belongs to. It lags one render
   // behind a question change, so effects can tell a stale answer from a real one.
   const [answerFor, setAnswerFor] = useState<string | null>(null);
+  // Sends pending visit-tracking events; awaited before a module is submitted
+  // so the server's per-question times include the module's last visit.
+  const flushVisitsRef = useRef<() => Promise<void>>(async () => {});
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [showBreak, setShowBreak] = useState(false);
@@ -450,7 +453,7 @@ export function TestInterfacePage() {
       setShowBreak(true);
       // Submit the finished section in the background so it's ready when break ends
       if (!isPreview) {
-        submitSectionWithRetry(attempt.id, fromSectionId);
+        flushVisitsRef.current().finally(() => submitSectionWithRetry(attempt.id, fromSectionId));
       }
       return;
     }
@@ -466,6 +469,7 @@ export function TestInterfacePage() {
     resetTimerRef.current(fullTime);
     try {
       if (!isPreview) {
+        await flushVisitsRef.current();
         await submitSectionWithRetry(attempt.id, fromSectionId);
         const result = await api.startSection(attempt.id, test.sections[toSectionIdx].id) as { endTime: number };
         // Refine with exact server endTime
@@ -509,6 +513,7 @@ export function TestInterfacePage() {
     // this never succeeds, the student's answers stay cached in Redis rather
     // than being silently discarded — surface the failure instead of showing
     // a false "finished" screen so they know to retry.
+    await flushVisitsRef.current();
     const submitted = await submitSectionWithRetry(attempt.id, currentSection.id);
     setSubmitting(false);
 
@@ -977,11 +982,14 @@ export function TestInterfacePage() {
 
   // Visit-level time analytics: log ENTER/LEAVE, answer changes and flags as
   // events. A question only counts as "on screen" when no full-screen overlay
-  // (directions, break, module transition, review screen) is covering it.
+  // or blocking dialog (directions, break, module transition, review screen,
+  // submit confirmation) is covering it. A tab switch is not a LEAVE: it is
+  // logged as HIDDEN/VISIBLE and drawn as a pale gap inside the same visit.
   const questionOnScreen = !restoring && !restoreError && !showSectionDirections && !showBreak
-    && !transitioning && !finished && !showSectionReview && currentQuestion ? currentQuestion.id : null;
+    && !transitioning && !finished && !showSectionReview && !showSubmitModal && !submitting
+    && currentQuestion ? currentQuestion.id : null;
   const answerIsCurrent = !!currentQuestion && answerFor === currentQuestion.id;
-  useVisitTracking({
+  const visitTracking = useVisitTracking({
     attemptId: attempt?.id,
     enabled: !isPreview && !!attempt?.id && attempt.id !== 'preview',
     questionId: questionOnScreen,
@@ -992,6 +1000,7 @@ export function TestInterfacePage() {
     flagged: currentQAttempt?.state === 'marked_review' || currentQAttempt?.state === 'answered_marked',
     finished,
   });
+  flushVisitsRef.current = visitTracking.flush;
 
   // ── Loading & Error views for resume ────────────────────────────────────────
   if (restoring) {

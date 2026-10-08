@@ -1,6 +1,9 @@
+import { SITE } from '../site';
 export const WHATSAPP_NUMBER = '918085559439';
 export const WHATSAPP_HREF = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi! I'd like to know more about ACT SAT GO.")}`;
-export const CALL_HREF = `tel:+${WHATSAPP_NUMBER}`;
+
+/** Phone (call) link — the same US number shown everywhere on the site. */
+export const CALL_HREF = SITE.phoneHref;
 
 export function WhatsAppButton() {
   return (

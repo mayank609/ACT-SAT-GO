@@ -8,8 +8,8 @@ export const SITE = {
   url: (import.meta.env.VITE_SITE_URL ?? 'https://actsatgo.com').replace(/\/$/, ''),
   email: 'info@actsatgo.com',
   /** US phone line — the display text and the tel: link must always match. */
-  phoneDisplay: '+1 (332) 231-4081',
-  phoneHref: 'tel:+13322314081',
+  phoneDisplay: '+1 (945) 391-6179',
+  phoneHref: 'tel:+19453916179',
   googleReviewUrl: 'https://g.page/r/CaMyM5bggIx1EBM/review',
   socials: {
     facebook: 'https://www.facebook.com/actsatgousa',
