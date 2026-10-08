@@ -59,9 +59,9 @@ export const PAGES: PageMeta[] = [
   },
   {
     path: '/resources',
-    title: 'SAT, ACT & AP Guides and Free Resources | ACT SAT GO',
+    title: 'Free AP Exam Guides (PDF) & SAT, ACT Resources | ACT SAT GO',
     description:
-      'Free guides, checklists and articles on the Digital SAT, the enhanced ACT, AP exams and college applications.',
+      'Download 42 free AP exam guides as PDFs, one for every AP subject, plus free guides and articles on the Digital SAT, the enhanced ACT and college applications.',
   },
   {
     path: '/consultation',

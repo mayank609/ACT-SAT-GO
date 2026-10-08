@@ -113,3 +113,9 @@ export function trackContactClick(channel: 'booking' | 'phone' | 'whatsapp' | 'e
   window.gtag?.('event', 'contact_click', { channel });
   window.fbq?.('track', 'Contact', { channel });
 }
+
+/** Fire when a visitor downloads or opens a free resource (e.g. an AP guide PDF). */
+export function trackDownload(resource: string, action: 'download' | 'open' = 'download'): void {
+  if (typeof window === 'undefined') return;
+  window.gtag?.('event', 'file_download', { file_name: resource, link_action: action, resource_type: 'ap_guide' });
+}

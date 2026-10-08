@@ -3,6 +3,8 @@ import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { fetchBlogs, type BlogPost } from '../admin/api';
+import { ApGuidesSection, apGuideMatches } from '../components/ApGuides';
+import { AP_GUIDES } from '../data/apGuides';
 
 // Image assets
 import heroImg from '../assets/img/resouces-hero.webp';
@@ -232,6 +234,7 @@ export function ResourcesPage() {
     },
     {
       badge: 'GUIDE',
+      href: '#ap-guides',
       title: 'AP Subject Overview',
       text: 'Explore all AP subjects, exam formats, and preparation tips.',
       image: apOverviewImg,
@@ -312,7 +315,8 @@ export function ResourcesPage() {
     );
   });
 
-  const hasResults = filteredResources.length > 0 || filteredBlogs.length > 0;
+  const hasApGuides = AP_GUIDES.some(g => apGuideMatches(g, searchQuery));
+  const hasResults = filteredResources.length > 0 || filteredBlogs.length > 0 || hasApGuides;
 
   return (
     <>
@@ -446,11 +450,15 @@ export function ResourcesPage() {
                     <span className="featured-badge">{res.badge}</span>
                     <img src={res.image} alt={`${res.title} cover`} loading="lazy" />
                     <a
-                      href="#download"
+                      href={'href' in res ? res.href : '#download'}
                       className="featured-download-btn"
-                      aria-label={`Download ${res.title}`}
+                      aria-label={'href' in res ? `Browse the AP exam guides` : `Download ${res.title}`}
                       onClick={(e) => {
                         e.preventDefault();
+                        if ('href' in res) {
+                          document.getElementById('ap-guides')?.scrollIntoView({ behavior: 'smooth' });
+                          return;
+                        }
                         alert(`Thank you for downloading the ${res.title}! The file download will start automatically.`);
                       }}
                     >
@@ -466,6 +474,9 @@ export function ResourcesPage() {
             </div>
           </section>
         )}
+
+        {/* AP exam guides — free PDF downloads */}
+        {hasApGuides && <ApGuidesSection pageQuery={searchQuery} />}
 
         {/* From the Blog */}
         {filteredBlogs.length > 0 && (

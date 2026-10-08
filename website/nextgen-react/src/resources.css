@@ -815,3 +815,357 @@
     width: 100%;
   }
 }
+
+/* ── AP exam guides (free PDF downloads) ────────────────────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ap-guides {
+  padding-top: 0;
+  scroll-margin-top: 90px;
+}
+
+.ap-guides-eyebrow {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--gold-2);
+}
+
+.ap-guides-head p {
+  max-width: 720px;
+  line-height: 1.55;
+}
+
+.ap-guides-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.ap-guides-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 520px;
+  background: white;
+  border: 1.5px solid var(--line);
+  border-radius: 50px;
+  padding: 0 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ap-guides-search:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 4px rgba(255, 180, 0, 0.15);
+}
+
+.ap-guides-search svg {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.ap-guides-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 13px 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.ap-guides-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid var(--line);
+  background: white;
+  color: var(--navy);
+  border-radius: 40px;
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.ap-chip span {
+  font-size: 11.5px;
+  font-weight: 800;
+  background: var(--soft);
+  color: var(--muted);
+  border-radius: 20px;
+  padding: 1px 7px;
+}
+
+.ap-chip:hover {
+  border-color: var(--gold);
+}
+
+.ap-chip.active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: white;
+}
+
+.ap-chip.active span {
+  background: var(--gold);
+  color: var(--navy);
+}
+
+.ap-chip:focus-visible,
+.ap-guide-download:focus-visible,
+.ap-guide-cover:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.ap-guides-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0 0 18px;
+}
+
+.ap-guides-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+}
+
+.ap-guide-card {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.ap-guide-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 36px rgba(6, 26, 47, 0.08);
+}
+
+.ap-guide-cover {
+  display: flex;
+  justify-content: center;
+  background: var(--soft);
+  padding: 18px 18px 0;
+  height: 200px;
+  overflow: hidden;
+}
+
+.ap-guide-cover img {
+  width: 150px;
+  height: auto;
+  align-self: flex-start;
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 6px 18px rgba(6, 26, 47, 0.18);
+  transition: transform 0.3s ease;
+}
+
+.ap-guide-card:hover .ap-guide-cover img {
+  transform: translateY(-4px);
+}
+
+.ap-guide-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 16px 18px 18px;
+}
+
+.ap-guide-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold-2);
+  margin-bottom: 6px;
+}
+
+.ap-guide-body h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--navy);
+  line-height: 1.35;
+  margin: 0 0 8px;
+}
+
+.ap-guide-body p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 12px;
+  flex: 1;
+}
+
+.ap-guide-body .ap-guide-meta {
+  flex: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+
+.ap-guide-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--gold);
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 800;
+  border-radius: 40px;
+  padding: 11px 16px;
+  min-height: 44px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.ap-guide-download svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ap-guide-download:hover {
+  background: var(--navy);
+  color: white;
+}
+
+.ap-guides-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 36px;
+  padding: 26px 30px;
+  border-radius: 14px;
+  background: var(--navy);
+  color: white;
+}
+
+.ap-guides-cta h3 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+  color: white;
+}
+
+.ap-guides-cta p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ap-guides-cta-btn {
+  flex-shrink: 0;
+  background: var(--gold);
+  color: var(--navy);
+  font-weight: 800;
+  font-size: 15px;
+  border-radius: 40px;
+  padding: 12px 22px;
+  transition: background 0.2s ease;
+}
+
+.ap-guides-cta-btn:hover {
+  background: white;
+}
+
+@media (max-width: 1024px) {
+  .ap-guides-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .ap-guides-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .ap-guides-head {
+    text-align: left;
+  }
+  .ap-guides-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -16px;
+    padding: 2px 16px 6px;
+    scrollbar-width: none;
+  }
+  .ap-guides-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .ap-guides-cta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Phones: compact horizontal cards so 42 guides stay easy to scan */
+@media (max-width: 560px) {
+  .ap-guides-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .ap-guide-card {
+    flex-direction: row;
+  }
+  .ap-guide-cover {
+    width: 96px;
+    height: auto;
+    flex-shrink: 0;
+    padding: 12px 0 0 12px;
+    background: var(--soft);
+  }
+  .ap-guide-cover img {
+    width: 84px;
+  }
+  .ap-guide-body {
+    padding: 12px 14px 14px;
+  }
+  .ap-guide-body h3 {
+    font-size: 15px;
+  }
+  .ap-guide-body p:not(.ap-guide-meta) {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .ap-guide-download {
+    align-self: flex-start;
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+}
