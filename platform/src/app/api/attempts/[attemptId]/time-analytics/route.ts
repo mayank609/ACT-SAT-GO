@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { isAnswerCorrect } from '@/lib/answerCheck'
+import { ensureAttemptEventsTable } from '@/lib/attemptEventsTable'
 import {
   buildVisits, summarise, insights, isEmptyChoice,
   type Grader, type Result, type TrackedEvent,
@@ -62,15 +63,21 @@ export async function GET(
 
     const attempt = await prisma.testAttempt.findUnique({
       where: { id: attemptId },
-      select: { id: true, studentId: true, status: true, testId: true },
+      select: {
+        id: true, studentId: true, status: true, testId: true,
+        sectionAttempts: { select: { sectionId: true, completedAt: true } },
+      },
     })
     if (!attempt) return NextResponse.json({ error: 'Test attempt not found' }, { status: 404 })
 
-    // Access: the student (after submitting), their assigned tutors, and admins.
+    // Access: the student (for modules they have finished), their assigned
+    // tutors, and admins. Results are never shown for a module still being
+    // taken, so the answer key can't leak mid-test.
+    let onlySections: Set<string> | null = null
     if (user.role === 'STUDENT') {
       if (attempt.studentId !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       if (attempt.status === 'IN_PROGRESS') {
-        return NextResponse.json({ error: 'Available after the test is submitted' }, { status: 409 })
+        onlySections = new Set(attempt.sectionAttempts.filter((sa) => sa.completedAt).map((sa) => sa.sectionId))
       }
     } else if (user.role === 'TUTOR') {
       const assigned = await prisma.tutorAssignment.findUnique({
@@ -80,7 +87,8 @@ export async function GET(
       if (!assigned) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const [events, sections] = await Promise.all([
+    await ensureAttemptEventsTable()
+    const [events, allSections] = await Promise.all([
       prisma.attemptEvent.findMany({
         where: { attemptId },
         orderBy: { seq: 'asc' },
@@ -107,6 +115,8 @@ export async function GET(
         },
       }),
     ])
+
+    const sections = onlySections ? allSections.filter((s) => onlySections.has(s.id)) : allSections
 
     if (events.length === 0) {
       return NextResponse.json({ hasEvents: false, sections: [] })

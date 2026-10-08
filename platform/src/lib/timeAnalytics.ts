@@ -10,10 +10,12 @@ export type EventType =
   | 'ENTER' | 'LEAVE' | 'ANSWER' | 'CLEAR' | 'FLAG' | 'UNFLAG'
   | 'HIDDEN' | 'VISIBLE' | 'IDLE' | 'ACTIVE' | 'HEARTBEAT'
   | 'SUBMIT' | 'MODULE_END' | 'TIME_UP'
+  /** A test-player tracker started (page load / reload / resume). */
+  | 'START'
 
 export const EVENT_TYPES: ReadonlySet<string> = new Set<EventType>([
   'ENTER', 'LEAVE', 'ANSWER', 'CLEAR', 'FLAG', 'UNFLAG', 'HIDDEN', 'VISIBLE',
-  'IDLE', 'ACTIVE', 'HEARTBEAT', 'SUBMIT', 'MODULE_END', 'TIME_UP',
+  'IDLE', 'ACTIVE', 'HEARTBEAT', 'SUBMIT', 'MODULE_END', 'TIME_UP', 'START',
 ])
 
 export interface TrackedEvent {
@@ -177,6 +179,16 @@ export function buildVisits(
         if (open && pausedAt !== null) {
           open.pauses.push({ start: pausedAt, end: t })
           pausedAt = null
+        }
+        break
+      case 'START':
+        // A new player session (reload / resume). Anything still open belonged
+        // to the previous page and ended at its last recorded event (the last
+        // heartbeat at worst, so at most ~10 s is lost), or when it was hidden.
+        if (open) {
+          const endAt = pausedAt ?? prevT
+          pausedAt = null
+          close(endAt)
         }
         break
       case 'SUBMIT':

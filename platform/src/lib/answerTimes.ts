@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { buildVisits } from '@/lib/timeAnalytics'
+import { ensureAttemptEventsTable } from '@/lib/attemptEventsTable'
 
 /**
  * Rewrites AttemptAnswer.timeSpentSeconds from the attempt's event log, so
@@ -13,6 +14,7 @@ import { buildVisits } from '@/lib/timeAnalytics'
  * Idempotent; only rows whose value changes are written.
  */
 export async function syncAnswerTimesFromEvents(attemptId: string): Promise<void> {
+  await ensureAttemptEventsTable()
   const events = await prisma.attemptEvent.findMany({
     where: { attemptId },
     orderBy: { seq: 'asc' },

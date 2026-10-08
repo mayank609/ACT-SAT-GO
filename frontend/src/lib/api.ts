@@ -63,12 +63,18 @@ async function cachedGet<T>(path: string, ttlMs: number): Promise<T> {
  * every few seconds during a test and must not clear the GET cache, and it
  * uses keepalive so the final batch survives the tab closing.
  */
-export async function postAttemptEvents(attemptId: string, events: unknown[]): Promise<boolean> {
+export async function postAttemptEvents(attemptId: string, events: unknown[], token?: string | null): Promise<boolean> {
   try {
     const body = JSON.stringify({ events })
+    // With a token passed in, fetch() is called synchronously (no await before
+    // it) — required when the page is unloading, where an awaited token lookup
+    // would never get to send the request.
+    const auth = token !== undefined
+      ? (token ? { Authorization: `Bearer ${token}` } : {})
+      : await authHeaders()
     const res = await fetch(`${BASE}/api/attempts/${attemptId}/events`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      headers: { 'Content-Type': 'application/json', ...auth },
       body,
       // keepalive lets the last batch survive the tab closing, but browsers
       // reject keepalive bodies over 64 KB — only use it for small batches.

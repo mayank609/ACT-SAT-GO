@@ -130,6 +130,19 @@ assert.equal(reload.length, 2)
 assert.deepEqual([reload[0].start, reload[0].end, reload[0].activeMs, reload[0].pauses.length], [0, 4_000, 4_000, 0])
 assert.deepEqual([reload[1].visitNo, reload[1].start, reload[1].activeMs, reload[1].isFinal], [2, 12_000, 4_000, true])
 
+// Reload where the unload event never reached the server (seen in a real run):
+// the new player session logs START, which ends the open visit at the last
+// event of the old page (the heartbeat), even though the gap is < 15 s.
+const lostUnload = buildVisits([
+  { seq: 1, t: 56_800, type: 'ENTER', questionId: 'q4' },
+  { seq: 2, t: 61_435, type: 'HEARTBEAT', questionId: 'q4' },
+  { seq: 3, t: 69_000, type: 'START', questionId: null },
+  { seq: 4, t: 69_419, type: 'ENTER', questionId: 'q4' },
+  { seq: 5, t: 76_204, type: 'ANSWER', questionId: 'q4', choice: { key: 'A' } },
+  { seq: 6, t: 78_203, type: 'LEAVE', questionId: 'q4' },
+], grade)
+assert.deepEqual(lostUnload.map((v) => [v.visitNo, v.start, v.end]), [[1, 56_800, 61_435], [2, 69_419, 78_203]])
+
 // Crash with no pagehide: the last heartbeat ends the visit; re-ENTER is a new visit.
 const crash2 = buildVisits([
   { seq: 1, t: 0, type: 'ENTER', questionId: 'q4' },
