@@ -1,4 +1,5 @@
 import { api, postAttemptEvents } from './api';
+import { getAccessToken } from './supabase';
 
 // Logs what happens in the test player as small timestamped events
 // (ENTER / LEAVE a question, ANSWER, FLAG, tab HIDDEN/VISIBLE, IDLE/ACTIVE,
@@ -12,7 +13,9 @@ import { api, postAttemptEvents } from './api';
 type EventType =
   | 'ENTER' | 'LEAVE' | 'ANSWER' | 'CLEAR' | 'FLAG' | 'UNFLAG'
   | 'HIDDEN' | 'VISIBLE' | 'IDLE' | 'ACTIVE' | 'HEARTBEAT'
-  | 'SUBMIT' | 'MODULE_END' | 'TIME_UP';
+  | 'SUBMIT' | 'MODULE_END' | 'TIME_UP'
+  /** First event of every tracker: lets the server end a visit left open by a reloaded page. */
+  | 'START';
 
 interface QueuedEvent {
   localSeq: number;
@@ -46,10 +49,16 @@ export class QuestionTimeTracker {
   private flushing: Promise<boolean> | null = null;
   private destroyed = false;
   private lastActivity = 0;
+  /** Last access token, so the unload send can go out synchronously. */
+  private token: string | null = null;
+  /** Batch currently being sent by flush(). */
+  private inFlight: QueuedEvent[] = [];
 
   constructor({ attemptId, flushMs = 10_000, idleMs = 120_000 }: { attemptId: string; flushMs?: number; idleMs?: number }) {
     this.attemptId = attemptId;
     this.idleMs = idleMs;
+    this.log('START', null);
+    void this.refreshToken();
 
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', this.onPageHide);
@@ -156,8 +165,38 @@ export class QuestionTimeTracker {
 
   private onPageHide = () => {
     if (this.current !== null && !this.hidden) this.log('HIDDEN', this.current);
-    void this.flush();
+    this.sendNow();
   };
+
+  private async refreshToken() {
+    try { this.token = await getAccessToken(); } catch { /* keep the last one */ }
+  }
+
+  /**
+   * Fire-and-forget send for page unload: fetch() is issued synchronously with
+   * the cached token (keepalive), because the page may be gone before any
+   * awaited work completes. Events are dropped from the queue optimistically.
+   */
+  private sendNow() {
+    if (this.seqBase === null) return;
+    // Everything not yet confirmed, including a batch whose request may not
+    // have left yet. Re-sending is safe: the server skips duplicate seq numbers.
+    const pending = [...this.inFlight, ...this.queue];
+    for (let i = 0; i < pending.length; i += MAX_BATCH) {
+      void postAttemptEvents(this.attemptId, this.toWire(pending.slice(i, i + MAX_BATCH), this.seqBase), this.token);
+    }
+  }
+
+  private toWire(batch: QueuedEvent[], seqBase: number) {
+    return batch.map((e) => ({
+      seq: seqBase + e.localSeq,
+      type: e.type,
+      questionId: e.questionId,
+      t: Math.round(this.tBase + e.rel),
+      wall: e.wall,
+      ...(e.choice !== undefined ? { choice: e.choice } : {}),
+    }));
+  }
 
   private onActivity = () => {
     // Cheap throttle: mousemove fires constantly.
@@ -208,15 +247,10 @@ export class QuestionTimeTracker {
     const seqBase = this.seqBase;
     if (seqBase === null) return false;
     const batch = this.queue.splice(0, MAX_BATCH);
-    const events = batch.map((e) => ({
-      seq: seqBase + e.localSeq,
-      type: e.type,
-      questionId: e.questionId,
-      t: Math.round(this.tBase + e.rel),
-      wall: e.wall,
-      ...(e.choice !== undefined ? { choice: e.choice } : {}),
-    }));
-    const ok = await postAttemptEvents(this.attemptId, events);
+    this.inFlight = batch;
+    await this.refreshToken();
+    const ok = await postAttemptEvents(this.attemptId, this.toWire(batch, seqBase), this.token);
+    this.inFlight = [];
     if (!ok) this.queue = batch.concat(this.queue); // retry on the next flush
     return ok;
   }

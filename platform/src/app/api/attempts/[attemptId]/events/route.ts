@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { EVENT_TYPES } from '@/lib/timeAnalytics'
 import { syncAnswerTimesFromEvents } from '@/lib/answerTimes'
+import { ensureAttemptEventsTable } from '@/lib/attemptEventsTable'
 
 // Test-player event log for visit-level time analytics.
 //
@@ -39,6 +40,7 @@ export async function GET(
   try {
     const { attempt, error } = await loadOwnAttempt(request, attemptId)
     if (error) return error
+    await ensureAttemptEventsTable()
     const max = await prisma.attemptEvent.aggregate({ where: { attemptId }, _max: { seq: true, tMs: true } })
     return NextResponse.json({
       lastSeq: max._max.seq ?? 0,
@@ -74,6 +76,7 @@ export async function POST(
       return NextResponse.json({ error: 'Attempt is closed' }, { status: 409 })
     }
 
+    await ensureAttemptEventsTable()
     const rows: Prisma.AttemptEventCreateManyInput[] = []
     for (const item of raw) {
       const e = item as Record<string, unknown>
