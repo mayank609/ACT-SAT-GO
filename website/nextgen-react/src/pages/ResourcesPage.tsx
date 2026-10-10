@@ -5,6 +5,8 @@ import { useScrollReveal } from '../hooks/useScrollReveal';
 import { fetchBlogs, type BlogPost } from '../admin/api';
 import { ApGuidesSection, apGuideMatches } from '../components/ApGuides';
 import { AP_GUIDES } from '../data/apGuides';
+import { TestGuidesSection, testGuideMatches } from '../components/TestGuides';
+import { TEST_GUIDES } from '../data/testGuides';
 import { QUERY_API_BASE } from '../config';
 
 // Image assets
@@ -341,7 +343,8 @@ export function ResourcesPage() {
   });
 
   const hasApGuides = AP_GUIDES.some(g => apGuideMatches(g, searchQuery));
-  const hasResults = filteredResources.length > 0 || filteredBlogs.length > 0 || hasApGuides;
+  const hasTestGuides = TEST_GUIDES.some(g => testGuideMatches(g, searchQuery));
+  const hasResults = filteredResources.length > 0 || filteredBlogs.length > 0 || hasApGuides || hasTestGuides;
 
   return (
     <>
@@ -499,6 +502,9 @@ export function ResourcesPage() {
             </div>
           </section>
         )}
+
+        {/* SAT & ACT test guides — free PDF downloads */}
+        {hasTestGuides && <TestGuidesSection pageQuery={searchQuery} />}
 
         {/* AP exam guides — free PDF downloads */}
         {hasApGuides && <ApGuidesSection pageQuery={searchQuery} />}
