@@ -1,5 +1,5 @@
 import { SITE } from './site';
-import { HOME_FAQ } from './data/faq';
+import { HOME_FAQ, type FaqItem } from './data/faq';
 import { SAT_PAGE, ACT_PAGE, AP_PAGE, type ProgramPageData } from './data/programs';
 import { PAGES } from './seo';
 
@@ -118,15 +118,19 @@ function service(path: string, name: string, serviceType: string, description: s
   };
 }
 
-const faqPage: Json = {
-  '@type': 'FAQPage',
-  '@id': `${SITE.url}/#faq`,
-  mainEntity: HOME_FAQ.map((f) => ({
-    '@type': 'Question',
-    name: f.q,
-    acceptedAnswer: { '@type': 'Answer', text: f.a },
-  })),
-};
+function faqPageFor(path: string, items: FaqItem[]): Json {
+  return {
+    '@type': 'FAQPage',
+    '@id': `${url(path)}#faq`,
+    mainEntity: items.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+}
+
+const faqPage = faqPageFor('/', HOME_FAQ);
 
 const titleOf = (path: string) => PAGES.find((p) => p.path === path)?.title ?? SITE.name;
 
@@ -161,12 +165,14 @@ function graphFor(path: string): Json[] | null {
         webPage('WebPage', path, titleOf(path), SAT_DESC),
         service(path, 'Digital SAT Tutoring (1-on-1, online)', 'SAT test preparation', SAT_DESC, offersFrom(SAT_PAGE, path)),
         breadcrumb(path, 'SAT'),
+        ...(SAT_PAGE.faq ? [faqPageFor(path, SAT_PAGE.faq)] : []),
       ];
     case '/act':
       return [
         webPage('WebPage', path, titleOf(path), ACT_DESC),
         service(path, 'ACT Tutoring (1-on-1, online)', 'ACT test preparation', ACT_DESC, offersFrom(ACT_PAGE, path)),
         breadcrumb(path, 'ACT'),
+        ...(ACT_PAGE.faq ? [faqPageFor(path, ACT_PAGE.faq)] : []),
       ];
     case '/ap':
       return [

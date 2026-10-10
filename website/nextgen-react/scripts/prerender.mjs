@@ -5,7 +5,7 @@
 // URL, Open Graph tags and JSON-LD. The browser then hydrates that markup, so
 // parents see content immediately and crawlers / link previews / AI search
 // read the actual page instead of an empty <div id="root">.
-// It also writes sitemap.xml, robots.txt and 404.html.
+// It also writes sitemap.xml, robots.txt, llms.txt and 404.html.
 //
 // Run after `vite build` and `vite build --ssr` (see "build" in package.json).
 
@@ -113,6 +113,31 @@ Sitemap: ${SITE.url}/sitemap.xml
 `,
 );
 
+// llms.txt (https://llmstxt.org): a plain Markdown map of the site for AI
+// assistants and answer engines, built from the same titles and descriptions
+// as the pages themselves.
+const SECTIONS = [
+  ['Tutoring programs', ['/sat', '/act', '/ap', '/k-12-tutoring', '/future-programs']],
+  ['Free resources', ['/free-test', '/resources']],
+  ['About and booking', ['/about-us', '/consultation', '/careers']],
+  ['Policies', ['/refund-policy', '/child-safety', '/privacy-policy', '/terms']],
+];
+const llmsLink = (p) => {
+  const m = PAGES.find((x) => x.path === p);
+  return m ? `- [${m.title}](${canonicalUrl(p)}): ${m.description}` : null;
+};
+fs.writeFileSync(
+  path.join(dist, 'llms.txt'),
+  `# ${SITE.name}
+
+> ${SITE.name} offers live 1-on-1 online tutoring for the Digital SAT, the enhanced ACT and AP exams, plus K-12 academics, for US students. Every student starts with a free diagnostic lesson, gets a plan built around their test date, has homework after every session, and parents receive regular progress reports. Program fees are published on the SAT, ACT and AP pages.
+
+Contact: ${SITE.email}, ${SITE.phoneDisplay}. Home page: ${canonicalUrl('/')}
+
+${SECTIONS.map(([h, paths]) => `## ${h}\n\n${paths.map(llmsLink).filter(Boolean).join('\n')}`).join('\n\n')}
+`,
+);
+
 fs.rmSync(ssrDir, { recursive: true, force: true });
 fs.rmSync(path.join(dist, '.vite'), { recursive: true, force: true });
-console.log(`sitemap.xml (${sitemapUrls.length} URLs), robots.txt and 404.html written.`);
+console.log(`sitemap.xml (${sitemapUrls.length} URLs), robots.txt, llms.txt and 404.html written.`);

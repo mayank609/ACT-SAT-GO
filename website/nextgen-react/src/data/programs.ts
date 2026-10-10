@@ -2,6 +2,8 @@
 // Each page is rendered by the shared <ProgramPage> component from one of
 // these objects, so all three stay visually and structurally consistent.
 
+import type { FaqItem } from './faq';
+
 export interface ProgramTier {
   name: string;
   tag?: string;
@@ -76,6 +78,8 @@ export interface ProgramPageData {
   chooseHeading: string;
   chooseItems: ChooseItem[];
   stats: Stat[];
+  /** Exam FAQ shown on the page and emitted as FAQPage structured data. */
+  faq?: FaqItem[];
 }
 
 const SHARED_STATS: Stat[] = [
@@ -238,6 +242,32 @@ export const ACT_PAGE: ProgramPageData = {
     { prompt: 'I need help with English & Reading.', choose: 'ACT English Program', accent: '#dc2626' },
   ],
   stats: SHARED_STATS,
+  faq: [
+    {
+      q: 'What is on the enhanced ACT?',
+      a: 'The enhanced ACT has 131 core questions in about 2 hours: English (50 questions, 35 minutes), Math (45 questions, 50 minutes) and Reading (36 questions, 40 minutes). Science (40 questions, 40 minutes) is optional. Your composite score, from 1 to 36, is the average of English, Math and Reading.',
+    },
+    {
+      q: 'Should I take the optional ACT Science section?',
+      a: 'Take Science if any college on your list requires or recommends it, or if you are applying to STEM programs, since some schools still look at it. Science is scored separately and does not change your composite. If no college on your list asks for it, skipping it shortens test day.',
+    },
+    {
+      q: 'How long should I study for the ACT?',
+      a: 'Most students preparing from the start need about 12 to 16 weeks, which is the length of our ACT Mastery Program. If your test date is close, a focused 4 to 6 week plan like our ACT Accelerator Program works on the sections where you can gain the most points. A free diagnostic shows which fits.',
+    },
+    {
+      q: 'What is a good ACT score?',
+      a: 'A good ACT score is one that falls in or above the middle 50% range of admitted students at the colleges you are applying to. Each college publishes this range, so make a list, note the ranges, and set your target at or above the top of them for the colleges you care about most.',
+    },
+    {
+      q: 'Should my child take the ACT or the SAT?',
+      a: 'US colleges accept both equally. The enhanced ACT is a fixed-form test with more questions per minute, while the Digital SAT is adaptive and gives more time per question. The best way to choose is to take a practice test of each and compare the results, which you can do free with our practice test.',
+    },
+    {
+      q: 'How much does ACT tutoring cost at ACT SAT GO?',
+      a: 'ACT programs range from $599 for ACT Test Series+ to $1,299 for the full ACT Mastery Program, and every program is 1-on-1 and online. The full list of programs and fees is on this page. The first diagnostic lesson is free.',
+    },
+  ],
 };
 
 export const SAT_PAGE: ProgramPageData = {
@@ -361,8 +391,7 @@ export const SAT_PAGE: ProgramPageData = {
   ],
   curriculumHeading: 'SAT Curriculum Overview',
   curriculum: [
-    { title: 'Reading', accent: '#1c5fa5', points: ['Command of Evidence', 'Words in Context', 'Expression of Ideas', 'Standard English Conventions'] },
-    { title: 'Writing & Language', accent: '#16a34a', points: ['Grammar & Usage', 'Rhetorical Skills', 'Transitions & Coherence', 'Revision & Editing'] },
+    { title: 'Reading and Writing', accent: '#1c5fa5', points: ['Information and Ideas', 'Craft and Structure', 'Expression of Ideas', 'Standard English Conventions'] },
     { title: 'Math', accent: '#f59b00', points: ['Algebra', 'Advanced Math', 'Problem Solving & Data Analysis', 'Geometry & Trigonometry'] },
   ],
 
@@ -375,6 +404,32 @@ export const SAT_PAGE: ProgramPageData = {
     { prompt: 'I need help with Reading & Writing.', choose: 'SAT Verbal Edge', accent: '#dc2626' },
   ],
   stats: SHARED_STATS,
+  faq: [
+    {
+      q: 'What is on the Digital SAT?',
+      a: 'The Digital SAT has two sections: Reading and Writing (54 questions, 64 minutes) and Math (44 questions, 70 minutes), about 2 hours 14 minutes in all. Each section has two modules, and the second module adapts to how you did on the first. Scores range from 400 to 1600, and a calculator is allowed on all of Math.',
+    },
+    {
+      q: 'How long should I study for the Digital SAT?',
+      a: 'Most students preparing from the start need about 12 to 16 weeks, which is the length of our SAT Mastery Track. If your test date is close, a focused 4 to 6 week plan like our SAT Accelerator works on the areas where you can gain the most points. A free diagnostic shows which fits.',
+    },
+    {
+      q: 'What is a good SAT score?',
+      a: 'A good SAT score is one that falls in or above the middle 50% range of admitted students at the colleges you are applying to. Each college publishes this range, so make a list, note the ranges, and set your target at or above the top of them for the colleges you care about most.',
+    },
+    {
+      q: 'How does the adaptive Digital SAT affect scoring?',
+      a: 'In each section, your performance on the first module decides whether the second module is easier or harder. Harder questions are worth more, so doing well on the first module is the way to unlock the highest scores. Our practice tests use the same adaptive format so students get used to it.',
+    },
+    {
+      q: 'Should my child take the SAT or the ACT?',
+      a: 'US colleges accept both equally. The Digital SAT is adaptive and gives more time per question, while the enhanced ACT is a fixed-form test with more questions per minute. The best way to choose is to take a practice test of each and compare the results, which you can do free with our practice test.',
+    },
+    {
+      q: 'How much does SAT tutoring cost at ACT SAT GO?',
+      a: 'SAT programs range from $500 for SAT Test Series+ to $1,600 for the full SAT Mastery Track, and every program is 1-on-1 and online. The full list of programs and fees is on this page. The first diagnostic lesson is free.',
+    },
+  ],
 };
 
 export const AP_PAGE: ProgramPageData = {
