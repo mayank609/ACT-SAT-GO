@@ -235,7 +235,7 @@ const WHY_CHOOSE_ITEMS = [
   { title: 'Expert Ivy League Mentors', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5Z" /><path d="M6 10.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.5" /></svg> },
   { title: 'Live Interactive Classes', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M9 21h6M12 17v4" /><path d="M9.5 8.5 13 11l-3.5 2.5Z" /></svg> },
   { title: '1000+ Practice Questions', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6Z" /><path d="M14 3v4h4" /><path d="M9 15.5h6M9 12h6M9 8.5h2" /></svg> },
-  { title: '100+ Full Length Mocks', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3.5A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5V4" /><path d="M9 13l2 2 4-4.2" /></svg> },
+  { title: 'Full-Length Timed Mocks', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3.5A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5V4" /><path d="M9 13l2 2 4-4.2" /></svg> },
   { title: 'Performance Tracking', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M8 20h8M12 16v4" /><path d="M6 12.5l3-3.2 2.6 2 4.4-4.8" /></svg> },
   { title: 'Dedicated Student Support', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v11H9l-5 4V5Z" /><circle cx="8.5" cy="10.5" r="0.8" fill="currentColor" stroke="none" /><circle cx="12" cy="10.5" r="0.8" fill="currentColor" stroke="none" /><circle cx="15.5" cy="10.5" r="0.8" fill="currentColor" stroke="none" /></svg> },
 ];
@@ -423,7 +423,7 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
               </div>
             </div>
             <div className="highlights-photo reveal" aria-hidden="true">
-              <img src={highlightsImg} alt="" loading="lazy" />
+              <img src={highlightsImg} alt={`Student preparing for the ${data.exam} with ACT SAT GO`} loading="lazy" />
             </div>
           </div>
         </section>

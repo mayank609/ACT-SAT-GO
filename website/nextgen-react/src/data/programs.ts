@@ -3,6 +3,7 @@
 // these objects, so all three stay visually and structurally consistent.
 
 import type { FaqItem } from './faq';
+import { STATS } from '../site';
 
 export interface ProgramTier {
   name: string;
@@ -84,9 +85,9 @@ export interface ProgramPageData {
 
 const SHARED_STATS: Stat[] = [
   { value: '90+', label: 'Top Scores Achieved' },
-  { value: '10K+', label: 'Students Trained' },
-  { value: '4.8/5', label: 'Student Rating' },
-  { value: '98%', label: 'Recommend Us' },
+  { value: STATS.students, label: 'Students Trained' },
+  { value: STATS.rating, label: 'Student Rating' },
+  { value: STATS.satisfaction, label: 'Parent Satisfaction' },
 ];
 
 export const ACT_PAGE: ProgramPageData = {
@@ -112,7 +113,7 @@ export const ACT_PAGE: ProgramPageData = {
   highlightsEyebrow: 'WHAT IS THE ACT?',
   highlightsHeading: 'Why Prep With ACT SAT GO?',
   highlightsText:
-    'The ACT is accepted by every 4-year college in the US. Since 2025 the enhanced ACT has 131 core questions across English, Math and Reading in about 2 hours, with Science now optional — and our curriculum is built for the new format.',
+    'The ACT is accepted by every US college that asks for test scores, and a growing list of top schools now require scores again. Since 2025 the enhanced ACT has 131 core questions across English, Math and Reading in about 2 hours, with Science now optional — and our curriculum is built for the new format.',
   highlights: [
     { value: '131', label: 'Core Questions on the Enhanced ACT' },
     { value: '12+', label: 'Full-Length ACT Mocks' },
@@ -190,7 +191,7 @@ export const ACT_PAGE: ProgramPageData = {
       ],
     },
     {
-      name: 'ACT English Program',
+      name: 'ACT English, Reading & Science',
       icon: '✎',
       weeks: '6 – 8 Weeks',
       idealFor: 'Students who need targeted improvement in English, Reading & Science sections.',
@@ -239,7 +240,7 @@ export const ACT_PAGE: ProgramPageData = {
     { prompt: 'My exam is within 1 month.', choose: 'ACT Accelerator Program', accent: '#16a34a' },
     { prompt: "I've already studied and need practice.", choose: 'ACT Test Series+', accent: '#6d28d9' },
     { prompt: 'I only need help with Math.', choose: 'ACT Math Program', accent: '#f59b00' },
-    { prompt: 'I need help with English & Reading.', choose: 'ACT English Program', accent: '#dc2626' },
+    { prompt: 'I need help with English, Reading or Science.', choose: 'ACT English, Reading & Science', accent: '#dc2626' },
   ],
   stats: SHARED_STATS,
   faq: [

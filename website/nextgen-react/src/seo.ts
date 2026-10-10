@@ -19,13 +19,13 @@ export const PAGES: PageMeta[] = [
     path: '/',
     title: 'Online SAT & ACT Tutoring for US Students | 1-on-1 | ACT SAT GO',
     description:
-      '1-on-1 online tutoring for the Digital SAT, enhanced ACT and AP exams. A diagnostic before the first lesson, homework after every session and progress reports for parents. Book a free diagnostic lesson.',
+      '1-on-1 online tutoring for the Digital SAT, ACT and AP exams: a diagnostic first, homework after every session and weekly reports for parents.',
   },
   {
     path: '/sat',
     title: 'Digital SAT Tutoring Online — 1-on-1 Expert Tutors | ACT SAT GO',
     description:
-      'Live 1-on-1 Digital SAT tutoring with a personalised plan, full-length adaptive practice tests and a score report after each one. See programs and fees, then book a free diagnostic lesson.',
+      'Live 1-on-1 Digital SAT tutoring with a personal plan, full-length adaptive practice tests and a score report after each. See programs and fees.',
   },
   {
     path: '/act',
@@ -35,9 +35,9 @@ export const PAGES: PageMeta[] = [
   },
   {
     path: '/ap',
-    title: 'AP Tutoring Online — Calculus, Physics, Chemistry & More | ACT SAT GO',
+    title: 'AP Tutoring Online — Calculus, Physics & More | ACT SAT GO',
     description:
-      '1-on-1 online AP tutoring for Calculus AB/BC, Physics, Chemistry, Biology, Statistics, Economics, Computer Science and more — aiming for 4s and 5s. Book a free diagnostic lesson.',
+      '1-on-1 online AP tutoring for Calculus AB/BC, Physics, Chemistry, Biology, Statistics, Economics and more, aiming for 4s and 5s.',
   },
   {
     path: '/k-12-tutoring',

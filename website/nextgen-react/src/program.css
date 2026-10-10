@@ -923,8 +923,9 @@
     grid-template-columns: 1fr;
   }
 
+  /* Headline first on phones and tablets; artwork below it. */
   .prog-hero-art {
-    order: -1;
+    order: 1;
     min-height: 320px;
   }
 

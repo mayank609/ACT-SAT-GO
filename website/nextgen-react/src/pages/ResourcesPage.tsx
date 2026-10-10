@@ -5,6 +5,9 @@ import { useScrollReveal } from '../hooks/useScrollReveal';
 import { fetchBlogs, type BlogPost } from '../admin/api';
 import { ApGuidesSection, apGuideMatches } from '../components/ApGuides';
 import { AP_GUIDES } from '../data/apGuides';
+import { TestGuidesSection, testGuideMatches } from '../components/TestGuides';
+import { TEST_GUIDES } from '../data/testGuides';
+import { QUERY_API_BASE } from '../config';
 
 // Image assets
 import heroImg from '../assets/img/resouces-hero.webp';
@@ -121,6 +124,8 @@ export function ResourcesPage() {
   const [activeTopic, setActiveTopic] = useState('');
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
+  // Guide the visitor asked for from a Featured Resources card, sent with the email.
+  const [requestedGuide, setRequestedGuide] = useState('');
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
 
   const getBlogImage = (post: BlogPost) => {
@@ -161,13 +166,35 @@ export function ResourcesPage() {
     e.preventDefault();
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
-      setIsSubscribed(true);
-      setEmail('');
-      setTimeout(() => setIsSubscribed(false), 5000);
+    if (!email.trim()) return;
+    setIsSubscribed(true);
+    try {
+      await fetch(`${QUERY_API_BASE}/api/queries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Newsletter Subscriber',
+          email: email.trim(),
+          phone: '',
+          exam: 'General',
+          message: requestedGuide
+            ? `Requested the ${requestedGuide} from the Resources page.`
+            : 'Signed up for newsletter resources & tips.',
+          type: 'Newsletter',
+        }),
+      });
+    } catch (error) {
+      console.error('Error submitting newsletter email:', error);
     }
+    setEmail('');
+  };
+
+  const requestGuide = (title: string) => {
+    setRequestedGuide(title);
+    setIsSubscribed(false);
+    document.getElementById('newsletter')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const clearSearch = () => {
@@ -316,7 +343,8 @@ export function ResourcesPage() {
   });
 
   const hasApGuides = AP_GUIDES.some(g => apGuideMatches(g, searchQuery));
-  const hasResults = filteredResources.length > 0 || filteredBlogs.length > 0 || hasApGuides;
+  const hasTestGuides = TEST_GUIDES.some(g => testGuideMatches(g, searchQuery));
+  const hasResults = filteredResources.length > 0 || filteredBlogs.length > 0 || hasApGuides || hasTestGuides;
 
   return (
     <>
@@ -328,7 +356,7 @@ export function ResourcesPage() {
           <span className="orb orb-gold" aria-hidden="true" />
           <div className="shell">
             <p className="resources-breadcrumb">
-              <a href="/#home">Home</a> <span aria-hidden="true">›</span> <span>Resources</span>
+              <a href="/">Home</a> <span aria-hidden="true">›</span> <span>Resources</span>
             </p>
 
             <div className="resources-hero-grid">
@@ -450,16 +478,16 @@ export function ResourcesPage() {
                     <span className="featured-badge">{res.badge}</span>
                     <img src={res.image} alt={`${res.title} cover`} loading="lazy" />
                     <a
-                      href={'href' in res ? res.href : '#download'}
+                      href={'href' in res ? res.href : '#newsletter'}
                       className="featured-download-btn"
-                      aria-label={'href' in res ? `Browse the AP exam guides` : `Download ${res.title}`}
+                      aria-label={'href' in res ? `Browse the AP exam guides` : `Get the ${res.title} by email`}
                       onClick={(e) => {
                         e.preventDefault();
                         if ('href' in res) {
                           document.getElementById('ap-guides')?.scrollIntoView({ behavior: 'smooth' });
                           return;
                         }
-                        alert(`Thank you for downloading the ${res.title}! The file download will start automatically.`);
+                        requestGuide(res.title);
                       }}
                     >
                       <IconDownload />
@@ -474,6 +502,9 @@ export function ResourcesPage() {
             </div>
           </section>
         )}
+
+        {/* SAT & ACT test guides — free PDF downloads */}
+        {hasTestGuides && <TestGuidesSection pageQuery={searchQuery} />}
 
         {/* AP exam guides — free PDF downloads */}
         {hasApGuides && <ApGuidesSection pageQuery={searchQuery} />}
@@ -493,7 +524,7 @@ export function ResourcesPage() {
 
             <div className="blog-grid">
               {filteredBlogs.map(post => (
-                <article key={post.title} className="blog-card" onClick={() => alert(`Opening blog post: "${post.title}"`)}>
+                <article key={post.title} className="blog-card">
                   <div className="blog-image-wrapper">
                     <img src={getBlogImage(post)} alt={post.title} loading="lazy" />
                   </div>
@@ -514,19 +545,23 @@ export function ResourcesPage() {
         )}
 
         {/* Newsletter subscription */}
-        <section className="resources-newsletter shell">
+        <section className="resources-newsletter shell" id="newsletter">
           <div className="newsletter-box">
             <div className="newsletter-main-row">
               <div className="newsletter-copy">
-                <h2>Stay Ahead with Expert Insights</h2>
+                <h2>{requestedGuide ? `Get the ${requestedGuide} by email` : 'Stay Ahead with Expert Insights'}</h2>
                 <p>
-                  Subscribe to our newsletter and get the latest study tips, resources, and updates delivered straight to your inbox.
+                  {requestedGuide
+                    ? 'Enter your email and our team will send the guide to your inbox, along with occasional study tips you can unsubscribe from any time.'
+                    : 'Subscribe to our newsletter and get the latest study tips, resources, and updates delivered straight to your inbox.'}
                 </p>
               </div>
               <div className="newsletter-form-wrapper">
                 {isSubscribed ? (
                   <div className="newsletter-success">
-                    ✓ Thank you! You have successfully subscribed to our newsletter.
+                    {requestedGuide
+                      ? `✓ Thank you! We'll email you the ${requestedGuide} shortly.`
+                      : '✓ Thank you! You have successfully subscribed to our newsletter.'}
                   </div>
                 ) : (
                   <form className="newsletter-form" onSubmit={handleSubscribe}>
@@ -539,7 +574,7 @@ export function ResourcesPage() {
                       onChange={(e) => setEmail(e.target.value)}
                     />
                     <button type="submit" className="newsletter-btn">
-                      Subscribe
+                      {requestedGuide ? 'Email Me the Guide' : 'Subscribe'}
                     </button>
                   </form>
                 )}

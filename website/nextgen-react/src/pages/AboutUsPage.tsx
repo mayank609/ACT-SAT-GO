@@ -46,7 +46,7 @@ export function AboutUsPage() {
                 </p>
 
                 <p className="about-hero-description">
-                  At ACTSATGO, we believe every student has a unique potential and a unique path. Our mission is to understand that potential and build the right path for them.
+                  At ACT SAT GO, we believe every student has a unique potential and a unique path. Our mission is to understand that potential and build the right path for them.
                 </p>
 
                 <div className="about-hero-quote">
@@ -503,12 +503,12 @@ export function AboutUsPage() {
           </div>
         </section>
 
-        {/* ── The ACTSATGO Promise Section ── */}
+        {/* ── The ACT SAT GO Promise Section ── */}
         <section className="about-promise-section-new">
           <div className="shell">
             <div className="promise-container">
               <h2 className="promise-title">
-                The <span className="promise-brand-text">ACTSAT<span className="promise-brand-go-box">GO</span></span> Promise
+                The <span className="promise-brand-text">ACT SAT <span className="promise-brand-go-box">GO</span></span> Promise
               </h2>
 
               <div className="promise-row">
