@@ -5,7 +5,7 @@
 export const SITE = {
   name: 'ACT SAT GO',
   /** Canonical origin used for canonical URLs, sitemap.xml and Open Graph tags. */
-  url: (import.meta.env.VITE_SITE_URL ?? 'https://actsatgo.com').replace(/\/$/, ''),
+  url: (import.meta.env.VITE_SITE_URL ?? 'https://www.actsatgo.com').replace(/\/$/, ''),
   email: 'info@actsatgo.com',
   /** US phone line — the display text and the tel: link must always match. */
   phoneDisplay: '+1 (945) 391-6179',

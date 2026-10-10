@@ -6,6 +6,7 @@ import { TutorCards } from '../components/TutorCards';
 import { PRIMARY_CTA, SECONDARY_CTA, CONSULT_PATH } from '../site';
 import { Footer } from '../components/Footer';
 import { CountUp } from '../components/CountUp';
+import { FaqSection } from '../components/FaqSection';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import type { ProgramPageData } from '../data/programs';
 import apHeroImg from '../assets/img/ap-hero.webp';
@@ -601,6 +602,8 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
         <TutorCards exam={data.exam} />
 
         <HowItWorks showCta={false} />
+
+        {data.faq && <FaqSection items={data.faq} title={`${data.exam} questions students and parents ask`} />}
 
         {/* CTA + stats */}
         <section className="prog-cta section-dark" id="consultation">
