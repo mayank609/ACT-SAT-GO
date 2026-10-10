@@ -422,7 +422,7 @@ export function ProgramPage({ data }: { data: ProgramPageData }) {
               </div>
             </div>
             <div className="highlights-photo reveal" aria-hidden="true">
-              <img src={highlightsImg} alt="" loading="lazy" />
+              <img src={highlightsImg} alt={`Student preparing for the ${data.exam} with ACT SAT GO`} loading="lazy" />
             </div>
           </div>
         </section>

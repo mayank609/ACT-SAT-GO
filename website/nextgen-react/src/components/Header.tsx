@@ -118,11 +118,7 @@ export function Header() {
 
           <Link to="/resources" onClick={close}>Resources</Link>
 
-          <Link to="/free-test" onClick={close} className="nav-highlight-link">
-            Free Practice Test
-          </Link>
-
-          <Link to="/careers" onClick={close}>Career</Link>
+          <Link to="/careers" onClick={close}>Careers</Link>
 
           <a href={APP_LOGIN_URL} onClick={close}>Login</a>
 

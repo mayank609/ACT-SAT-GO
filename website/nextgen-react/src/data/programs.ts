@@ -188,7 +188,7 @@ export const ACT_PAGE: ProgramPageData = {
       ],
     },
     {
-      name: 'ACT English Program',
+      name: 'ACT English, Reading & Science',
       icon: '✎',
       weeks: '6 – 8 Weeks',
       idealFor: 'Students who need targeted improvement in English, Reading & Science sections.',
@@ -237,7 +237,7 @@ export const ACT_PAGE: ProgramPageData = {
     { prompt: 'My exam is within 1 month.', choose: 'ACT Accelerator Program', accent: '#16a34a' },
     { prompt: "I've already studied and need practice.", choose: 'ACT Test Series+', accent: '#6d28d9' },
     { prompt: 'I only need help with Math.', choose: 'ACT Math Program', accent: '#f59b00' },
-    { prompt: 'I need help with English & Reading.', choose: 'ACT English Program', accent: '#dc2626' },
+    { prompt: 'I need help with English, Reading or Science.', choose: 'ACT English, Reading & Science', accent: '#dc2626' },
   ],
   stats: SHARED_STATS,
 };
@@ -363,8 +363,8 @@ export const SAT_PAGE: ProgramPageData = {
   ],
   curriculumHeading: 'SAT Curriculum Overview',
   curriculum: [
-    { title: 'Reading', accent: '#1c5fa5', points: ['Command of Evidence', 'Words in Context', 'Expression of Ideas', 'Standard English Conventions'] },
-    { title: 'Writing & Language', accent: '#16a34a', points: ['Grammar & Usage', 'Rhetorical Skills', 'Transitions & Coherence', 'Revision & Editing'] },
+    { title: 'Reading and Writing: Reading', accent: '#1c5fa5', points: ['Craft & Structure', 'Words in Context', 'Information & Ideas', 'Command of Evidence'] },
+    { title: 'Reading and Writing: Writing', accent: '#16a34a', points: ['Standard English Conventions', 'Grammar & Punctuation', 'Expression of Ideas', 'Transitions & Rhetorical Synthesis'] },
     { title: 'Math', accent: '#f59b00', points: ['Algebra', 'Advanced Math', 'Problem Solving & Data Analysis', 'Geometry & Trigonometry'] },
   ],
 

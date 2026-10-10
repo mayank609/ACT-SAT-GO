@@ -1654,6 +1654,11 @@ h1 span,
     order: -1;
   }
 
+  /* Homepage: keep the headline and buttons on the first screen. */
+  #home .hero-art {
+    order: 1;
+  }
+
   .features,
   .benefit-grid,
   .story-grid {
@@ -2535,6 +2540,17 @@ h1 span,
 
 @media (max-width: 768px) {
   .sat-hero-img { height: 280px; }
+}
+
+/* Below tablet width the two-column SAT/ACT hero squeezed the text off the
+   right edge of the screen: stack it, with the headline first. */
+@media (max-width: 1040px) {
+  .prog-hero.sat-page .prog-hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .prog-hero.sat-page .hero-art {
+    order: 1;
+  }
 }
 
 /* ── Stats Band ─────────────────────────────────────────────────────── */
@@ -3503,8 +3519,9 @@ html, body {
 /* Concepts Made Simple Card */
 .card-concepts-new {
   position: absolute;
-  left: -104px;
-  top: 12%;
+  /* Stays inside the photo so it never covers the headline. */
+  left: 16px;
+  top: 8%;
   z-index: 3;
   display: flex;
   align-items: center;
