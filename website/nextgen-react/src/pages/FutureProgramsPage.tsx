@@ -145,7 +145,7 @@ export function FutureProgramsPage() {
           <span className="orb orb-ring" aria-hidden="true" />
           <div className="shell">
             <p className="future-breadcrumb">
-              <a href="/#home">Home</a> <span aria-hidden="true">›</span> <span>Future Programs</span>
+              <a href="/">Home</a> <span aria-hidden="true">›</span> <span>Future Programs</span>
             </p>
 
             <div className="future-hero-grid">
