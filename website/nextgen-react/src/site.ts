@@ -29,6 +29,20 @@ export const SITE = {
   adsConversion: import.meta.env.VITE_GOOGLE_ADS_CONVERSION ?? '',
 };
 
+/**
+ * Headline numbers shown across the site. Every page reads from here so the
+ * homepage, program pages and K-12 page never disagree — parents notice when
+ * one page says 5,000 students and another says 10,000. Update them here only,
+ * and only with numbers you can back up.
+ */
+export const STATS = {
+  students: '5,000+',
+  tutors: '300+',
+  countries: '50+',
+  rating: '4.8/5',
+  satisfaction: '98%',
+};
+
 /** The one name for the primary call to action, used everywhere. */
 export const PRIMARY_CTA = 'Book a Free Diagnostic Lesson';
 /** Soft offer for visitors not ready to talk to anyone yet. */

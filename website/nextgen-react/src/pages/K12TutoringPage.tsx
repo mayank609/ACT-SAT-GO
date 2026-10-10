@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { useScrollReveal } from '../hooks/useScrollReveal';
+import { STATS } from '../site';
 import { IconGlobe, IconGraduationCap, IconUser, IconChart } from '../components/Icons';
 import programsImg from '../assets/img/programs.webp';
 import k12HeroImg from '../assets/img/k12-hero.webp';
@@ -201,10 +202,10 @@ const SKILLS = [
 ];
 
 const BOTTOM_STATS = [
-  { icon: <IconGraduationCap />, value: '10,000+', label: 'Students Mentored' },
-  { icon: <IconUser />, value: '200+', label: 'Expert Tutors' },
+  { icon: <IconGraduationCap />, value: STATS.students, label: 'Students Mentored' },
+  { icon: <IconUser />, value: STATS.tutors, label: 'Expert Tutors' },
   { icon: <IconStar />, value: '95%', label: 'Improvement Rate' },
-  { icon: <IconGlobe />, value: '20+', label: 'Countries Served' },
+  { icon: <IconGlobe />, value: STATS.countries, label: 'Countries Served' },
 ];
 
 export function K12TutoringPage() {
@@ -321,7 +322,7 @@ export function K12TutoringPage() {
                 <h3>{g.title}</h3>
                 <p className="k12-grade-text">{g.text}</p>
                 <div className="k12-grade-photo">
-                  <img src={g.photo ?? programsImg} alt="" loading="lazy" />
+                  <img src={g.photo ?? programsImg} alt={`${g.title} tutoring`} loading="lazy" />
                 </div>
                 <p className="k12-focus-label">Focus Areas</p>
                 <ul>

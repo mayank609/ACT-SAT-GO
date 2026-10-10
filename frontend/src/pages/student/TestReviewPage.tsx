@@ -15,6 +15,7 @@ import { Modal } from '../../components/common/Modal';
 import { SAT_CONTENT, ALL_DOMAIN_NAMES, SUBDOMAINS_BY_DOMAIN } from '../../data/satDomains';
 import { formatNumericDisplay, numericEqual } from '../../lib/numericAnswer';
 import { AttemptTimeAnalytics } from '../../components/dashboard/AttemptTimeAnalytics';
+import { AttemptTimeAnalyticsGrid } from '../../components/dashboard/AttemptTimeAnalyticsGrid';
 import { QuestionTimeChart, type QuestionTimeStat } from '../../components/dashboard/QuestionTimeChart';
 
 // ─── DB types ─────────────────────────────────────────────────────────────────
@@ -1611,29 +1612,38 @@ export function TestReviewPage() {
               </div>
             </button>
             {timeChartOpen && (
-              <>
-                <div className="flex flex-wrap gap-2 mt-4 mb-5 border-b border-slate-100 pb-4">
-                  {chartSectionStats.map((sec: any, idx: number) => (
-                    <button
-                      key={idx}
-                      onClick={() => setTimeChartSectionIdx(idx)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        timeChartSectionIdx === idx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {getSectionModuleLabel(sec.name)}
-                    </button>
-                  ))}
-                </div>
-                {chartSectionStats[timeChartSectionIdx] && (
-                  <AttemptTimeAnalytics
-                    attemptId={attempt.id}
-                    sectionId={chartSectionStats[timeChartSectionIdx].sectionId}
-                    legacy={<QuestionTimeChart stats={chartSectionStats[timeChartSectionIdx].stats} />}
-                    onQuestionClick={(qi) => jumpToQuestion(chartSectionStats[timeChartSectionIdx].sectionId, qi)}
-                  />
-                )}
-              </>
+              <div className="mt-4">
+                <AttemptTimeAnalyticsGrid
+                  attemptId={attempt.id}
+                  sectionIds={chartSectionStats.map((sec: any) => sec.sectionId as string)}
+                  onQuestionClick={(sectionId, qi) => jumpToQuestion(sectionId, qi)}
+                  legacy={
+                    <>
+                      <div className="flex flex-wrap gap-2 mb-5 border-b border-slate-100 pb-4">
+                        {chartSectionStats.map((sec: any, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => setTimeChartSectionIdx(idx)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                              timeChartSectionIdx === idx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {getSectionModuleLabel(sec.name)}
+                          </button>
+                        ))}
+                      </div>
+                      {chartSectionStats[timeChartSectionIdx] && (
+                        <AttemptTimeAnalytics
+                          attemptId={attempt.id}
+                          sectionId={chartSectionStats[timeChartSectionIdx].sectionId}
+                          legacy={<QuestionTimeChart stats={chartSectionStats[timeChartSectionIdx].stats} />}
+                          onQuestionClick={(qi) => jumpToQuestion(chartSectionStats[timeChartSectionIdx].sectionId, qi)}
+                        />
+                      )}
+                    </>
+                  }
+                />
+              </div>
             )}
           </div>
         );
@@ -1703,27 +1713,36 @@ export function TestReviewPage() {
             return (
               <div className="border-t border-slate-150 pt-5 mt-4 space-y-4">
                 <h4 className="font-bold text-slate-900 text-sm">Pacing Chart (section-wise breakdown)</h4>
-                <div className="flex flex-wrap gap-2 pb-2">
-                  {chartSectionStats.map((sec: any, idx: number) => (
-                    <button
-                      key={idx}
-                      onClick={() => setTimeChartSectionIdx(idx)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        timeChartSectionIdx === idx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {getSectionModuleLabel(sec.name)}
-                    </button>
-                  ))}
-                </div>
-                {chartSectionStats[timeChartSectionIdx] && (
-                  <AttemptTimeAnalytics
-                    attemptId={attempt.id}
-                    sectionId={chartSectionStats[timeChartSectionIdx].sectionId}
-                    legacy={<QuestionTimeChart stats={chartSectionStats[timeChartSectionIdx].stats} />}
-                    onQuestionClick={(qi) => jumpToQuestion(chartSectionStats[timeChartSectionIdx].sectionId, qi)}
-                  />
-                )}
+                <AttemptTimeAnalyticsGrid
+                  attemptId={attempt.id}
+                  sectionIds={chartSectionStats.map((sec: any) => sec.sectionId as string)}
+                  onQuestionClick={(sectionId, qi) => jumpToQuestion(sectionId, qi)}
+                  legacy={
+                    <>
+                      <div className="flex flex-wrap gap-2 pb-2">
+                        {chartSectionStats.map((sec: any, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => setTimeChartSectionIdx(idx)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                              timeChartSectionIdx === idx ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {getSectionModuleLabel(sec.name)}
+                          </button>
+                        ))}
+                      </div>
+                      {chartSectionStats[timeChartSectionIdx] && (
+                        <AttemptTimeAnalytics
+                          attemptId={attempt.id}
+                          sectionId={chartSectionStats[timeChartSectionIdx].sectionId}
+                          legacy={<QuestionTimeChart stats={chartSectionStats[timeChartSectionIdx].stats} />}
+                          onQuestionClick={(qi) => jumpToQuestion(chartSectionStats[timeChartSectionIdx].sectionId, qi)}
+                        />
+                      )}
+                    </>
+                  }
+                />
               </div>
             );
           })()}

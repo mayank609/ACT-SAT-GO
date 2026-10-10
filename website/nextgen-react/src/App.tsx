@@ -15,7 +15,7 @@ import avatar3 from './assets/img/avatar3.webp';
 import avatar4 from './assets/img/avatar4.webp';
 import { QUERY_API_BASE } from './config';
 import { trackLead, leadSource, trackContactClick } from './lib/analytics';
-import { SITE, PRIMARY_CTA, SECONDARY_CTA } from './site';
+import { SITE, STATS, PRIMARY_CTA, SECONDARY_CTA } from './site';
 import { PainPoints } from './components/PainPoints';
 import { HowItWorks } from './components/HowItWorks';
 import { FaqSection } from './components/FaqSection';
@@ -151,7 +151,7 @@ export default function App() {
                 </div>
                 <div>
                   <div className="stars">★★★★★</div>
-                  <p>Trusted by 5,000+ students and parents worldwide</p>
+                  <p>Rated {STATS.rating} · Trusted by {STATS.students} students and parents worldwide</p>
                 </div>
               </div>
             </div>
@@ -230,19 +230,19 @@ export default function App() {
           </div>
           <div>
             <span className="stat-icon" aria-hidden="true"><IconUser /></span>
-            <div className="stat-text"><CountUp value="5,000+" /><span>Students Mentored</span></div>
+            <div className="stat-text"><CountUp value={STATS.students} /><span>Students Mentored</span></div>
           </div>
           <div>
             <span className="stat-icon" aria-hidden="true"><IconUsers /></span>
-            <div className="stat-text"><CountUp value="300+" /><span>Expert Tutors</span></div>
+            <div className="stat-text"><CountUp value={STATS.tutors} /><span>Expert Tutors</span></div>
           </div>
           <div>
             <span className="stat-icon" aria-hidden="true"><IconHeartCheck /></span>
-            <div className="stat-text"><CountUp value="98%" /><span>Parent Satisfaction</span></div>
+            <div className="stat-text"><CountUp value={STATS.satisfaction} /><span>Parent Satisfaction</span></div>
           </div>
           <div>
             <span className="stat-icon" aria-hidden="true"><IconGlobe /></span>
-            <div className="stat-text"><CountUp value="50+" /><span>Countries Reached</span></div>
+            <div className="stat-text"><CountUp value={STATS.countries} /><span>Countries Reached</span></div>
           </div>
         </section>
 
