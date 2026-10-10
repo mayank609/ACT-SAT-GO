@@ -2,6 +2,8 @@
 // Each page is rendered by the shared <ProgramPage> component from one of
 // these objects, so all three stay visually and structurally consistent.
 
+import { STATS } from '../site';
+
 export interface ProgramTier {
   name: string;
   tag?: string;
@@ -80,9 +82,9 @@ export interface ProgramPageData {
 
 const SHARED_STATS: Stat[] = [
   { value: '90+', label: 'Top Scores Achieved' },
-  { value: '10K+', label: 'Students Trained' },
-  { value: '4.8/5', label: 'Student Rating' },
-  { value: '98%', label: 'Recommend Us' },
+  { value: STATS.students, label: 'Students Trained' },
+  { value: STATS.rating, label: 'Student Rating' },
+  { value: STATS.satisfaction, label: 'Parent Satisfaction' },
 ];
 
 export const ACT_PAGE: ProgramPageData = {
@@ -108,7 +110,7 @@ export const ACT_PAGE: ProgramPageData = {
   highlightsEyebrow: 'WHAT IS THE ACT?',
   highlightsHeading: 'Why Prep With ACT SAT GO?',
   highlightsText:
-    'The ACT is accepted by every 4-year college in the US. Since 2025 the enhanced ACT has 131 core questions across English, Math and Reading in about 2 hours, with Science now optional — and our curriculum is built for the new format.',
+    'The ACT is accepted by every US college that asks for test scores, and a growing list of top schools now require scores again. Since 2025 the enhanced ACT has 131 core questions across English, Math and Reading in about 2 hours, with Science now optional — and our curriculum is built for the new format.',
   highlights: [
     { value: '131', label: 'Core Questions on the Enhanced ACT' },
     { value: '12+', label: 'Full-Length ACT Mocks' },

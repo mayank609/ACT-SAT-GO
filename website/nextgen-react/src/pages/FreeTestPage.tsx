@@ -9,6 +9,7 @@ import { Footer } from '../components/Footer';
 import { APP_LOGIN_URL, PLATFORM_API_BASE, QUERY_API_BASE } from '../config';
 import { WHATSAPP_HREF, CALL_HREF } from '../components/WhatsAppButton';
 import { trackLead, leadSource } from '../lib/analytics';
+import { STATS } from '../site';
 import avatar1 from '../assets/img/avatar1.webp';
 import avatar2 from '../assets/img/avatar2.webp';
 import avatar3 from '../assets/img/avatar3.webp';
@@ -324,14 +325,14 @@ export function FreeTestPage() {
 
                 <div className="ft-trust-box">
                   <div className="ft-avatars">
-                    <img src={avatar1} alt="Student avatar 1" />
-                    <img src={avatar2} alt="Student avatar 2" />
-                    <img src={avatar3} alt="Student avatar 3" />
-                    <img src={avatar4} alt="Student avatar 4" />
+                    <img src={avatar1} alt="" />
+                    <img src={avatar2} alt="" />
+                    <img src={avatar3} alt="" />
+                    <img src={avatar4} alt="" />
                   </div>
                   <div className="ft-trust-stats">
                     <div className="ft-stars">★★★★★</div>
-                    <span>4.9/5 • 1,200+ Students Tested</span>
+                    <span>Rated {STATS.rating} • 1,200+ Students Tested</span>
                   </div>
                 </div>
               </div>
