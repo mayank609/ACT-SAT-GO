@@ -1319,17 +1319,6 @@ export function TestInterfacePage() {
               Directions <ChevronDown size={13} />
             </button>
           </div>
-          
-          {hasDesmos && (
-            <button
-              onClick={() => setShowCalculator((v) => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                showCalculator ? 'bg-[#1b3d6e] text-white border-[#1b3d6e]' : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <Calculator size={14} /> Calculator
-            </button>
-          )}
         </div>
 
         {/* Center: timer */}
@@ -1349,6 +1338,15 @@ export function TestInterfacePage() {
 
         {/* Right: tools */}
         <div className="flex items-center gap-5">
+          {hasDesmos && (
+            <button
+              onClick={() => setShowCalculator((v) => !v)}
+              className={`flex flex-col items-center gap-0.5 text-[11px] ${showCalculator ? 'text-[#1b3d6e] font-semibold' : 'text-gray-700 hover:text-[#1b3d6e]'}`}
+            >
+              <Calculator size={18} /> DESMOS
+            </button>
+          )}
+
           {hasReference && (
             <button onClick={() => setShowReference(true)} className="flex flex-col items-center gap-0.5 text-[11px] text-gray-700 hover:text-[#1b3d6e]">
               <BookOpen size={18} /> Reference
@@ -1572,7 +1570,7 @@ export function TestInterfacePage() {
           >
             <div className="flex items-center gap-4">
               <span className="text-xs font-semibold flex items-center gap-1.5">
-                <Calculator size={14} /> Calculator
+                <Calculator size={14} /> DESMOS
               </span>
               
               {/* Tab Selector */}
