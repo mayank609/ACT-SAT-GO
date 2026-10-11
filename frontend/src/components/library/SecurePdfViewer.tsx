@@ -35,8 +35,10 @@ export function SecurePdfViewer({ document: doc, canPrint, watermark, onClose }:
     (async () => {
       try {
         const data = await api.getLibraryFile(doc.id);
-        const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href;
+        // The "legacy" build: the modern one calls Map.getOrInsertComputed, which
+        // only the newest browsers have, so older Chrome/Safari fail to open PDFs.
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).href;
         // pdf.js transfers the buffer it is given, so keep our own copy for admin download/print.
         if (canPrint) setBytes(data.slice(0));
         loaded = await pdfjsLib.getDocument({ data }).promise;
