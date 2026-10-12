@@ -55,7 +55,7 @@ export function StudentManagementPage() {
   const navigate = useNavigate();
   const { user, dbId } = useAuthStore();
   const isTutor = user?.role === 'tutor';
-  const analysisCacheKey = isTutor ? 'tutorAnalysisCache_v3' : 'adminAnalysisCache_v3';
+  const analysisCacheKey = isTutor ? 'tutorAnalysisCache_v4' : 'adminAnalysisCache_v4';
 
   // ── Main view state ───────────────────────────────────────────────────────
   // Kept in the URL so the browser Back button steps back through screens.
@@ -360,11 +360,24 @@ export function StudentManagementPage() {
               }
             }
 
-            const hwAttempts = studentAttempts.filter((a: any) => {
+            // Total Assessment counts: tests the student has COMPLETED (submitted),
+            // each test counted once even if retaken. Type comes from the Test
+            // Builder category / sub-category, falling back to the title.
+            const typeOf = (a: any): 'mock' | 'sectional' | 'hw' | 'practice' | 'other' => {
+              const cat = (a.test?.category ?? '').toLowerCase();
               const t = (a.test?.title ?? '').toLowerCase();
-              return t.includes('homework') || t.includes(' hw') || t.endsWith('hw') || /\bhw\b/.test(t);
-            });
-            const practiceAttempts = studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('practice'));
+              if (isHW(a.test ?? {})) return 'hw';
+              if (cat === 'mock' || (!cat && t.includes('mock'))) return 'mock';
+              if (cat === 'sectional' || (!cat && t.includes('sectional'))) return 'sectional';
+              if (cat === 'practice sheet' || (!cat && t.includes('practice'))) return 'practice';
+              return 'other';
+            };
+            const subjOf = (a: any): 'rw' | 'math' | 'other' =>
+              isMath(a.test ?? {}) ? 'math' : isEnglish(a.test ?? {}) ? 'rw' : subjectOf(a);
+            const completed = (type: string, subj?: 'rw' | 'math') =>
+              new Set(studentAttempts
+                .filter((a: any) => typeOf(a) === type && (!subj || subjOf(a) === subj))
+                .map((a: any) => a.testId ?? a.test?.id)).size;
 
             // Find the student's genuine diagnostic attempt specifically (NOT mock or practice tests)
             const diagAttempt = studentAttempts
@@ -411,16 +424,16 @@ export function StudentManagementPage() {
               targetDate: student.targetDate || null,
               diagnosticsEnglish,
               diagnosticsMath,
-              mockTests: studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('mock')).length,
+              mockTests: completed('mock'),
               diagnosticCount: studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('diagnostic')).length,
-              sectionalTests: studentAttempts.filter((a: any) => (a.test?.title ?? '').toLowerCase().includes('sectional')).length,
-              hwCount: hwAttempts.length,
-              hwRW: hwAttempts.filter((a: any) => subjectOf(a) === 'rw').length,
-              hwMath: hwAttempts.filter((a: any) => subjectOf(a) === 'math').length,
+              sectionalTests: completed('sectional'),
+              hwCount: completed('hw'),
+              hwRW: completed('hw', 'rw'),
+              hwMath: completed('hw', 'math'),
               cwCount: studentAttempts.filter((a: any) => { const t = (a.test?.title ?? '').toLowerCase(); return t.includes('classwork') || t.includes('cw'); }).length,
-              practiceSheets: practiceAttempts.length,
-              practiceRW: practiceAttempts.filter((a: any) => subjectOf(a) === 'rw').length,
-              practiceMath: practiceAttempts.filter((a: any) => subjectOf(a) === 'math').length,
+              practiceSheets: completed('practice'),
+              practiceRW: completed('practice', 'rw'),
+              practiceMath: completed('practice', 'math'),
               totalAssessments: studentAttempts.length,
               lastTestName,
               lastSubmittedAt,
