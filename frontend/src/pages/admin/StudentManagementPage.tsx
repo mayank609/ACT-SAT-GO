@@ -898,7 +898,7 @@ export function StudentManagementPage({ accountsPage = false }: { accountsPage?:
                         : true)
                     )
                     .map((student) => (
-                      <div key={student.id} className="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50">
+                      <div key={student.id} className="group flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                           {student.name.charAt(0).toUpperCase()}
                         </div>
@@ -908,7 +908,7 @@ export function StudentManagementPage({ accountsPage = false }: { accountsPage?:
                         <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/50 flex-shrink-0">
                           <button
                             onClick={() => handleTableUpdateDecision(student.id, 'keep')}
-                            className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${
+                            className={`px-[26px] py-0.5 text-[11px] font-bold rounded transition-all ${
                               student.diagnosticDecision === 'keep'
                                 ? 'bg-emerald-500 text-white shadow-sm'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -919,7 +919,7 @@ export function StudentManagementPage({ accountsPage = false }: { accountsPage?:
                           </button>
                           <button
                             onClick={() => handleTableUpdateDecision(student.id, 'leave')}
-                            className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all ${
+                            className={`px-[26px] py-0.5 text-[11px] font-bold rounded transition-all ${
                               student.diagnosticDecision === 'leave'
                                 ? 'bg-rose-500 text-white shadow-sm'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -929,27 +929,30 @@ export function StudentManagementPage({ accountsPage = false }: { accountsPage?:
                             Inactive
                           </button>
                         </div>
-                        <button
-                          onClick={() => startEditStudent(student)}
-                          className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => setResetPasswordTarget(student)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Reset Password"
-                        >
-                          <KeyRound size={14} />
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteStudent(student)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {/* Actions show on hover (or keyboard focus). */}
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => startEditStudent(student)}
+                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => setResetPasswordTarget(student)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Reset Password"
+                          >
+                            <KeyRound size={14} />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteStudent(student)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))
                 )}
@@ -960,7 +963,7 @@ export function StudentManagementPage({ accountsPage = false }: { accountsPage?:
                 {filteredTutors.length === 0 ? (
                   <p className="px-3 py-6 text-center text-sm text-slate-400">No tutors found</p>
                 ) : filteredTutors.map((tutor) => (
-                  <div key={tutor.id} className="flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50">
+                  <div key={tutor.id} className="group flex items-center gap-2 px-3 py-2.5 hover:bg-slate-50">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                       {tutor.name.charAt(0).toUpperCase()}
                     </div>
@@ -968,27 +971,30 @@ export function StudentManagementPage({ accountsPage = false }: { accountsPage?:
                       <p className="font-semibold text-slate-900 text-sm truncate">{tutor.name}</p>
                       <p className="text-xs text-slate-500 truncate">{tutor.email}</p>
                     </div>
-                    <button
-                      onClick={() => { setShowManageModal(false); navigate('/tutors'); }}
-                      className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                      title="Edit (opens the Tutors page)"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => setResetPasswordTarget(tutor)}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Reset Password"
-                    >
-                      <KeyRound size={14} />
-                    </button>
-                    <button
-                      onClick={() => setConfirmDeleteStudent(tutor)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {/* Actions show on hover (or keyboard focus). */}
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => { setShowManageModal(false); navigate('/tutors'); }}
+                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Edit (opens the Tutors page)"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => setResetPasswordTarget(tutor)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Reset Password"
+                      >
+                        <KeyRound size={14} />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteStudent(tutor)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
