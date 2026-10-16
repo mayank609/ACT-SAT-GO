@@ -490,7 +490,7 @@ interface RawAttempt extends DbAttempt {
 export async function loadStudentAnalytics(
   studentId: string
 ): Promise<{ attempts: LoadedAttempt[]; records: Map<string, QRecord[]> }> {
-  const { attempts: raw } = await api.getStudentAttempts(studentId);
+  const { attempts: raw, taxonomy } = await api.getStudentAttempts(studentId);
   const submitted = ((raw as RawAttempt[]) ?? []).filter(a => a.status === 'SUBMITTED');
 
   const attempts: LoadedAttempt[] = submitted.map(a => ({
@@ -508,6 +508,11 @@ export async function loadStudentAnalytics(
   for (const a of submitted) {
     records.set(a.id, recordsFromAttempt(a));
   }
+
+  // The list now embeds topic tags and passage children, so the baseline is
+  // already complete: skip the per-attempt fetches (an N+1).
+  // Kept for an older API that doesn't send `taxonomy: true` yet.
+  if (taxonomy) return { attempts, records };
 
   // 2) Enrich with the full attempt (passages expanded + topic tags) when it loads.
   // A few at a time rather than strictly one-by-one: with N attempts the old

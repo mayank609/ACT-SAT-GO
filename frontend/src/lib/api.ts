@@ -814,7 +814,7 @@ export const api = {
   /** Always hits the network — for resuming an in-progress attempt, where stale data is never acceptable. */
   getAttemptFresh: (attemptId: string) => request<{ attempt: unknown }>(`/api/attempts/${attemptId}`),
   getStudentAttempts: (studentId: string) =>
-    cachedGet<{ attempts: unknown[] }>(`/api/students/${studentId}/attempts`, SHORT_TTL),
+    cachedGet<{ attempts: unknown[]; /** true once each question carries topic tags + passage children (no per-attempt enrich needed). */ taxonomy?: boolean }>(`/api/students/${studentId}/attempts`, SHORT_TTL),
   /** Everything the admin Students analysis table needs, for every student in scope, in one request. */
   getStudentsAnalysisSummary: () =>
     request<{ students: Record<string, {
